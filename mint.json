@@ -1,5 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
+  "theme": "prism",
   "name": "Swarms API Documentation",
   "logo": {
     "dark": "/logo/dark.svg",
@@ -7,9 +8,9 @@
   },
   "favicon": "/favicon.png",
   "colors": {
-    "primary": "#0EA5E9",
-    "light": "#0EA5E9",
-    "dark": "#0284C7"
+    "primary": "#DC2626",
+    "dark": "#000000",
+    "light": "#FFFFFF"
   },
   "openapi": "https://swarms-api-285321057562.us-east1.run.app/openapi.json",
   "topbarLinks": [
@@ -26,10 +27,6 @@
     {
       "name": "API Reference",
       "url": "api-reference"
-    },
-    {
-      "name": "Guides",
-      "url": "guides"
     }
   ],
   "anchors": [
@@ -52,18 +49,21 @@
       "group": "API Reference",
       "pages": [
         "api-reference/endpoints",
-        "api-reference/errors",
-        "api-reference/rate-limits"
+        "api-reference/endpoints/root",
+        "api-reference/endpoints/health",
+        "api-reference/endpoints/get-available-swarms",
+        "api-reference/endpoints/create-swarm-completion",
+        "api-reference/endpoints/create-agent-completion",
+        "api-reference/endpoints/create-agent-batch-completion",
+        "api-reference/endpoints/create-swarm-batch-completion",
+        "api-reference/endpoints/create-reasoning-agent-completion",
+        "api-reference/endpoints/get-reasoning-agent-types",
+        "api-reference/endpoints/get-swarm-logs",
+        "api-reference/endpoints/get-available-models",
+        "api-reference/endpoints/get-rate-limits"
       ]
     },
-    {
-      "group": "Guides",
-      "pages": [
-        "guides/basic-usage",
-        "guides/advanced-features",
-        "guides/examples"
-      ]
-    },
+
     {
       "group": "Resources",
       "pages": [
