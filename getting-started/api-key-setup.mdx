@@ -1,0 +1,103 @@
+---
+title: 'API Key Setup'
+description: 'This guide provides step-by-step instructions for obtaining and configuring your Swarms API key to access the Swarms platform services.'
+---
+
+# API Key Setup
+
+## Overview
+
+This guide provides step-by-step instructions for obtaining and configuring your Swarms API key to access the Swarms platform services.
+
+### Getting Started
+
+#### Step 1: Create Your Account
+
+1. Navigate to the official Swarms platform: [https://swarms.world](https://swarms.world/)
+2. Complete the registration process by providing the required information
+3. Verify your email address to activate your account
+
+**Benefit**: New users automatically receive $20 in free API credits upon successful signup.
+
+#### Step 2: Generate Your API Key
+
+1. Log into your Swarms account
+2. Access the API Keys section: [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+3. Click "Create New API Key"
+4. Assign a descriptive name for your key (recommended for organization)
+5. Configure key permissions based on your intended use case
+6. Save the generated API key immediately
+
+**Important**: Store your API key securely as it will only be displayed once upon creation.
+
+#### Step 3: Environment Configuration
+
+Immediately after generating your API key, configure it in your environment:
+
+**Option A: Environment Variable (Recommended)**
+
+```bash
+export SWARMS_API_KEY="your_api_key_here"
+```
+
+**Option B: Environment File (.env)**
+
+```
+SWARMS_API_KEY=your_api_key_here
+```
+
+**Security Note**: Never commit API keys to version control systems. Use environment variables or secure configuration management tools.
+
+### API Key Management
+
+#### Key Organization
+
+* Create specific API keys for different applications and services
+* Use descriptive naming conventions to identify key purposes
+* Regularly rotate keys for enhanced security
+* Monitor key usage through the platform dashboard
+
+#### Best Practices
+
+* Store keys in secure environment variables
+* Implement key rotation schedules
+* Monitor API usage and billing
+* Revoke unused or compromised keys immediately
+
+### Credit System
+
+#### Initial Credits
+
+* **$20 free credits** provided upon account creation
+* Credits applied automatically to your account balance
+* No payment information required for initial usage
+
+#### Referral Program
+
+* **$20 bonus credits** for both referrer and referee
+* Access the referral program: [https://swarms.world/platform/referral](https://swarms.world/platform/referral)
+* Generate your unique referral link through the platform
+* Share your referral link with colleagues and friends
+* Credits applied upon successful friend registration
+* No limit on referral earnings
+
+### Support and Resources
+
+For technical support or billing inquiries:
+
+* Visit the Swarms platform documentation
+* Contact support through the platform dashboard
+* Check the community forums for common solutions
+
+### Security Considerations
+
+* Keep API keys confidential and secure
+* Use HTTPS for all API communications
+* Implement proper error handling in applications
+* Monitor API usage for unusual activity
+* Report suspected security issues immediately
+
+***
+
+**Last Updated**: July 2025\
+**Version**: 1.0

@@ -1,0 +1,413 @@
+---
+title: 'Rate Limits'
+description: 'Learn about Swarms API rate limiting and how to handle rate limit errors'
+---
+
+# Rate Limits
+
+The Swarms API implements rate limiting to ensure fair usage and maintain service quality for all users. Understanding these limits and implementing proper handling is crucial for building robust applications.
+
+## Overview
+
+Rate limiting is applied to all API endpoints to prevent abuse and ensure equitable resource distribution. When you exceed these limits, the API returns a `429 Too Many Requests` status code.
+
+## Rate Limit Tiers
+
+### Free Tier
+
+| Limit Type | Limit | Reset Period |
+|------------|-------|--------------|
+| **Requests per Minute** | 100 | Rolling 1-minute window |
+| **Requests per Day** | 10,000 | Rolling 24-hour window |
+| **Concurrent Requests** | 5 | Simultaneous requests |
+
+### Pro Tier
+
+| Limit Type | Limit | Reset Period |
+|------------|-------|--------------|
+| **Requests per Minute** | 1,000 | Rolling 1-minute window |
+| **Requests per Day** | 100,000 | Rolling 24-hour window |
+| **Concurrent Requests** | 25 | Simultaneous requests |
+
+### Enterprise Tier
+
+| Limit Type | Limit | Reset Period |
+|------------|-------|--------------|
+| **Requests per Minute** | Custom | Rolling 1-minute window |
+| **Requests per Day** | Custom | Rolling 24-hour window |
+| **Concurrent Requests** | Custom | Simultaneous requests |
+
+*Contact our sales team for custom enterprise rate limits.*
+
+## Rate Limit Headers
+
+The API includes rate limit information in response headers:
+
+```
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 1640995200
+X-RateLimit-Reset-Time: 2024-01-01T01:00:00Z
+```
+
+### Header Descriptions
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Maximum requests allowed in the current period |
+| `X-RateLimit-Remaining` | Number of requests remaining in the current period |
+| `X-RateLimit-Reset` | Unix timestamp when the rate limit resets |
+| `X-RateLimit-Reset-Time` | Human-readable timestamp when the rate limit resets |
+
+## Rate Limit Errors
+
+When you hit a rate limit, the API returns a `429 Too Many Requests` response:
+
+```json
+{
+  "error": {
+    "code": "rate_limit_exceeded",
+    "message": "Rate limit exceeded",
+    "type": "rate_limit_error",
+    "details": {
+      "limit": 1000,
+      "reset_time": "2024-01-01T01:00:00Z",
+      "retry_after": 60
+    }
+  }
+}
+```
+
+### Error Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `limit` | Your current rate limit |
+| `reset_time` | When the rate limit resets |
+| `retry_after` | Recommended wait time in seconds |
+
+## Handling Rate Limits
+
+### 1. Exponential Backoff
+
+Implement exponential backoff to automatically retry failed requests:
+
+```python
+import time
+import requests
+from tenacity import retry, wait_exponential, stop_after_attempt
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    stop=stop_after_attempt(3)
+)
+def make_api_request(url, headers, data=None):
+    try:
+        if data:
+            response = requests.post(url, headers=headers, json=data)
+        else:
+            response = requests.get(url, headers=headers)
+        
+        if response.status_code == 429:
+            # Get retry-after from response
+            retry_after = int(response.headers.get('Retry-After', 60))
+            print(f"Rate limited. Waiting {retry_after} seconds...")
+            time.sleep(retry_after)
+            raise Exception("Rate limited - retry")
+        
+        response.raise_for_status()
+        return response.json()
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        raise
+```
+
+### 2. Request Queuing
+
+Implement a request queue to manage API calls:
+
+```python
+import queue
+import threading
+import time
+from collections import deque
+
+class RateLimitedAPI:
+    def __init__(self, requests_per_minute=100):
+        self.requests_per_minute = requests_per_minute
+        self.request_times = deque()
+        self.lock = threading.Lock()
+    
+    def make_request(self, url, headers, data=None):
+        with self.lock:
+            now = time.time()
+            
+            # Remove old request times (older than 1 minute)
+            while self.request_times and now - self.request_times[0] > 60:
+                self.request_times.popleft()
+            
+            # Check if we're at the limit
+            if len(self.request_times) >= self.requests_per_minute:
+                # Wait until we can make another request
+                wait_time = 60 - (now - self.request_times[0])
+                if wait_time > 0:
+                    print(f"Rate limit reached. Waiting {wait_time:.2f} seconds...")
+                    time.sleep(wait_time)
+            
+            # Make the request
+            if data:
+                response = requests.post(url, headers=headers, json=data)
+            else:
+                response = requests.get(url, headers=headers)
+            
+            # Record the request time
+            self.request_times.append(time.time())
+            
+            return response
+```
+
+### 3. Batch Processing
+
+Use batch endpoints when available to reduce individual request volume:
+
+```python
+def process_multiple_tasks(tasks):
+    """Process multiple tasks in a single batch request"""
+    
+    # Instead of making individual requests
+    # for task in tasks:
+    #     response = requests.post(url, json={"task": task})
+    
+    # Make a single batch request
+    batch_payload = [
+        {
+            "agent_config": {...},
+            "task": task
+        }
+        for task in tasks
+    ]
+    
+    response = requests.post(
+        "https://api.swarms.world/v1/swarm/batch/completions",
+        headers=headers,
+        json=batch_payload
+    )
+    
+    return response.json()
+```
+
+## Best Practices
+
+### 1. Monitor Your Usage
+
+Track your API usage to stay within limits:
+
+```python
+import time
+from collections import defaultdict
+
+class UsageTracker:
+    def __init__(self):
+        self.requests_per_minute = defaultdict(int)
+        self.requests_per_day = defaultdict(int)
+    
+    def track_request(self):
+        now = time.time()
+        minute_key = int(now // 60)
+        day_key = int(now // 86400)
+        
+        self.requests_per_minute[minute_key] += 1
+        self.requests_per_day[day_key] += 1
+        
+        # Clean up old data
+        self._cleanup_old_data(now)
+    
+    def get_current_usage(self):
+        now = time.time()
+        minute_key = int(now // 60)
+        day_key = int(now // 86400)
+        
+        return {
+            "requests_this_minute": self.requests_per_minute[minute_key],
+            "requests_today": self.requests_per_day[day_key]
+        }
+    
+    def _cleanup_old_data(self, now):
+        current_minute = int(now // 60)
+        current_day = int(now // 86400)
+        
+        # Remove data older than 2 minutes
+        for key in list(self.requests_per_minute.keys()):
+            if key < current_minute - 1:
+                del self.requests_per_minute[key]
+        
+        # Remove data older than 2 days
+        for key in list(self.requests_per_day.keys()):
+            if key < current_day - 1:
+                del self.requests_per_day[key]
+```
+
+### 2. Implement Circuit Breaker
+
+Use a circuit breaker pattern to prevent cascading failures:
+
+```python
+import time
+from enum import Enum
+
+class CircuitState(Enum):
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+class CircuitBreaker:
+    def __init__(self, failure_threshold=5, recovery_timeout=60):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.failure_count = 0
+        self.last_failure_time = 0
+        self.state = CircuitState.CLOSED
+    
+    def call(self, func, *args, **kwargs):
+        if self.state == CircuitState.OPEN:
+            if time.time() - self.last_failure_time > self.recovery_timeout:
+                self.state = CircuitState.HALF_OPEN
+            else:
+                raise Exception("Circuit breaker is OPEN")
+        
+        try:
+            result = func(*args, **kwargs)
+            self._on_success()
+            return result
+        except Exception as e:
+            self._on_failure()
+            raise e
+    
+    def _on_success(self):
+        self.failure_count = 0
+        self.state = CircuitState.CLOSED
+    
+    def _on_failure(self):
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+        
+        if self.failure_count >= self.failure_threshold:
+            self.state = CircuitState.OPEN
+```
+
+### 3. Use Appropriate Timeouts
+
+Set reasonable timeouts for your requests:
+
+```python
+import requests
+
+# Set appropriate timeouts
+timeouts = {
+    'connect': 5,    # Connection timeout
+    'read': 30       # Read timeout
+}
+
+response = requests.post(
+    url,
+    headers=headers,
+    json=data,
+    timeout=timeouts
+)
+```
+
+## Monitoring and Alerts
+
+### 1. Set Up Usage Alerts
+
+Monitor your API usage and set up alerts:
+
+```python
+import smtplib
+from email.mime.text import MIMEText
+
+def send_rate_limit_alert(current_usage, limit):
+    subject = "API Rate Limit Warning"
+    body = f"""
+    You're approaching your API rate limit:
+    - Current usage: {current_usage}
+    - Limit: {limit}
+    - Percentage: {(current_usage/limit)*100:.1f}%
+    
+    Consider implementing rate limiting or upgrading your plan.
+    """
+    
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = 'alerts@yourcompany.com'
+    msg['To'] = 'devops@yourcompany.com'
+    
+    # Send email (configure your SMTP settings)
+    # smtp.send_message(msg)
+```
+
+### 2. Log Rate Limit Events
+
+Log rate limit events for analysis:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def log_rate_limit_event(response):
+    if response.status_code == 429:
+        logger.warning(
+            "Rate limit exceeded",
+            extra={
+                "status_code": response.status_code,
+                "retry_after": response.headers.get("Retry-After"),
+                "limit": response.headers.get("X-RateLimit-Limit"),
+                "remaining": response.headers.get("X-RateLimit-Remaining")
+            }
+        )
+```
+
+## Upgrading Your Plan
+
+If you consistently hit rate limits, consider upgrading your plan:
+
+1. **Pro Plan**: 10x increase in rate limits
+2. **Enterprise Plan**: Custom limits tailored to your needs
+3. **Contact Sales**: [kye@swarms.world](mailto:kye@swarms.world)
+
+## Testing Rate Limits
+
+Test your rate limit handling in development:
+
+```python
+def test_rate_limit_handling():
+    """Test rate limit handling with mock responses"""
+    
+    # Simulate rate limit responses
+    mock_responses = [
+        {"status_code": 429, "headers": {"Retry-After": "60"}},
+        {"status_code": 200, "json": lambda: {"success": True}}
+    ]
+    
+    for i, mock_response in enumerate(mock_responses):
+        print(f"Test {i+1}: Simulating {mock_response['status_code']} response")
+        
+        if mock_response['status_code'] == 429:
+            # Test rate limit handling
+            retry_after = int(mock_response['headers']['Retry-After'])
+            print(f"Would wait {retry_after} seconds...")
+        else:
+            # Test successful response
+            result = mock_response['json']()
+            print(f"Success: {result}")
+```
+
+## Next Steps
+
+- [Error Handling](/api-reference/errors) - Learn about other error types
+- [API Endpoints](/api-reference/endpoints) - Review endpoint documentation
+- [Examples](/guides/examples) - See rate limit handling in action
+- [Pricing](/resources/pricing) - Understand plan differences and upgrade options

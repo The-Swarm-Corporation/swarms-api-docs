@@ -1,0 +1,471 @@
+---
+title: 'API Endpoints'
+description: 'Complete reference for all Swarms API endpoints'
+---
+
+# API Endpoints
+
+The Swarms API provides a comprehensive set of endpoints for managing agents, handling messages, and monitoring system performance. All endpoints are RESTful and return JSON responses.
+
+## Base URL
+
+All API requests should be made to:
+
+```
+https://api.swarms.world
+```
+
+## Authentication
+
+All endpoints require authentication via API key in the `x-api-key` header:
+
+```
+x-api-key: YOUR_API_KEY
+```
+
+## Response Format
+
+All successful responses return JSON with the following structure:
+
+```json
+{
+  "data": {
+    // Response data here
+  },
+  "meta": {
+    "timestamp": "2024-01-01T00:00:00Z",
+    "request_id": "req_1234567890abcdef"
+  }
+}
+```
+
+## Error Responses
+
+Error responses follow this format:
+
+```json
+{
+  "error": {
+    "code": "error_code",
+    "message": "Human-readable error message",
+    "type": "error_type",
+    "details": {}
+  }
+}
+```
+
+## HTTP Status Codes
+
+| Status | Description |
+|--------|-------------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not Found |
+| 429 | Rate Limited |
+| 500 | Internal Server Error |
+
+## Health Check
+
+### Get API Health
+
+Check the current status of the API.
+
+```http
+GET /health
+```
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.0"
+}
+```
+
+## Individual Agents
+
+### Single Agent Completions
+
+Create and execute a single AI agent for focused tasks.
+
+```http
+POST /v1/agent/completions
+```
+
+**Request Body:**
+
+```json
+{
+  "agent_config": {
+    "agent_name": "Research Analyst",
+    "description": "An expert in analyzing and synthesizing research data",
+    "system_prompt": "You are a Research Analyst with expertise in data analysis and synthesis...",
+    "model_name": "claude-3-5-sonnet-20240620",
+    "role": "worker",
+    "max_loops": 1,
+    "max_tokens": 8192,
+    "temperature": 1,
+    "auto_generate_prompt": false,
+    "tools_list_dictionary": null
+  },
+  "task": "What are the key trends in renewable energy adoption?",
+  "history": [
+    {
+      "role": "user",
+      "content": "Previous message content"
+    }
+  ]
+}
+```
+
+**Required Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agent_config.agent_name` | string | Agent name (max 100 characters) |
+| `agent_config.model_name` | string | AI model to use |
+| `agent_config.system_prompt` | string | System instructions for the agent |
+| `task` | string | The task to execute |
+
+**Response:**
+
+```json
+{
+  "data": {
+    "id": "completion_1234567890abcdef",
+    "agent_name": "Research Analyst",
+    "task": "What are the key trends in renewable energy adoption?",
+    "response": "Based on recent analysis, the key trends in renewable energy adoption include...",
+    "model_used": "claude-3-5-sonnet-20240620",
+    "tokens_used": 1250,
+    "processing_time_ms": 3500,
+    "created_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+## Reasoning Agents
+
+### Reasoning Agent Completions
+
+Execute complex reasoning tasks using specialized reasoning agents.
+
+```http
+POST /v1/reasoning-agent/completions
+```
+
+**Request Body:**
+
+```json
+{
+  "agent_name": "math-reasoner",
+  "description": "Mathematical problem solver using dual perspectives",
+  "model_name": "claude-3-5-sonnet-20240620",
+  "system_prompt": "You are an expert mathematical reasoning agent...",
+  "max_loops": 1,
+  "swarm_type": "reasoning-duo",
+  "task": "Prove that the sum of any three consecutive integers is divisible by 3"
+}
+```
+
+**Available Reasoning Agent Types:**
+
+| Swarm Type | Description | Best For |
+|------------|-------------|----------|
+| `reasoning-duo` | Dual-agent system with perspective synthesis | Mathematical problems, logical proofs |
+| `self-consistency` | Multiple reasoning paths with validation | Complex logical problems, consistency checking |
+| `ire` | Iterative refinement approach | Complex analysis, research problems |
+| `reasoning-agent` | General-purpose systematic reasoning | Step-by-step problem solving |
+| `consistency-agent` | Logical consistency and contradiction detection | Argument validation |
+| `ReflexionAgent` | Self-reflection and bias detection | Meta-cognitive tasks |
+| `GKPAgent` | Cross-domain knowledge synthesis | Interdisciplinary problems |
+
+**Response:**
+
+```json
+{
+  "data": {
+    "id": "reasoning_1234567890abcdef",
+    "agent_name": "math-reasoner",
+    "swarm_type": "reasoning-duo",
+    "task": "Prove that the sum of any three consecutive integers is divisible by 3",
+    "response": "Let me approach this problem from two perspectives...",
+    "reasoning_steps": [
+      "Perspective 1: Algebraic approach",
+      "Perspective 2: Number theory approach",
+      "Synthesis: Combining both perspectives"
+    ],
+    "model_used": "claude-3-5-sonnet-20240620",
+    "tokens_used": 2100,
+    "processing_time_ms": 8500,
+    "created_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+## Multi-Agent Swarms
+
+### Swarm Completions
+
+Execute complex workflows with multiple coordinated agents.
+
+```http
+POST /v1/swarm/completions
+```
+
+**Request Body:**
+
+```json
+{
+  "name": "Enterprise Content Pipeline",
+  "description": "Multi-stage content creation and review system",
+  "agents": [
+    {
+      "agent_name": "researcher",
+      "description": "Research and gather information",
+      "system_prompt": "You are a research assistant specializing in comprehensive data gathering...",
+      "model_name": "gpt-4o",
+      "role": "researcher",
+      "max_loops": 1,
+      "max_tokens": 8192,
+      "temperature": 0.7,
+      "auto_generate_prompt": false
+    },
+    {
+      "agent_name": "writer",
+      "description": "Create initial content",
+      "system_prompt": "You are a content writer who creates engaging, informative content...",
+      "model_name": "claude-3-5-sonnet-20240620",
+      "role": "writer",
+      "max_loops": 1,
+      "max_tokens": 8192,
+      "temperature": 0.8,
+      "auto_generate_prompt": false
+    },
+    {
+      "agent_name": "editor",
+      "description": "Review and improve content",
+      "system_prompt": "You are an expert editor who improves content quality and clarity...",
+      "model_name": "gpt-4o",
+      "role": "editor",
+      "max_loops": 1,
+      "max_tokens": 8192,
+      "temperature": 0.6,
+      "auto_generate_prompt": false
+    }
+  ],
+  "max_loops": 2,
+  "swarm_type": "SequentialWorkflow",
+  "task": "Create a comprehensive industry report on AI trends in 2024"
+}
+```
+
+**Available Swarm Types:**
+
+| Swarm Type | Description | Agent Count | Best For |
+|------------|-------------|-------------|----------|
+| `SequentialWorkflow` | Linear task progression | 3-50 | Process automation, step-by-step workflows |
+| `ConcurrentWorkflow` | Parallel task execution | 5-100 | Parallel processing, independent tasks |
+| `GroupChat` | Interactive agent discussions | 3-20 | Collaborative problem solving, brainstorming |
+| `MixtureOfAgents` | Specialized agent selection | 5-200 | Complex tasks requiring multiple expertise areas |
+| `MajorityVoting` | Consensus-based decision making | 5-50 | Decision making, validation tasks |
+| `CouncilAsAJudge` | Expert panel with final judge | 5-30 | Expert evaluation, quality assessment |
+| `InteractiveGroupChat` | Real-time agent interactions | 3-15 | Dynamic problem solving, real-time collaboration |
+| `AgentRearrange` | Dynamic agent reordering | 3-100 | Adaptive workflows, optimization |
+| `MultiAgentRouter` | Intelligent task routing | 10-500 | Large-scale task distribution |
+| `HiearchicalSwarm` | Nested agent hierarchies | 10-1000 | Complex organizational structures |
+| `AutoSwarmBuilder` | Automatic swarm construction | 5-200 | Dynamic swarm creation, optimization |
+| `MALT` | Multi-agent learning and training | 10-10000+ | Large-scale learning systems |
+
+**Response:**
+
+```json
+{
+  "data": {
+    "id": "swarm_1234567890abcdef",
+    "name": "Enterprise Content Pipeline",
+    "swarm_type": "SequentialWorkflow",
+    "task": "Create a comprehensive industry report on AI trends in 2024",
+    "status": "completed",
+    "result": "The comprehensive industry report on AI trends in 2024 has been completed...",
+    "agents": [
+      {
+        "agent_name": "researcher",
+        "role": "researcher",
+        "status": "completed",
+        "output": "Research completed on AI trends including..."
+      },
+      {
+        "agent_name": "writer",
+        "role": "writer",
+        "status": "completed",
+        "output": "Initial content created covering..."
+      },
+      {
+        "agent_name": "editor",
+        "role": "editor",
+        "status": "completed",
+        "output": "Content reviewed and improved..."
+      }
+    ],
+    "total_tokens_used": 4500,
+    "processing_time_ms": 25000,
+    "created_at": "2024-01-01T00:00:00Z",
+    "completed_at": "2024-01-01T00:00:25Z"
+  }
+}
+```
+
+### Batch Swarm Completions
+
+Process multiple swarms in a single request for improved efficiency.
+
+```http
+POST /v1/swarm/batch/completions
+```
+
+**Request Body:**
+
+```json
+[
+  {
+    "name": "Research Swarm",
+    "description": "Conducts comprehensive research",
+    "agents": [
+      {
+        "agent_name": "Research Agent",
+        "description": "Conducts initial research",
+        "system_prompt": "You are a research assistant specializing in comprehensive data gathering...",
+        "model_name": "gpt-4",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 8192,
+        "temperature": 0.7,
+        "auto_generate_prompt": false
+      },
+      {
+        "agent_name": "Analysis Agent",
+        "description": "Analyzes research data",
+        "system_prompt": "You are a data analyst who synthesizes research findings...",
+        "model_name": "gpt-4",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 8192,
+        "temperature": 0.7,
+        "auto_generate_prompt": false
+      }
+    ],
+    "max_loops": 1,
+    "swarm_type": "SequentialWorkflow",
+    "task": "Research recent AI advancements and provide analysis."
+  }
+]
+```
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "swarm_batch_1234567890abcdef",
+      "name": "Research Swarm",
+      "status": "completed",
+      "result": "Research completed on recent AI advancements...",
+      "total_tokens_used": 3200,
+      "processing_time_ms": 18000
+    }
+  ],
+  "meta": {
+    "total_swarms": 1,
+    "completed": 1,
+    "failed": 0
+  }
+}
+```
+
+## Tools Integration
+
+### Tool Definition
+
+Enhance agent capabilities by providing specialized tools using OpenAPI-style function specifications:
+
+```json
+{
+  "tools_dictionary": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search_topic",
+        "description": "Conduct an in-depth search on a specific topic",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "depth": {
+              "type": "integer",
+              "description": "Search depth level (1-3, where 3 is most comprehensive)"
+            },
+            "detailed_queries": {
+              "type": "array",
+              "description": "List of specific search queries to execute",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["depth", "detailed_queries"]
+        }
+      }
+    }
+  ]
+}
+```
+
+## Supported Models
+
+### OpenAI Models
+
+| Model | Description | Best For |
+|-------|-------------|----------|
+| `gpt-4` | High-quality reasoning and complex task handling | Complex analysis, reasoning tasks |
+| `gpt-4o` | Optimized version with improved performance | General purpose, balanced tasks |
+| `gpt-4o-mini` | Lightweight version for faster responses | Quick, straightforward tasks |
+
+### Anthropic Models
+
+| Model | Description | Best For |
+|-------|-------------|----------|
+| `claude-3-5-sonnet-20240620` | Balanced performance and reasoning | General purpose, analysis tasks |
+| `claude-3-7-sonnet-latest` | Latest Claude model with enhanced capabilities | Advanced reasoning, complex tasks |
+
+### Groq Models
+
+| Model | Description | Best For |
+|-------|-------------|----------|
+| `groq/llama3-70b-8192` | High-performance open-source model | Fast inference, general tasks |
+| `groq/deepseek-r1-distill-llama-70b` | Specialized reasoning model | Logical reasoning, analysis |
+
+## Rate Limits
+
+All endpoints are subject to rate limiting based on your plan:
+
+| Plan | Requests per Minute | Requests per Day |
+|------|-------------------|------------------|
+| Free | 100 | 10,000 |
+| Pro | 1,000 | 100,000 |
+| Enterprise | Custom | Custom |
+
+## Error Codes
+
+For a complete list of error codes and their meanings, see the [Errors](/api-reference/errors) page.
+
+## Next Steps
+
+- [Rate Limits](/api-reference/rate-limits) - Learn more about rate limiting
+- [Error Handling](/api-reference/errors) - Understand error responses
+- [Examples](/guides/examples) - See endpoints in action

@@ -1,0 +1,618 @@
+---
+title: 'Quickstart'
+description: 'The Swarms API enables you to create and orchestrate AI agents for both single-agent tasks and multi-agent workflows.'
+---
+
+# Quickstart
+
+The Swarms API enables you to create and orchestrate AI agents for both single-agent tasks and multi-agent workflows. The platform supports various AI models and provides flexible orchestration patterns for complex problem-solving scenarios.
+
+#### Key Features
+
+* **Single Agent Operations**: Deploy individual AI agents for specific tasks
+* **Multi-Agent Swarms**: Coordinate multiple agents working together
+* **Sequential Workflows**: Agents work in ordered sequence, building on previous outputs
+* **Concurrent Workflows**: Agents work in parallel for faster processing
+* **Tools Integration**: Extend agent capabilities with custom functions
+* **Multiple Model Support**: Choose from OpenAI, Anthropic, and Groq models
+
+### Getting Started
+
+#### Prerequisites
+
+Before you begin, ensure you have:
+
+* Python 3.7+ or Node.js for JavaScript/TypeScript
+* An API key from [Swarms Platform](https://swarms.world/platform/api-keys)
+* Required libraries installed
+
+#### Installation
+
+**Python:**
+
+```bash
+pip install requests python-dotenv
+```
+
+**JavaScript/TypeScript:**
+
+```bash
+npm install axios dotenv
+```
+
+#### Authentication
+
+The API uses API key authentication through the `x-api-key` header. Store your API key securely as an environment variable.
+
+**Base URLs:**
+
+* Production: `https://api.swarms.world`
+* Alternative: `https://swarms-api-285321057562.us-east1.run.app`
+
+**Security Note:** Never hardcode API keys in your code. Always use environment variables or secure configuration management.
+
+### Single Agent Usage
+
+Single agents are ideal for focused tasks that don't require collaboration between multiple AI systems.
+
+#### Basic Health Check
+
+Before making API calls, verify your connection:
+
+**Python:**
+
+```python
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+response = requests.get(f"{BASE_URL}/health", headers=headers)
+print(response.json())
+```
+
+**JavaScript/TypeScript:**
+
+```javascript
+import axios from 'axios';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+const API_KEY = process.env.SWARMS_API_KEY;
+const BASE_URL = 'https://api.swarms.world';
+
+const headers = {
+    'x-api-key': API_KEY,
+    'Content-Type': 'application/json'
+};
+
+const response = await axios.get(`${BASE_URL}/health`, { headers });
+console.log(response.data);
+```
+
+#### Creating a Basic Agent
+
+A single agent requires an agent configuration and a task to execute:
+
+**Python:**
+
+```python
+def run_single_agent():
+    payload = {
+        "agent_config": {
+            "agent_name": "Research Analyst",
+            "description": "An expert in analyzing and synthesizing research data",
+            "system_prompt": (
+                "You are a Research Analyst with expertise in data analysis and synthesis. "
+                "Your role is to analyze provided information, identify key insights, "
+                "and present findings in a clear, structured format."
+            ),
+            "model_name": "claude-3-5-sonnet-20240620",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 1,
+            "auto_generate_prompt": False,
+            "tools_list_dictionary": None,
+        },
+        "task": "What are the key trends in renewable energy adoption?",
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload
+    )
+    return response.json()
+```
+
+**JavaScript/TypeScript:**
+
+```javascript
+async function runSingleAgent() {
+    const payload = {
+        agent_config: {
+            agent_name: "Research Analyst",
+            description: "An expert in analyzing and synthesizing research data",
+            system_prompt: "You are a Research Analyst with expertise in data analysis and synthesis.",
+            model_name: "claude-3-5-sonnet-20240620",
+            role: "worker",
+            max_loops: 1,
+            max_tokens: 8192,
+            temperature: 1,
+            auto_generate_prompt: false,
+            tools_list_dictionary: null
+        },
+        task: "What are the key trends in renewable energy adoption?"
+    };
+
+    const response = await axios.post(
+        `${BASE_URL}/v1/agent/completions`,
+        payload,
+        { headers }
+    );
+    return response.data;
+}
+```
+
+#### Agent Configuration Parameters
+
+* **agent\_name**: Descriptive name for your agent
+* **description**: Brief description of the agent's purpose
+* **system\_prompt**: Detailed instructions defining the agent's role and capabilities
+* **model\_name**: AI model to use (see supported models section)
+* **role**: Agent role, typically "worker"
+* **max\_loops**: Maximum number of processing loops
+* **max\_tokens**: Maximum response length
+* **temperature**: Response creativity (0.0 = deterministic, 1.0 = creative)
+* **auto\_generate_prompt**: Whether to auto-enhance the system prompt
+* **tools\_list_dictionary**: Optional tools for extended functionality
+
+#### Maintaining Conversation History
+
+For multi-turn conversations, include previous messages in the history parameter:
+
+**Python:**
+
+```python
+def run_agent_with_history():
+    payload = {
+        "agent_config": {
+            "agent_name": "Conversation Agent",
+            "description": "An agent that maintains conversation context",
+            "system_prompt": "You are a helpful assistant that maintains context.",
+            "model_name": "claude-3-5-sonnet-20240620",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.7,
+            "auto_generate_prompt": False,
+        },
+        "task": "What's the weather like?",
+        "history": [
+            {
+                "role": "user",
+                "content": "I'm planning a trip to New York."
+            },
+            {
+                "role": "assistant",
+                "content": "That's great! When are you planning to visit?"
+            },
+            {
+                "role": "user",
+                "content": "Next week."
+            }
+        ]
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload
+    )
+    return response.json()
+```
+
+### Multi-Agent Swarms
+
+Multi-agent swarms enable complex problem-solving by coordinating multiple AI agents. Swarms support two primary workflow types:
+
+#### Workflow Types
+
+**Sequential Workflow:** Agents execute in order, with each agent building upon the previous agent's output. This is ideal for tasks requiring step-by-step processing.
+
+**Concurrent Workflow:** Agents work simultaneously on the same task, providing parallel processing for faster results and diverse perspectives.
+
+#### Sequential Workflow Example
+
+Sequential workflows are perfect for analysis pipelines where each step depends on the previous one:
+
+**Python:**
+
+```python
+def run_sequential_swarm():
+    payload = {
+        "name": "Financial Analysis Swarm",
+        "description": "Market analysis swarm",
+        "agents": [
+            {
+                "agent_name": "Market Analyst",
+                "description": "Analyzes market trends",
+                "system_prompt": "You are a financial analyst expert specializing in market trend analysis.",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.5,
+                "auto_generate_prompt": False
+            },
+            {
+                "agent_name": "Economic Forecaster",
+                "description": "Predicts economic trends",
+                "system_prompt": "You are an expert in economic forecasting. Use the market analysis to provide economic predictions.",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.5,
+                "auto_generate_prompt": False
+            }
+        ],
+        "max_loops": 1,
+        "swarm_type": "SequentialWorkflow",
+        "task": "Analyze the current market conditions and provide economic forecasts."
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload
+    )
+    return response.json()
+```
+
+#### Concurrent Workflow Example
+
+Concurrent workflows are ideal when you need multiple perspectives or parallel processing:
+
+**Python:**
+
+```python
+def run_concurrent_swarm():
+    payload = {
+        "name": "Medical Analysis Swarm",
+        "description": "Analyzes medical data concurrently",
+        "agents": [
+            {
+                "agent_name": "Lab Data Analyzer",
+                "description": "Analyzes lab report data",
+                "system_prompt": "You are a medical data analyst specializing in lab results interpretation.",
+                "model_name": "claude-3-5-sonnet-20240620",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.5,
+                "auto_generate_prompt": False
+            },
+            {
+                "agent_name": "Clinical Specialist",
+                "description": "Provides clinical interpretations",
+                "system_prompt": "You are an expert in clinical diagnosis and patient care recommendations.",
+                "model_name": "claude-3-5-sonnet-20240620",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.5,
+                "auto_generate_prompt": False
+            }
+        ],
+        "max_loops": 1,
+        "swarm_type": "ConcurrentWorkflow",
+        "task": "Analyze these lab results and provide clinical interpretations."
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload
+    )
+    return response.json()
+```
+
+#### Batch Processing
+
+Process multiple swarms in a single request for improved efficiency:
+
+**Python:**
+
+```python
+def run_batch_swarms():
+    payload = [
+        {
+            "name": "Research Swarm",
+            "description": "Conducts comprehensive research",
+            "agents": [
+                {
+                    "agent_name": "Research Agent",
+                    "description": "Conducts initial research",
+                    "system_prompt": "You are a research assistant specializing in comprehensive data gathering.",
+                    "model_name": "gpt-4",
+                    "role": "worker",
+                    "max_loops": 1,
+                    "max_tokens": 8192,
+                    "temperature": 0.7,
+                    "auto_generate_prompt": False
+                },
+                {
+                    "agent_name": "Analysis Agent",
+                    "description": "Analyzes research data",
+                    "system_prompt": "You are a data analyst who synthesizes research findings.",
+                    "model_name": "gpt-4",
+                    "role": "worker",
+                    "max_loops": 1,
+                    "max_tokens": 8192,
+                    "temperature": 0.7,
+                    "auto_generate_prompt": False
+                }
+            ],
+            "max_loops": 1,
+            "swarm_type": "SequentialWorkflow",
+            "task": "Research recent AI advancements and provide analysis."
+        }
+    ]
+
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/batch/completions",
+        headers=headers,
+        json=payload
+    )
+    return response.json()
+```
+
+### Advanced Features
+
+#### Tools Integration
+
+Enhance agent capabilities by providing specialized tools. Tools are defined using OpenAPI-style function specifications:
+
+**Python:**
+
+```python
+def run_agent_with_tools():
+    tools_dictionary = [
+        {
+            "type": "function",
+            "function": {
+                "name": "search_topic",
+                "description": "Conduct an in-depth search on a specific topic",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "depth": {
+                            "type": "integer",
+                            "description": "Search depth level (1-3, where 3 is most comprehensive)"
+                        },
+                        "detailed_queries": {
+                            "type": "array",
+                            "description": "List of specific search queries to execute",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": ["depth", "detailed_queries"]
+                }
+            }
+        }
+    ]
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Research Assistant",
+            "description": "Expert researcher with advanced search capabilities",
+            "system_prompt": "You are a research assistant with access to advanced search tools. Use the search_topic function when you need to gather comprehensive information.",
+            "model_name": "gpt-4",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.7,
+            "auto_generate_prompt": False,
+            "tools_dictionary": tools_dictionary
+        },
+        "task": "Research the latest developments in quantum computing and provide a comprehensive analysis."
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload
+    )
+    return response.json()
+```
+
+#### Tool Definition Guidelines
+
+When creating tools for your agents:
+
+1. **Clear Names**: Use descriptive function names that clearly indicate the tool's purpose
+2. **Detailed Descriptions**: Provide comprehensive descriptions of what the tool does
+3. **Parameter Specifications**: Define all parameters with appropriate types and descriptions
+4. **Required Fields**: Specify which parameters are mandatory
+5. **Usage Context**: Include guidance in the system prompt about when to use specific tools
+
+### Supported Models
+
+Choose the appropriate model based on your use case requirements:
+
+#### OpenAI Models
+
+* **gpt-4**: High-quality reasoning and complex task handling
+* **gpt-4o**: Optimized version with improved performance
+* **gpt-4o-mini**: Lightweight version for faster responses
+
+#### Anthropic Models
+
+* **claude-3-5-sonnet-20240620**: Balanced performance and reasoning
+* **claude-3-7-sonnet-latest**: Latest Claude model with enhanced capabilities
+
+#### Groq Models
+
+* **groq/llama3-70b-8192**: High-performance open-source model
+* **groq/deepseek-r1-distill-llama-70b**: Specialized reasoning model
+
+#### Model Selection Guidelines
+
+* **Complex Analysis**: Use GPT-4 or Claude-3.5-Sonnet for tasks requiring deep reasoning
+* **Fast Responses**: Choose GPT-4o-mini for quick, straightforward tasks
+* **Creative Tasks**: Higher temperature settings work better with creative models
+* **Factual Tasks**: Lower temperature settings provide more consistent, factual responses
+
+### API Reference
+
+#### Endpoints
+
+**Single Agent Completions:**
+
+* `POST /v1/agent/completions`
+
+**Swarm Completions:**
+
+* `POST /v1/swarm/completions`
+
+**Batch Swarm Completions:**
+
+* `POST /v1/swarm/batch/completions`
+
+**Health Check:**
+
+* `GET /health`
+
+### Best Practices
+
+#### Security
+
+* Never commit API keys to version control
+* Use environment variables for all sensitive configuration
+* Implement proper access controls in production environments
+* Regularly rotate API keys
+
+#### Error Handling
+
+Implement robust error handling for production applications:
+
+**Python:**
+
+```python
+import time
+from tenacity import retry, wait_exponential, stop_after_attempt
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    stop=stop_after_attempt(3)
+)
+def make_api_call(payload):
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/agent/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"API call failed: {e}")
+        raise
+
+def validate_payload(payload):
+    required_fields = ["agent_config", "task"]
+    if not all(field in payload for field in required_fields):
+        raise ValueError("Missing required fields in payload")
+    
+    agent_config = payload["agent_config"]
+    required_config_fields = ["agent_name", "system_prompt", "model_name"]
+    if not all(field in agent_config for field in required_config_fields):
+        raise ValueError("Missing required fields in agent_config")
+```
+
+#### Rate Limiting
+
+* Implement exponential backoff for failed requests
+* Monitor your API usage to stay within limits
+* Use batch processing when possible to reduce individual request volume
+
+#### Performance Optimization
+
+* Cache responses when appropriate
+* Use concurrent workflows for independent tasks
+* Choose the right model for your specific use case
+* Optimize token usage by being specific in your prompts
+
+#### Testing Strategy
+
+* Start with simple, single-agent tasks
+* Test with different models to find the best fit
+* Gradually increase complexity as you understand the system
+* Implement comprehensive logging for debugging
+
+### Troubleshooting
+
+#### Common Issues
+
+**Authentication Errors:**
+
+* Verify your API key is correct and active
+* Check that the `x-api-key` header is properly set
+* Ensure your API key has the necessary permissions
+
+**Timeout Issues:**
+
+* Increase request timeout values
+* Consider breaking complex tasks into smaller chunks
+* Use batch processing for multiple operations
+
+**Model Availability:**
+
+* Check if your requested model is currently available
+* Have fallback models configured
+* Monitor model status through the health endpoint
+
+**Payload Validation:**
+
+* Ensure all required fields are present
+* Validate data types match the expected format
+* Check that tool definitions follow the correct schema
+
+### Getting Help
+
+#### Community Resources
+
+* **Documentation**: [docs.swarms.world](https://docs.swarms.world/)
+* **Discord Community**: [Join Discord](https://discord.gg/jM3Z6M9uMq)
+* **Technical Blog**: [Medium](https://medium.com/@kyeg)
+
+#### Professional Support
+
+* **Onboarding Sessions**: [Book with Kye Gomez](https://cal.com/swarms/swarms-onboarding-session)
+* **Enterprise Support**: Contact through the platform
+
+#### Stay Updated
+
+* **Twitter**: [@kyegomez](https://twitter.com/kyegomez)
+* **LinkedIn**: [The Swarm Corporation](https://www.linkedin.com/company/the-swarm-corporation)
+* **YouTube**: [Swarms Channel](https://www.youtube.com/channel/UC9yXyitkbU_WSy7bd_41SqQ)
+* **Community Events**: [Sign up here](https://lu.ma/5p2jnc2v)
+
+### Conclusion
+
+The Swarms API provides a powerful platform for building sophisticated AI agent systems. Whether you're working with single agents for focused tasks or orchestrating complex multi-agent workflows, the platform offers the flexibility and tools needed to create effective AI solutions.
+
+Start with simple implementations and gradually explore more advanced features like tools integration and multi-agent coordination. The community and documentation resources are available to help you succeed in building powerful agent-based applications.

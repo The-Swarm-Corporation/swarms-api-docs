@@ -1,0 +1,331 @@
+---
+title: 'API Architecture'
+description: 'The Swarms API provides a comprehensive multi-tier architecture for building collaborative agentic systems.'
+---
+
+# API Architecture
+
+## Swarms API Architecture
+
+The Swarms API provides a comprehensive multi-tier architecture for building intelligent AI systems. The platform is designed around three distinct agent paradigms, each optimized for different types of tasks and complexity levels.
+
+### Architecture Tiers
+
+| Tier       | Name               | Agent Count    | Complexity  | Primary Use          | Example Use Cases                                 | API Endpoint                      |
+| ---------- | ------------------ | -------------- | ----------- | -------------------- | ------------------------------------------------- | --------------------------------- |
+| **Tier 1** | Individual Agents  | 1              | Low-Medium  | Focused tasks        | Content generation, data analysis, Q\&A           | `/v1/agent/completions`           |
+| **Tier 2** | Reasoning Agents   | 1-2 (internal) | Medium-High | Complex reasoning    | Mathematical proofs, logical validation, research | `/v1/reasoning-agent/completions` |
+| **Tier 3** | Multi-Agent Swarms | 3-10,000+      | High        | Enterprise workflows | Process automation, large-scale systems, R\&D     | `/v1/swarm/completions`           |
+
+#### Tier 1: Individual Agents
+
+**Single-purpose AI agents for focused tasks**
+
+Individual agents are the foundation of the Swarms ecosystem. These are custom-built, single-purpose AI agents designed to handle specific tasks with high precision and efficiency.
+
+**Key Characteristics**
+
+* **Single Agent**: One AI model per agent
+* **Focused Purpose**: Specialized for specific tasks
+* **Customizable**: Full control over system prompts, tools, and behavior
+* **Efficient**: Optimized for direct task execution
+* **Scalable**: Can be combined into larger systems
+
+**Use Cases**
+
+* Content generation (articles, code, reports)
+* Data analysis and processing
+* Customer service responses
+* Creative tasks (writing, design)
+* Simple Q\&A and information retrieval
+* Tool execution and automation
+
+**Example Implementation**
+
+```python
+import requests
+
+payload = {
+    "agent_config": {
+        "agent_name": "content-writer",
+        "description": "Professional content writer for technical articles",
+        "system_prompt": "You are an expert technical writer...",
+        "model_name": "gpt-4o",
+        "max_tokens": 4000,
+        "temperature": 0.7
+    },
+    "task": "Write a comprehensive guide on API security best practices"
+}
+
+response = requests.post(
+    "https://api.swarms.world/v1/agent/completions",
+    headers={"x-api-key": "your-api-key"},
+    json=payload
+)
+```
+
+#### Tier 2: Reasoning Agents
+
+**Advanced reasoning systems for complex problem-solving**
+
+Reasoning agents leverage sophisticated reasoning techniques to solve complex problems that require deep analysis, multiple perspectives, and systematic thinking. These agents may internally use 1-2 specialized sub-agents to achieve their reasoning goals.
+
+**Key Characteristics**
+
+* **Reasoning-Focused**: Built for complex logical and analytical tasks
+* **Multi-Perspective**: Can approach problems from different angles
+* **Iterative**: Capable of refinement and improvement cycles
+* **Specialized Types**: 7 different reasoning agent types available
+* **Internal Coordination**: May use sub-agents for specialized reasoning
+
+**Available Reasoning Agent Types**
+
+| Agent Type            | Description                                     | Best For                                       |
+| --------------------- | ----------------------------------------------- | ---------------------------------------------- |
+| **reasoning-duo**     | Dual-agent system with perspective synthesis    | Mathematical problems, logical proofs          |
+| **self-consistency**  | Multiple reasoning paths with validation        | Complex logical problems, consistency checking |
+| **ire**               | Iterative refinement approach                   | Complex analysis, research problems            |
+| **reasoning-agent**   | General-purpose systematic reasoning            | Step-by-step problem solving                   |
+| **consistency-agent** | Logical consistency and contradiction detection | Argument validation                            |
+| **ReflexionAgent**    | Self-reflection and bias detection              | Meta-cognitive tasks                           |
+| **GKPAgent**          | Cross-domain knowledge synthesis                | Interdisciplinary problems                     |
+
+**Use Cases**
+
+* Mathematical proofs and complex calculations
+* Logical consistency validation
+* Research and analysis tasks
+* Cross-domain problem solving
+* Bias detection and ethical analysis
+* Iterative improvement scenarios
+
+**Example Implementation**
+
+```python
+payload = {
+    "agent_name": "math-reasoner",
+    "description": "Mathematical problem solver using dual perspectives",
+    "model_name": "claude-3-5-sonnet-20240620",
+    "system_prompt": "You are an expert mathematical reasoning agent...",
+    "max_loops": 1,
+    "swarm_type": "reasoning-duo",
+    "task": "Prove that the sum of any three consecutive integers is divisible by 3"
+}
+
+response = requests.post(
+    "https://api.swarms.world/v1/reasoning-agent/completions",
+    headers={"x-api-key": "your-api-key"},
+    json=payload
+)
+```
+
+**📖** [**Complete Reasoning Agents Documentation**](https://docs.swarms.ai/reasoning-agents/overview)
+
+#### Tier 3: Multi-Agent Swarms
+
+**Large-scale agent systems for complex workflows**
+
+Multi-agent swarms represent the most sophisticated tier, capable of orchestrating anywhere from 3 to 10,000+ agents working together in coordinated workflows. These systems are designed for enterprise-scale applications and complex business processes.
+
+**Key Characteristics**
+
+* **Massive Scale**: 3 to 10,000+ agents per swarm
+* **Coordinated Workflows**: Agents work together in structured processes
+* **Multiple Swarm Types**: 12+ different swarm architectures available
+* **Enterprise-Grade**: Built for complex business applications
+* **Dynamic Routing**: Intelligent task distribution and agent selection
+
+**Available Swarm Types**
+
+| Swarm Type               | Description                       | Agent Count | Best For                                         |
+| ------------------------ | --------------------------------- | ----------- | ------------------------------------------------- |
+| **SequentialWorkflow**   | Linear task progression           | 3-50        | Process automation, step-by-step workflows       |
+| **ConcurrentWorkflow**   | Parallel task execution           | 5-100       | Parallel processing, independent tasks           |
+| **GroupChat**            | Interactive agent discussions     | 3-20        | Collaborative problem solving, brainstorming     |
+| **MixtureOfAgents**      | Specialized agent selection       | 5-200       | Complex tasks requiring multiple expertise areas |
+| **MajorityVoting**       | Consensus-based decision making   | 5-50        | Decision making, validation tasks                |
+| **CouncilAsAJudge**      | Expert panel with final judge     | 5-30        | Expert evaluation, quality assessment            |
+| **InteractiveGroupChat** | Real-time agent interactions      | 3-15        | Dynamic problem solving, real-time collaboration |
+| **AgentRearrange**       | Dynamic agent reordering          | 3-100       | Adaptive workflows, optimization                 |
+| **MultiAgentRouter**     | Intelligent task routing          | 10-500      | Large-scale task distribution                    |
+| **HiearchicalSwarm**     | Nested agent hierarchies          | 10-1000     | Complex organizational structures                |
+| **AutoSwarmBuilder**     | Automatic swarm construction      | 5-200       | Dynamic swarm creation, optimization             |
+| **MALT**                 | Multi-agent learning and training | 10-10000+   | Large-scale learning systems                     |
+
+**Use Cases**
+
+* Enterprise process automation
+* Large-scale data processing
+* Complex decision-making systems
+* Research and development workflows
+* Customer service automation
+* Content creation pipelines
+* Quality assurance systems
+* Dynamic resource allocation
+
+**Example Implementation**
+
+```python
+payload = {
+    "name": "Enterprise Content Pipeline",
+    "description": "Multi-stage content creation and review system",
+    "agents": [
+        {
+            "agent_name": "researcher",
+            "description": "Research and gather information",
+            "model_name": "gpt-4o",
+            "role": "researcher"
+        },
+        {
+            "agent_name": "writer",
+            "description": "Create initial content",
+            "model_name": "claude-3-5-sonnet-20240620",
+            "role": "writer"
+        },
+        {
+            "agent_name": "editor",
+            "description": "Review and improve content",
+            "model_name": "gpt-4o",
+            "role": "editor"
+        },
+        {
+            "agent_name": "fact-checker",
+            "description": "Verify accuracy and sources",
+            "model_name": "claude-3-5-sonnet-20240620",
+            "role": "validator"
+        }
+    ],
+    "max_loops": 2,
+    "swarm_type": "SequentialWorkflow",
+    "task": "Create a comprehensive industry report on AI trends in 2024"
+}
+
+response = requests.post(
+    "https://api.swarms.world/v1/swarm/completions",
+    headers={"x-api-key": "your-api-key"},
+    json=payload
+)
+```
+
+### Architecture Comparison
+
+| Aspect             | Individual Agents | Reasoning Agents  | Multi-Agent Swarms   |
+| ------------------ | ----------------- | ----------------- | -------------------- |
+| **Agent Count**    | 1                 | 1-2 (internal)    | 3-10,000+            |
+| **Complexity**     | Low-Medium        | Medium-High       | High-Extreme         |
+| **Use Case**       | Focused tasks     | Complex reasoning | Enterprise workflows |
+| **Setup Time**     | Minutes           | Minutes-Hours     | Hours-Days           |
+| **Resource Usage** | Low               | Medium            | High                 |
+| **Scalability**    | Individual        | Limited           | Massive              |
+| **Cost**           | Low               | Medium            | High                 |
+| **Maintenance**    | Simple            | Moderate          | Complex              |
+
+### Choosing the Right Architecture
+
+#### When to Use Individual Agents
+
+* ✅ Single, well-defined tasks
+* ✅ Quick prototyping and testing
+* ✅ Resource-constrained environments
+* ✅ Simple automation needs
+* ✅ Cost-sensitive applications
+
+#### When to Use Reasoning Agents
+
+* ✅ Complex problem-solving tasks
+* ✅ Tasks requiring multiple perspectives
+* ✅ Logical consistency validation
+* ✅ Research and analysis work
+* ✅ Tasks requiring iterative improvement
+
+#### When to Use Multi-Agent Swarms
+
+* ✅ Complex business processes
+* ✅ Large-scale automation
+* ✅ Multi-step workflows
+* ✅ Enterprise applications
+* ✅ Tasks requiring multiple expertise areas
+* ✅ Dynamic, adaptive systems
+
+### Integration Patterns
+
+#### Hybrid Approaches
+
+You can combine different tiers for optimal results:
+
+1. **Individual + Reasoning**: Use individual agents for data collection, reasoning agents for analysis
+2. **Reasoning + Swarms**: Use reasoning agents within swarms for complex decision-making
+3. **All Three Tiers**: Individual agents for data processing, reasoning agents for analysis, swarms for orchestration
+
+#### Migration Paths
+
+* **Start Simple**: Begin with individual agents, upgrade to reasoning agents for complex tasks
+* **Scale Up**: Move from reasoning agents to swarms for enterprise needs
+* **Optimize**: Use reasoning agents within swarms for enhanced decision-making
+
+### Performance Considerations
+
+#### Individual Agents
+
+* **Latency**: 1-5 seconds
+* **Throughput**: High (1000+ requests/minute)
+* **Cost**: $0.01-0.10 per request
+* **Memory**: Minimal
+
+#### Reasoning Agents
+
+* **Latency**: 5-30 seconds
+* **Throughput**: Medium (100-500 requests/minute)
+* **Cost**: $0.05-0.50 per request
+* **Memory**: Moderate
+
+#### Multi-Agent Swarms
+
+* **Latency**: 30 seconds - 10 minutes
+* **Throughput**: Variable (10-100 requests/minute)
+* **Cost**: $0.10-5.00 per request
+* **Memory**: High
+
+### Best Practices
+
+#### 1. Start with the Right Tier
+
+* Begin with individual agents for simple tasks
+* Upgrade to reasoning agents when complexity increases
+* Use swarms only when necessary for scale
+
+#### 2. Optimize for Your Use Case
+
+* Match agent capabilities to task requirements
+* Consider cost vs. performance trade-offs
+* Plan for scalability from the start
+
+#### 3. Monitor and Iterate
+
+* Track performance metrics across all tiers
+* Optimize based on usage patterns
+* Consider hybrid approaches for complex needs
+
+### Getting Started
+
+#### Quick Start Guide
+
+1. **Get API Key**: [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. **Choose Your Tier**: Start with individual agents for simple tasks
+3. **Build and Test**: Create your first agent and test functionality
+4. **Scale Up**: Move to reasoning agents or swarms as needed
+
+#### Documentation Resources
+
+* **Individual Agents**: [Agents Overview](https://docs.swarms.ai/agents/overview)
+* **Reasoning Agents**: [Reasoning Agents Documentation](https://docs.swarms.ai/reasoning-agents/overview)
+* **Multi-Agent Swarms**: [Swarm Types and Configurations](https://docs.swarms.ai/swarms/overview)
+* **API Reference**: [Complete API Documentation](https://docs.swarms.ai/reference)
+
+### Support and Community
+
+* **Technical Support**: [Book a Call](https://cal.com/swarms/swarms-technical-support)
+* **Community**: [Join our Discord](https://discord.gg/EamjgSaEQf)
+* **Updates**: [Follow us on Twitter](https://twitter.com/swarms_corp)
+
+For enterprise deployments and custom solutions, contact our team for dedicated support and consultation.

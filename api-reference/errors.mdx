@@ -1,0 +1,618 @@
+---
+title: 'Error Codes'
+description: 'Complete reference for all Swarms API error codes'
+---
+
+# Error Codes
+
+The Swarms API returns standardized error responses when something goes wrong. This page documents all possible error codes, their meanings, and how to resolve them.
+
+## Error Response Format
+
+All error responses follow this consistent format:
+
+```json
+{
+  "error": {
+    "code": "error_code",
+    "message": "Human-readable error message",
+    "type": "error_type",
+    "details": {
+      "field": "Additional error details",
+      "suggestion": "How to fix the error"
+    }
+  }
+}
+```
+
+## Error Types
+
+| Type | Description |
+|------|-------------|
+| `authentication_error` | Issues with API key or authentication |
+| `validation_error` | Invalid request data or parameters |
+| `rate_limit_error` | Too many requests |
+| `not_found_error` | Resource doesn't exist |
+| `permission_error` | Insufficient permissions |
+| `server_error` | Internal server issues |
+
+## HTTP Status Codes
+
+| Status | Error Type | Description |
+|--------|------------|-------------|
+| 400 | `validation_error` | Bad request - invalid data |
+| 401 | `authentication_error` | Unauthorized - invalid/missing API key |
+| 403 | `permission_error` | Forbidden - insufficient permissions |
+| 404 | `not_found_error` | Not found - resource doesn't exist |
+| 429 | `rate_limit_error` | Too many requests |
+| 500 | `server_error` | Internal server error |
+
+## Authentication Errors (401)
+
+### `invalid_api_key`
+
+**Message:** "Invalid API key provided"
+
+**Cause:** The API key in the Authorization header is incorrect or malformed.
+
+**Solution:** 
+- Verify your API key is correct
+- Check for typos or extra characters
+- Ensure you're using the full API key starting with `sk-`
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "invalid_api_key",
+    "message": "Invalid API key provided",
+    "type": "authentication_error"
+  }
+}
+```
+
+### `missing_api_key`
+
+**Message:** "API key is required"
+
+**Cause:** No Authorization header was provided in the request.
+
+**Solution:**
+- Add the Authorization header: `Authorization: Bearer YOUR_API_KEY`
+- Ensure the header name is exactly "Authorization"
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "missing_api_key",
+    "message": "API key is required",
+    "type": "authentication_error"
+  }
+}
+```
+
+### `expired_api_key`
+
+**Message:** "API key has expired"
+
+**Cause:** Your API key has reached its expiration date.
+
+**Solution:**
+- Generate a new API key in your dashboard
+- Update your applications with the new key
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "expired_api_key",
+    "message": "API key has expired",
+    "type": "authentication_error"
+  }
+}
+```
+
+### `revoked_api_key`
+
+**Message:** "API key has been revoked"
+
+**Cause:** Your API key was manually revoked or deactivated.
+
+**Solution:**
+- Check your dashboard for key status
+- Generate a new API key if needed
+- Contact support if this was unexpected
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "revoked_api_key",
+    "message": "API key has been revoked",
+    "type": "authentication_error"
+  }
+}
+```
+
+## Validation Errors (400)
+
+### `invalid_request_body`
+
+**Message:** "Invalid request body"
+
+**Cause:** The request body is malformed JSON or contains invalid data.
+
+**Solution:**
+- Ensure the request body is valid JSON
+- Check that all required fields are present
+- Verify data types match the expected format
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "invalid_request_body",
+    "message": "Invalid request body",
+    "type": "validation_error",
+    "details": {
+      "json_error": "Unexpected token in JSON at position 10"
+    }
+  }
+}
+```
+
+### `missing_required_field`
+
+**Message:** "Missing required field: {field_name}"
+
+**Cause:** A required field is missing from the request.
+
+**Solution:**
+- Add the missing required field
+- Check the API documentation for required fields
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "missing_required_field",
+    "message": "Missing required field: name",
+    "type": "validation_error",
+    "details": {
+      "field": "name",
+      "suggestion": "Add the 'name' field to your request"
+    }
+  }
+}
+```
+
+### `invalid_field_value`
+
+**Message:** "Invalid value for field: {field_name}"
+
+**Cause:** A field contains an invalid value (wrong type, out of range, etc.).
+
+**Solution:**
+- Check the field's expected data type
+- Ensure the value is within acceptable ranges
+- Verify the value format (e.g., valid email, URL)
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "invalid_field_value",
+    "message": "Invalid value for field: temperature",
+    "type": "validation_error",
+    "details": {
+      "field": "temperature",
+      "expected": "Number between 0 and 2",
+      "received": "3.5"
+    }
+  }
+}
+```
+
+### `invalid_model`
+
+**Message:** "Invalid model: {model_name}"
+
+**Cause:** The specified AI model is not supported or available.
+
+**Solution:**
+- Check the list of available models
+- Use a supported model name
+- Ensure the model is available for your plan
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "invalid_model",
+    "message": "Invalid model: gpt-5",
+    "type": "validation_error",
+    "details": {
+      "field": "model",
+      "available_models": ["gpt-4", "gpt-3.5-turbo", "claude-3"]
+    }
+  }
+}
+```
+
+### `agent_name_too_long`
+
+**Message:** "Agent name is too long"
+
+**Cause:** The agent name exceeds the maximum allowed length.
+
+**Solution:**
+- Shorten the agent name to 100 characters or less
+- Use a more concise description
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "agent_name_too_long",
+    "message": "Agent name is too long",
+    "type": "validation_error",
+    "details": {
+      "field": "name",
+      "max_length": 100,
+      "current_length": 150
+    }
+  }
+}
+```
+
+## Rate Limit Errors (429)
+
+### `rate_limit_exceeded`
+
+**Message:** "Rate limit exceeded"
+
+**Cause:** You've exceeded the allowed number of requests for your plan.
+
+**Solution:**
+- Wait for the rate limit to reset
+- Implement exponential backoff
+- Consider upgrading your plan
+- Check the `Retry-After` header for wait time
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "rate_limit_exceeded",
+    "message": "Rate limit exceeded",
+    "type": "rate_limit_error",
+    "details": {
+      "limit": 1000,
+      "reset_time": "2024-01-01T01:00:00Z",
+      "retry_after": 60
+    }
+  }
+}
+```
+
+### `concurrent_limit_exceeded`
+
+**Message:** "Too many concurrent requests"
+
+**Cause:** You're making too many simultaneous requests.
+
+**Solution:**
+- Reduce the number of concurrent requests
+- Implement request queuing
+- Add delays between requests
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "concurrent_limit_exceeded",
+    "message": "Too many concurrent requests",
+    "type": "rate_limit_error",
+    "details": {
+      "max_concurrent": 10,
+      "current_concurrent": 15
+    }
+  }
+}
+```
+
+## Not Found Errors (404)
+
+### `agent_not_found`
+
+**Message:** "Agent not found"
+
+**Cause:** The specified agent ID doesn't exist or has been deleted.
+
+**Solution:**
+- Verify the agent ID is correct
+- Check if the agent still exists
+- List your agents to get valid IDs
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "agent_not_found",
+    "message": "Agent not found",
+    "type": "not_found_error",
+    "details": {
+      "agent_id": "agent_1234567890abcdef",
+      "suggestion": "Check the agent ID or list your agents"
+    }
+  }
+}
+```
+
+### `message_not_found`
+
+**Message:** "Message not found"
+
+**Cause:** The specified message ID doesn't exist.
+
+**Solution:**
+- Verify the message ID is correct
+- Check if the message still exists
+- List messages to get valid IDs
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "message_not_found",
+    "message": "Message not found",
+    "type": "not_found_error",
+    "details": {
+      "message_id": "msg_1234567890abcdef"
+    }
+  }
+}
+```
+
+### `swarm_not_found`
+
+**Message:** "Swarm not found"
+
+**Cause:** The specified swarm ID doesn't exist.
+
+**Solution:**
+- Verify the swarm ID is correct
+- Check if the swarm still exists
+- List your swarms to get valid IDs
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "swarm_not_found",
+    "message": "Swarm not found",
+    "type": "not_found_error",
+    "details": {
+      "swarm_id": "swarm_1234567890abcdef"
+    }
+  }
+}
+```
+
+## Permission Errors (403)
+
+### `insufficient_permissions`
+
+**Message:** "Insufficient permissions for this operation"
+
+**Cause:** Your API key doesn't have the required permissions.
+
+**Solution:**
+- Check your API key permissions
+- Contact support to upgrade permissions
+- Use a different API key with appropriate access
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "insufficient_permissions",
+    "message": "Insufficient permissions for this operation",
+    "type": "permission_error",
+    "details": {
+      "required_permission": "admin",
+      "current_permission": "read_only"
+    }
+  }
+}
+```
+
+### `plan_limit_exceeded`
+
+**Message:** "Plan limit exceeded"
+
+**Cause:** You've reached a limit for your current plan.
+
+**Solution:**
+- Upgrade your plan
+- Reduce usage to stay within limits
+- Contact support for custom limits
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "plan_limit_exceeded",
+    "message": "Plan limit exceeded",
+    "type": "permission_error",
+    "details": {
+      "limit": "100 agents",
+      "current": "100 agents",
+      "suggestion": "Upgrade to Pro plan for more agents"
+    }
+  }
+}
+```
+
+## Server Errors (500)
+
+### `internal_server_error`
+
+**Message:** "Internal server error"
+
+**Cause:** An unexpected error occurred on the server.
+
+**Solution:**
+- Wait a moment and try again
+- Check the API status page
+- Contact support if the issue persists
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "internal_server_error",
+    "message": "Internal server error",
+    "type": "server_error",
+    "details": {
+      "request_id": "req_1234567890abcdef",
+      "suggestion": "Try again in a few minutes"
+    }
+  }
+}
+```
+
+### `service_unavailable`
+
+**Message:** "Service temporarily unavailable"
+
+**Cause:** The service is temporarily down for maintenance.
+
+**Solution:**
+- Wait for the service to come back online
+- Check the API status page
+- Try again later
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "service_unavailable",
+    "message": "Service temporarily unavailable",
+    "type": "server_error",
+    "details": {
+      "maintenance_window": "2024-01-01T02:00:00Z to 2024-01-01T04:00:00Z"
+    }
+  }
+}
+```
+
+## Handling Errors
+
+### Best Practices
+
+1. **Always check the response status code**
+2. **Parse the error response for details**
+3. **Implement exponential backoff for rate limits**
+4. **Log error details for debugging**
+5. **Provide user-friendly error messages**
+
+### Example Error Handling (Python)
+
+```python
+import requests
+import time
+
+def make_api_request(url, headers, data=None):
+    try:
+        if data:
+            response = requests.post(url, headers=headers, json=data)
+        else:
+            response = requests.get(url, headers=headers)
+        
+        if response.status_code == 429:
+            # Rate limited - implement backoff
+            retry_after = int(response.headers.get('Retry-After', 60))
+            time.sleep(retry_after)
+            return make_api_request(url, headers, data)
+        
+        response.raise_for_status()
+        return response.json()
+        
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 400:
+            error_data = response.json()
+            print(f"Validation error: {error_data['error']['message']}")
+        elif response.status_code == 401:
+            print("Authentication failed - check your API key")
+        elif response.status_code == 404:
+            print("Resource not found")
+        elif response.status_code == 500:
+            print("Server error - try again later")
+        else:
+            print(f"HTTP error: {e}")
+        
+        return None
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return None
+```
+
+### Example Error Handling (JavaScript)
+
+```javascript
+async function makeApiRequest(url, headers, data = null) {
+    try {
+        const options = {
+            method: data ? 'POST' : 'GET',
+            headers: headers
+        };
+        
+        if (data) {
+            options.body = JSON.stringify(data);
+        }
+        
+        const response = await fetch(url, options);
+        
+        if (response.status === 429) {
+            // Rate limited - implement backoff
+            const retryAfter = response.headers.get('Retry-After') || 60;
+            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+            return makeApiRequest(url, headers, data);
+        }
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error.message);
+        }
+        
+        return await response.json();
+        
+    } catch (error) {
+        if (error.message.includes('Validation error')) {
+            console.error('Invalid request data');
+        } else if (error.message.includes('Authentication failed')) {
+            console.error('Check your API key');
+        } else {
+            console.error('API request failed:', error.message);
+        }
+        return null;
+    }
+}
+```
+
+## Getting Help
+
+If you encounter an error that's not documented here:
+
+1. **Check the error details** for specific information
+2. **Review your request** for common issues
+3. **Check the API status** for service issues
+4. **Contact support** with the error details and request ID
+
+## Next Steps
+
+- [Rate Limits](/api-reference/rate-limits) - Learn about rate limiting
+- [API Endpoints](/api-reference/endpoints) - Review endpoint documentation
+- [Examples](/guides/examples) - See error handling in action
