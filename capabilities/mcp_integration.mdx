@@ -1,0 +1,116 @@
+---
+title: 'MCP Integration'
+description: 'Integrate MCP Into your Agents'
+openapi: 'https://api.swarms.world'
+---
+
+This tutorial demonstrates how to integrate Model Context Protocol (MCP) servers with the Swarms API to create powerful quantitative agents that can fetch real-time data, perform statistical analysis, and provide financial insights.
+
+## What is MCP?
+
+Model Context Protocol (MCP) is a standardized way for AI agents to interact with external data sources, tools, and services. By integrating MCP URLs with Swarms API, your quantitative agents can:
+
+- Fetch real-time financial data
+- Access historical market information
+- Perform complex statistical calculations
+- Integrate with external databases and APIs
+- Stream live market updates
+
+## Key Components
+
+### 1. MCP URL Configuration
+
+The `mcp_url` field in your agent configuration specifies the MCP server endpoint:
+
+```python
+"mcp_url": "https://your-mcp-server.com/financial-data"
+```
+
+### 2. MCP URL Configuration
+
+The `mcp_url` field is all you need to connect your agent to an MCP server:
+
+```python
+"mcp_url": "https://your-mcp-server.com/financial-data"
+```
+
+The MCP server will automatically provide the available tools and capabilities to your agent.
+
+## Complete Example: Quantitative Agent with MCP
+
+```python
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+def create_quant_agent_with_mcp():
+    """Create a quantitative agent that integrates with MCP server"""
+    
+    payload = {
+        "agent_config": {
+            "agent_name": "MCP-Enabled Quantitative Analyst",
+            "description": "Quantitative analyst with MCP server integration for real-time data access",
+            "system_prompt": (
+                "You are a Quantitative Data Analyst with direct access to MCP servers. "
+                "Use the MCP tools to fetch real-time financial data, perform statistical analysis, "
+                "and provide actionable insights. Always verify data quality and include source attribution."
+            ),
+            "model_name": "gpt-4o",
+            "role": "quantitative_analyst",
+            "max_loops": 3,
+            "max_tokens": 16384,
+            "temperature": 0.3,
+            "mcp_url": "https://your-mcp-server.com/financial-data",
+            "streaming_on": False
+        },
+        "task": (
+            "Connect to the MCP server and fetch the latest market data for AAPL, TSLA, and MSFT. "
+            "Calculate volatility, Sharpe ratio, and correlation coefficients. "
+            "Provide portfolio optimization recommendations based on the analysis."
+        )
+    }
+    
+    return payload
+
+def run_mcp_agent():
+    """Execute the MCP-enabled quantitative agent"""
+    
+    payload = create_quant_agent_with_mcp()
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/agent/completions",
+            headers=headers,
+            json=payload
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error: {e}")
+        return None
+
+if __name__ == "__main__":
+    result = run_mcp_agent()
+    if result:
+        print("MCP Agent executed successfully!")
+        print(f"Job ID: {result.get('job_id', 'N/A')}")
+    else:
+        print("Failed to execute MCP agent")
+```
+
+## Conclusion
+
+MCP integration with the Swarms API provides powerful capabilities for quantitative agents to access external data sources, perform complex analysis, and deliver real-time insights. By following the patterns and best practices outlined in this tutorial, you can create robust, scalable quantitative analysis systems that leverage the full power of MCP servers.
+
+For more information on MCP protocol specifications and advanced integration patterns, refer to the official MCP documentation and the Swarms API reference.
+
+## Todo
+
+- We will soon add multi MCP support to the Swarms API

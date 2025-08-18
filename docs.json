@@ -27,6 +27,20 @@
                 ]
               },
               {
+                "group": "Multi-Agent",
+                "pages": [
+                  "multi-agent/swarm_types",
+                  "multi-agent/best_practices"
+                ]
+              },
+              {
+                "group": "Capabilities",
+                "pages": [
+                  "capabilities/swarms_api_tools",
+                  "capabilities/mcp_integration"
+                ]
+              },
+              {
                 "group": "Clients",
                 "pages": [
                   "resources/client-libraries",
@@ -71,6 +85,14 @@
       {
         "label": "GitHub",
         "href": "https://github.com/The-Swarm-Corporation/swarms-api-docs"
+      },
+      {
+        "label": "Discord",
+        "href": "https://discord.gg/EamjgSaEQf"
+      },
+      {
+        "label": "Technical Support",
+        "href": "https://cal.com/swarms/swarms-technical-support?overlayCalendar=true"
       }
     ]
   },
