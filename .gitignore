@@ -12,6 +12,7 @@ old
 # Runtime data
 pids
 *.pid
+swarms_cloud
 *.seed
 *.pid.lock
 

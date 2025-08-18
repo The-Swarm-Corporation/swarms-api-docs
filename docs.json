@@ -2,6 +2,11 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Swarms API Documentation",
+  "description": "Build intelligent AI agents and multi-agent swarms with the Swarms API. Create single agents, reasoning systems, and enterprise-scale swarms for automation, research, and complex problem-solving.",
+  "keywords": ["AI agents", "multi-agent systems", "swarm intelligence", "AI automation", "machine learning", "API", "artificial intelligence", "agent orchestration", "workflow automation", "AI tools"],
+  "author": "The Swarm Corporation",
+  "language": "en",
+  "robots": "index, follow",
   "colors": {
     "primary": "#DC2626",
     "light": "#FFFFFF",
@@ -12,52 +17,52 @@
       "url": "https://swarms-api-285321057562.us-east1.run.app"
     }
   ],
-  "favicon": "/favicon.png",
+  "favicon": "favicon.ico",
   "navigation": {
-            "tabs": [
-          {
-            "tab": "Documentation",
-            "groups": [
-              {
-                "group": "Getting Started",
-                "pages": [
-                  "getting-started/quickstart",
-                  "getting-started/api-key-setup",
-                  "getting-started/architecture"
-                ]
-              },
-              {
-                "group": "Multi-Agent",
-                "pages": [
-                  "multi-agent/swarm_types",
-                  "multi-agent/best_practices"
-                ]
-              },
-              {
-                "group": "Capabilities",
-                "pages": [
-                  "capabilities/swarms_api_tools",
-                  "capabilities/mcp_integration"
-                ]
-              },
-              {
-                "group": "Clients",
-                "pages": [
-                  "resources/client-libraries",
-                  "clients/python-client"
-                ]
-              },
-              {
-                "group": "Resources",
-                "pages": [
-                  "resources/ratelimits",
-                  "resources/pricing",
-                  "resources/community",
-                  "resources/technical-support"
-                ]
-              }
-            ]
-          },
+      "tabs": [
+    {
+      "tab": "Documentation",
+      "groups": [
+        {
+          "group": "Getting Started",
+          "pages": [
+            "getting-started/quickstart",
+            "getting-started/api-key-setup",
+            "getting-started/architecture"
+          ]
+        },
+        {
+          "group": "Multi-Agent",
+          "pages": [
+            "multi-agent/swarm_types",
+            "multi-agent/best_practices"
+          ]
+        },
+        {
+          "group": "Capabilities",
+          "pages": [
+            "capabilities/swarms_api_tools",
+            "capabilities/mcp_integration"
+          ]
+        },
+        {
+          "group": "Clients",
+          "pages": [
+            "resources/client-libraries",
+            "clients/python-client"
+          ]
+        },
+        {
+          "group": "Resources",
+          "pages": [
+            "resources/ratelimits",
+            "resources/pricing",
+            "resources/community",
+            "resources/technical-support"
+          ]
+        }
+      ]
+    },
       {
         "tab": "API Reference",
         "openapi": "https://swarms-api-285321057562.us-east1.run.app/openapi.json"
@@ -83,10 +88,6 @@
   "navbar": {
     "links": [
       {
-        "label": "GitHub",
-        "href": "https://github.com/The-Swarm-Corporation/swarms-api-docs"
-      },
-      {
         "label": "Discord",
         "href": "https://discord.gg/EamjgSaEQf"
       },
@@ -96,7 +97,6 @@
       }
     ]
   },
-  
   "footer": {
     "socials": {
       "twitter": "https://twitter.com/swarms_corp",
@@ -105,6 +105,56 @@
       "discord": "https://discord.gg/EamjgSaEQf",
       "youtube": "https://www.youtube.com/channel/UC9yXyitkbU_WSy7bd_41SqQ",
       "medium": "https://medium.com/@kyeg"
+    }
+  },
+  "seo": {
+    "title": "Swarms API Documentation - Build AI Agents & Multi-Agent Swarms",
+    "description": "Comprehensive documentation for the Swarms API. Learn to create intelligent AI agents, build multi-agent swarms, and orchestrate complex AI workflows. Supports OpenAI, Anthropic, and Groq models.",
+    "keywords": ["AI agents", "multi-agent systems", "swarm intelligence", "AI automation", "machine learning", "API", "artificial intelligence", "agent orchestration", "workflow automation", "AI tools", "GPT-4", "Claude", "Groq"],
+    "author": "The Swarm Corporation",
+    "robots": "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1",
+    "canonical": "https://docs.swarms.ai",
+    "openGraph": {
+      "title": "Swarms API Documentation - Build AI Agents & Multi-Agent Swarms",
+      "description": "Create intelligent AI agents and multi-agent swarms with the Swarms API. Support for OpenAI, Anthropic, and Groq models with enterprise-scale orchestration.",
+      "type": "website",
+      "url": "https://docs.swarms.ai",
+      "siteName": "Swarms API Documentation",
+      "images": [
+        {
+          "url": "https://docs.swarms.ai/logo/dark.png",
+          "width": 1200,
+          "height": 630,
+          "alt": "Swarms API Documentation"
+        }
+      ],
+      "locale": "en_US"
+    },
+    "twitter": {
+      "card": "summary_large_image",
+      "site": "@swarms_corp",
+      "creator": "@kyegomez",
+      "title": "Swarms API Documentation - Build AI Agents & Multi-Agent Swarms",
+      "description": "Create intelligent AI agents and multi-agent swarms with the Swarms API. Support for OpenAI, Anthropic, and Groq models.",
+      "image": "https://docs.swarms.world/logo/dark.png"
+    },
+    "structuredData": {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Swarms API",
+      "description": "API for building intelligent AI agents and multi-agent swarms",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "The Swarm Corporation",
+        "url": "https://swarms.ai"
+      }
     }
   }
 }
