@@ -14,28 +14,36 @@
   ],
   "favicon": "/favicon.png",
   "navigation": {
-    "tabs": [
-      {
-        "tab": "Documentation",
-        "groups": [
+            "tabs": [
           {
-            "group": "Getting Started",
-            "pages": [
-              "getting-started/quickstart",
-              "getting-started/api-key-setup",
-              "getting-started/architecture"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Getting Started",
+                "pages": [
+                  "getting-started/quickstart",
+                  "getting-started/api-key-setup",
+                  "getting-started/architecture"
+                ]
+              },
+              {
+                "group": "Clients",
+                "pages": [
+                  "resources/client-libraries",
+                  "clients/python-client"
+                ]
+              },
+              {
+                "group": "Resources",
+                "pages": [
+                  "resources/ratelimits",
+                  "resources/pricing",
+                  "resources/community",
+                  "resources/technical-support"
+                ]
+              }
             ]
           },
-          {
-            "group": "Resources",
-            "pages": [
-              "resources/client-libraries",
-              "resources/pricing",
-              "resources/community"
-            ]
-          }
-        ]
-      },
       {
         "tab": "API Reference",
         "openapi": "https://swarms-api-285321057562.us-east1.run.app/openapi.json"

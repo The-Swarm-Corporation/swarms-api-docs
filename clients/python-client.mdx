@@ -1,0 +1,380 @@
+---
+title: 'Python Client'
+description: 'Official Python client library for the Swarms API with comprehensive features and examples'
+---
+
+
+## Features
+
+- **Type Safety**: Full type definitions for all request params and response fields
+- **Dual Clients**: Both synchronous and asynchronous clients powered by httpx
+- **Comprehensive Coverage**: Access to all Swarms API endpoints
+- **Modern Python**: Built for Python 3.8+ with async/await support
+- **Environment Integration**: Seamless .env file support for API keys
+
+## Installation
+
+```bash
+pip install swarms-client
+```
+
+## Quick Start
+
+### Basic Setup
+
+```python
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+
+load_dotenv()
+
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+)
+```
+
+### Your First Swarm
+
+```python
+# Define your task
+task_description = """
+Analyze the following patient symptoms and provide ICD code recommendations:
+- 45-year-old female with chest pain
+- Shortness of breath for 2 days
+- Sharp chest pain worsening with deep breathing
+- Mild fever (100.2°F) and dry cough
+"""
+
+# Create and run a swarm
+response = client.swarms.run(
+    name="Medical Analysis Swarm",
+    description="A swarm that analyzes patient symptoms and provides ICD codes",
+    swarm_type="ConcurrentWorkflow",
+    task=task_description,
+    agents=[
+        {
+            "agent_name": "Symptom Analyzer",
+            "description": "Analyzes patient symptoms and identifies key indicators",
+            "system_prompt": "You are a medical expert. Analyze symptoms and identify key medical indicators.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "ICD Code Specialist",
+            "description": "Provides appropriate ICD codes based on symptom analysis",
+            "system_prompt": "You are an ICD coding specialist. Provide accurate ICD codes with explanations.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.2,
+        }
+    ],
+)
+
+print(response)
+```
+
+## Client Configuration
+
+### Environment Variables (Recommended)
+
+Create a `.env` file in your project root:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+Then load it in your code:
+
+```python
+from dotenv import load_dotenv
+load_dotenv()
+
+client = SwarmsClient()  # Automatically uses SWARMS_API_KEY from environment
+```
+
+### Direct API Key
+
+```python
+client = SwarmsClient(api_key="your_api_key_here")
+```
+
+### Custom Configuration
+
+```python
+client = SwarmsClient(
+    api_key="your_api_key",
+    base_url="https://custom-endpoint.com",  # Optional custom base URL
+    timeout=30.0,  # Request timeout in seconds
+)
+```
+
+## Core Operations
+
+### Swarm Management
+
+```python
+# Create and run a swarm
+swarm_response = client.swarms.run(
+    name="Data Analysis Swarm",
+    description="Analyzes complex datasets",
+    swarm_type="SequentialWorkflow",
+    task="Analyze the sales data for Q4",
+    agents=[...]
+)
+
+# Get swarm logs
+logs = client.swarms.get_logs()
+
+# Check available swarms
+available = client.swarms.check_available()
+```
+
+### Model Information
+
+```python
+# List available models
+models = client.models.list_available()
+
+# Get model details
+for model in models:
+    print(f"Model: {model['name']}")
+    print(f"Provider: {model['provider']}")
+    print(f"Context Length: {model['context_length']}")
+```
+
+### Health and Status
+
+```python
+# Check API health
+health_status = client.health.check()
+
+# Get rate limits
+rate_limits = client.client.rate.get_limits()
+
+print(f"API Status: {health_status['status']}")
+print(f"Rate Limit: {rate_limits['requests_per_minute']} requests/min")
+```
+
+## Advanced Usage
+
+### Asynchronous Operations
+
+```python
+import asyncio
+from swarms_client import AsyncSwarmsClient
+
+async def main():
+    client = AsyncSwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+    
+    # Run multiple operations concurrently
+    tasks = [
+        client.swarms.run(name="Task 1", ...),
+        client.swarms.run(name="Task 2", ...),
+        client.models.list_available()
+    ]
+    
+    results = await asyncio.gather(*tasks)
+    return results
+
+# Run the async function
+results = asyncio.run(main())
+```
+
+### Error Handling
+
+```python
+from swarms_client import SwarmsClient, APIError
+
+try:
+    response = client.swarms.run(
+        name="Test Swarm",
+        description="A test swarm",
+        swarm_type="ConcurrentWorkflow",
+        task="Simple task",
+        agents=[...]
+    )
+except APIError as e:
+    print(f"API Error: {e.message}")
+    print(f"Status Code: {e.status_code}")
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+### Batch Operations
+
+```python
+# Process multiple tasks
+tasks = [
+    "Analyze customer feedback for Q1",
+    "Generate monthly report summary",
+    "Review system performance metrics"
+]
+
+responses = []
+for task in tasks:
+    response = client.swarms.run(
+        name=f"Batch Task - {task[:20]}...",
+        description="Batch processing task",
+        swarm_type="ConcurrentWorkflow",
+        task=task,
+        agents=[...]
+    )
+    responses.append(response)
+```
+
+## Helper Methods
+
+The client provides convenient helper methods for common operations:
+
+```python
+# Quick health check
+if client.health.check()['status'] == 'healthy':
+    print("API is healthy!")
+
+# Get available models with formatting
+models = client.models.list_available()
+print(f"Available models: {len(models)}")
+
+# Check rate limits
+limits = client.client.rate.get_limits()
+print(f"Current usage: {limits['current_usage']}/{limits['requests_per_minute']}")
+```
+
+## Best Practices
+
+### 1. **Environment Variables**
+Always use environment variables for API keys to keep them secure and out of source control.
+
+### 2. **Error Handling**
+Implement proper error handling for production applications:
+
+```python
+def safe_api_call(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except APIError as e:
+        logger.error(f"API Error: {e.message}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return None
+```
+
+### 3. **Async for Performance**
+Use the async client when making multiple API calls or building high-performance applications.
+
+### 4. **Resource Management**
+Close the client when done (especially important for async clients):
+
+```python
+async def main():
+    async with AsyncSwarmsClient() as client:
+        # Your API calls here
+        pass
+```
+
+## Examples
+
+### Content Generation Swarm
+
+```python
+content_swarm = client.swarms.run(
+    name="Content Generation Swarm",
+    description="Creates engaging content for social media",
+    swarm_type="SequentialWorkflow",
+    task="Create a blog post about AI trends in 2024",
+    agents=[
+        {
+            "agent_name": "Research Agent",
+            "description": "Researches current AI trends and statistics",
+            "system_prompt": "You are a research specialist. Gather current information about AI trends.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "researcher",
+            "max_loops": 2,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Writer Agent",
+            "description": "Writes engaging blog content based on research",
+            "system_prompt": "You are a professional writer. Create engaging blog content.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "writer",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.7,
+        }
+    ],
+)
+```
+
+### Data Analysis Pipeline
+
+```python
+analysis_pipeline = client.swarms.run(
+    name="Data Analysis Pipeline",
+    description="Comprehensive data analysis workflow",
+    swarm_type="SequentialWorkflow",
+    task="Analyze quarterly sales data and provide insights",
+    agents=[
+        {
+            "agent_name": "Data Validator",
+            "description": "Validates and cleans input data",
+            "system_prompt": "You are a data validation expert. Check data quality and format.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "validator",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.1,
+        },
+        {
+            "agent_name": "Statistical Analyst",
+            "description": "Performs statistical analysis on the data",
+            "system_prompt": "You are a statistical analyst. Perform comprehensive data analysis.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "analyst",
+            "max_loops": 2,
+            "max_tokens": 8192,
+            "temperature": 0.2,
+        },
+        {
+            "agent_name": "Insight Generator",
+            "description": "Generates actionable insights from analysis",
+            "system_prompt": "You are a business analyst. Generate actionable insights.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "insights",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.5,
+        }
+    ],
+)
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **API Key Errors**: Ensure your API key is valid and properly set in environment variables
+2. **Rate Limiting**: Check rate limits with `client.client.rate.get_limits()`
+3. **Network Issues**: Verify your internet connection and firewall settings
+4. **Model Availability**: Use `client.models.list_available()` to check available models
+
+### Getting Help
+
+- **Documentation**: [docs.swarms.ai](https://docs.swarms.ai)
+- **GitHub**: [swarms-client repository](https://github.com/The-Swarm-Corporation/swarms-client)
+- **Support**: Check our [technical support page](/resources/technical-support)
+
+## Next Steps
+
+- Explore the [API Reference](/api-reference/endpoints) for detailed endpoint documentation
+- Check out [multi-agent architectures](/multi-agent/architectures) for advanced swarm patterns
+- Learn about [rate limits](/resources/ratelimits) and best practices
+- Join our [community](/resources/community) for discussions and support
