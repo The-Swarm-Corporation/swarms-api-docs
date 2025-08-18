@@ -1,0 +1,454 @@
+---
+name: "ConcurrentWorkflow"
+description: "Parallel execution swarm that runs independent tasks simultaneously for faster processing and improved efficiency"
+---
+
+**Swarm Type**: `ConcurrentWorkflow`
+
+## Overview
+
+The ConcurrentWorkflow swarm type runs independent tasks in parallel, significantly reducing processing time for complex operations. This architecture is ideal for tasks that can be processed simultaneously without dependencies, allowing multiple agents to work on different aspects of a problem at the same time.
+
+Key features:
+- **Parallel Execution**: Multiple agents work simultaneously
+- **Reduced Processing Time**: Faster completion through parallelization
+- **Independent Tasks**: Agents work on separate, non-dependent subtasks
+- **Scalable Performance**: Performance scales with the number of agents
+
+## Use Cases
+
+- Independent data analysis tasks
+- Parallel content generation
+- Multi-source research projects
+- Distributed problem solving
+
+## API Usage
+
+### Basic ConcurrentWorkflow Example
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Market Research Concurrent",
+    "description": "Parallel market research across different sectors",
+    "swarm_type": "ConcurrentWorkflow",
+    "task": "Research and analyze market opportunities in AI, healthcare, fintech, and e-commerce sectors",
+    "agents": [
+      {
+        "agent_name": "AI Market Analyst",
+        "description": "Analyzes AI market trends and opportunities",
+        "system_prompt": "You are an AI market analyst. Focus on artificial intelligence market trends, opportunities, key players, and growth projections.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "Healthcare Market Analyst",
+        "description": "Analyzes healthcare market trends",
+        "system_prompt": "You are a healthcare market analyst. Focus on healthcare market trends, digital health opportunities, regulatory landscape, and growth areas.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "Fintech Market Analyst",
+        "description": "Analyzes fintech market opportunities",
+        "system_prompt": "You are a fintech market analyst. Focus on financial technology trends, digital payment systems, blockchain opportunities, and regulatory developments.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "E-commerce Market Analyst",
+        "description": "Analyzes e-commerce market trends",
+        "system_prompt": "You are an e-commerce market analyst. Focus on online retail trends, marketplace opportunities, consumer behavior, and emerging platforms.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      }
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Market Research Concurrent",
+    "description": "Parallel market research across different sectors",
+    "swarm_type": "ConcurrentWorkflow",
+    "task": "Research and analyze market opportunities in AI, healthcare, fintech, and e-commerce sectors",
+    "agents": [
+        {
+            "agent_name": "AI Market Analyst",
+            "description": "Analyzes AI market trends and opportunities",
+            "system_prompt": "You are an AI market analyst. Focus on artificial intelligence market trends, opportunities, key players, and growth projections.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "Healthcare Market Analyst",
+            "description": "Analyzes healthcare market trends",
+            "system_prompt": "You are a healthcare market analyst. Focus on healthcare market trends, digital health opportunities, regulatory landscape, and growth areas.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "Fintech Market Analyst",
+            "description": "Analyzes fintech market opportunities",
+            "system_prompt": "You are a fintech market analyst. Focus on financial technology trends, digital payment systems, blockchain opportunities, and regulatory developments.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "E-commerce Market Analyst",
+            "description": "Analyzes e-commerce market trends",
+            "system_prompt": "You are an e-commerce market analyst. Focus on online retail trends, marketplace opportunities, consumer behavior, and emerging platforms.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        }
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print("ConcurrentWorkflow swarm completed successfully!")
+    print(f"Cost: ${result['metadata']['billing_info']['total_cost']}")
+    print(f"Execution time: {result['metadata']['execution_time_seconds']} seconds")
+    print(f"Parallel results: {result['output']}")
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Market Research Concurrent",
+    description: "Parallel market research across different sectors",
+    swarm_type: "ConcurrentWorkflow",
+    task: "Research and analyze market opportunities in AI, healthcare, fintech, and e-commerce sectors",
+    agents: [
+        {
+            agent_name: "AI Market Analyst",
+            description: "Analyzes AI market trends and opportunities",
+            system_prompt: "You are an AI market analyst. Focus on artificial intelligence market trends, opportunities, key players, and growth projections.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "Healthcare Market Analyst",
+            description: "Analyzes healthcare market trends",
+            system_prompt: "You are a healthcare market analyst. Focus on healthcare market trends, digital health opportunities, regulatory landscape, and growth areas.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "Fintech Market Analyst",
+            description: "Analyzes fintech market opportunities",
+            system_prompt: "You are a fintech market analyst. Focus on financial technology trends, digital payment systems, blockchain opportunities, and regulatory developments.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "E-commerce Market Analyst",
+            description: "Analyzes e-commerce market trends",
+            system_prompt: "You are an e-commerce market analyst. Focus on online retail trends, marketplace opportunities, consumer behavior, and emerging platforms.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        }
+    ],
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("ConcurrentWorkflow swarm completed successfully!");
+        console.log(`Cost: $${result.metadata.billing_info.total_cost}`);
+        console.log(`Execution time: ${result.metadata.execution_time_seconds} seconds`);
+        console.log("Parallel results:", result.output);
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type Agent struct {
+    AgentName    string  `json:"agent_name"`
+    Description  string  `json:"description"`
+    SystemPrompt string  `json:"system_prompt"`
+    ModelName    string  `json:"model_name"`
+    MaxLoops     int     `json:"max_loops"`
+    Temperature  float64 `json:"temperature"`
+}
+
+type SwarmConfig struct {
+    Name        string   `json:"name"`
+    Description string   `json:"description"`
+    SwarmType   string   `json:"swarm_type"`
+    Task        string   `json:"task"`
+    Agents      []Agent  `json:"agents"`
+    MaxLoops    int      `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:        "Market Research Concurrent",
+        Description: "Parallel market research across different sectors",
+        SwarmType:   "ConcurrentWorkflow",
+        Task:        "Research and analyze market opportunities in AI, healthcare, fintech, and e-commerce sectors",
+        Agents: []Agent{
+            {
+                AgentName:    "AI Market Analyst",
+                Description:  "Analyzes AI market trends and opportunities",
+                SystemPrompt: "You are an AI market analyst. Focus on artificial intelligence market trends, opportunities, key players, and growth projections.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "Healthcare Market Analyst",
+                Description:  "Analyzes healthcare market trends",
+                SystemPrompt: "You are a healthcare market analyst. Focus on healthcare market trends, digital health opportunities, regulatory landscape, and growth areas.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "Fintech Market Analyst",
+                Description:  "Analyzes fintech market opportunities",
+                SystemPrompt: "You are a fintech market analyst. Focus on financial technology trends, digital payment systems, blockchain opportunities, and regulatory developments.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "E-commerce Market Analyst",
+                Description:  "Analyzes e-commerce market trends",
+                SystemPrompt: "You are an e-commerce market analyst. Focus on online retail trends, marketplace opportunities, consumer behavior, and emerging platforms.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+        },
+        MaxLoops: 1,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+    
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Market Research Concurrent",
+        "description": "Parallel market research across different sectors",
+        "swarm_type": "ConcurrentWorkflow",
+        "task": "Research and analyze market opportunities in AI, healthcare, fintech, and e-commerce sectors",
+        "agents": [
+            {
+                "agent_name": "AI Market Analyst",
+                "description": "Analyzes AI market trends and opportunities",
+                "system_prompt": "You are an AI market analyst. Focus on artificial intelligence market trends, opportunities, key players, and growth projections.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Healthcare Market Analyst",
+                "description": "Analyzes healthcare market trends",
+                "system_prompt": "You are a healthcare market analyst. Focus on healthcare market trends, digital health opportunities, regulatory landscape, and growth areas.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Fintech Market Analyst",
+                "description": "Analyzes fintech market opportunities",
+                "system_prompt": "You are a fintech market analyst. Focus on financial technology trends, digital payment systems, blockchain opportunities, and regulatory developments.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "E-commerce Market Analyst",
+                "description": "Analyzes e-commerce market trends",
+                "system_prompt": "You are an e-commerce market analyst. Focus on online retail trends, marketplace opportunities, consumer behavior, and emerging platforms.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            }
+        ],
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("ConcurrentWorkflow swarm completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "swarms-S17nZFDesmLHxCRoeyF3NVYvPaXk",
+    "status": "success",
+    "swarm_name": "Market Research Concurrent",
+    "description": "Parallel market research across different sectors",
+    "swarm_type": "ConcurrentWorkflow",
+    "output": [
+        {
+            "role": "E-commerce Market Analyst",
+            "content": "To analyze market opportunities in the AI, healthcare, fintech, and e-commerce sectors, we can break down each sector's current trends, consumer behavior, and emerging platforms. Here's an overview of each sector with a focus on e-commerce....."
+        },
+        {
+            "role": "AI Market Analyst",
+            "content": "The artificial intelligence (AI) landscape presents numerous opportunities across various sectors, particularly in healthcare, fintech, and e-commerce. Here's a detailed analysis of each sector:\n\n### Healthcare....."
+        },
+        {
+            "role": "Healthcare Market Analyst",
+            "content": "As a Healthcare Market Analyst, I will focus on analyzing market opportunities within the healthcare sector, particularly in the realm of AI and digital health. The intersection of healthcare with fintech and e-commerce also presents unique opportunities. Here's an overview of key trends and growth areas:...."
+        },
+        {
+            "role": "Fintech Market Analyst",
+            "content": "Certainly! Let's break down the market opportunities in the fintech sector, focusing on financial technology trends, digital payment systems, blockchain opportunities, and regulatory developments:\n\n### 1. Financial Technology Trends....."
+        }
+    ],
+    "number_of_agents": 4,
+    "service_tier": "standard",
+    "execution_time": 23.360230922698975,
+    "usage": {
+        "input_tokens": 35,
+        "output_tokens": 2787,
+        "total_tokens": 2822,
+        "billing_info": {
+            "cost_breakdown": {
+                "agent_cost": 0.04,
+                "input_token_cost": 0.000105,
+                "output_token_cost": 0.041805,
+                "token_counts": {
+                    "total_input_tokens": 35,
+                    "total_output_tokens": 2787,
+                    "total_tokens": 2822
+                },
+                "num_agents": 4,
+                "service_tier": "standard",
+                "night_time_discount_applied": true
+            },
+            "total_cost": 0.08191,
+            "discount_active": true,
+            "discount_type": "night_time",
+            "discount_percentage": 75
+        }
+    }
+}
+```
+
+## Best Practices
+
+- Design independent tasks that don't require sequential dependencies
+- Use for tasks that can be parallelized effectively
+- Ensure agents have distinct, non-overlapping responsibilities
+- Ideal for time-sensitive analysis requiring multiple perspectives

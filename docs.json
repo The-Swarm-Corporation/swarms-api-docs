@@ -43,7 +43,14 @@
           "group": "Multi-Agent",
           "pages": [
             "multi-agent/swarm_types",
-            "multi-agent/best_practices"
+            "multi-agent/best_practices",
+            "multi-agent/sequential_workflow",
+            "multi-agent/concurrent_workflow",
+            "multi-agent/multi_agent_router",
+            "multi-agent/mixture_of_agents",
+            "multi-agent/majority_voting",
+            "multi-agent/hierarchical_swarm",
+            "multi-agent/agent_rearrange"
           ]
         },
         {

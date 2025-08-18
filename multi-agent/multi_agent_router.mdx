@@ -1,0 +1,455 @@
+---
+name: "MultiAgentRouter"
+description: "Intelligent task dispatcher that distributes work based on agent capabilities and workload optimization"
+---
+
+**Swarm Type**: `MultiAgentRouter`
+
+## Overview
+
+The MultiAgentRouter acts as an intelligent task dispatcher, distributing work across agents based on their capabilities and current workload. This architecture analyzes incoming tasks and automatically routes them to the most suitable agents, optimizing both efficiency and quality of outcomes.
+
+Key features:
+- **Intelligent Routing**: Automatically assigns tasks to best-suited agents
+- **Capability Matching**: Matches task requirements with agent specializations
+- **Load Balancing**: Distributes workload efficiently across available agents
+- **Dynamic Assignment**: Adapts routing based on agent performance and availability
+
+## Use Cases
+
+- Customer service request routing
+- Content categorization and processing
+- Technical support ticket assignment
+- Multi-domain question answering
+
+## API Usage
+
+### Basic MultiAgentRouter Example
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Customer Support Router",
+    "description": "Route customer inquiries to specialized support agents",
+    "swarm_type": "MultiAgentRouter",
+    "task": "Handle multiple customer inquiries: 1) Billing question about overcharge, 2) Technical issue with mobile app login, 3) Product recommendation for enterprise client, 4) Return policy question",
+    "agents": [
+      {
+        "agent_name": "Billing Specialist",
+        "description": "Handles billing, payments, and account issues",
+        "system_prompt": "You are a billing specialist. Handle all billing inquiries, payment issues, refunds, and account-related questions with empathy and accuracy.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "Technical Support",
+        "description": "Resolves technical issues and troubleshooting",
+        "system_prompt": "You are a technical support specialist. Diagnose and resolve technical issues, provide step-by-step troubleshooting, and escalate complex problems.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.2
+      },
+      {
+        "agent_name": "Sales Consultant",
+        "description": "Provides product recommendations and sales support",
+        "system_prompt": "You are a sales consultant. Provide product recommendations, explain features and benefits, and help customers find the right solutions.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.4
+      },
+      {
+        "agent_name": "Policy Advisor",
+        "description": "Explains company policies and procedures",
+        "system_prompt": "You are a policy advisor. Explain company policies, terms of service, return procedures, and compliance requirements clearly.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.1
+      }
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Customer Support Router",
+    "description": "Route customer inquiries to specialized support agents",
+    "swarm_type": "MultiAgentRouter",
+    "task": "Handle multiple customer inquiries: 1) Billing question about overcharge, 2) Technical issue with mobile app login, 3) Product recommendation for enterprise client, 4) Return policy question",
+    "agents": [
+        {
+            "agent_name": "Billing Specialist",
+            "description": "Handles billing, payments, and account issues",
+            "system_prompt": "You are a billing specialist. Handle all billing inquiries, payment issues, refunds, and account-related questions with empathy and accuracy.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "Technical Support",
+            "description": "Resolves technical issues and troubleshooting",
+            "system_prompt": "You are a technical support specialist. Diagnose and resolve technical issues, provide step-by-step troubleshooting, and escalate complex problems.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.2
+        },
+        {
+            "agent_name": "Sales Consultant",
+            "description": "Provides product recommendations and sales support",
+            "system_prompt": "You are a sales consultant. Provide product recommendations, explain features and benefits, and help customers find the right solutions.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.4
+        },
+        {
+            "agent_name": "Policy Advisor",
+            "description": "Explains company policies and procedures",
+            "system_prompt": "You are a policy advisor. Explain company policies, terms of service, return procedures, and compliance requirements clearly.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.1
+        }
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print("MultiAgentRouter swarm completed successfully!")
+    print(f"Cost: ${result['metadata']['billing_info']['total_cost']}")
+    print(f"Execution time: {result['metadata']['execution_time_seconds']} seconds")
+    print(f"Routed results: {result['output']}")
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Customer Support Router",
+    description: "Route customer inquiries to specialized support agents",
+    swarm_type: "MultiAgentRouter",
+    task: "Handle multiple customer inquiries: 1) Billing question about overcharge, 2) Technical issue with mobile app login, 3) Product recommendation for enterprise client, 4) Return policy question",
+    agents: [
+        {
+            agent_name: "Billing Specialist",
+            description: "Handles billing, payments, and account issues",
+            system_prompt: "You are a billing specialist. Handle all billing inquiries, payment issues, refunds, and account-related questions with empathy and accuracy.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "Technical Support",
+            description: "Resolves technical issues and troubleshooting",
+            system_prompt: "You are a technical support specialist. Diagnose and resolve technical issues, provide step-by-step troubleshooting, and escalate complex problems.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.2
+        },
+        {
+            agent_name: "Sales Consultant",
+            description: "Provides product recommendations and sales support",
+            system_prompt: "You are a sales consultant. Provide product recommendations, explain features and benefits, and help customers find the right solutions.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.4
+        },
+        {
+            agent_name: "Policy Advisor",
+            description: "Explains company policies and procedures",
+            system_prompt: "You are a policy advisor. Explain company policies, terms of service, return procedures, and compliance requirements clearly.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.1
+        }
+    ],
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("MultiAgentRouter swarm completed successfully!");
+        console.log(`Cost: $${result.metadata.billing_info.total_cost}`);
+        console.log(`Execution time: ${result.metadata.execution_time_seconds} seconds`);
+        console.log("Routed results:", result.output);
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type Agent struct {
+    AgentName    string  `json:"agent_name"`
+    Description  string  `json:"description"`
+    SystemPrompt string  `json:"system_prompt"`
+    ModelName    string  `json:"model_name"`
+    MaxLoops     int     `json:"max_loops"`
+    Temperature  float64 `json:"temperature"`
+}
+
+type SwarmConfig struct {
+    Name        string   `json:"name"`
+    Description string   `json:"description"`
+    SwarmType   string   `json:"swarm_type"`
+    Task        string   `json:"task"`
+    Agents      []Agent  `json:"agents"`
+    MaxLoops    int      `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:        "Customer Support Router",
+        Description: "Route customer inquiries to specialized support agents",
+        SwarmType:   "MultiAgentRouter",
+        Task:        "Handle multiple customer inquiries: 1) Billing question about overcharge, 2) Technical issue with mobile app login, 3) Product recommendation for enterprise client, 4) Return policy question",
+        Agents: []Agent{
+            {
+                AgentName:    "Billing Specialist",
+                Description:  "Handles billing, payments, and account issues",
+                SystemPrompt: "You are a billing specialist. Handle all billing inquiries, payment issues, refunds, and account-related questions with empathy and accuracy.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "Technical Support",
+                Description:  "Resolves technical issues and troubleshooting",
+                SystemPrompt: "You are a technical support specialist. Diagnose and resolve technical issues, provide step-by-step troubleshooting, and escalate complex problems.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.2,
+            },
+            {
+                AgentName:    "Sales Consultant",
+                Description:  "Provides product recommendations and sales support",
+                SystemPrompt: "You are a sales consultant. Provide product recommendations, explain features and benefits, and help customers find the right solutions.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.4,
+            },
+            {
+                AgentName:    "Policy Advisor",
+                Description:  "Explains company policies and procedures",
+                SystemPrompt: "You are a policy advisor. Explain company policies, terms of service, return procedures, and compliance requirements clearly.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.1,
+            },
+        },
+        MaxLoops: 1,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+    
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Customer Support Router",
+        "description": "Route customer inquiries to specialized support agents",
+        "swarm_type": "MultiAgentRouter",
+        "task": "Handle multiple customer inquiries: 1) Billing question about overcharge, 2) Technical issue with mobile app login, 3) Product recommendation for enterprise client, 4) Return policy question",
+        "agents": [
+            {
+                "agent_name": "Billing Specialist",
+                "description": "Handles billing, payments, and account issues",
+                "system_prompt": "You are a billing specialist. Handle all billing inquiries, payment issues, refunds, and account-related questions with empathy and accuracy.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Technical Support",
+                "description": "Resolves technical issues and troubleshooting",
+                "system_prompt": "You are a technical support specialist. Diagnose and resolve technical issues, provide step-by-step troubleshooting, and escalate complex problems.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Sales Consultant",
+                "description": "Provides product recommendations and sales support",
+                "system_prompt": "You are a sales consultant. Provide product recommendations, explain features and benefits, and help customers find the right solutions.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.4
+            },
+            {
+                "agent_name": "Policy Advisor",
+                "description": "Explains company policies and procedures",
+                "system_prompt": "You are a policy advisor. Explain company policies, terms of service, return procedures, and compliance requirements clearly.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.1
+            }
+        ],
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("MultiAgentRouter swarm completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "swarms-R17nZFDesmLHxCRoeyF3NVYvPaXk",
+    "status": "success",
+    "swarm_name": "Customer Support Router",
+    "description": "Route customer inquiries to specialized support agents",
+    "swarm_type": "MultiAgentRouter",
+    "output": [
+        {
+            "role": "Billing Specialist",
+            "content": "I'll handle the billing question about the overcharge. Let me review your account and explain the charges..."
+        },
+        {
+            "role": "Technical Support",
+            "content": "I'll help you resolve the mobile app login issue. Let's troubleshoot this step by step..."
+        },
+        {
+            "role": "Sales Consultant",
+            "content": "I'll provide product recommendations for your enterprise client. Based on their needs..."
+        },
+        {
+            "role": "Policy Advisor",
+            "content": "I'll explain our return policy clearly. Here are the key points you need to know..."
+        }
+    ],
+    "number_of_agents": 4,
+    "service_tier": "standard",
+    "execution_time": 18.5,
+    "usage": {
+        "input_tokens": 45,
+        "output_tokens": 2100,
+        "total_tokens": 2145,
+        "billing_info": {
+            "cost_breakdown": {
+                "agent_cost": 0.04,
+                "input_token_cost": 0.000135,
+                "output_token_cost": 0.0315,
+                "token_counts": {
+                    "total_input_tokens": 45,
+                    "total_output_tokens": 2100,
+                    "total_tokens": 2145
+                },
+                "num_agents": 4,
+                "service_tier": "standard",
+                "night_time_discount_applied": true
+            },
+            "total_cost": 0.071635,
+            "discount_active": true,
+            "discount_type": "night_time",
+            "discount_percentage": 75
+        }
+    }
+}
+```
+
+## Best Practices
+
+- Design agents with clear, distinct specializations
+- Use for tasks that can be categorized and routed
+- Ensure agents have complementary capabilities
+- Ideal for customer service and support workflows
+

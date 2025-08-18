@@ -1,0 +1,459 @@
+---
+name: "MajorityVoting"
+description: "Democratic decision-making swarm where multiple agents vote on solutions, with the majority determining the final outcome"
+---
+
+**Swarm Type**: `MajorityVoting`
+
+## Overview
+
+The MajorityVoting swarm type implements a democratic decision-making process where multiple agents independently analyze a problem and propose solutions. The final outcome is determined by majority consensus, making this architecture ideal for scenarios where you want to leverage collective intelligence while maintaining a clear decision-making process.
+
+Key features:
+- **Democratic Decision Making**: Multiple agents vote on solutions
+- **Consensus Building**: Majority rule determines final outcome
+- **Independent Analysis**: Each agent works independently before voting
+- **Transparent Process**: Clear voting mechanism and results
+
+## Use Cases
+
+- Content quality assessment and approval
+- Problem diagnosis with multiple expert opinions
+- Decision-making in uncertain scenarios
+- Quality control and validation processes
+
+## API Usage
+
+### Basic MajorityVoting Example
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Content Quality Assessment",
+    "description": "Multi-agent content review with majority voting for approval",
+    "swarm_type": "MajorityVoting",
+    "task": "Review and vote on whether to approve this marketing content for publication: [Content: Our revolutionary AI solution transforms business operations by leveraging cutting-edge machine learning algorithms to optimize workflows and increase productivity by up to 300%]",
+    "agents": [
+      {
+        "agent_name": "Marketing Expert",
+        "description": "Evaluates marketing effectiveness and messaging",
+        "system_prompt": "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "Technical Reviewer",
+        "description": "Reviews technical accuracy and claims",
+        "system_prompt": "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.2
+      },
+      {
+        "agent_name": "Legal Compliance",
+        "description": "Checks for legal and compliance issues",
+        "system_prompt": "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.1
+      },
+      {
+        "agent_name": "Brand Guardian",
+        "description": "Ensures brand consistency and voice",
+        "system_prompt": "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.4
+      }
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Content Quality Assessment",
+    "description": "Multi-agent content review with majority voting for approval",
+    "swarm_type": "MajorityVoting",
+    "task": "Review and vote on whether to approve this marketing content for publication: [Content: Our revolutionary AI solution transforms business operations by leveraging cutting-edge machine learning algorithms to optimize workflows and increase productivity by up to 300%]",
+    "agents": [
+        {
+            "agent_name": "Marketing Expert",
+            "description": "Evaluates marketing effectiveness and messaging",
+            "system_prompt": "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "Technical Reviewer",
+            "description": "Reviews technical accuracy and claims",
+            "system_prompt": "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.2
+        },
+        {
+            "agent_name": "Legal Compliance",
+            "description": "Checks for legal and compliance issues",
+            "system_prompt": "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.1
+        },
+        {
+            "agent_name": "Brand Guardian",
+            "description": "Ensures brand consistency and voice",
+            "system_prompt": "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.4
+        }
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print("MajorityVoting swarm completed successfully!")
+    print(f"Cost: ${result['metadata']['billing_info']['total_cost']}")
+    print(f"Execution time: {result['metadata']['execution_time_seconds']} seconds")
+    print(f"Voting results: {result['output']}")
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Content Quality Assessment",
+    description: "Multi-agent content review with majority voting for approval",
+    swarm_type: "MajorityVoting",
+    task: "Review and vote on whether to approve this marketing content for publication: [Content: Our revolutionary AI solution transforms business operations by leveraging cutting-edge machine learning algorithms to optimize workflows and increase productivity by up to 300%]",
+    agents: [
+        {
+            agent_name: "Marketing Expert",
+            description: "Evaluates marketing effectiveness and messaging",
+            system_prompt: "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "Technical Reviewer",
+            description: "Reviews technical accuracy and claims",
+            system_prompt: "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.2
+        },
+        {
+            agent_name: "Legal Compliance",
+            description: "Checks for legal and compliance issues",
+            system_prompt: "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.1
+        },
+        {
+            agent_name: "Brand Guardian",
+            description: "Ensures brand consistency and voice",
+            system_prompt: "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.4
+        }
+    ],
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("MajorityVoting swarm completed successfully!");
+        console.log(`Cost: $${result.metadata.billing_info.total_cost}`);
+        console.log(`Execution time: ${result.metadata.execution_time_seconds} seconds`);
+        console.log("Voting results:", result.output);
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type Agent struct {
+    AgentName    string  `json:"agent_name"`
+    Description  string  `json:"description"`
+    SystemPrompt string  `json:"system_prompt"`
+    ModelName    string  `json:"model_name"`
+    MaxLoops     int     `json:"max_loops"`
+    Temperature  float64 `json:"temperature"`
+}
+
+type SwarmConfig struct {
+    Name        string   `json:"name"`
+    Description string   `json:"description"`
+    SwarmType   string   `json:"swarm_type"`
+    Task        string   `json:"task"`
+    Agents      []Agent  `json:"agents"`
+    MaxLoops    int      `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:        "Content Quality Assessment",
+        Description: "Multi-agent content review with majority voting for approval",
+        SwarmType:   "MajorityVoting",
+        Task:        "Review and vote on whether to approve this marketing content for publication: [Content: Our revolutionary AI solution transforms business operations by leveraging cutting-edge machine learning algorithms to optimize workflows and increase productivity by up to 300%]",
+        Agents: []Agent{
+            {
+                AgentName:    "Marketing Expert",
+                Description:  "Evaluates marketing effectiveness and messaging",
+                SystemPrompt: "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "Technical Reviewer",
+                Description:  "Reviews technical accuracy and claims",
+                SystemPrompt: "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.2,
+            },
+            {
+                AgentName:    "Legal Compliance",
+                Description:  "Checks for legal and compliance issues",
+                SystemPrompt: "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.1,
+            },
+            {
+                AgentName:    "Brand Guardian",
+                Description:  "Ensures brand consistency and voice",
+                SystemPrompt: "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.4,
+            },
+        },
+        MaxLoops: 1,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+    
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Content Quality Assessment",
+        "description": "Multi-agent content review with majority voting for approval",
+        "swarm_type": "MajorityVoting",
+        "task": "Review and vote on whether to approve this marketing content for publication: [Content: Our revolutionary AI solution transforms business operations by leveraging cutting-edge machine learning algorithms to optimize workflows and increase productivity by up to 300%]",
+        "agents": [
+            {
+                "agent_name": "Marketing Expert",
+                "description": "Evaluates marketing effectiveness and messaging",
+                "system_prompt": "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Technical Reviewer",
+                "description": "Reviews technical accuracy and claims",
+                "system_prompt": "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Legal Compliance",
+                "description": "Checks for legal and compliance issues",
+                "system_prompt": "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.1
+            },
+            {
+                "agent_name": "Brand Guardian",
+                "description": "Ensures brand consistency and voice",
+                "system_prompt": "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.4
+            }
+        ],
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("MajorityVoting swarm completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "swarms-V17nZFDesmLHxCRoeyF3NVYvPaXk",
+    "status": "success",
+    "swarm_name": "Content Quality Assessment",
+    "description": "Multi-agent content review with majority voting for approval",
+    "swarm_type": "MajorityVoting",
+    "output": [
+        {
+            "role": "Marketing Expert",
+            "content": "VOTE: YES. The content effectively communicates the value proposition and uses compelling language that would resonate with business audiences.",
+            "vote": "YES"
+        },
+        {
+            "role": "Technical Reviewer",
+            "content": "VOTE: NO. The claim of '300% productivity increase' is not substantiated and could be considered misleading without specific data.",
+            "vote": "NO"
+        },
+        {
+            "role": "Legal Compliance",
+            "content": "VOTE: NO. The unsubstantiated productivity claim could potentially violate advertising standards and truth-in-advertising regulations.",
+            "vote": "NO"
+        },
+        {
+            "role": "Brand Guardian",
+            "content": "VOTE: YES. The content aligns well with our brand voice of innovation and transformation.",
+            "vote": "YES"
+        }
+    ],
+    "voting_result": "REJECTED (2 NO votes, 2 YES votes - requires majority)",
+    "number_of_agents": 4,
+    "service_tier": "standard",
+    "execution_time": 28.7,
+    "usage": {
+        "input_tokens": 50,
+        "output_tokens": 1800,
+        "total_tokens": 1850,
+        "billing_info": {
+            "cost_breakdown": {
+                "agent_cost": 0.04,
+                "input_token_cost": 0.00015,
+                "output_token_cost": 0.027,
+                "token_counts": {
+                    "total_input_tokens": 50,
+                    "total_output_tokens": 1800,
+                    "total_tokens": 1850
+                },
+                "num_agents": 4,
+                "service_tier": "standard",
+                "night_time_discount_applied": true
+            },
+            "total_cost": 0.06715,
+            "discount_active": true,
+            "discount_type": "night_time",
+            "discount_percentage": 75
+        }
+    }
+}
+```
+
+## Best Practices
+
+- Use an odd number of agents to avoid tie votes
+- Design agents with distinct evaluation criteria
+- Ensure clear voting instructions in system prompts
+- Ideal for quality control and approval workflows

@@ -1,0 +1,455 @@
+---
+name: "SequentialWorkflow"
+description: "Execute tasks in a strict, predefined order for step-by-step processing with dependencies between steps"
+---
+
+**Swarm Type**: `SequentialWorkflow`
+
+## Overview
+
+The SequentialWorkflow swarm type executes tasks in a strict, predefined order where each step depends on the completion of the previous one. This architecture is perfect for workflows that require a linear progression of tasks, ensuring that each agent builds upon the work of the previous agent.
+
+Key features:
+- **Ordered Execution**: Agents execute in a specific, predefined sequence
+- **Step Dependencies**: Each step builds upon previous results
+- **Predictable Flow**: Clear, linear progression through the workflow
+- **Quality Control**: Each agent can validate and enhance previous work
+
+## Use Cases
+
+- Document processing pipelines
+- Multi-stage analysis workflows
+- Content creation and editing processes
+- Data transformation and validation pipelines
+
+## API Usage
+
+### Basic SequentialWorkflow Example
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Content Creation Pipeline",
+    "description": "Sequential content creation from research to final output",
+    "swarm_type": "SequentialWorkflow",
+    "task": "Create a comprehensive blog post about the future of renewable energy",
+    "agents": [
+      {
+        "agent_name": "Research Specialist",
+        "description": "Conducts thorough research on the topic",
+        "system_prompt": "You are a research specialist. Gather comprehensive, accurate information on the given topic from reliable sources.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "Content Writer",
+        "description": "Creates engaging written content",
+        "system_prompt": "You are a skilled content writer. Transform research into engaging, well-structured articles that are informative and readable.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.6
+      },
+      {
+        "agent_name": "Editor",
+        "description": "Reviews and polishes the content",
+        "system_prompt": "You are a professional editor. Review content for clarity, grammar, flow, and overall quality. Make improvements while maintaining the author's voice.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.4
+      },
+      {
+        "agent_name": "SEO Optimizer",
+        "description": "Optimizes content for search engines",
+        "system_prompt": "You are an SEO expert. Optimize content for search engines while maintaining readability and quality.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.2
+      }
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Content Creation Pipeline",
+    "description": "Sequential content creation from research to final output",
+    "swarm_type": "SequentialWorkflow",
+    "task": "Create a comprehensive blog post about the future of renewable energy",
+    "agents": [
+        {
+            "agent_name": "Research Specialist",
+            "description": "Conducts thorough research on the topic",
+            "system_prompt": "You are a research specialist. Gather comprehensive, accurate information on the given topic from reliable sources.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "Content Writer",
+            "description": "Creates engaging written content",
+            "system_prompt": "You are a skilled content writer. Transform research into engaging, well-structured articles that are informative and readable.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.6
+        },
+        {
+            "agent_name": "Editor",
+            "description": "Reviews and polishes the content",
+            "system_prompt": "You are a professional editor. Review content for clarity, grammar, flow, and overall quality. Make improvements while maintaining the author's voice.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.4
+        },
+        {
+            "agent_name": "SEO Optimizer",
+            "description": "Optimizes content for search engines",
+            "system_prompt": "You are an SEO expert. Optimize content for search engines while maintaining readability and quality.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.2
+        }
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print("SequentialWorkflow swarm completed successfully!")
+    print(f"Cost: ${result['metadata']['billing_info']['total_cost']}")
+    print(f"Execution time: {result['metadata']['execution_time_seconds']} seconds")
+    print(f"Sequential results: {result['output']}")
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Content Creation Pipeline",
+    description: "Sequential content creation from research to final output",
+    swarm_type: "SequentialWorkflow",
+    task: "Create a comprehensive blog post about the future of renewable energy",
+    agents: [
+        {
+            agent_name: "Research Specialist",
+            description: "Conducts thorough research on the topic",
+            system_prompt: "You are a research specialist. Gather comprehensive, accurate information on the given topic from reliable sources.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "Content Writer",
+            description: "Creates engaging written content",
+            system_prompt: "You are a skilled content writer. Transform research into engaging, well-structured articles that are informative and readable.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.6
+        },
+        {
+            agent_name: "Editor",
+            description: "Reviews and polishes the content",
+            system_prompt: "You are a professional editor. Review content for clarity, grammar, flow, and overall quality. Make improvements while maintaining the author's voice.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.4
+        },
+        {
+            agent_name: "SEO Optimizer",
+            description: "Optimizes content for search engines",
+            system_prompt: "You are an SEO expert. Optimize content for search engines while maintaining readability and quality.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.2
+        }
+    ],
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("SequentialWorkflow swarm completed successfully!");
+        console.log(`Cost: $${result.metadata.billing_info.total_cost}`);
+        console.log(`Execution time: ${result.metadata.execution_time_seconds} seconds`);
+        console.log("Sequential results:", result.output);
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type Agent struct {
+    AgentName    string  `json:"agent_name"`
+    Description  string  `json:"description"`
+    SystemPrompt string  `json:"system_prompt"`
+    ModelName    string  `json:"model_name"`
+    MaxLoops     int     `json:"max_loops"`
+    Temperature  float64 `json:"temperature"`
+}
+
+type SwarmConfig struct {
+    Name        string   `json:"name"`
+    Description string   `json:"description"`
+    SwarmType   string   `json:"swarm_type"`
+    Task        string   `json:"task"`
+    Agents      []Agent  `json:"agents"`
+    MaxLoops    int      `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:        "Content Creation Pipeline",
+        Description: "Sequential content creation from research to final output",
+        SwarmType:   "SequentialWorkflow",
+        Task:        "Create a comprehensive blog post about the future of renewable energy",
+        Agents: []Agent{
+            {
+                AgentName:    "Research Specialist",
+                Description:  "Conducts thorough research on the topic",
+                SystemPrompt: "You are a research specialist. Gather comprehensive, accurate information on the given topic from reliable sources.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "Content Writer",
+                Description:  "Creates engaging written content",
+                SystemPrompt: "You are a skilled content writer. Transform research into engaging, well-structured articles that are informative and readable.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.6,
+            },
+            {
+                AgentName:    "Editor",
+                Description:  "Reviews and polishes the content",
+                SystemPrompt: "You are a professional editor. Review content for clarity, grammar, flow, and overall quality. Make improvements while maintaining the author's voice.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.4,
+            },
+            {
+                AgentName:    "SEO Optimizer",
+                Description:  "Optimizes content for search engines",
+                SystemPrompt: "You are an SEO expert. Optimize content for search engines while maintaining readability and quality.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.2,
+            },
+        },
+        MaxLoops: 1,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+    
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Content Creation Pipeline",
+        "description": "Sequential content creation from research to final output",
+        "swarm_type": "SequentialWorkflow",
+        "task": "Create a comprehensive blog post about the future of renewable energy",
+        "agents": [
+            {
+                "agent_name": "Research Specialist",
+                "description": "Conducts thorough research on the topic",
+                "system_prompt": "You are a research specialist. Gather comprehensive, accurate information on the given topic from reliable sources.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Content Writer",
+                "description": "Creates engaging written content",
+                "system_prompt": "You are a skilled content writer. Transform research into engaging, well-structured articles that are informative and readable.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.6
+            },
+            {
+                "agent_name": "Editor",
+                "description": "Reviews and polishes the content",
+                "system_prompt": "You are a professional editor. Review content for clarity, grammar, flow, and overall quality. Make improvements while maintaining the author's voice.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.4
+            },
+            {
+                "agent_name": "SEO Optimizer",
+                "description": "Optimizes content for search engines",
+                "system_prompt": "You are an SEO expert. Optimize content for search engines while maintaining readability and quality.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            }
+        ],
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("SequentialWorkflow swarm completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "swarms-S17nZFDesmLHxCRoeyF3NVYvPaXk",
+    "status": "success",
+    "swarm_name": "Content Creation Pipeline",
+    "description": "Sequential content creation from research to final output",
+    "swarm_type": "SequentialWorkflow",
+    "output": [
+        {
+            "role": "Research Specialist",
+            "content": "Based on my research on renewable energy, here are the key findings about the future of this sector..."
+        },
+        {
+            "role": "Content Writer",
+            "content": "Building on the research, here's a comprehensive blog post about the future of renewable energy..."
+        },
+        {
+            "role": "Editor",
+            "content": "After reviewing the content, I've made the following improvements for clarity and flow..."
+        },
+        {
+            "role": "SEO Optimizer",
+            "content": "I've optimized the content with the following SEO improvements while maintaining quality..."
+        }
+    ],
+    "number_of_agents": 4,
+    "service_tier": "standard",
+    "execution_time": 45.2,
+    "usage": {
+        "input_tokens": 35,
+        "output_tokens": 3200,
+        "total_tokens": 3235,
+        "billing_info": {
+            "cost_breakdown": {
+                "agent_cost": 0.04,
+                "input_token_cost": 0.000105,
+                "output_token_cost": 0.048,
+                "token_counts": {
+                    "total_input_tokens": 35,
+                    "total_output_tokens": 3200,
+                    "total_tokens": 3235
+                },
+                "num_agents": 4,
+                "service_tier": "standard",
+                "night_time_discount_applied": true
+            },
+            "total_cost": 0.088105,
+            "discount_active": true,
+            "discount_type": "night_time",
+            "discount_percentage": 75
+        }
+    }
+}
+```
+
+## Best Practices
+
+- Design workflows with clear dependencies between steps
+- Use for tasks that require sequential processing
+- Ensure each agent builds upon previous results effectively
+- Ideal for quality control and validation workflows
+

@@ -1,0 +1,455 @@
+---
+name: "MixtureOfAgents"
+description: "Collaborative swarm where multiple agents work together on the same task, combining their expertise for comprehensive solutions"
+---
+
+**Swarm Type**: `MixtureOfAgents`
+
+## Overview
+
+The MixtureOfAgents swarm type brings together multiple specialized agents to work collaboratively on the same task. This architecture leverages the collective intelligence and diverse perspectives of multiple agents, combining their expertise to produce more comprehensive and nuanced solutions than any single agent could achieve alone.
+
+Key features:
+- **Collaborative Analysis**: Multiple agents work together on the same task
+- **Diverse Perspectives**: Different viewpoints and expertise areas
+- **Comprehensive Solutions**: Combined insights from multiple specialists
+- **Enhanced Quality**: Better results through collective intelligence
+
+## Use Cases
+
+- Complex problem analysis requiring multiple viewpoints
+- Content creation with multiple expert perspectives
+- Research projects needing interdisciplinary approaches
+- Decision-making with diverse stakeholder input
+
+## API Usage
+
+### Basic MixtureOfAgents Example
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Comprehensive Market Analysis",
+    "description": "Multi-perspective market analysis combining various expert viewpoints",
+    "swarm_type": "MixtureOfAgents",
+    "task": "Analyze the current state and future prospects of the electric vehicle market from multiple perspectives",
+    "agents": [
+      {
+        "agent_name": "Technology Analyst",
+        "description": "Analyzes technological trends and innovations",
+        "system_prompt": "You are a technology analyst specializing in automotive and battery technologies. Focus on technological advancements, innovation trends, and technical challenges in the EV market.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "Economic Analyst",
+        "description": "Analyzes market economics and financial aspects",
+        "system_prompt": "You are an economic analyst specializing in automotive markets. Focus on market economics, pricing trends, cost analysis, and financial viability of EV adoption.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "Environmental Specialist",
+        "description": "Analyzes environmental impact and sustainability",
+        "system_prompt": "You are an environmental specialist focusing on sustainability. Analyze the environmental impact of EVs, lifecycle analysis, and sustainability benefits compared to traditional vehicles.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "Policy Expert",
+        "description": "Analyzes regulatory and policy landscape",
+        "system_prompt": "You are a policy expert specializing in automotive regulations. Focus on government policies, incentives, regulatory requirements, and policy trends affecting the EV market.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      }
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Comprehensive Market Analysis",
+    "description": "Multi-perspective market analysis combining various expert viewpoints",
+    "swarm_type": "MixtureOfAgents",
+    "task": "Analyze the current state and future prospects of the electric vehicle market from multiple perspectives",
+    "agents": [
+        {
+            "agent_name": "Technology Analyst",
+            "description": "Analyzes technological trends and innovations",
+            "system_prompt": "You are a technology analyst specializing in automotive and battery technologies. Focus on technological advancements, innovation trends, and technical challenges in the EV market.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "Economic Analyst",
+            "description": "Analyzes market economics and financial aspects",
+            "system_prompt": "You are an economic analyst specializing in automotive markets. Focus on market economics, pricing trends, cost analysis, and financial viability of EV adoption.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "Environmental Specialist",
+            "description": "Analyzes environmental impact and sustainability",
+            "system_prompt": "You are an environmental specialist focusing on sustainability. Analyze the environmental impact of EVs, lifecycle analysis, and sustainability benefits compared to traditional vehicles.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "Policy Expert",
+            "description": "Analyzes regulatory and policy landscape",
+            "system_prompt": "You are a policy expert specializing in automotive regulations. Focus on government policies, incentives, regulatory requirements, and policy trends affecting the EV market.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        }
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print("MixtureOfAgents swarm completed successfully!")
+    print(f"Cost: ${result['metadata']['billing_info']['total_cost']}")
+    print(f"Execution time: {result['metadata']['execution_time_seconds']} seconds")
+    print(f"Collaborative results: {result['output']}")
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Comprehensive Market Analysis",
+    description: "Multi-perspective market analysis combining various expert viewpoints",
+    swarm_type: "MixtureOfAgents",
+    task: "Analyze the current state and future prospects of the electric vehicle market from multiple perspectives",
+    agents: [
+        {
+            agent_name: "Technology Analyst",
+            description: "Analyzes technological trends and innovations",
+            system_prompt: "You are a technology analyst specializing in automotive and battery technologies. Focus on technological advancements, innovation trends, and technical challenges in the EV market.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "Economic Analyst",
+            description: "Analyzes market economics and financial aspects",
+            system_prompt: "You are an economic analyst specializing in automotive markets. Focus on market economics, pricing trends, cost analysis, and financial viability of EV adoption.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "Environmental Specialist",
+            description: "Analyzes environmental impact and sustainability",
+            system_prompt: "You are an environmental specialist focusing on sustainability. Analyze the environmental impact of EVs, lifecycle analysis, and sustainability benefits compared to traditional vehicles.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "Policy Expert",
+            description: "Analyzes regulatory and policy landscape",
+            system_prompt: "You are a policy expert specializing in automotive regulations. Focus on government policies, incentives, regulatory requirements, and policy trends affecting the EV market.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        }
+    ],
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("MixtureOfAgents swarm completed successfully!");
+        console.log(`Cost: $${result.metadata.billing_info.total_cost}`);
+        console.log(`Execution time: ${result.metadata.execution_time_seconds} seconds`);
+        console.log("Collaborative results:", result.output);
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type Agent struct {
+    AgentName    string  `json:"agent_name"`
+    Description  string  `json:"description"`
+    SystemPrompt string  `json:"system_prompt"`
+    ModelName    string  `json:"model_name"`
+    MaxLoops     int     `json:"max_loops"`
+    Temperature  float64 `json:"temperature"`
+}
+
+type SwarmConfig struct {
+    Name        string   `json:"name"`
+    Description string   `json:"description"`
+    SwarmType   string   `json:"swarm_type"`
+    Task        string   `json:"task"`
+    Agents      []Agent  `json:"agents"`
+    MaxLoops    int      `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:        "Comprehensive Market Analysis",
+        Description: "Multi-perspective market analysis combining various expert viewpoints",
+        SwarmType:   "MixtureOfAgents",
+        Task:        "Analyze the current state and future prospects of the electric vehicle market from multiple perspectives",
+        Agents: []Agent{
+            {
+                AgentName:    "Technology Analyst",
+                Description:  "Analyzes technological trends and innovations",
+                SystemPrompt: "You are a technology analyst specializing in automotive and battery technologies. Focus on technological advancements, innovation trends, and technical challenges in the EV market.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "Economic Analyst",
+                Description:  "Analyzes market economics and financial aspects",
+                SystemPrompt: "You are an economic analyst specializing in automotive markets. Focus on market economics, pricing trends, cost analysis, and financial viability of EV adoption.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "Environmental Specialist",
+                Description:  "Analyzes environmental impact and sustainability",
+                SystemPrompt: "You are an environmental specialist focusing on sustainability. Analyze the environmental impact of EVs, lifecycle analysis, and sustainability benefits compared to traditional vehicles.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "Policy Expert",
+                Description:  "Analyzes regulatory and policy landscape",
+                SystemPrompt: "You are a policy expert specializing in automotive regulations. Focus on government policies, incentives, regulatory requirements, and policy trends affecting the EV market.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+        },
+        MaxLoops: 1,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+    
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Comprehensive Market Analysis",
+        "description": "Multi-perspective market analysis combining various expert viewpoints",
+        "swarm_type": "MixtureOfAgents",
+        "task": "Analyze the current state and future prospects of the electric vehicle market from multiple perspectives",
+        "agents": [
+            {
+                "agent_name": "Technology Analyst",
+                "description": "Analyzes technological trends and innovations",
+                "system_prompt": "You are a technology analyst specializing in automotive and battery technologies. Focus on technological advancements, innovation trends, and technical challenges in the EV market.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Economic Analyst",
+                "description": "Analyzes market economics and financial aspects",
+                "system_prompt": "You are an economic analyst specializing in automotive markets. Focus on market economics, pricing trends, cost analysis, and financial viability of EV adoption.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Environmental Specialist",
+                "description": "Analyzes environmental impact and sustainability",
+                "system_prompt": "You are an environmental specialist focusing on sustainability. Analyze the environmental impact of EVs, lifecycle analysis, and sustainability benefits compared to traditional vehicles.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Policy Expert",
+                "description": "Analyzes regulatory and policy landscape",
+                "system_prompt": "You are a policy expert specializing in automotive regulations. Focus on government policies, incentives, regulatory requirements, and policy trends affecting the EV market.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            }
+        ],
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("MixtureOfAgents swarm completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "swarms-M17nZFDesmLHxCRoeyF3NVYvPaXk",
+    "status": "success",
+    "swarm_name": "Comprehensive Market Analysis",
+    "description": "Multi-perspective market analysis combining various expert viewpoints",
+    "swarm_type": "MixtureOfAgents",
+    "output": [
+        {
+            "role": "Technology Analyst",
+            "content": "From a technological perspective, the EV market is experiencing rapid innovation in battery technology, with solid-state batteries and improved energy density..."
+        },
+        {
+            "role": "Economic Analyst",
+            "content": "Economically, the EV market shows strong growth potential with declining battery costs and increasing consumer adoption..."
+        },
+        {
+            "role": "Environmental Specialist",
+            "content": "Environmentally, EVs offer significant benefits in reducing greenhouse gas emissions, though the full lifecycle impact depends on electricity sources..."
+        },
+        {
+            "role": "Policy Expert",
+            "content": "Policy-wise, governments worldwide are implementing various incentives and regulations to accelerate EV adoption..."
+        }
+    ],
+    "number_of_agents": 4,
+    "service_tier": "standard",
+    "execution_time": 32.1,
+    "usage": {
+        "input_tokens": 40,
+        "output_tokens": 2800,
+        "total_tokens": 2840,
+        "billing_info": {
+            "cost_breakdown": {
+                "agent_cost": 0.04,
+                "input_token_cost": 0.00012,
+                "output_token_cost": 0.042,
+                "token_counts": {
+                    "total_input_tokens": 40,
+                    "total_output_tokens": 2800,
+                    "total_tokens": 2840
+                },
+                "num_agents": 4,
+                "service_tier": "standard",
+                "night_time_discount_applied": true
+            },
+            "total_cost": 0.08212,
+            "discount_active": true,
+            "discount_type": "night_time",
+            "discount_percentage": 75
+        }
+    }
+}
+```
+
+## Best Practices
+
+- Design agents with complementary but distinct expertise areas
+- Use for complex tasks requiring multiple perspectives
+- Ensure agents can work collaboratively on the same problem
+- Ideal for comprehensive analysis and decision-making
+
