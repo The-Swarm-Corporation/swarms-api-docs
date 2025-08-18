@@ -28,6 +28,7 @@
           "pages": [
             "getting-started/quickstart",
             "getting-started/api-key-setup",
+            "getting-started/setup",
             "getting-started/architecture"
           ]
         },
@@ -88,11 +89,15 @@
   "navbar": {
     "links": [
       {
-        "label": "Discord",
-        "href": "https://discord.gg/EamjgSaEQf"
+        "label": "Get Your API Key",
+        "href": "https://swarms.world/platform/api-keys"
       },
       {
-        "label": "Technical Support",
+        "label": "Account Management",
+        "href": "https://swarms.world/platform/account"
+      },
+      {
+        "label": "Tech Support",
         "href": "https://cal.com/swarms/swarms-technical-support?overlayCalendar=true"
       }
     ]

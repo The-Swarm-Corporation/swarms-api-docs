@@ -1,0 +1,25 @@
+---
+title: 'Setup & Configuration'
+description: 'Complete setup guide for the Swarms API. Learn how to configure authentication, set up your development environment, and start building with our multi-agent swarm platform.'
+---
+
+The following table outlines the key arguments and configurations needed to interact with the Swarms API.
+
+
+| **Argument**         | **Description**                                                                 | **Primary Value**                                    | **Optional Value**                          | **Notes**                                                                 |
+|----------------------|--------------------------------------------------------------------------------|---------------------------------------------|--------------------------------------------|---------------------------------------------------------------------------|
+| **Base URL / Domain** | The base URL or domain for the Swarms API                                       | `https://swarms-api-285321057562.us-east1.run.app` | `api.swarms.world`                   | Primary is production URL/domain; optional is also functional       |
+| **Headers: x-api-key** | API key header for authentication                                              | `x-api-key: <your-api-key>`                         | N/A                                        | Required for authenticating requests                                      |
+| **Headers: Content-Type** | Specifies the media type of the request body                                    | `application/json`                                  | N/A                                        | Indicates JSON payload for POST/PUT requests                              |
+| **Headers: Accept-Encoding** | Compression formats supported by the client                                  | `gzip, lz4`                                         | N/A                                        | Client indicates it can handle gzip or lz4 compressed responses            |
+| **Method**           | HTTP methods supported (inferred)                                               | `GET`, `POST`, `PUT`, `DELETE`, etc.                | N/A                                        | Typical REST API methods; specific methods depend on endpoint              |
+| **Request Body**     | JSON payload for requests (for POST/PUT)                                        | `{"key": "value"}`                                  | N/A                                        | Must conform to `application/json` content type                           |
+| **Response Format**  | Expected response format (inferred)                                             | `application/json`                                  | N/A                                        | API returns JSON responses                                         |
+| **Compression**      | Compression algorithms supported for response                                   | `gzip`, `lz4`                                       | N/A                                        | Server may compress responses if client supports it (via Accept-Encoding)  |
+
+
+### Notes:
+- **Base URL / Domain**: Combined into one argument. The primary value is either `https://swarms-api-285321057562.us-east1.run.app` or `api.swarms.world` (both are valid for production, with the domain likely resolving to the URL)
+- **Other Arguments**: Remain unchanged as they don’t involve URLs or domains. No additional URLs were provided, so only the Base URL / Domain has primary and optional values.
+- **API Key**: Replace `<your-api-key>` with the actual key provided by the Swarms API service.
+- **Compression**: `gzip` and `lz4` are supported for response compression via the `Accept-Encoding` header.
