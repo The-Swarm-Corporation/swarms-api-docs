@@ -92,6 +92,7 @@ SWARMS_API_KEY=your_api_key_here
 Then load it in your code:
 
 ```python
+import os
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -108,7 +109,7 @@ client = SwarmsClient(api_key="your_api_key_here")
 
 ```python
 client = SwarmsClient(
-    api_key="your_api_key",
+    api_key=os.getenv("SWARMS_API_KEY"),
     base_url="https://custom-endpoint.com",  # Optional custom base URL
     timeout=30.0,  # Request timeout in seconds
 )
@@ -140,12 +141,6 @@ available = client.swarms.check_available()
 ```python
 # List available models
 models = client.models.list_available()
-
-# Get model details
-for model in models:
-    print(f"Model: {model['name']}")
-    print(f"Provider: {model['provider']}")
-    print(f"Context Length: {model['context_length']}")
 ```
 
 ### Health and Status
@@ -157,8 +152,8 @@ health_status = client.health.check()
 # Get rate limits
 rate_limits = client.client.rate.get_limits()
 
-print(f"API Status: {health_status['status']}")
-print(f"Rate Limit: {rate_limits['requests_per_minute']} requests/min")
+print(health_status)
+print(rate_limits)
 ```
 
 ## Advanced Usage
@@ -186,25 +181,6 @@ async def main():
 results = asyncio.run(main())
 ```
 
-### Error Handling
-
-```python
-from swarms_client import SwarmsClient, APIError
-
-try:
-    response = client.swarms.run(
-        name="Test Swarm",
-        description="A test swarm",
-        swarm_type="ConcurrentWorkflow",
-        task="Simple task",
-        agents=[...]
-    )
-except APIError as e:
-    print(f"API Error: {e.message}")
-    print(f"Status Code: {e.status_code}")
-except Exception as e:
-    print(f"Unexpected error: {e}")
-```
 
 ### Batch Operations
 
@@ -246,38 +222,7 @@ limits = client.client.rate.get_limits()
 print(f"Current usage: {limits['current_usage']}/{limits['requests_per_minute']}")
 ```
 
-## Best Practices
 
-### 1. **Environment Variables**
-Always use environment variables for API keys to keep them secure and out of source control.
-
-### 2. **Error Handling**
-Implement proper error handling for production applications:
-
-```python
-def safe_api_call(func, *args, **kwargs):
-    try:
-        return func(*args, **kwargs)
-    except APIError as e:
-        logger.error(f"API Error: {e.message}")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return None
-```
-
-### 3. **Async for Performance**
-Use the async client when making multiple API calls or building high-performance applications.
-
-### 4. **Resource Management**
-Close the client when done (especially important for async clients):
-
-```python
-async def main():
-    async with AsyncSwarmsClient() as client:
-        # Your API calls here
-        pass
-```
 
 ## Examples
 
@@ -368,13 +313,5 @@ analysis_pipeline = client.swarms.run(
 
 ### Getting Help
 
-- **Documentation**: [docs.swarms.ai](https://docs.swarms.ai)
 - **GitHub**: [swarms-client repository](https://github.com/The-Swarm-Corporation/swarms-client)
 - **Support**: Check our [technical support page](/resources/technical-support)
-
-## Next Steps
-
-- Explore the [API Reference](/api-reference/endpoints) for detailed endpoint documentation
-- Check out [multi-agent architectures](/multi-agent/architectures) for advanced swarm patterns
-- Learn about [rate limits](/resources/ratelimits) and best practices
-- Join our [community](/resources/community) for discussions and support
