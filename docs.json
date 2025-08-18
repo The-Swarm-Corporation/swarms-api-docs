@@ -33,6 +33,13 @@
           ]
         },
         {
+          "group": "Clients",
+          "pages": [
+            "resources/client-libraries",
+            "clients/python-client"
+          ]
+        },
+        {
           "group": "Multi-Agent",
           "pages": [
             "multi-agent/swarm_types",
@@ -44,13 +51,6 @@
           "pages": [
             "capabilities/swarms_api_tools",
             "capabilities/mcp_integration"
-          ]
-        },
-        {
-          "group": "Clients",
-          "pages": [
-            "resources/client-libraries",
-            "clients/python-client"
           ]
         },
         {
