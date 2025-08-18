@@ -79,9 +79,16 @@
     "global": {
       "anchors": [
         {
-          "anchor": "GitHub",
-          "href": "https://github.com/The-Swarm-Corporation/swarms-api-docs",
-          "icon": "https://cdn.simpleicons.org/github"
+          "anchor": "Get Your API Key",
+          "href": "https://swarms.world/platform/api-keys"
+        },
+        {
+          "anchor": "Account Management",
+          "href": "https://swarms.world/platform/account"
+        },
+        {
+          "anchor": "Discord",
+          "href": "https://discord.gg/EamjgSaEQf"
         }
       ]
     }
