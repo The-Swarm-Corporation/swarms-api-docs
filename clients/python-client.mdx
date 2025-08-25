@@ -18,9 +18,15 @@ description: 'Official Python client library for the Swarms API with comprehensi
 pip install swarms-client
 ```
 
-## Quick Start
+## Environment Setup
 
-### Basic Setup
+Create a `.env` file in your project root:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Quick Start
 
 ```python
 import os
@@ -81,13 +87,6 @@ print(response)
 
 ## Client Configuration
 
-### Environment Variables (Recommended)
-
-Create a `.env` file in your project root:
-
-```bash
-SWARMS_API_KEY=your_api_key_here
-```
 
 Then load it in your code:
 
@@ -110,7 +109,7 @@ client = SwarmsClient(api_key="your_api_key_here")
 ```python
 client = SwarmsClient(
     api_key=os.getenv("SWARMS_API_KEY"),
-    base_url="https://custom-endpoint.com",  # Optional custom base URL
+    base_url="https://api.swarms.world",  # Optional custom base URL
     timeout=30.0,  # Request timeout in seconds
 )
 ```

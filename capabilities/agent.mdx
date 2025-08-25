@@ -1,0 +1,358 @@
+---
+title: 'Agent Completions API Reference'
+description: 'Learn how to build individual agents and their capabilties with swarms'
+---
+
+The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute individual AI agents with specific tasks, configurations, and capabilities. This endpoint provides a flexible way to run single agents with various models, tools, and configurations.
+
+## Endpoint Information
+
+- **URL**: `/v1/agent/completions`
+- **Method**: `POST`
+- **Authentication**: Required (`x-api-key` header)
+- **Rate Limiting**: Subject to tier-based rate limits
+
+## Request Schema
+
+### AgentCompletion Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agent_config` | `AgentSpec` | Yes | Configuration object for the agent |
+| `task` | `string` | Yes | The task or instruction for the agent to execute |
+| `history` | `Union[Dict, List[Dict]]` | No | Conversation history or context for the agent |
+| `img` | `string` | No | Single image URL for vision-enabled models |
+| `imgs` | `List[string]` | No | Multiple image URLs for vision-enabled models |
+| `stream` | `boolean` | No | Enable streaming output (default: false) |
+| `search_enabled` | `boolean` | No | Enable search capabilities (default: false) |
+
+### AgentSpec Object
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `agent_name` | `string` | Yes | - | Unique identifier for the agent |
+| `description` | `string` | No | - | Detailed explanation of agent's purpose |
+| `system_prompt` | `string` | No | - | Initial instructions guiding agent behavior |
+| `model_name` | `string` | No | `"gpt-4.1"` | AI model to use (e.g., gpt-4o, gpt-4o-mini, claude-3-5-sonnet) |
+| `auto_generate_prompt` | `boolean` | No | `false` | Auto-generate prompts based on task requirements |
+| `max_tokens` | `integer` | No | `8192` | Maximum tokens for agent responses |
+| `temperature` | `float` | No | `0.5` | Controls response randomness (0.0-2.0) |
+| `role` | `string` | No | `"worker"` | Agent's role within a system |
+| `max_loops` | `integer` | No | `1` | Maximum execution iterations |
+| `tools_list_dictionary` | `List[Dict]` | No | - | Custom tools for the agent |
+| `mcp_url` | `string` | No | - | MCP server URL for additional capabilities |
+| `streaming_on` | `boolean` | No | `false` | Enable streaming output |
+| `llm_args` | `Dict` | No | - | Additional LLM parameters (top_p, frequency_penalty, etc.) |
+| `dynamic_temperature_enabled` | `boolean` | No | `true` | Dynamic temperature adjustment |
+| `mcp_config` | `MCPConnection` | No | - | Single MCP connection configuration |
+| `mcp_configs` | `MultipleMCPConnections` | No | - | Multiple MCP connections |
+| `tool_call_summary` | `boolean` | No | `true` | Enable tool call summarization |
+
+## Response Schema
+
+### AgentCompletionOutput Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `job_id` | `string` | Unique identifier for the completion job |
+| `success` | `boolean` | Indicates successful execution |
+| `name` | `string` | Name of the executed agent |
+| `description` | `string` | Agent description |
+| `temperature` | `float` | Temperature setting used |
+| `outputs` | `any` | Generated output from the agent |
+| `usage` | `Dict` | Token usage and cost information |
+| `timestamp` | `string` | ISO timestamp of completion |
+
+### Usage Information
+
+The response includes detailed usage metrics:
+
+```json
+{
+  "usage": {
+    "input_tokens": 150,
+    "output_tokens": 300,
+    "total_tokens": 450,
+    "img_cost": 0.25,
+    "total_cost": 0.0056
+  }
+}
+```
+
+## Features and Capabilities
+
+### 1. Multi-Model Support
+- **OpenAI Models**: gpt-4o, gpt-4o-mini, gpt-4.1
+- **Anthropic Models**: claude-3-5-sonnet-20240620
+- **Custom Models**: Any model supported by LiteLLM
+- **Vision Models**: Support for image analysis with gpt-4o and compatible models
+
+### 2. Vision Capabilities
+- Single image analysis via `img` parameter
+- Multiple image analysis via `imgs` parameter
+- Automatic image token counting and cost calculation
+
+### 3. Conversation History
+- Maintain context across multiple interactions
+- Support for both dictionary and list-based history formats
+- Automatic history formatting and token counting
+
+### 4. Tool Integration
+- Built-in search capabilities via `search_enabled`
+- MCP (Model Context Protocol) server integration
+- Custom tool dictionaries
+- Tool call summarization
+
+### 5. Advanced Configuration
+- Dynamic temperature adjustment
+- Custom LLM arguments (top_p, frequency_penalty, presence_penalty)
+- Streaming output support
+- Auto-prompt generation
+
+## Examples
+
+### Basic Agent Execution
+
+```python
+import requests
+
+payload = {
+    "agent_config": {
+        "agent_name": "Research Analyst",
+        "description": "Expert in analyzing and synthesizing research data",
+        "system_prompt": "You are a Research Analyst with expertise in data analysis and synthesis.",
+        "model_name": "gpt-4o-mini",
+        "max_tokens": 8192,
+        "temperature": 0.7
+    },
+    "task": "Analyze the impact of artificial intelligence on healthcare"
+}
+
+response = requests.post(
+    "https://api.swarms.world/v1/agent/completions",
+    headers={"x-api-key": "your-api-key"},
+    json=payload
+)
+```
+
+### Agent with Conversation History
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Medical Assistant",
+        "system_prompt": "You are a medical information assistant.",
+        "model_name": "gpt-4o-mini",
+        "max_tokens": 4096
+    },
+    "task": "What are the symptoms of diabetes?",
+    "history": {
+        "message1": {
+            "role": "user",
+            "content": "Tell me about diabetes"
+        },
+        "message2": {
+            "role": "assistant", 
+            "content": "Diabetes is a chronic condition affecting blood sugar levels."
+        }
+    }
+}
+```
+
+
+### Agent with Search Capabilities
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Research Assistant",
+        "description": "Research assistant with web search capabilities",
+        "system_prompt": "You are a research assistant that can search the web.",
+        "model_name": "gpt-4o-mini",
+        "max_tokens": 8192
+    },
+    "task": "Find the latest developments in quantum computing",
+    "search_enabled": True
+}
+```
+
+### Agent with MCP Integration
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Data Analyst",
+        "description": "Data analyst with database access",
+        "system_prompt": "You are a data analyst with access to databases.",
+        "model_name": "gpt-4o-mini",
+        "max_tokens": 8192,
+        "mcp_url": "http://localhost:8001/sse"
+    },
+    "task": "Query the customer database for recent orders"
+}
+```
+
+### Agent with Custom LLM Arguments
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Creative Writer",
+        "description": "Creative writing specialist",
+        "system_prompt": "You are a creative writing expert.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048,
+        "temperature": 0.9,
+        "llm_args": {
+            "top_p": 0.9,
+            "frequency_penalty": 0.1,
+            "presence_penalty": 0.1
+        }
+    },
+    "task": "Write a creative story about time travel"
+}
+```
+
+## Batch Processing
+
+For processing multiple agents simultaneously, use the batch endpoint:
+
+**Endpoint**: `/v1/agent/batch/completions`
+
+**Request**: Array of `AgentCompletion` objects (max 10 per batch)
+
+```python
+payloads = [
+    {
+        "agent_config": {
+            "agent_name": "Analyst 1",
+            "system_prompt": "You are a financial analyst.",
+            "model_name": "gpt-4o-mini"
+        },
+        "task": "Analyze Q1 financial results"
+    },
+    {
+        "agent_config": {
+            "agent_name": "Analyst 2", 
+            "system_prompt": "You are a market analyst.",
+            "model_name": "gpt-4o-mini"
+        },
+        "task": "Evaluate market trends"
+    }
+]
+
+response = requests.post(
+    "https://api.swarms.world/v1/agent/batch/completions",
+    headers={"x-api-key": "your-api-key"},
+    json=payloads
+)
+```
+
+## Error Handling
+
+The API returns appropriate HTTP status codes and error messages:
+
+- **400 Bad Request**: Invalid input parameters or validation failures
+- **401 Unauthorized**: Missing or invalid API key
+- **429 Too Many Requests**: Rate limit exceeded
+- **500 Internal Server Error**: Server-side processing errors
+
+## Rate Limits
+
+Rate limits are tier-based:
+
+- **Free Tier**: 100 requests/minute, 50 requests/hour, 50*24 requests/day
+- **Premium Tier**: 2000 requests/minute, 10000 requests/hour, 100000 requests/day
+
+## Cost Calculation
+
+Costs are calculated based on:
+- **Input tokens**: $4.00 per million tokens
+- **Output tokens**: $12.50 per million tokens  
+- **Image processing**: $0.25 per image
+- **MCP calls**: $0.10 per call
+
+## Best Practices
+
+1. **Agent Naming**: Use descriptive, unique names for agents
+2. **System Prompts**: Provide clear, specific instructions for consistent behavior
+3. **Temperature Settings**: Use lower values (0.1-0.3) for analytical tasks, higher values (0.7-0.9) for creative tasks
+4. **Token Limits**: Set appropriate max_tokens based on expected response length
+5. **History Management**: Keep conversation history concise to manage token costs
+6. **Error Handling**: Implement proper error handling for production applications
+7. **Rate Limiting**: Monitor usage and implement backoff strategies for rate limit handling
+
+## Integration Examples
+
+### Python SDK Usage
+
+- pip3 install -U swarms-client
+- Put your `SWARMS_API_KEY`
+
+```python
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+import json
+
+load_dotenv()
+
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+)
+
+
+result = client.agent.run(
+    agent_config={
+        "agent_name": "Bloodwork Diagnosis Expert",
+        "description": "An expert doctor specializing in interpreting and diagnosing blood work results.",
+        "system_prompt": (
+            "You are an expert medical doctor specializing in the interpretation and diagnosis of blood work. "
+            "Your expertise includes analyzing laboratory results, identifying abnormal values, "
+            "explaining their clinical significance, and recommending next diagnostic or treatment steps. "
+            "Provide clear, evidence-based explanations and consider differential diagnoses based on blood test findings."
+        ),
+        "model_name": "groq/moonshotai/kimi-k2-instruct",
+        "max_loops": 1,
+        "max_tokens": 1000,
+        "temperature": 0.5,
+    },
+    task=(
+        "A patient presents with the following blood work results: "
+        "Hemoglobin: 10.2 g/dL (low), WBC: 13,000 /µL (high), Platelets: 180,000 /µL (normal), "
+        "ALT: 65 U/L (high), AST: 70 U/L (high). "
+        "Please provide a detailed interpretation, possible diagnoses, and recommended next steps."
+    ),
+)
+
+print(json.dumps(result, indent=4))
+```
+
+
+### JavaScript/Node.js Integration
+
+```javascript
+const response = await fetch('https://api.swarms.world/v1/agent/completions', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'your-api-key'
+    },
+    body: JSON.stringify({
+        agent_config: {
+            agent_name: "JavaScript Agent",
+            system_prompt: "You are a helpful assistant.",
+            model_name: "gpt-4o-mini"
+        },
+        task: "Explain JavaScript promises"
+    })
+});
+
+const result = await response.json();
+```
+
+## Support and Resources
+
+- **API Keys**: [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+- **Technical Support**: [https://cal.com/swarms/swarms-technical-support](https://cal.com/swarms/swarms-technical-support)
+- **Community**: [Discord](https://discord.gg/EamjgSaEQf)

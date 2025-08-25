@@ -41,6 +41,12 @@
           ]
         },
         {
+          "group": "Agent Completions",
+          "pages": [
+            "capabilities/agent"
+          ]
+        },
+        {
           "group": "Multi-Agent",
           "pages": [
             "multi-agent/swarm_types",
