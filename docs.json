@@ -73,7 +73,8 @@
             "resources/ratelimits",
             "resources/pricing",
             "resources/community",
-            "resources/technical-support"
+            "resources/technical-support",
+            "resources/referral"
           ]
         }
       ]
@@ -96,6 +97,10 @@
         {
           "anchor": "Discord",
           "href": "https://discord.gg/EamjgSaEQf"
+        },
+        {
+          "anchor": "Technical Support",
+          "href": "https://cal.com/swarms/swarms-technical-support?overlayCalendar=true"
         }
       ]
     }
