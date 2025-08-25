@@ -125,6 +125,14 @@
       {
         "label": "Tech Support",
         "href": "https://cal.com/swarms/swarms-technical-support?overlayCalendar=true"
+      },
+      {
+        "label": "Python SDK",
+        "href": "https://github.com/The-Swarm-Corporation/swarms-client"
+      },
+      {
+        "label": "Typescript SDK",
+        "href": "https://github.com/The-Swarm-Corporation/swarms-ts?"
       }
     ]
   },
