@@ -79,10 +79,37 @@
         }
       ]
     },
-      {
-        "tab": "API Reference",
-        "openapi": "https://swarms-api-285321057562.us-east1.run.app/openapi.json"
-      }
+    {
+      "tab": "API Reference",
+      "openapi": "https://swarms-api-285321057562.us-east1.run.app/openapi.json"
+    },
+    {
+      "tab": "Examples",
+      "groups": [
+        {
+          "group": "Getting Started",
+          "pages": [
+            "examples/client-setup",
+            "examples/agent-overview",
+            "examples/batch-processing"
+          ]
+        },
+        {
+          "group": "Multi-Agent Swarms",
+          "pages": [
+            "examples/hospital-team",
+            "examples/legal-team",
+            "examples/icd-analysis"
+          ]
+        },
+        {
+          "group": "API Utilities",
+          "pages": [
+            "examples/rate-limits"
+          ]
+        }
+      ]
+    }
     ],
     "global": {
       "anchors": [

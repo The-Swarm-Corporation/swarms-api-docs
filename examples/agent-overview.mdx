@@ -1,0 +1,113 @@
+---
+title: "Single Agent Overview"
+description: "Learn how to create and run single AI agents for specific tasks using the Swarms API."
+---
+
+# Single Agent Overview
+
+This example demonstrates how to create and run a single AI agent for specialized tasks. We'll create a medical diagnosis agent that can interpret blood work results.
+
+## What This Example Shows
+
+- Creating a single agent with specific expertise
+- Configuring agent parameters (model, temperature, tokens)
+- Running agents with structured tasks
+- Handling agent responses and outputs
+
+## Installation
+
+```bash
+pip3 install -U swarms-client
+```
+
+## Get Your Swarms API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Create an account or sign in
+3. Generate a new API key
+4. Store it securely in your environment variables
+
+## Code
+
+```python
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+import json
+
+# Load environment variables
+load_dotenv()
+
+# Initialize the client
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+)
+
+# Create and run a single agent
+result = client.agent.run(
+    agent_config={
+        "agent_name": "Bloodwork Diagnosis Expert",
+        "description": "An expert doctor specializing in interpreting and diagnosing blood work results.",
+        "system_prompt": (
+            "You are an expert medical doctor specializing in the interpretation and diagnosis of blood work. "
+            "Your expertise includes analyzing laboratory results, identifying abnormal values, "
+            "explaining their clinical significance, and recommending next diagnostic or treatment steps. "
+            "Provide clear, evidence-based explanations and consider differential diagnoses based on blood test findings."
+        ),
+        "model_name": "groq/moonshotai/kimi-k2-instruct",
+        "max_loops": 1,
+        "max_tokens": 1000,
+        "temperature": 0.5,
+    },
+    task=(
+        "A patient presents with the following blood work results: "
+        "Hemoglobin: 10.2 g/dL (low), WBC: 13,000 /µL (high), Platelets: 180,000 /µL (normal), "
+        "ALT: 65 U/L (high), AST: 70 U/L (high). "
+        "Please provide a detailed interpretation, possible diagnoses, and recommended next steps."
+    ),
+)
+
+print(json.dumps(result, indent=4))
+```
+
+## Agent Configuration Explained
+
+- **agent_name**: A descriptive name for your agent
+- **description**: What the agent does
+- **system_prompt**: The agent's expertise and behavior instructions
+- **model_name**: The AI model to use (supports OpenAI, Anthropic, Groq, and more)
+- **max_loops**: Maximum reasoning iterations (1 for single-pass tasks)
+- **max_tokens**: Maximum response length
+- **temperature**: Creativity level (0.0 = focused, 1.0 = creative)
+
+## Expected Output
+
+The agent will provide a structured medical analysis including:
+- Interpretation of each blood value
+- Possible diagnoses based on the results
+- Recommended next steps for the patient
+- Clinical context and significance
+
+## Environment Setup
+
+Create a `.env` file in your project directory:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Customization Ideas
+
+You can adapt this pattern for:
+- **Legal Analysis**: Contract review agents
+- **Code Review**: Software quality assurance agents
+- **Content Creation**: Writing and editing agents
+- **Data Analysis**: Business intelligence agents
+- **Customer Support**: FAQ and troubleshooting agents
+
+## Next Steps
+
+After mastering single agents, explore:
+- Multi-agent swarms for complex workflows
+- Batch processing for multiple tasks
+- Agent chaining for sequential reasoning

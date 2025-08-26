@@ -1,0 +1,210 @@
+---
+title: "Rate Limits & API Monitoring"
+description: "Learn how to monitor your API usage, check rate limits, and ensure optimal performance with the Swarms API."
+---
+
+# Rate Limits & API Monitoring
+
+This example demonstrates how to monitor your Swarms API usage, check rate limits, and ensure optimal performance. Understanding and managing your API consumption is crucial for production applications.
+
+## What This Example Shows
+
+- Checking current rate limit usage
+- Monitoring API health status
+- Understanding API consumption patterns
+- Implementing rate limit management strategies
+
+## Installation
+
+```bash
+pip3 install -U swarms-client
+```
+
+## Get Your Swarms API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Create an account or sign in
+3. Generate a new API key
+4. Store it securely in your environment variables
+
+## Code
+
+```python
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+import os
+import time
+
+# Load environment variables
+load_dotenv()
+
+# Initialize the client
+client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+
+def check_api_status():
+    """Check API health and rate limits."""
+    
+    print("=== Swarms API Status Check ===\n")
+    
+    # Check rate limits
+    print("1. Rate Limits:")
+    try:
+        rate_limits = client.client.rate.get_limits()
+        print(f"   Response: {rate_limits}")
+    except Exception as e:
+        print(f"   Error checking rate limits: {e}")
+    
+    print("\n2. API Health:")
+    try:
+        health_status = client.health.check()
+        print(f"   Response: {health_status}")
+    except Exception as e:
+        print(f"   Error checking health: {e}")
+    
+    print("\n3. Swarm Availability:")
+    try:
+        swarm_status = client.swarms.check_available()
+        print(f"   Response: {swarm_status}")
+    except Exception as e:
+        print(f"   Error checking swarm availability: {e}")
+
+def monitor_rate_limits():
+    """Monitor rate limits over time."""
+    
+    print("\n=== Rate Limit Monitoring ===\n")
+    
+    for i in range(3):
+        print(f"Check {i + 1}:")
+        try:
+            rate_info = client.client.rate.get_limits()
+            print(f"   Rate Limits: {rate_info}")
+            
+            # Add delay between checks
+            if i < 2:
+                time.sleep(2)
+                
+        except Exception as e:
+            print(f"   Error: {e}")
+        
+        print()
+
+def check_models_availability():
+    """Check available models and their status."""
+    
+    print("\n=== Model Availability ===\n")
+    
+    try:
+        models = client.models.list_available()
+        print(f"Available Models: {models}")
+    except Exception as e:
+        print(f"Error checking models: {e}")
+
+if __name__ == "__main__":
+    # Run all checks
+    check_api_status()
+    monitor_rate_limits()
+    check_models_availability()
+```
+
+## Rate Limit Management
+
+### Understanding Rate Limits
+
+The Swarms API implements rate limiting to ensure fair usage:
+- **Request Limits**: Maximum requests per time period
+- **Token Limits**: Maximum tokens processed per time period
+- **Concurrent Limits**: Maximum simultaneous requests
+
+### Best Practices
+
+- **Monitor Usage**: Regularly check your current consumption
+- **Implement Backoff**: Add delays when approaching limits
+- **Queue Requests**: Buffer requests during high-usage periods
+- **Optimize Calls**: Minimize unnecessary API requests
+
+## Expected Output
+
+The monitoring script will show:
+- **Rate Limit Status**: Current usage and remaining capacity
+- **API Health**: Service availability and performance
+- **Swarm Status**: Multi-agent service availability
+- **Model Availability**: Supported AI models and their status
+
+## Environment Setup
+
+Create a `.env` file in your project directory:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Advanced Monitoring
+
+### Automated Monitoring
+
+```python
+import schedule
+import time
+
+def scheduled_health_check():
+    """Run health checks on a schedule."""
+    check_api_status()
+
+# Schedule health checks every 5 minutes
+schedule.every(5).minutes.do(scheduled_health_check)
+
+while True:
+    schedule.run_pending()
+    time.sleep(1)
+```
+
+### Alert System
+
+```python
+def alert_on_high_usage(rate_info):
+    """Alert when approaching rate limits."""
+    # Implement your alert logic here
+    # Email, Slack, webhook, etc.
+    pass
+```
+
+## Use Cases
+
+This monitoring is essential for:
+- **Production Applications**: Ensuring service reliability
+- **High-Volume Systems**: Managing API consumption
+- **Cost Optimization**: Monitoring usage for billing
+- **Performance Tuning**: Identifying bottlenecks
+- **Compliance**: Meeting SLA requirements
+
+## Troubleshooting
+
+### Common Issues
+
+- **Rate Limit Exceeded**: Implement exponential backoff
+- **Authentication Errors**: Verify API key and permissions
+- **Service Unavailable**: Check API health status
+- **Model Unavailable**: Verify model name and availability
+
+### Error Handling
+
+```python
+def robust_api_call(func, max_retries=3):
+    """Execute API calls with retry logic."""
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise e
+            time.sleep(2 ** attempt)  # Exponential backoff
+```
+
+## Next Steps
+
+After mastering API monitoring, explore:
+- Implementing automated retry logic
+- Building dashboard visualizations
+- Setting up alert systems
+- Optimizing API usage patterns
+- Scaling applications with rate limits in mind

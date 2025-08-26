@@ -1,0 +1,188 @@
+---
+title: "Hospital Medical Team Swarm"
+description: "Learn how to create a hierarchical swarm that simulates a real medical team with a doctor leader coordinating nurses and assistants."
+---
+
+# Hospital Medical Team Swarm
+
+This example demonstrates how to create a hierarchical swarm that simulates a real medical team. The swarm includes a doctor (leader) who coordinates with nurses and medical assistants to provide comprehensive patient care.
+
+## What This Example Shows
+
+- Creating a hierarchical swarm with leader and worker agents
+- Coordinating multiple specialized medical professionals
+- Implementing role-based agent responsibilities
+- Managing complex multi-agent workflows
+
+## Installation
+
+```bash
+pip3 install -U swarms-client
+```
+
+## Get Your Swarms API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Create an account or sign in
+3. Generate a new API key
+4. Store it securely in your environment variables
+
+## Code
+
+```python
+import json
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize the client
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+)
+
+def create_medical_unit_swarm(client, patient_info):
+    """
+    Creates and runs a simulated medical unit swarm with a doctor (leader), 
+    nurses, and a medical assistant.
+    """
+    return client.swarms.run(
+        name="Hospital Medical Unit",
+        description="A simulated hospital unit with a doctor (leader), nurses, and a medical assistant collaborating on patient care.",
+        swarm_type="HiearchicalSwarm",
+        task=patient_info,
+        agents=[
+            {
+                "agent_name": "Dr. Smith - Attending Physician",
+                "description": "The lead doctor responsible for diagnosis, treatment planning, and team coordination.",
+                "system_prompt": (
+                    "You are Dr. Smith, the attending physician and leader of the medical unit. "
+                    "You review all information, make final decisions, and coordinate the team. "
+                    "Provide a diagnosis, recommend next steps, and delegate tasks to the nurses and assistant."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "leader",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.5,
+            },
+            {
+                "agent_name": "Nurse Alice",
+                "description": "A registered nurse responsible for patient assessment, vital signs, and reporting findings to the doctor.",
+                "system_prompt": (
+                    "You are Nurse Alice, a registered nurse. "
+                    "Assess the patient's symptoms, record vital signs, and report your findings to Dr. Smith. "
+                    "Suggest any immediate nursing interventions if needed."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.5,
+            },
+            {
+                "agent_name": "Nurse Bob",
+                "description": "A registered nurse assisting with patient care, medication administration, and monitoring.",
+                "system_prompt": (
+                    "You are Nurse Bob, a registered nurse. "
+                    "Assist with patient care, administer medications as ordered, and monitor the patient's response. "
+                    "Communicate any changes to Dr. Smith."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.5,
+            },
+            {
+                "agent_name": "Medical Assistant Jane",
+                "description": "A medical assistant supporting the team with administrative tasks and basic patient care.",
+                "system_prompt": (
+                    "You are Medical Assistant Jane. "
+                    "Support the team by preparing the patient, collecting samples, and handling administrative tasks. "
+                    "Report any relevant observations to the nurses or Dr. Smith."
+                ),
+                "model_name": "claude-sonnet-4-20250514",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.5,
+            },
+        ],
+    )
+
+# Example patient case
+patient_symptoms = """
+Patient: 45-year-old female
+Chief Complaint: Chest pain and shortness of breath for 2 days
+
+Symptoms:
+- Sharp chest pain that worsens with deep breathing
+- Shortness of breath, especially when lying down
+- Mild fever (100.2°F)
+- Dry cough
+- Fatigue
+"""
+
+# Run the medical team swarm
+out = create_medical_unit_swarm(client, patient_symptoms)
+print(json.dumps(out, indent=4))
+```
+
+## Swarm Architecture Explained
+
+### Agent Roles
+
+- **Leader Agent (Dr. Smith)**: Coordinates the team, makes final decisions
+- **Worker Agents (Nurses & Assistant)**: Execute specific tasks and report back
+
+### Swarm Type: HierarchicalSwarm
+
+This swarm type creates a clear chain of command where:
+1. The leader agent receives the initial task
+2. Worker agents process their specialized areas
+3. Results flow back to the leader for final synthesis
+4. The leader provides the comprehensive final output
+
+## Expected Output
+
+The swarm will provide a coordinated medical assessment including:
+- **Nurse Alice's Assessment**: Vital signs, immediate observations
+- **Nurse Bob's Care Plan**: Medication and monitoring recommendations
+- **Medical Assistant's Support**: Administrative and preparation tasks
+- **Dr. Smith's Final Diagnosis**: Comprehensive treatment plan and coordination
+
+## Use Cases
+
+This pattern is ideal for:
+- **Medical Teams**: Coordinated patient care and diagnosis
+- **Legal Teams**: Multi-expert document review and analysis
+- **Research Teams**: Collaborative data analysis and interpretation
+- **Support Teams**: Coordinated customer issue resolution
+- **Development Teams**: Code review and quality assurance
+
+## Environment Setup
+
+Create a `.env` file in your project directory:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Customization Ideas
+
+Adapt this pattern for:
+- **Emergency Response**: Fire, police, and medical coordination
+- **Project Management**: Team leads coordinating specialists
+- **Quality Control**: Inspectors coordinating with technicians
+- **Customer Service**: Supervisors managing support agents
+
+## Next Steps
+
+After mastering hierarchical swarms, explore:
+- Sequential workflows for step-by-step processes
+- Concurrent workflows for parallel execution
+- Majority voting for consensus-based decisions
+- Agent routing for dynamic task distribution

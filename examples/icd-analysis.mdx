@@ -1,0 +1,167 @@
+---
+title: "ICD-10 Medical Analysis Swarm"
+description: "Learn how to create a concurrent workflow swarm that analyzes medical conditions using multiple specialized agents working in parallel."
+---
+
+# ICD-10 Medical Analysis Swarm
+
+This example demonstrates how to create a concurrent workflow swarm for medical ICD-10 code analysis. The swarm includes multiple specialized medical agents that work simultaneously to provide comprehensive analysis and explanations of medical codes.
+
+## What This Example Shows
+
+- Creating a concurrent workflow swarm for parallel analysis
+- Implementing multiple specialized medical analysis agents
+- Coordinating agents to work simultaneously for faster results
+- Comprehensive medical code interpretation and analysis
+
+## Installation
+
+```bash
+pip3 install -U swarms-client
+```
+
+## Get Your Swarms API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Create an account or sign in
+3. Generate a new API key
+4. Store it securely in your environment variables
+
+## Code
+
+```python
+import json
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize the client
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+)
+
+# Example patient symptoms for analysis
+patient_symptoms = """
+Patient: 45-year-old female
+Chief Complaint: Chest pain and shortness of breath for 2 days
+
+Symptoms:
+- Sharp chest pain that worsens with deep breathing
+- Shortness of breath, especially when lying down
+- Mild fever (100.2°F)
+- Dry cough
+- Fatigue
+"""
+
+# Create and run the ICD analysis swarm
+out = client.swarms.run(
+    name="ICD Analysis Swarm",
+    description="A swarm that analyzes ICD codes",
+    swarm_type="ConcurrentWorkflow",
+    task=patient_symptoms,
+    agents=[
+        {
+            "agent_name": "ICD-Analyzer",
+            "description": "An agent that analyzes ICD codes",
+            "system_prompt": "You are an expert ICD code analyzer. Your task is to analyze the ICD codes and provide a detailed explanation of the codes.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.5,
+        },
+        {
+            "agent_name": "ICD-Code-Explainer-Primary",
+            "description": "An agent that provides primary explanations for ICD codes",
+            "system_prompt": "You are an expert ICD code explainer. Your task is to provide a clear and thorough explanation of the ICD codes to the user, focusing on primary meanings and clinical context.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.5,
+        },
+        {
+            "agent_name": "ICD-Code-Explainer-Secondary",
+            "description": "An agent that provides additional context and secondary explanations for ICD codes",
+            "system_prompt": "You are an expert ICD code explainer. Your task is to provide additional context, nuances, and secondary explanations for the ICD codes, including possible differential diagnoses and related codes.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.5,
+        },
+    ],
+)
+
+print(json.dumps(out, indent=4))
+```
+
+## Swarm Architecture Explained
+
+### Concurrent Workflow
+
+This swarm type processes all agents simultaneously:
+- **ICD-Analyzer**: Analyzes and identifies relevant ICD codes
+- **ICD-Code-Explainer-Primary**: Provides primary code explanations
+- **ICD-Code-Explainer-Secondary**: Offers additional context and nuances
+
+### Benefits of Concurrent Processing
+
+- **Speed**: All agents work simultaneously for faster results
+- **Efficiency**: No waiting for sequential completion
+- **Comprehensive Coverage**: Multiple perspectives delivered together
+- **Scalability**: Easy to add more parallel agents
+
+## Expected Output
+
+The concurrent swarm will provide:
+- **ICD Code Analysis**: Relevant medical codes for the symptoms
+- **Primary Explanations**: Clear, clinical context for each code
+- **Secondary Context**: Additional insights, differential diagnoses, and related codes
+- **Comprehensive Coverage**: Multiple perspectives on the same medical case
+
+## Use Cases
+
+This pattern is ideal for:
+- **Medical Diagnosis**: Symptom analysis and code identification
+- **Clinical Documentation**: Medical record coding and validation
+- **Medical Education**: Teaching ICD code interpretation
+- **Healthcare Billing**: Accurate medical code assignment
+- **Clinical Research**: Medical condition classification and analysis
+
+## Environment Setup
+
+Create a `.env` file in your project directory:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Customization Ideas
+
+Adapt this pattern for:
+- **Radiology Analysis**: Multiple imaging specialists working in parallel
+- **Laboratory Results**: Multiple lab technicians analyzing different tests
+- **Pharmaceutical Review**: Multiple pharmacists reviewing medication interactions
+- **Surgical Planning**: Multiple specialists planning surgical procedures
+- **Emergency Response**: Multiple emergency responders coordinating care
+
+## Advanced Concurrent Workflows
+
+You can extend this pattern to:
+- **Dynamic Agent Allocation**: Automatically assign agents based on workload
+- **Load Balancing**: Distribute tasks evenly across available agents
+- **Result Aggregation**: Combine parallel results into unified insights
+- **Quality Assurance**: Multiple agents validating each other's work
+
+## Next Steps
+
+After mastering concurrent workflows, explore:
+- Sequential workflows for dependent tasks
+- Hierarchical swarms for team coordination
+- Majority voting for consensus-based decisions
+- Agent routing for intelligent task distribution
+- Mixture of agents for specialized expertise combinations

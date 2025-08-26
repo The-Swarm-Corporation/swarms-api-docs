@@ -1,0 +1,134 @@
+---
+title: "Batch Processing"
+description: "Learn how to process multiple tasks efficiently using batch processing with the Swarms API."
+---
+
+# Batch Processing
+
+This example demonstrates how to process multiple tasks simultaneously using batch processing. This is ideal for scenarios where you need to analyze multiple documents, perform parallel analyses, or handle bulk operations efficiently.
+
+## What This Example Shows
+
+- Processing multiple agent tasks in a single request
+- Configuring different agents for different types of analysis
+- Efficient batch execution for multiple related tasks
+- Handling diverse task types with specialized agents
+
+## Installation
+
+```bash
+pip3 install -U swarms-client
+```
+
+## Get Your Swarms API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Create an account or sign in
+3. Generate a new API key
+4. Store it securely in your environment variables
+
+## Code
+
+```python
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+import json
+
+# Load environment variables
+load_dotenv()
+
+# Initialize the client
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+)
+
+# Define multiple batch requests
+batch_requests = [
+    {
+        "agent_config": {
+            "agent_name": "Bloodwork Diagnosis Expert",
+            "description": "Expert in blood work interpretation.",
+            "system_prompt": (
+                "You are a doctor who interprets blood work. Give concise, clear explanations and possible diagnoses."
+            ),
+            "model_name": "claude-sonnet-4-20250514",
+            "max_loops": 1,
+            "max_tokens": 1000,
+            "temperature": 0.5,
+        },
+        "task": (
+            "Blood work: Hemoglobin 10.2 (low), WBC 13,000 (high), Platelets 180,000 (normal), "
+            "ALT 65 (high), AST 70 (high). Interpret and suggest diagnoses."
+        ),
+    },
+    {
+        "agent_config": {
+            "agent_name": "Radiology Report Summarizer",
+            "description": "Expert in summarizing radiology reports.",
+            "system_prompt": (
+                "You are a radiologist. Summarize the findings of radiology reports in clear, patient-friendly language."
+            ),
+            "model_name": "claude-sonnet-4-20250514",
+            "max_loops": 1,
+            "max_tokens": 1000,
+            "temperature": 0.5,
+        },
+        "task": (
+            "Radiology report: Chest X-ray shows mild cardiomegaly, no infiltrates, no effusion. Summarize the findings."
+        ),
+    },
+]
+
+# Execute batch processing
+result = client.agent.batch.run(body=batch_requests)
+
+print(json.dumps(result, indent=4))
+```
+
+## Batch Processing Benefits
+
+- **Efficiency**: Process multiple tasks in parallel
+- **Cost Optimization**: Reduce API call overhead
+- **Consistency**: Apply similar processing across multiple items
+- **Scalability**: Handle large volumes of work efficiently
+
+## Use Cases
+
+Batch processing is ideal for:
+- **Document Analysis**: Review multiple contracts, reports, or documents
+- **Data Processing**: Analyze large datasets with multiple perspectives
+- **Content Generation**: Create variations of content for different audiences
+- **Quality Assurance**: Review multiple code files, designs, or content pieces
+- **Customer Support**: Process multiple support tickets with specialized agents
+
+## Expected Output
+
+The batch processor will return results for each task:
+- Bloodwork analysis with diagnosis and recommendations
+- Radiology report summary in patient-friendly language
+- Each result maintains the structure and quality of individual agent runs
+
+## Environment Setup
+
+Create a `.env` file in your project directory:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Advanced Batch Processing
+
+You can extend this pattern to:
+- **Dynamic Batching**: Group similar tasks automatically
+- **Priority Processing**: Assign importance levels to different tasks
+- **Result Aggregation**: Combine multiple results into unified insights
+- **Error Handling**: Gracefully handle failures in individual batch items
+
+## Next Steps
+
+After mastering batch processing, explore:
+- Multi-agent swarms for complex collaborative workflows
+- Sequential workflows for dependent tasks
+- Concurrent workflows for parallel execution
+- Agent routing for intelligent task distribution

@@ -1,0 +1,251 @@
+---
+title: "Legal Document Review Swarm"
+description: "Learn how to create a sequential workflow swarm that analyzes legal documents with multiple specialized legal experts working in sequence."
+---
+
+# Legal Document Review Swarm
+
+This example demonstrates how to create a sequential workflow swarm for comprehensive legal document analysis. The swarm includes multiple specialized legal agents that work in sequence to analyze contracts, agreements, and legal documents systematically.
+
+## What This Example Shows
+
+- Creating a sequential workflow swarm for step-by-step analysis
+- Implementing multiple specialized legal expert agents
+- Coordinating agents to work in a specific order
+- Comprehensive legal document review and analysis
+
+## Installation
+
+```bash
+pip3 install -U swarms-client
+```
+
+## Get Your Swarms API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Create an account or sign in
+3. Generate a new API key
+4. Store it securely in your environment variables
+
+## Code
+
+```python
+"""Legal team module for document review and analysis using Swarms API."""
+
+import os
+from dotenv import load_dotenv
+import requests
+
+# Load environment variables
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+HEADERS = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+def run_swarm(swarm_config):
+    """Execute a swarm with the provided configuration."""
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=HEADERS,
+        json=swarm_config,
+    )
+    return response.json()
+
+def create_legal_review_swarm(document_text):
+    """Create a multi-agent legal document analysis swarm."""
+    
+    STRUCTURE_ANALYST_PROMPT = """
+    You are a legal document structure specialist.
+    Your task is to analyze the organization and formatting of the document.
+    - Identify the document type and its intended purpose.
+    - Outline the main structural components (e.g., sections, headers, annexes).
+    - Point out any disorganized, missing, or unusually placed sections.
+    - Suggest improvements to the document's layout and logical flow.
+    """
+
+    PARTY_IDENTIFIER_PROMPT = """
+    You are an expert in identifying legal parties and roles within documents.
+    Your task is to:
+    - Identify all named parties involved in the agreement.
+    - Clarify their roles (e.g., buyer, seller, employer, employee, licensor, licensee).
+    - Highlight any unclear party definitions or relationships.
+    """
+
+    CLAUSE_EXTRACTOR_PROMPT = """
+    You are a legal clause and term extraction agent.
+    Your role is to:
+    - Extract key terms and their definitions from the document.
+    - Identify standard clauses (e.g., payment terms, termination, confidentiality).
+    - Highlight missing standard clauses or unusual language in critical sections.
+    """
+
+    AMBIGUITY_CHECKER_PROMPT = """
+    You are a legal risk and ambiguity reviewer.
+    Your role is to:
+    - Flag vague or ambiguous language that may lead to legal disputes.
+    - Point out inconsistencies across sections.
+    - Highlight overly broad, unclear, or conflicting terms.
+    - Suggest clarifying edits where necessary.
+    """
+
+    COMPLIANCE_REVIEWER_PROMPT = """
+    You are a compliance reviewer with expertise in regulations and industry standards.
+    Your responsibilities are to:
+    - Identify clauses required by applicable laws or best practices.
+    - Flag any missing mandatory disclosures.
+    - Ensure data protection, privacy, and consumer rights are addressed.
+    - Highlight potential legal or regulatory non-compliance risks.
+    """
+
+    swarm_config = {
+        "name": "Legal Document Review Swarm",
+        "description": "A collaborative swarm for reviewing contracts and legal documents.",
+        "agents": [
+            {
+                "agent_name": "Structure Analyst",
+                "description": "Analyzes document structure and organization",
+                "system_prompt": STRUCTURE_ANALYST_PROMPT,
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Party Identifier",
+                "description": "Identifies parties and their legal roles",
+                "system_prompt": PARTY_IDENTIFIER_PROMPT,
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Clause Extractor",
+                "description": "Extracts key terms, definitions, and standard clauses",
+                "system_prompt": CLAUSE_EXTRACTOR_PROMPT,
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Ambiguity Checker",
+                "description": "Flags ambiguous or conflicting language",
+                "system_prompt": AMBIGUITY_CHECKER_PROMPT,
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Compliance Reviewer",
+                "description": "Reviews document for compliance with legal standards",
+                "system_prompt": COMPLIANCE_REVIEWER_PROMPT,
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.3,
+            },
+        ],
+        "swarm_type": "SequentialWorkflow",
+        "max_loops": 1,
+        "task": f"Perform a legal document review and provide structured analysis of the following contract:\n\n{document_text}",
+    }
+    return run_swarm(swarm_config)
+
+def run_legal_review_example():
+    """Run an example legal document analysis."""
+    document = """
+    SERVICE AGREEMENT
+    
+    This Service Agreement ("Agreement") is entered into on June 15, 2024, by and between 
+    Acme Tech Solutions ("Provider") and Brightline Corp ("Client").
+    
+    1. Services: Provider agrees to deliver IT consulting services as outlined in Exhibit A.
+    
+    2. Compensation: Client shall pay Provider $15,000 per month, payable by the 5th of each month.
+    
+    3. Term & Termination: The Agreement shall remain in effect for 12 months and may be 
+       terminated with 30 days' notice by either party.
+    
+    4. Confidentiality: Each party agrees to maintain the confidentiality of proprietary information.
+    
+    5. Governing Law: This Agreement shall be governed by the laws of the State of California.
+    
+    IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first above written.
+    """
+    result = create_legal_review_swarm(document)
+    print(result)
+    return result
+
+if __name__ == "__main__":
+    run_legal_review_example()
+```
+
+## Swarm Architecture Explained
+
+### Sequential Workflow
+
+This swarm type processes agents in a specific order:
+1. **Structure Analyst**: Reviews document organization first
+2. **Party Identifier**: Identifies involved parties based on structure
+3. **Clause Extractor**: Extracts terms after understanding parties
+4. **Ambiguity Checker**: Reviews language after understanding content
+5. **Compliance Reviewer**: Final review after full document analysis
+
+### Agent Specializations
+
+- **Structure Analyst**: Document organization and flow
+- **Party Identifier**: Legal entity identification and roles
+- **Clause Extractor**: Key terms and standard clauses
+- **Ambiguity Checker**: Risk assessment and language clarity
+- **Compliance Reviewer**: Regulatory and legal standard compliance
+
+## Expected Output
+
+The sequential swarm will provide:
+- **Structured Analysis**: Step-by-step document review
+- **Comprehensive Coverage**: All aspects of the legal document
+- **Risk Assessment**: Identification of potential legal issues
+- **Compliance Review**: Regulatory and best practice adherence
+- **Actionable Recommendations**: Specific improvements and clarifications
+
+## Use Cases
+
+This pattern is ideal for:
+- **Contract Review**: Service agreements, employment contracts, NDAs
+- **Legal Compliance**: Regulatory documentation, policy reviews
+- **Due Diligence**: Merger and acquisition document analysis
+- **Risk Assessment**: Identifying legal vulnerabilities and ambiguities
+- **Document Standardization**: Ensuring consistent legal language
+
+## Environment Setup
+
+Create a `.env` file in your project directory:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Customization Ideas
+
+Adapt this pattern for:
+- **Financial Documents**: Loan agreements, investment contracts
+- **Real Estate**: Purchase agreements, lease contracts
+- **Intellectual Property**: Licensing agreements, patent documentation
+- **Employment Law**: HR policies, employment contracts
+- **Regulatory Compliance**: Industry-specific compliance documents
+
+## Next Steps
+
+After mastering sequential workflows, explore:
+- Concurrent workflows for parallel analysis
+- Hierarchical swarms for team coordination
+- Majority voting for consensus-based decisions
+- Agent routing for dynamic task distribution

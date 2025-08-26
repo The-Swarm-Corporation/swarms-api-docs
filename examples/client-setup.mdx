@@ -1,0 +1,89 @@
+---
+title: "Client Setup & Basic Usage"
+description: "Learn how to set up the Swarms API client and perform basic operations like checking health, models, and rate limits."
+---
+
+# Client Setup & Basic Usage
+
+This example demonstrates how to set up the Swarms API client and perform basic operations including health checks, model listing, and rate limit monitoring.
+
+## What This Example Shows
+
+- Setting up the Swarms API client
+- Checking API health status
+- Listing available models
+- Monitoring rate limits
+- Accessing swarm logs and availability
+
+## Installation
+
+```bash
+pip3 install -U swarms-client
+```
+
+## Get Your Swarms API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Create an account or sign in
+3. Generate a new API key
+4. Store it securely in your environment variables
+
+## Code
+
+```python
+import os
+import json
+from dotenv import load_dotenv
+from swarms_client import SwarmsClient
+
+# Load environment variables
+load_dotenv()
+
+# Initialize the client
+client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+
+# Check available models
+print("Available Models:")
+print(json.dumps(client.models.list_available(), indent=4))
+
+# Check API health
+print("\nAPI Health:")
+print(json.dumps(client.health.check(), indent=4))
+
+# Get swarm logs
+print("\nSwarm Logs:")
+print(json.dumps(client.swarms.get_logs(), indent=4))
+
+# Check rate limits
+print("\nRate Limits:")
+print(json.dumps(client.client.rate.get_limits(), indent=4))
+
+# Check swarm availability
+print("\nSwarm Availability:")
+print(json.dumps(client.swarms.check_available(), indent=4))
+```
+
+## Expected Output
+
+The script will output JSON responses showing:
+- List of available AI models
+- API health status
+- Recent swarm execution logs
+- Current rate limit usage
+- Swarm service availability
+
+## Environment Setup
+
+Create a `.env` file in your project directory:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Next Steps
+
+After running this example, you'll be ready to:
+- Create single agents for specific tasks
+- Build multi-agent swarms for complex workflows
+- Implement batch processing for multiple requests
+- Monitor and manage your API usage
