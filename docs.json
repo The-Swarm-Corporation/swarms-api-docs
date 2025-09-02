@@ -75,7 +75,8 @@
             "resources/pricing",
             "resources/community",
             "resources/technical-support",
-            "resources/referral"
+            "resources/referral",
+            "resources/contributors"
           ]
         }
       ]
