@@ -33,7 +33,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `agent_name` | `string` | Yes | - | Unique identifier for the agent |
 | `description` | `string` | No | - | Detailed explanation of agent's purpose |
 | `system_prompt` | `string` | No | - | Initial instructions guiding agent behavior |
-| `model_name` | `string` | No | `"gpt-4.1"` | AI model to use (e.g., gpt-4o, gpt-4o-mini, claude-3-5-sonnet) |
+| `model_name` | `string` | No | `"gpt-4.1"` | AI model to use (e.g., gpt-4o, gpt-4o-mini, claude-sonnet-4-20250514) |
 | `auto_generate_prompt` | `boolean` | No | `false` | Auto-generate prompts based on task requirements |
 | `max_tokens` | `integer` | No | `8192` | Maximum tokens for agent responses |
 | `temperature` | `float` | No | `0.5` | Controls response randomness (0.0-2.0) |
@@ -83,7 +83,7 @@ The response includes detailed usage metrics:
 
 ### 1. Multi-Model Support
 - **OpenAI Models**: gpt-4o, gpt-4o-mini, gpt-4.1
-- **Anthropic Models**: claude-3-5-sonnet-20240620
+- **Anthropic Models**: claude-sonnet-4-20250514-20240620
 - **Custom Models**: Any model supported by LiteLLM
 - **Vision Models**: Support for image analysis with gpt-4o and compatible models
 

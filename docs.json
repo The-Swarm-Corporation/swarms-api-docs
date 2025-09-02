@@ -57,7 +57,8 @@
             "multi-agent/mixture_of_agents",
             "multi-agent/majority_voting",
             "multi-agent/hierarchical_swarm",
-            "multi-agent/agent_rearrange"
+            "multi-agent/agent_rearrange",
+            "multi-agent/advanced_research"
           ]
         },
         {
@@ -99,7 +100,8 @@
           "pages": [
             "examples/hospital-team",
             "examples/legal-team",
-            "examples/icd-analysis"
+            "examples/icd-analysis",
+            "examples/advanced-research"
           ]
         },
         {

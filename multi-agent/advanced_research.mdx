@@ -1,0 +1,499 @@
+---
+title: 'Advanced Research'
+description: 'This page details showcases the documentation for the advanced research system.'
+---
+
+
+The Advanced Research API endpoint provides a sophisticated multi-agent research system that combines director and worker agents to conduct comprehensive research tasks. The system leverages external search capabilities through the Exa search tool and supports both single and batch processing modes.
+
+### Key Features
+
+- **Multi-Agent Architecture**: Director-worker agent pattern for coordinated research
+- **Configurable Models**: Support for multiple LLM providers and models
+- **Image Support**: Optional image inputs for visual research tasks
+- **Batch Processing**: Execute multiple research sessions in parallel
+- **Cost Tracking**: Transparent token usage and pricing calculation
+- **Credit System**: Integrated billing and credit deduction
+- **External Search**: Exa search tool integration for web research
+
+
+## Architecture
+
+The Advanced Research system follows a director-worker pattern:
+
+1. **Director Agent**: Orchestrates the research process, breaks down tasks, and synthesizes final results
+2. **Worker Agents**: Execute specific research tasks assigned by the director
+3. **Search Integration**: Exa search tool provides external data sources
+4. **Cost Management**: Token counting and credit deduction system
+
+```
+[Client Request] 
+       ↓
+[Input Validation]
+       ↓
+[AdvancedResearch Instance]
+       ↓
+[Director Agent] ← → [Worker Agents] ← → [Exa Search]
+       ↓
+[Result Processing]
+       ↓
+[Cost Calculation & Credit Deduction]
+       ↓
+[Response]
+```
+
+## Configuration
+
+### AdvancedResearchConfig
+
+The configuration schema defines all parameters for the research session:
+
+```python
+class AdvancedResearchConfig(BaseModel):
+    name: Optional[str] = "Advanced Research"
+    description: Optional[str] = "Advanced Research"
+    worker_model_name: Optional[str] = "gpt-4.1"
+    director_agent_name: Optional[str] = "Director-Agent"
+    director_model_name: Optional[str] = "gpt-4.1"
+    director_max_tokens: Optional[int] = 8000
+    max_loops: Optional[int] = 1
+    director_max_loops: Optional[int] = 1
+    exa_search_num_results: Optional[int] = 2
+    exa_search_max_characters: Optional[int] = 100
+```
+
+#### Configuration Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | "Advanced Research" | Session identifier name |
+| `description` | string | "Advanced Research" | Session description |
+| `worker_model_name` | string | "gpt-4.1" | Model for worker agents |
+| `director_agent_name` | string | "Director-Agent" | Director agent identifier |
+| `director_model_name` | string | "gpt-4.1" | Model for director agent |
+| `director_max_tokens` | integer | 8000 | Maximum output tokens for director |
+| `max_loops` | integer | 1 | Number of research loops |
+| `director_max_loops` | integer | 1 | Maximum loops for director |
+| `exa_search_num_results` | integer | 2 | Number of search results |
+| `exa_search_max_characters` | integer | 100 | Max characters per search result |
+
+## Input/Output Schemas
+
+### Input Schema
+
+```python
+class AdvancedResearchInputSchema(BaseModel):
+    config: Optional[AdvancedResearchConfig]
+    task: Optional[str]
+    img: Optional[str] = None
+```
+
+#### Required Fields
+
+- `config`: Research configuration object
+- `task`: The research task description
+
+#### Optional Fields
+
+- `img`: Base64 encoded image or image URL for visual research tasks
+
+### Output Schema
+
+```python
+class AdvancedResearchOutputSchema(BaseModel):
+    id: Optional[str]
+    name: Optional[str]
+    description: Optional[str]
+    outputs: Optional[Any]
+    timestamp: Optional[str]
+    sources: Optional[int]
+    characters_per_source: Optional[int]
+    usage: Optional[dict]
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique session identifier |
+| `name` | string | Session name from config |
+| `description` | string | Session description |
+| `outputs` | any | Final research results |
+| `timestamp` | string | ISO timestamp of completion |
+| `sources` | integer | Number of sources used |
+| `characters_per_source` | integer | Characters per source |
+| `usage` | object | Token usage and cost breakdown |
+
+## Pricing and Cost Management
+
+### Pricing Structure
+
+The system implements a tiered pricing model:
+
+- **Input Tokens**: $20 per million tokens
+- **Output Tokens**: $60 per million tokens
+
+
+### Token Counting
+
+The system calculates input tokens from:
+- Configuration name and description
+- Task description
+- Director agent prompt (550 tokens baseline)
+- Worker agent prompts (500 tokens × 5 agents baseline)
+
+Output tokens are counted from the final research output.
+
+## Validation and Error Handling
+
+### Input Validation
+
+The system validates three critical requirements:
+
+1. **Worker Model Name**: Must be specified
+2. **Director Model Name**: Must be specified  
+3. **Max Loops**: Must be greater than 0
+
+```python
+def validate_input_schema(input_schema: AdvancedResearchInputSchema):
+    if input_schema.config.worker_model_name is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error_code": "ADVANCED_RESEARCH_MISSING_WORKER_MODEL_NAME",
+                "message": "Worker model name is required..."
+            }
+        )
+    # Additional validations...
+```
+
+### Error Types
+
+| Error Code | HTTP Status | Description |
+|------------|-------------|-------------|
+| `ADVANCED_RESEARCH_MISSING_WORKER_MODEL_NAME` | 422 | Worker model not specified |
+| `ADVANCED_RESEARCH_MISSING_DIRECTOR_MODEL_NAME` | 422 | Director model not specified |
+| `ADVANCED_RESEARCH_INVALID_MAX_LOOPS` | 422 | Invalid max_loops value |
+| `AdvancedResearchRunError` | 500 | Runtime execution error |
+
+## API Endpoints
+
+### Single Research Session
+
+**Endpoint**: `POST /v1/advanced-research/completions`
+
+**Headers**:
+```
+Content-Type: application/json
+x-api-key: YOUR_API_KEY
+```
+
+**Request Body**:
+```json
+{
+  "config": {
+    "name": "Market Research",
+    "description": "AI market analysis",
+    "worker_model_name": "gpt-4.1",
+    "director_model_name": "gpt-4.1",
+    "max_loops": 1
+  },
+  "task": "Analyze current AI market trends"
+}
+```
+
+**Response**:
+```json
+{
+  "id": "uuid-string",
+  "name": "Market Research",
+  "description": "AI market analysis",
+  "outputs": "Research results...",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "sources": 2,
+  "characters_per_source": 100,
+  "usage": {
+    "input_tokens": 1500,
+    "output_tokens": 800,
+    "total_tokens": 2300,
+    "total_cost_usd": 0.078
+  }
+}
+```
+
+### Batch Research Sessions
+
+**Endpoint**: `POST /v1/advanced-research/batch/completions`
+
+**Request Body**:
+```json
+{
+  "input_schemas": [
+    {
+      "config": { /* config 1 */ },
+      "task": "Task 1"
+    },
+    {
+      "config": { /* config 2 */ },
+      "task": "Task 2"
+    }
+  ]
+}
+```
+
+**Response**: Array of individual research session results.
+
+## Usage Examples
+
+### Basic Research Example
+
+```python
+import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def run_basic_research():
+    api_url = "http://localhost:8080"
+    api_key = os.getenv("SWARMS_API_KEY")
+    
+    payload = {
+        "config": {
+            "name": "Healthcare AI Research",
+            "description": "Research on AI applications in healthcare",
+            "worker_model_name": "gpt-4.1",
+            "director_model_name": "gpt-4.1",
+            "max_loops": 1
+        },
+        "task": "What are the main benefits of using AI in healthcare?"
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": api_key
+    }
+    
+    response = requests.post(
+        f"{api_url}/v1/advanced-research/completions",
+        json=payload,
+        headers=headers,
+        timeout=300.0
+    )
+    
+    return response.json()
+```
+
+### Advanced Configuration Example
+
+```python
+def run_advanced_research():
+    payload = {
+        "config": {
+            "name": "Deep Market Analysis",
+            "description": "Comprehensive market research with multiple sources",
+            "worker_model_name": "claude-sonnet-4-20250514-20241022",
+            "director_agent_name": "Research-Director",
+            "director_model_name": "gpt-4.1",
+            "director_max_tokens": 12000,
+            "max_loops": 3,
+            "director_max_loops": 2,
+            "exa_search_num_results": 5,
+            "exa_search_max_characters": 500
+        },
+        "task": "Conduct comprehensive analysis of renewable energy market trends, including technological innovations, market size, key players, and growth projections for 2024-2026"
+    }
+    
+    # Make request...
+```
+
+### Image-Based Research Example
+
+```python
+def run_image_research():
+    payload = {
+        "config": {
+            "name": "Visual Analysis Research",
+            "description": "Research based on visual content",
+            "worker_model_name": "gpt-4-vision-preview",
+            "director_model_name": "gpt-4.1"
+        },
+        "task": "Analyze this chart and provide insights on the data trends",
+        "img": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+    }
+    
+    # Make request...
+```
+
+### Async Example with httpx
+
+```python
+import httpx
+import asyncio
+
+async def run_async_research():
+    api_url = "http://localhost:8080"
+    api_key = os.getenv("SWARMS_API_KEY")
+    
+    payload = {
+        "config": {
+            "name": "Async Research",
+            "worker_model_name": "gpt-4.1",
+            "director_model_name": "gpt-4.1"
+        },
+        "task": "Research task description"
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": api_key
+    }
+    
+    async with httpx.AsyncClient(timeout=300.0) as client:
+        response = await client.post(
+            f"{api_url}/v1/advanced-research/completions",
+            json=payload,
+            headers=headers
+        )
+        return response.json()
+
+# Run async
+result = asyncio.run(run_async_research())
+```
+
+## Batch Processing
+
+### Batch Request Structure
+
+```python
+class BatchedAdvancedResearchInputSchema(BaseModel):
+    input_schemas: Optional[List[AdvancedResearchInputSchema]]
+```
+
+### Batch Processing Benefits
+
+1. **Parallel Execution**: Multiple research sessions run concurrently
+2. **Cost Efficiency**: Shared infrastructure overhead
+3. **Consistent Configuration**: Apply similar configs across multiple tasks
+
+### Batch Example
+
+```python
+def run_batch_research():
+    batch_payload = {
+        "input_schemas": [
+            {
+                "config": {
+                    "name": "Tech Research 1",
+                    "worker_model_name": "gpt-4.1",
+                    "director_model_name": "gpt-4.1"
+                },
+                "task": "Research emerging AI technologies"
+            },
+            {
+                "config": {
+                    "name": "Tech Research 2", 
+                    "worker_model_name": "gpt-4.1",
+                    "director_model_name": "gpt-4.1"
+                },
+                "task": "Research blockchain applications"
+            },
+            {
+                "config": {
+                    "name": "Tech Research 3",
+                    "worker_model_name": "gpt-4.1", 
+                    "director_model_name": "gpt-4.1"
+                },
+                "task": "Research quantum computing progress"
+            }
+        ]
+    }
+    
+    response = requests.post(
+        f"{api_url}/v1/advanced-research/batch/completions",
+        json=batch_payload,
+        headers=headers,
+        timeout=600.0  # Longer timeout for batch
+    )
+    
+    return response.json()
+```
+
+## Best Practices
+
+### Configuration Optimization
+
+1. **Model Selection**:
+   - Use `gpt-4.1` or `claude-sonnet-4-20250514` for complex research
+   - Consider `gpt-3.5-turbo` for simpler tasks to reduce costs
+   - Match director and worker models for consistency
+
+2. **Loop Configuration**:
+   - Start with `max_loops: 1` for simple tasks
+   - Increase loops for complex, multi-stage research
+   - Monitor costs as loops multiply token usage
+
+3. **Search Configuration**:
+   - Adjust `exa_search_num_results` based on research depth needed
+   - Increase `exa_search_max_characters` for detailed source content
+   - Balance thoroughness with cost and processing time
+
+### Task Definition
+
+1. **Clear Objectives**: Define specific, measurable research goals
+2. **Scope Boundaries**: Limit task scope to avoid excessive token usage
+3. **Context Provision**: Include relevant background information
+4. **Output Format**: Specify desired output structure when needed
+
+### Error Handling
+
+```python
+def robust_research_call(payload):
+    try:
+        response = requests.post(
+            f"{api_url}/v1/advanced-research/completions",
+            json=payload,
+            headers=headers,
+            timeout=300.0
+        )
+        response.raise_for_status()
+        return response.json()
+        
+    except requests.exceptions.Timeout:
+        return {"error": "Request timed out"}
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"HTTP error: {e.response.status_code}"}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Request failed: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Unexpected error: {str(e)}"}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Missing Model Names**: Ensure both worker and director models are specified
+2. **Invalid Max Loops**: Verify max_loops is greater than 0
+3. **Authentication Errors**: Check API key validity and format
+4. **Timeout Issues**: Increase timeout for complex research tasks
+5. **Credit Deduction Failures**: Verify sufficient credits in account
+
+
+### Support
+
+For additional support:
+- Review error messages for specific error codes
+- Check logs for detailed execution information
+- Contact support through [Swarms Support](https://cal.com/swarms)
+- Refer to the main API documentation for general issues
+
+
+### Model Selection Guidelines
+
+1. **Research Complexity**: More complex models for sophisticated analysis
+2. **Cost Considerations**: Balance capability with cost requirements
+3. **Response Time**: Consider model speed for time-sensitive tasks
+4. **Special Features**: Use vision-capable models for image analysis
+
+This documentation provides comprehensive coverage of the Advanced Research API functionality, configuration options, and best practices for enterprise implementation.
