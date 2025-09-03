@@ -92,6 +92,12 @@ The `mint.json` file contains the configuration for:
 - [Mintlify CLI Reference](https://mintlify.com/docs/cli)
 - [Swarms API](https://swarms-api-285321057562.us-east1.run.app/)
 
+# Todo
+
+- Add tools to the capabilities
+- Add streaming to the capabilities
+- Add multi-modal processing to the capabilities
+
 ## 📄 License
 
 This project is licensed under the terms specified in the [LICENSE](LICENSE) file.

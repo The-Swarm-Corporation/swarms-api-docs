@@ -1,4 +1,502 @@
 ---
-title: 'Agent Completions API Reference'
-description: 'Learn how to build individual agents and their capabilties with swarms'
+title: 'Streaming API'
+description: 'Real-time streaming responses for immediate agent feedback and better user experience'
 ---
+
+import { Tabs, Tab } from 'mintlify'
+
+# Streaming API
+
+The Swarms API supports real-time streaming responses, allowing you to receive agent outputs as they're generated. This provides immediate feedback and a better user experience for long-running tasks.
+
+<Info>
+Streaming is enabled by setting `"streaming_on": true` in your agent configuration.
+</Info>
+
+## Quick Start
+
+Enable streaming by adding the `streaming_on` parameter to your agent configuration:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import json
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+    }
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Research Analyst",
+            "model_name": "claude-sonnet-4-20250514",
+            "max_tokens": 8192,
+            "streaming_on": True
+        },
+        "task": "What are the key trends in AI development?"
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        stream=True
+    )
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const fetch = require('node-fetch');
+    require('dotenv').config();
+
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+    };
+
+    const payload = {
+        agent_config: {
+            agent_name: "Research Analyst",
+            model_name: "claude-sonnet-4-20250514",
+            max_tokens: 8192,
+            streaming_on: true
+        },
+        task: "What are the key trends in AI development?"
+    };
+
+    const response = await fetch(`${BASE_URL}/v1/agent/completions`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+    });
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/agent/completions" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json" \
+      -H "Connection: keep-alive" \
+      -H "X-Accel-Buffering: no" \
+      -d '{
+        "agent_config": {
+          "agent_name": "Research Analyst",
+          "model_name": "claude-sonnet-4-20250514",
+          "max_tokens": 8192,
+          "streaming_on": true
+        },
+        "task": "What are the key trends in AI development?"
+      }' \
+      --no-buffer -N
+    ```
+  </Tab>
+</Tabs>
+
+## Stream Format
+
+The API uses Server-Sent Events (SSE) format. Each response contains event types and data:
+
+```
+event: metadata
+data: {"job_id": "abc123", "name": "Research Analyst"}
+
+event: chunk
+data: {"content": "Based on current research"}
+
+event: chunk
+data: {"content": ", AI development shows"}
+
+event: usage
+data: {"tokens_used": 150, "cost": 0.003}
+
+event: done
+data: {"status": "finished"}
+```
+
+## Parsing Streams
+
+Here's how to parse streaming responses in different languages:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    def parse_streaming_response(response):
+        """Parse streaming response and handle events"""
+        full_content = ""
+        current_event = None
+        
+        for line in response.iter_lines():
+            if not line:
+                continue
+                
+            line = line.decode("utf-8")
+            
+            # Parse event type
+            if line.startswith("event: "):
+                current_event = line[7:].strip()
+                continue
+            
+            # Parse event data
+            elif line.startswith("data: "):
+                try:
+                    data = json.loads(line[6:])
+                    
+                    if current_event == "metadata":
+                        print(f"Job ID: {data.get('job_id')}")
+                        print(f"Agent: {data.get('name')}")
+                        print("-" * 40)
+                    
+                    elif current_event == "chunk":
+                        content = data.get("content", "")
+                        full_content += content
+                        print(content, end="", flush=True)
+                    
+                    elif current_event == "usage":
+                        print(f"\nTokens used: {data.get('tokens_used')}")
+                        print(f"Cost: ${data.get('cost', 0):.4f}")
+                    
+                    elif current_event == "done":
+                        print("\n✅ Complete!")
+                    
+                    elif current_event == "error":
+                        print(f"\n❌ Error: {data.get('error')}")
+                        
+                except json.JSONDecodeError:
+                    continue
+        
+        return full_content
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    async function parseStreamingResponse(response) {
+        let fullContent = "";
+        let currentEvent = null;
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+                if (line.startsWith('event: ')) {
+                    currentEvent = line.substring(7).trim();
+                    continue;
+                }
+                
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.substring(6));
+                        
+                        if (currentEvent === 'metadata') {
+                            console.log(`Job ID: ${data.job_id}`);
+                            console.log(`Agent: ${data.name}`);
+                            console.log("-".repeat(40));
+                        } else if (currentEvent === 'chunk') {
+                            const content = data.content || "";
+                            fullContent += content;
+                            process.stdout.write(content);
+                        } else if (currentEvent === 'usage') {
+                            console.log(`\nTokens used: ${data.tokens_used}`);
+                            console.log(`Cost: $${data.cost?.toFixed(4) || 0}`);
+                        } else if (currentEvent === 'done') {
+                            console.log("\n✅ Complete!");
+                        } else if (currentEvent === 'error') {
+                            console.log(`\n❌ Error: ${data.error}`);
+                        }
+                    } catch (e) {
+                        // Skip malformed JSON
+                    }
+                }
+            }
+        }
+        
+        return fullContent;
+    }
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    func parseStreamingResponse(body io.Reader) {
+        scanner := bufio.NewScanner(body)
+        var currentEvent string
+        var fullContent strings.Builder
+        
+        for scanner.Scan() {
+            line := scanner.Text()
+            
+            if strings.HasPrefix(line, "event: ") {
+                currentEvent = strings.TrimSpace(line[7:])
+                continue
+            }
+            
+            if strings.HasPrefix(line, "data: ") {
+                var data StreamData
+                if err := json.Unmarshal([]byte(line[6:]), &data); err != nil {
+                    continue
+                }
+                
+                switch currentEvent {
+                case "metadata":
+                    fmt.Printf("Job ID: %s\n", data.JobID)
+                    fmt.Printf("Agent: %s\n", data.Name)
+                    fmt.Println(strings.Repeat("-", 40))
+                case "chunk":
+                    fullContent.WriteString(data.Content)
+                    fmt.Print(data.Content)
+                case "usage":
+                    fmt.Printf("\nTokens used: %d\n", data.TokensUsed)
+                    fmt.Printf("Cost: $%.4f\n", data.Cost)
+                case "done":
+                    fmt.Println("\n✅ Complete!")
+                case "error":
+                    fmt.Printf("\n❌ Error: %s\n", data.Error)
+                }
+            }
+        }
+        
+        fmt.Printf("\n📝 Total content: %d characters\n", fullContent.Len())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Complete Examples
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import json
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    def run_streaming_agent():
+        """Complete example of streaming agent request"""
+        
+        API_KEY = os.getenv("SWARMS_API_KEY")
+        BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+        
+        headers = {
+            "x-api-key": API_KEY,
+            "Content-Type": "application/json",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+        
+        payload = {
+            "agent_config": {
+                "agent_name": "Research Analyst",
+                "model_name": "claude-sonnet-4-20250514",
+                "max_tokens": 8192,
+                "streaming_on": True
+            },
+            "task": "What are the best ways to find samples of diabetes from blood samples?"
+        }
+        
+        print("🚀 Starting streaming request...")
+        
+        response = requests.post(
+            f"{BASE_URL}/v1/agent/completions",
+            headers=headers,
+            json=payload,
+            stream=True,
+            timeout=60
+        )
+        
+        if response.status_code != 200:
+            print(f"❌ Error: {response.status_code} - {response.text}")
+            return
+        
+        # Parse the streaming response
+        full_content = parse_streaming_response(response)
+        print(f"\n📝 Total content: {len(full_content)} characters")
+
+    # Run the example
+    if __name__ == "__main__":
+        run_streaming_agent()
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const fetch = require('node-fetch');
+    require('dotenv').config();
+
+    async function runStreamingAgent() {
+        const API_KEY = process.env.SWARMS_API_KEY;
+        const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+        
+        const headers = {
+            "x-api-key": API_KEY,
+            "Content-Type": "application/json",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        };
+        
+        const payload = {
+            agent_config: {
+                agent_name: "Research Analyst",
+                model_name: "claude-sonnet-4-20250514",
+                max_tokens: 8192,
+                streaming_on: true
+            },
+            task: "What are the best ways to find samples of diabetes from blood samples?"
+        };
+        
+        console.log("🚀 Starting streaming request...");
+        
+        try {
+            const response = await fetch(`${BASE_URL}/v1/agent/completions`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                console.error(`❌ Error: ${response.status} - ${await response.text()}`);
+                return;
+            }
+            
+            // Parse streaming response
+            const fullContent = await parseStreamingResponse(response);
+            console.log(`\n📝 Total content: ${fullContent.length} characters`);
+            
+        } catch (error) {
+            console.error("Request failed:", error);
+        }
+    }
+
+    // Run the example
+    runStreamingAgent();
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    #!/bin/bash
+
+    API_KEY="your-api-key-here"
+    BASE_URL="https://swarms-api-285321057562.us-east1.run.app"
+
+    echo "🚀 Starting streaming request..."
+
+    curl -X POST "${BASE_URL}/v1/agent/completions" \
+      -H "x-api-key: ${API_KEY}" \
+      -H "Content-Type: application/json" \
+      -H "Connection: keep-alive" \
+      -H "X-Accel-Buffering: no" \
+      -d '{
+        "agent_config": {
+          "agent_name": "Research Analyst",
+          "model_name": "claude-sonnet-4-20250514",
+          "max_tokens": 8192,
+          "streaming_on": true
+        },
+        "task": "What are the best ways to find samples of diabetes from blood samples?"
+      }' \
+      --no-buffer \
+      -N
+    ```
+  </Tab>
+</Tabs>
+
+## Event Types
+
+| Event | Description | Data Fields |
+|-------|-------------|-------------|
+| `metadata` | Job information | `job_id`, `name`, `temperature` |
+| `chunk` | Content piece | `content` |
+| `usage` | Token usage | `tokens_used`, `cost` |
+| `done` | Completion | `status` |
+| `error` | Error info | `error`, `message` |
+
+## Best Practices
+
+### Error Handling
+
+Always handle potential errors in your stream processing:
+
+```python
+try:
+    response = requests.post(url, json=payload, stream=True, timeout=60)
+    if response.status_code != 200:
+        print(f"Error: {response.status_code} - {response.text}")
+        return
+    
+    full_content = parse_streaming_response(response)
+    
+except requests.exceptions.RequestException as e:
+    print(f"Request failed: {e}")
+except json.JSONDecodeError as e:
+    print(f"JSON decode error: {e}")
+```
+
+### Timeout Management
+
+Set appropriate timeouts for your use case:
+
+```python
+# For quick responses
+response = requests.post(url, json=payload, stream=True, timeout=30)
+
+# For long-running tasks  
+response = requests.post(url, json=payload, stream=True, timeout=300)
+```
+
+## Benefits
+
+- **Real-time Feedback**: See results as they're generated
+- **Better UX**: Reduced perceived latency  
+- **Progress Tracking**: Monitor long-running operations
+- **Error Handling**: Immediate error feedback
+
+## Troubleshooting
+
+<Accordion title="Common Issues">
+  <AccordionGroup title="Connection Timeouts">
+    Increase timeout values for long-running tasks. Set appropriate timeouts based on your expected response time.
+  </AccordionGroup>
+  
+  <AccordionGroup title="JSON Decode Errors">
+    Handle malformed data gracefully by wrapping JSON parsing in try-catch blocks.
+  </AccordionGroup>
+  
+  <AccordionGroup title="Incomplete Streams">
+    Always check for `done` or `error` events to ensure the stream completed successfully.
+  </AccordionGroup>
+  
+  <AccordionGroup title="Memory Usage">
+    Process chunks incrementally for large responses to avoid memory issues.
+  </AccordionGroup>
+</Accordion>
+
+### Debug Mode
+
+Enable debug logging to troubleshoot stream issues:
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```

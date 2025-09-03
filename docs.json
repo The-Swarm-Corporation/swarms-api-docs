@@ -65,7 +65,8 @@
           "group": "Capabilities",
           "pages": [
             "capabilities/swarms_api_tools",
-            "capabilities/mcp_integration"
+            "capabilities/mcp_integration",
+            "capabilities/tools"
           ]
         },
         {
