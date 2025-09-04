@@ -94,8 +94,8 @@ The `mint.json` file contains the configuration for:
 
 # Todo
 
-- Add tools to the capabilities
-- Add streaming to the capabilities
+- Add tools to the capabilities - next
+- Add streaming to the capabilities - done
 - Add multi-modal processing to the capabilities
 
 ## 📄 License
