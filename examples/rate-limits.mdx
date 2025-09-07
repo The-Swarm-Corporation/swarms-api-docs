@@ -1,206 +1,482 @@
 ---
-title: "Rate Limits & API Monitoring"
-description: "Learn how to monitor your API usage, check rate limits, and ensure optimal performance with the Swarms API."
+title: 'Rate Limits & Usage Monitoring'
+description: 'Monitor your API usage, check rate limits, and optimize your API calls'
 ---
 
-## What This Example Shows
+import { Tabs, Tab } from 'mintlify'
 
-- Checking current rate limit usage
-- Monitoring API health status
-- Understanding API consumption patterns
-- Implementing rate limit management strategies
 
-## Installation
+Monitor your Swarms API usage, check current rate limits, and implement proper rate limit handling. The `/v1/rate/limits` endpoint provides comprehensive information about your API usage and limits.
 
-```bash
-pip3 install -U swarms-client
+<Info>
+Rate limits are tier-based and automatically enforced. Monitor your usage to avoid hitting limits and optimize your API calls.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import json
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    def get_rate_limits():
+        """Get current rate limits and usage"""
+        response = requests.get(
+            f"{BASE_URL}/v1/rate/limits",
+            headers=headers
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error: {response.status_code} - {response.text}")
+            return None
+
+    # Get rate limits
+    limits_data = get_rate_limits()
+    if limits_data:
+        print("✅ Rate limits retrieved successfully!")
+        print(json.dumps(limits_data, indent=2))
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    async function getRateLimits() {
+        try {
+            const response = await fetch(`${BASE_URL}/v1/rate/limits`, {
+                method: 'GET',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("✅ Rate limits retrieved successfully!");
+            console.log(JSON.stringify(data, null, 2));
+            return data;
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
+        }
+    }
+
+    // Get rate limits
+    getRateLimits();
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    # Get rate limits and usage
+    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/rate/limits" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type": "application/json"
+
+    # Example response:
+    # {
+    #   "success": true,
+    #   "rate_limits": {
+    #     "minute": {
+    #       "count": 45,
+    #       "limit": 100,
+    #       "exceeded": false,
+    #       "remaining": 55,
+    #       "reset_time": "2024-01-01T12:05:00Z"
+    #     }
+    #   },
+    #   "limits": {
+    #     "maximum_requests_per_minute": 100
+    #   },
+    #   "tier": "premium"
+    # }
+    ```
+  </Tab>
+</Tabs>
+
+## Understanding Rate Limit Response
+
+```json
+{
+  "success": true,
+  "rate_limits": {
+    "minute": {
+      "count": 45,           // Requests made in current minute
+      "limit": 100,          // Maximum requests per minute
+      "exceeded": false,     // Whether limit is exceeded
+      "remaining": 55,       // Requests remaining
+      "reset_time": "2024-01-01T12:05:00Z"  // When limit resets
+    },
+    "hour": { /* hourly limits */ },
+    "day": { /* daily limits */ }
+  },
+  "limits": {
+    "maximum_requests_per_minute": 100,
+    "maximum_requests_per_hour": 1000,
+    "maximum_requests_per_day": 5000,
+    "tokens_per_agent": 10000
+  },
+  "tier": "premium",         // Your subscription tier
+  "timestamp": "2024-01-01T12:03:30Z"
+}
 ```
 
-## Get Your Swarms API Key
+## Rate Limit Monitoring
 
-1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
-2. Create an account or sign in
-3. Generate a new API key
-4. Store it securely in your environment variables
+<Tabs>
+  <Tab title="Python">
+    ```python
+    def monitor_rate_limits():
+        """Monitor rate limits and provide usage insights"""
+        limits_data = get_rate_limits()
 
-## Code
+        if not limits_data or not limits_data.get("success"):
+            print("❌ Failed to retrieve rate limits")
+            return
 
-```python
-from swarms_client import SwarmsClient
-from dotenv import load_dotenv
-import os
-import time
+        rate_limits = limits_data.get("rate_limits", {})
+        limits = limits_data.get("limits", {})
+        tier = limits_data.get("tier", "unknown")
 
-# Load environment variables
-load_dotenv()
+        print(f"📊 Subscription Tier: {tier}")
+        print("=" * 50)
 
-# Initialize the client
-client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+        for period, data in rate_limits.items():
+            count = data.get("count", 0)
+            limit = data.get("limit", 0)
+            remaining = data.get("remaining", 0)
+            exceeded = data.get("exceeded", False)
+            reset_time = data.get("reset_time", "")
 
-def check_api_status():
-    """Check API health and rate limits."""
-    
-    print("=== Swarms API Status Check ===\n")
-    
-    # Check rate limits
-    print("1. Rate Limits:")
-    try:
-        rate_limits = client.client.rate.get_limits()
-        print(f"   Response: {rate_limits}")
-    except Exception as e:
-        print(f"   Error checking rate limits: {e}")
-    
-    print("\n2. API Health:")
-    try:
-        health_status = client.health.check()
-        print(f"   Response: {health_status}")
-    except Exception as e:
-        print(f"   Error checking health: {e}")
-    
-    print("\n3. Swarm Availability:")
-    try:
-        swarm_status = client.swarms.check_available()
-        print(f"   Response: {swarm_status}")
-    except Exception as e:
-        print(f"   Error checking swarm availability: {e}")
+            # Calculate usage percentage
+            usage_percent = (count / limit * 100) if limit > 0 else 0
 
-def monitor_rate_limits():
-    """Monitor rate limits over time."""
-    
-    print("\n=== Rate Limit Monitoring ===\n")
-    
-    for i in range(3):
-        print(f"Check {i + 1}:")
-        try:
-            rate_info = client.client.rate.get_limits()
-            print(f"   Rate Limits: {rate_info}")
-            
-            # Add delay between checks
-            if i < 2:
-                time.sleep(2)
-                
-        except Exception as e:
-            print(f"   Error: {e}")
-        
-        print()
+            # Determine status
+            if exceeded:
+                status = "🔴 EXCEEDED"
+            elif usage_percent > 80:
+                status = "🟡 HIGH USAGE"
+            elif usage_percent > 50:
+                status = "🟠 MODERATE"
+            else:
+                status = "🟢 LOW"
 
-def check_models_availability():
-    """Check available models and their status."""
-    
-    print("\n=== Model Availability ===\n")
-    
-    try:
-        models = client.models.list_available()
-        print(f"Available Models: {models}")
-    except Exception as e:
-        print(f"Error checking models: {e}")
+            print(f"{period.upper()} LIMITS:")
+            print(f"  Status: {status}")
+            print(f"  Used: {count}/{limit} ({usage_percent:.1f}%)")
+            print(f"  Remaining: {remaining}")
+            print(f"  Reset: {reset_time}")
+            print()
 
-if __name__ == "__main__":
-    # Run all checks
-    check_api_status()
+    # Monitor usage
     monitor_rate_limits()
-    check_models_availability()
-```
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    async function monitorRateLimits() {
+        const limitsData = await getRateLimits();
 
-## Rate Limit Management
+        if (!limitsData || !limitsData.success) {
+            console.log("❌ Failed to retrieve rate limits");
+            return;
+        }
 
-### Understanding Rate Limits
+        const rateLimits = limitsData.rate_limits || {};
+        const limits = limitsData.limits || {};
+        const tier = limitsData.tier || "unknown";
 
-The Swarms API implements rate limiting to ensure fair usage:
-- **Request Limits**: Maximum requests per time period
-- **Token Limits**: Maximum tokens processed per time period
-- **Concurrent Limits**: Maximum simultaneous requests
+        console.log(`📊 Subscription Tier: ${tier}`);
+        console.log("=".repeat(50));
 
-### Best Practices
+        for (const [period, data] of Object.entries(rateLimits)) {
+            const count = data.count || 0;
+            const limit = data.limit || 0;
+            const remaining = data.remaining || 0;
+            const exceeded = data.exceeded || false;
+            const resetTime = data.reset_time || "";
 
-- **Monitor Usage**: Regularly check your current consumption
-- **Implement Backoff**: Add delays when approaching limits
-- **Queue Requests**: Buffer requests during high-usage periods
-- **Optimize Calls**: Minimize unnecessary API requests
+            // Calculate usage percentage
+            const usagePercent = limit > 0 ? (count / limit * 100) : 0;
 
-## Expected Output
+            // Determine status
+            let status;
+            if (exceeded) {
+                status = "🔴 EXCEEDED";
+            } else if (usagePercent > 80) {
+                status = "🟡 HIGH USAGE";
+            } else if (usagePercent > 50) {
+                status = "🟠 MODERATE";
+            } else {
+                status = "🟢 LOW";
 
-The monitoring script will show:
-- **Rate Limit Status**: Current usage and remaining capacity
-- **API Health**: Service availability and performance
-- **Swarm Status**: Multi-agent service availability
-- **Model Availability**: Supported AI models and their status
+            console.log(`${period.toUpperCase()} LIMITS:`);
+            console.log(`  Status: ${status}`);
+            console.log(`  Used: ${count}/${limit} (${usagePercent.toFixed(1)}%)`);
+            console.log(`  Remaining: ${remaining}`);
+            console.log(`  Reset: ${resetTime}`);
+            console.log();
+        }
+    }
 
-## Environment Setup
+    // Monitor usage
+    monitorRateLimits();
+    ```
+  </Tab>
+</Tabs>
 
-Create a `.env` file in your project directory:
+## Rate Limit Handling
 
-```bash
-SWARMS_API_KEY=your_api_key_here
-```
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import time
+    import random
 
-## Advanced Monitoring
+    class RateLimitHandler:
+        def __init__(self, base_delay=1, max_delay=60):
+            self.base_delay = base_delay
+            self.max_delay = max_delay
 
-### Automated Monitoring
+        def execute_with_retry(self, func, max_retries=3, *args, **kwargs):
+            """Execute a function with automatic retry on rate limit errors"""
+            for attempt in range(max_retries):
+                try:
+                    # Check rate limits before executing
+                    limits_data = get_rate_limits()
+                    if limits_data:
+                        rate_limits = limits_data.get("rate_limits", {})
+                        minute_data = rate_limits.get("minute", {})
 
-```python
-import schedule
-import time
+                        if minute_data.get("exceeded"):
+                            print("🔴 Rate limit exceeded! Waiting for reset...")
+                            time.sleep(self.base_delay * 2)
+                            continue
 
-def scheduled_health_check():
-    """Run health checks on a schedule."""
-    check_api_status()
+                        # Check if we're close to the limit
+                        remaining = minute_data.get("remaining", 0)
+                        if remaining < 5:  # Less than 5 requests remaining
+                            wait_time = min(self.base_delay * (2 ** attempt), self.max_delay)
+                            print(f"🟡 Approaching rate limit. Waiting {wait_time}s...")
+                            time.sleep(wait_time)
 
-# Schedule health checks every 5 minutes
-schedule.every(5).minutes.do(scheduled_health_check)
+                    return func(*args, **kwargs)
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code == 429:  # Rate limit exceeded
+                        if attempt < max_retries - 1:
+                            wait_time = min(self.base_delay * (2 ** attempt), self.max_delay)
+                            print(f"⏳ Rate limited. Retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            print("❌ Max retries exceeded")
+                            raise
+                    else:
+                        raise
 
-while True:
-    schedule.run_pending()
-    time.sleep(1)
-```
+    # Usage example
+    handler = RateLimitHandler()
 
-### Alert System
+    def safe_api_call():
+        response = requests.get(f"{BASE_URL}/v1/models/available", headers=headers)
+        response.raise_for_status()
+        return response.json()
 
-```python
-def alert_on_high_usage(rate_info):
-    """Alert when approaching rate limits."""
-    # Implement your alert logic here
-    # Email, Slack, webhook, etc.
-    pass
-```
+    # Execute with rate limit handling
+    result = handler.execute_with_retry(safe_api_call)
+    print("Request completed successfully!")
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    class RateLimitHandler {
+        constructor(baseDelay = 1000, maxDelay = 60000) {
+            this.baseDelay = baseDelay;
+            this.maxDelay = maxDelay;
+        }
 
-## Use Cases
+        async executeWithRetry(func, maxRetries = 3, ...args) {
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    // Check rate limits before executing
+                    const limitsData = await getRateLimits();
+                    if (limitsData) {
+                        const rateLimits = limitsData.rate_limits || {};
+                        const minuteData = rateLimits.minute || {};
 
-This monitoring is essential for:
-- **Production Applications**: Ensuring service reliability
-- **High-Volume Systems**: Managing API consumption
-- **Cost Optimization**: Monitoring usage for billing
-- **Performance Tuning**: Identifying bottlenecks
-- **Compliance**: Meeting SLA requirements
+                        if (minuteData.exceeded) {
+                            console.log("🔴 Rate limit exceeded! Waiting for reset...");
+                            await new Promise(resolve => setTimeout(resolve, this.baseDelay * 2));
+                            continue;
+                        }
 
-## Troubleshooting
+                        // Check if we're close to the limit
+                        const remaining = minuteData.remaining || 0;
+                        if (remaining < 5) {
+                            const waitTime = Math.min(this.baseDelay * Math.pow(2, attempt), this.maxDelay);
+                            console.log(`🟡 Approaching rate limit. Waiting ${waitTime}ms...`);
+                            await new Promise(resolve => setTimeout(resolve, waitTime));
+                        }
+                    }
 
-### Common Issues
+                    const response = await func(...args);
 
-- **Rate Limit Exceeded**: Implement exponential backoff
-- **Authentication Errors**: Verify API key and permissions
-- **Service Unavailable**: Check API health status
-- **Model Unavailable**: Verify model name and availability
+                    if (!response.ok && response.status === 429) {
+                        throw new Error('RATE_LIMIT_EXCEEDED');
+                    }
 
-### Error Handling
+                    return response;
+                } catch (error) {
+                    if (error.message === 'RATE_LIMIT_EXCEEDED' && attempt < maxRetries - 1) {
+                        const waitTime = Math.min(this.baseDelay * Math.pow(2, attempt), this.maxDelay);
+                        console.log(`⏳ Rate limited. Retrying in ${waitTime}ms (attempt ${attempt + 1}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
+                        continue;
+                    } else if (attempt < maxRetries - 1) {
+                        console.log(`⚠️ Request failed, retrying (attempt ${attempt + 1}/${maxRetries}): ${error.message}`);
+                        await new Promise(resolve => setTimeout(resolve, this.baseDelay));
+                        continue;
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+        }
+    }
 
-```python
-def robust_api_call(func, max_retries=3):
-    """Execute API calls with retry logic."""
-    for attempt in range(max_retries):
-        try:
-            return func()
-        except Exception as e:
-            if attempt == max_retries - 1:
-                raise e
-            time.sleep(2 ** attempt)  # Exponential backoff
-```
+    // Usage example
+    const handler = new RateLimitHandler();
 
-## Next Steps
+    async function safeApiCall() {
+        return await fetch(`${BASE_URL}/v1/models/available`, {
+            method: 'GET',
+            headers: headers
+        });
+    }
 
-After mastering API monitoring, explore:
-- Implementing automated retry logic
-- Building dashboard visualizations
-- Setting up alert systems
-- Optimizing API usage patterns
-- Scaling applications with rate limits in mind
+    // Execute with rate limit handling
+    try {
+        const response = await handler.executeWithRetry(safeApiCall);
+        const data = await response.json();
+        console.log("Request completed successfully!");
+    } catch (error) {
+        console.error("Request failed:", error);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+### Rate Limit Management
+1. **Monitor Regularly**: Check rate limits before making requests
+2. **Implement Backoff**: Use exponential backoff for retries
+3. **Batch Requests**: Combine multiple operations when possible
+4. **Handle 429 Errors**: Implement proper retry logic for rate limit errors
+5. **Cost Optimization**: Monitor usage costs and optimize model selection
+
+### Rate Limit Tiers
+
+| Tier | Requests/Minute | Requests/Hour | Requests/Day | Tokens/Agent |
+|------|-----------------|---------------|--------------|--------------|
+| Free | 100 | 500 | 1000 | 1000 |
+| Premium | 1000 | 5000 | 10000 | 10000 |
+| Enterprise | 10000 | 50000 | 100000 | 50000 |
+
+## Cost Optimization
+
+<Tabs>
+  <Tab title="Batch Processing">
+    ```python
+    def optimize_batch_processing(tasks):
+        """Process multiple tasks efficiently within rate limits"""
+        limits_data = get_rate_limits()
+        if not limits_data:
+            return []
+
+        rate_limits = limits_data.get("rate_limits", {})
+        minute_remaining = rate_limits.get("minute", {}).get("remaining", 10)
+
+        # Process in batches that fit within rate limits
+        batch_size = min(minute_remaining, len(tasks), 10)
+        results = []
+
+        for i in range(0, len(tasks), batch_size):
+            batch = tasks[i:i + batch_size]
+
+            # Create batch payload
+            batch_payload = [
+                {
+                    "agent_config": {
+                        "agent_name": f"Batch Agent {j+1}",
+                        "model_name": "gpt-4o-mini",  # Use cost-effective model
+                        "max_tokens": 512
+                    },
+                    "task": task
+                }
+                for j, task in enumerate(batch)
+            ]
+
+            # Execute batch
+            try:
+                response = requests.post(
+                    f"{BASE_URL}/v1/agent/batch/completions",
+                    headers=headers,
+                    json=batch_payload,
+                    timeout=60
+                )
+
+                if response.status_code == 200:
+                    batch_results = response.json()
+                    results.extend(batch_results)
+                    print(f"✅ Processed batch {i//batch_size + 1}")
+                else:
+                    print(f"❌ Batch {i//batch_size + 1} failed: {response.status_code}")
+
+            except Exception as e:
+                print(f"❌ Batch {i//batch_size + 1} error: {e}")
+
+            # Wait between batches to respect rate limits
+            time.sleep(1)
+
+        return results
+    ```
+  </Tab>
+  <Tab title="Model Selection">
+    ```python
+    def select_cost_effective_model(task_complexity):
+        """Select the most cost-effective model for the task"""
+        models_data = requests.get(f"{BASE_URL}/v1/models/available", headers=headers).json()
+
+        if task_complexity == "low":
+            # Use cheapest model for simple tasks
+            return "gpt-4o-mini"
+        elif task_complexity == "medium":
+            return "gpt-4o-mini"  # Still cost-effective for medium tasks
+        else:
+            # Use more capable model only when necessary
+            return "gpt-4o"
+    ```
+  </Tab>
+</Tabs>

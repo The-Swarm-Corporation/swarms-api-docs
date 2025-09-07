@@ -1,0 +1,414 @@
+---
+title: 'Available Swarm Types'
+description: 'Discover all available swarm architectures and choose the right one for your use case'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+Explore all available swarm architectures supported by the Swarms API. The `/v1/swarms/available` endpoint provides information about different swarm types, their capabilities, and use cases.
+
+<Info>
+Different swarm types are optimized for different workflows - choose the right architecture for your specific needs.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import json
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    def get_swarm_types():
+        """Get all available swarm types"""
+        response = requests.get(
+            f"{BASE_URL}/v1/swarms/available",
+            headers=headers
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error: {response.status_code} - {response.text}")
+            return None
+
+    # Get swarm types
+    swarm_data = get_swarm_types()
+    if swarm_data:
+        print("✅ Swarm types retrieved successfully!")
+        print(json.dumps(swarm_data, indent=2))
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    async function getSwarmTypes() {
+        try {
+            const response = await fetch(`${BASE_URL}/v1/swarms/available`, {
+                method: 'GET',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("✅ Swarm types retrieved successfully!");
+            console.log(JSON.stringify(data, null, 2));
+            return data;
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
+        }
+    }
+
+    // Get swarm types
+    getSwarmTypes();
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    # Get available swarm types
+    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/swarms/available" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type": "application/json"
+
+    # Example response:
+    # {
+    #   "success": true,
+    #   "swarm_types": {
+    #     "AgentRearrange": "Dynamically reorganizes agents to optimize task performance",
+    #     "MixtureOfAgents": "Combines diverse specialized agents for complex problem-solving",
+    #     "SequentialWorkflow": "Executes tasks in a predefined order",
+    #     "ConcurrentWorkflow": "Runs independent tasks in parallel"
+    #   }
+    # }
+    ```
+  </Tab>
+</Tabs>
+
+## Swarm Type Selection Guide
+
+### For Different Use Cases
+
+<Tabs>
+  <Tab title="Complex Problem Solving">
+    ```python
+    # Use MixtureOfAgents for diverse expertise
+    swarm_config = {
+        "name": "Research Swarm",
+        "description": "Multi-disciplinary research team",
+        "agents": [
+            {
+                "agent_name": "Data Analyst",
+                "model_name": "gpt-4o",
+                "role": "analyst"
+            },
+            {
+                "agent_name": "Domain Expert",
+                "model_name": "gpt-4o",
+                "role": "expert"
+            }
+        ],
+        "swarm_type": "MixtureOfAgents",
+        "task": "Analyze market trends and provide strategic recommendations"
+    }
+    ```
+  </Tab>
+  <Tab title="Step-by-Step Processes">
+    ```python
+    # Use SequentialWorkflow for ordered tasks
+    swarm_config = {
+        "name": "Content Creation Pipeline",
+        "description": "Structured content creation process",
+        "agents": [
+            {
+                "agent_name": "Researcher",
+                "model_name": "gpt-4o-mini",
+                "role": "research"
+            },
+            {
+                "agent_name": "Writer",
+                "model_name": "gpt-4o",
+                "role": "writing"
+            },
+            {
+                "agent_name": "Editor",
+                "model_name": "gpt-4o-mini",
+                "role": "editing"
+            }
+        ],
+        "swarm_type": "SequentialWorkflow",
+        "task": "Create a comprehensive article about AI ethics"
+    }
+    ```
+  </Tab>
+  <Tab title="Parallel Processing">
+    ```python
+    # Use ConcurrentWorkflow for independent tasks
+    swarm_config = {
+        "name": "Data Processing Swarm",
+        "description": "Parallel data analysis",
+        "agents": [
+            {
+                "agent_name": "Data Processor 1",
+                "model_name": "gpt-4o-mini"
+            },
+            {
+                "agent_name": "Data Processor 2",
+                "model_name": "gpt-4o-mini"
+            },
+            {
+                "agent_name": "Data Processor 3",
+                "model_name": "gpt-4o-mini"
+            }
+        ],
+        "swarm_type": "ConcurrentWorkflow",
+        "tasks": [
+            "Process dataset A",
+            "Process dataset B",
+            "Process dataset C"
+        ]
+    }
+    ```
+  </Tab>
+  <Tab title="Dynamic Optimization">
+    ```python
+    # Use AgentRearrange for adaptive workflows
+    swarm_config = {
+        "name": "Adaptive Analysis Swarm",
+        "description": "Self-optimizing agent arrangement",
+        "agents": [
+            {
+                "agent_name": "Primary Analyst",
+                "model_name": "gpt-4o"
+            },
+            {
+                "agent_name": "Secondary Analyst",
+                "model_name": "gpt-4o-mini"
+            }
+        ],
+        "swarm_type": "AgentRearrange",
+        "rearrange_flow": "optimize_based_on_complexity",
+        "task": "Analyze complex business data"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Swarm Type Comparison
+
+| Swarm Type | Best For | Execution | Complexity | Scalability |
+|------------|----------|-----------|------------|-------------|
+| **MixtureOfAgents** | Complex problems, diverse expertise | Parallel | High | High |
+| **SequentialWorkflow** | Step-by-step processes, pipelines | Sequential | Medium | Medium |
+| **ConcurrentWorkflow** | Independent tasks, batch processing | Parallel | Low | High |
+| **AgentRearrange** | Adaptive workflows, optimization | Dynamic | High | Medium |
+| **GroupChat** | Collaborative discussions, brainstorming | Interactive | Medium | Low |
+| **HierarchicalSwarm** | Structured organizations, management | Hierarchical | High | Medium |
+
+## Advanced Swarm Configuration
+
+<Tabs>
+  <Tab title="Hierarchical Swarm">
+    ```python
+    swarm_config = {
+        "name": "Corporate Analysis Department",
+        "description": "Hierarchical corporate structure",
+        "agents": [
+            {
+                "agent_name": "CEO Agent",
+                "model_name": "gpt-4o",
+                "role": "executive"
+            },
+            {
+                "agent_name": "Manager Agent",
+                "model_name": "gpt-4o",
+                "role": "manager"
+            },
+            {
+                "agent_name": "Analyst Agent 1",
+                "model_name": "gpt-4o-mini",
+                "role": "analyst"
+            },
+            {
+                "agent_name": "Analyst Agent 2",
+                "model_name": "gpt-4o-mini",
+                "role": "analyst"
+            }
+        ],
+        "swarm_type": "HierarchicalSwarm",
+        "rules": "CEO delegates to managers, managers coordinate analysts",
+        "task": "Conduct comprehensive market analysis"
+    }
+    ```
+  </Tab>
+  <Tab title="Group Chat Swarm">
+    ```python
+    swarm_config = {
+        "name": "Brainstorming Session",
+        "description": "Interactive group discussion",
+        "agents": [
+            {
+                "agent_name": "Moderator",
+                "model_name": "gpt-4o",
+                "role": "moderator"
+            },
+            {
+                "agent_name": "Creative Thinker",
+                "model_name": "gpt-4o",
+                "role": "creative"
+            },
+            {
+                "agent_name": "Technical Expert",
+                "model_name": "gpt-4o",
+                "role": "technical"
+            },
+            {
+                "agent_name": "Business Analyst",
+                "model_name": "gpt-4o-mini",
+                "role": "business"
+            }
+        ],
+        "swarm_type": "GroupChat",
+        "messages": [
+            "Let's brainstorm innovative product ideas",
+            "What are the technical challenges?",
+            "How can we monetize this?"
+        ],
+        "task": "Brainstorm and evaluate new product concepts"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Swarm Performance Optimization
+
+<Tabs>
+  <Tab title="Load Balancing">
+    ```python
+    def optimize_swarm_for_load(tasks, available_resources):
+        """Optimize swarm configuration based on load"""
+        task_count = len(tasks)
+        resource_count = len(available_resources)
+
+        if task_count > resource_count * 2:
+            # High load - use concurrent processing
+            return {
+                "swarm_type": "ConcurrentWorkflow",
+                "max_concurrent": resource_count,
+                "task_distribution": "round_robin"
+            }
+        elif task_count > resource_count:
+            # Medium load - use mixture of agents
+            return {
+                "swarm_type": "MixtureOfAgents",
+                "load_balancing": True
+            }
+        else:
+            # Low load - use sequential for quality
+            return {
+                "swarm_type": "SequentialWorkflow",
+                "optimize_quality": True
+            }
+    ```
+  </Tab>
+  <Tab title="Cost Optimization">
+    ```python
+    def optimize_swarm_for_cost(task_complexity, budget_limit):
+        """Optimize swarm for cost efficiency"""
+        if budget_limit < 0.1:  # Very low budget
+            return {
+                "swarm_type": "ConcurrentWorkflow",
+                "model_preference": "gpt-4o-mini",
+                "max_tokens": 512,
+                "parallel_execution": True
+            }
+        elif budget_limit < 0.5:  # Medium budget
+            return {
+                "swarm_type": "SequentialWorkflow",
+                "model_preference": "gpt-4o-mini",
+                "selective_upgrade": True  # Use better model for complex steps
+            }
+        else:  # High budget
+            return {
+                "swarm_type": "MixtureOfAgents",
+                "model_preference": "gpt-4o",
+                "quality_optimization": True
+            }
+    ```
+  </Tab>
+  <Tab title="Quality Optimization">
+    ```python
+    def optimize_swarm_for_quality(requirements):
+        """Optimize swarm for maximum quality"""
+        if requirements.get("consensus_required"):
+            return {
+                "swarm_type": "MajorityVoting",
+                "voting_agents": 5,
+                "consensus_threshold": 0.7,
+                "review_process": True
+            }
+        elif requirements.get("iterative_improvement"):
+            return {
+                "swarm_type": "AgentRearrange",
+                "iterations": 3,
+                "feedback_loop": True,
+                "quality_metrics": ["accuracy", "completeness", "coherence"]
+            }
+        else:
+            return {
+                "swarm_type": "MixtureOfAgents",
+                "specialized_agents": True,
+                "cross_validation": True
+            }
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+### Swarm Design
+1. **Match Type to Task**: Choose swarm type based on your specific requirements
+2. **Agent Diversity**: Use diverse agents with different expertise areas
+3. **Clear Roles**: Define clear roles and responsibilities for each agent
+4. **Communication Protocols**: Establish clear communication patterns
+
+### Performance Optimization
+1. **Resource Allocation**: Allocate resources based on task complexity
+2. **Load Balancing**: Distribute work evenly across agents
+3. **Monitoring**: Monitor swarm performance and adjust configuration
+4. **Scalability**: Design swarms that can scale with increased load
+
+### Quality Assurance
+1. **Testing**: Test swarm configurations with sample tasks
+2. **Validation**: Validate outputs against expected results
+3. **Feedback Loops**: Implement feedback mechanisms for improvement
+4. **Version Control**: Track swarm configuration versions
+
+### Cost Management
+1. **Model Selection**: Choose appropriate models based on task requirements
+2. **Resource Limits**: Set appropriate limits to control costs
+3. **Usage Monitoring**: Monitor resource usage and costs
+4. **Optimization**: Continuously optimize for cost efficiency

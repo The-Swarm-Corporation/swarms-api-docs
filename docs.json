@@ -99,18 +99,31 @@
           ]
         },
         {
-          "group": "Multi-Agent Swarms",
+          "group": "Features",
+          "pages": [
+            "examples/streaming",
+            "examples/search-enabled",
+            "examples/mcp-integration",
+            "examples/advanced-research"
+          ]
+        },
+        {
+          "group": "Applications",
           "pages": [
             "examples/hospital-team",
             "examples/legal-team",
-            "examples/icd-analysis",
-            "examples/advanced-research"
+            "examples/icd-analysis"
           ]
         },
         {
           "group": "API Utilities",
           "pages": [
-            "examples/rate-limits"
+            "examples/rate-limits",
+            "examples/swarm-logs",
+            "examples/models-available",
+            "examples/available-tools",
+            "examples/swarm-types",
+            "examples/reasoning-agent-types"
           ]
         }
       ]

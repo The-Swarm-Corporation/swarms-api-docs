@@ -1,0 +1,311 @@
+---
+title: 'MCP Integration'
+description: 'Integrate Model Context Protocol servers for external data access and tools'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+The Swarms API supports Model Context Protocol (MCP) integration, allowing agents to connect to external servers and access additional tools, data sources, and capabilities beyond the base API.
+
+<Info>
+MCP integration enables agents to access external databases, APIs, and tools through standardized server connections.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import os
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Data Analyst with MCP",
+            "description": "Data analyst with access to external databases",
+            "system_prompt": "You are a data analyst with access to external data sources through MCP.",
+            "model_name": "gpt-4o",
+            "max_tokens": 4096,
+            "temperature": 0.5,
+            "mcp_url": "http://localhost:8001/sse"  # Your MCP server URL
+        },
+        "task": "Query the customer database and provide insights on recent sales trends."
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload
+    )
+
+    result = response.json()
+    print(result['outputs'])
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    const payload = {
+        agent_config: {
+            agent_name: "Financial Analyst",
+            description: "Financial analyst with real-time market data access",
+            system_prompt: "You are a financial analyst with access to real-time market data through MCP.",
+            model_name: "gpt-4o",
+            max_tokens: 4096,
+            temperature: 0.3,
+            mcp_url: "https://your-mcp-server.com/financial-data"
+        },
+        task: "Analyze the current market trends for tech stocks and provide investment recommendations."
+    };
+
+    fetch(`${BASE_URL}/v1/agent/completions`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Analysis Results:", data.outputs);
+        console.log("Token Usage:", data.usage);
+    })
+    .catch(error => console.error('Error:', error));
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/agent/completions" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "agent_config": {
+          "agent_name": "Data Analyst with MCP",
+          "model_name": "gpt-4o",
+          "max_tokens": 4096,
+          "temperature": 0.5,
+          "mcp_url": "http://localhost:8001/sse"
+        },
+        "task": "Query the customer database and provide insights on recent sales trends."
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+## MCP Server Setup
+
+### Local MCP Server
+
+```python
+# Example MCP server setup (server.py)
+from mcp import Server
+import asyncio
+
+app = Server("data-server")
+
+@app.list_tools()
+async def list_tools():
+    return [
+        {
+            "name": "query_database",
+            "description": "Query the customer database",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"}
+                },
+                "required": ["query"]
+            }
+        }
+    ]
+
+@app.call_tool()
+async def call_tool(name, arguments):
+    if name == "query_database":
+        # Your database query logic here
+        return {"result": "Query executed successfully"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
+```
+
+### Running the MCP Server
+
+```bash
+# Install MCP dependencies
+pip install mcp-server
+
+# Run your MCP server
+python server.py
+```
+
+## Advanced MCP Configuration
+
+### Multiple MCP Connections
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Multi-Source Analyst",
+        "description": "Analyst with access to multiple data sources",
+        "system_prompt": "You have access to multiple MCP servers for comprehensive analysis.",
+        "model_name": "gpt-4o",
+        "max_tokens": 8192,
+        "mcp_configs": [
+            {
+                "url": "http://localhost:8001/sse",
+                "name": "customer_db"
+            },
+            {
+                "url": "http://localhost:8002/sse",
+                "name": "market_data"
+            }
+        ]
+    },
+    "task": "Combine customer data with market trends to provide business insights."
+}
+```
+
+### Single MCP with Advanced Config
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Advanced MCP Agent",
+        "description": "Agent with advanced MCP configuration",
+        "system_prompt": "You are connected to an MCP server with advanced capabilities.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096,
+        "mcp_config": {
+            "url": "http://localhost:8001/sse",
+            "timeout": 30,
+            "retry_attempts": 3,
+            "headers": {
+                "Authorization": "Bearer your-token"
+            }
+        }
+    },
+    "task": "Perform complex data analysis using the MCP server tools."
+}
+```
+
+## Use Cases
+
+### Database Integration
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Database Analyst",
+        "description": "SQL database integration specialist",
+        "system_prompt": "You can query databases and analyze structured data.",
+        "model_name": "gpt-4o",
+        "mcp_url": "http://localhost:8001/sse"
+    },
+    "task": "Analyze sales data from the past quarter and identify top performing products."
+}
+```
+
+### Financial Data Access
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Financial Analyst",
+        "description": "Real-time financial data analysis",
+        "system_prompt": "You analyze financial markets and provide investment insights.",
+        "model_name": "gpt-4o",
+        "mcp_url": "https://api.marketdata.com/mcp"
+    },
+    "task": "Analyze the current stock prices and provide buy/sell recommendations."
+}
+```
+
+### API Integration
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "API Integrator",
+        "description": "External API integration specialist",
+        "system_prompt": "You can call external APIs and integrate third-party services.",
+        "model_name": "gpt-4o",
+        "mcp_url": "http://localhost:8003/sse"
+    },
+    "task": "Fetch weather data and provide travel recommendations based on current conditions."
+}
+```
+
+## Best Practices
+
+1. **Server Reliability**: Ensure your MCP server is stable and handles errors gracefully
+2. **Authentication**: Implement proper authentication for MCP server access
+3. **Timeout Handling**: Set appropriate timeouts for long-running operations
+4. **Error Handling**: Handle MCP connection failures and retry logic
+5. **Resource Management**: Monitor resource usage and implement rate limiting
+6. **Documentation**: Document available MCP tools and their capabilities
+
+## Cost Considerations
+
+- **MCP Calls**: $0.10 per MCP call
+- **Token Usage**: Additional tokens for MCP tool interactions
+- **Server Costs**: Costs associated with running your MCP server
+
+## Error Handling
+
+```python
+try:
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=60
+    )
+
+    if response.status_code == 200:
+        result = response.json()
+        print("MCP Results:", result['outputs'])
+    else:
+        print(f"MCP Error: {response.status_code} - {response.text}")
+
+except requests.exceptions.Timeout:
+    print("MCP request timed out")
+except requests.exceptions.ConnectionError:
+    print("Failed to connect to MCP server")
+except Exception as e:
+    print(f"MCP integration error: {e}")
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection Refused**: Ensure MCP server is running and accessible
+2. **Authentication Failed**: Check API keys and authentication headers
+3. **Timeout Errors**: Increase timeout values for complex operations
+4. **Tool Not Found**: Verify tool names match server implementation
+5. **Rate Limiting**: Implement backoff strategies for rate-limited endpoints
+
+### Debug Mode
+
+Enable debug logging to troubleshoot MCP issues:
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Add to your payload
+payload["agent_config"]["debug"] = True
+```

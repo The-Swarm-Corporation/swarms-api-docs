@@ -1,0 +1,192 @@
+---
+title: 'Streaming Responses'
+description: 'Real-time streaming responses for immediate agent feedback'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+<Info>
+Streaming is enabled by setting `"streaming_on": true` in your agent configuration.
+</Info>
+
+## Quick Start
+
+Enable streaming by adding the `streaming_on` parameter to your agent configuration:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import json
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+    }
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Creative Writer",
+            "description": "A creative writing specialist",
+            "system_prompt": "You are a creative writer who specializes in storytelling.",
+            "model_name": "gpt-4o-mini",
+            "max_tokens": 2048,
+            "temperature": 0.8,
+            "streaming_on": True
+        },
+        "task": "Write a short story about a robot learning to paint"
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        stream=True
+    )
+
+    # Process the streaming response
+    for line in response.iter_lines():
+        if line:
+            line = line.decode('utf-8')
+            if line.startswith('data: '):
+                try:
+                    data = json.loads(line[6:])
+                    if 'content' in data:
+                        print(data['content'], end='', flush=True)
+                except json.JSONDecodeError:
+                    continue
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+    };
+
+    const payload = {
+        agent_config: {
+            agent_name: "Creative Writer",
+            description: "A creative writing specialist",
+            system_prompt: "You are a creative writer who specializes in storytelling.",
+            model_name: "gpt-4o-mini",
+            max_tokens: 2048,
+            temperature: 0.8,
+            streaming_on: true
+        },
+        task: "Write a short story about a robot learning to paint"
+    };
+
+    fetch(`${BASE_URL}/v1/agent/completions`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        function readStream() {
+            reader.read().then(({ done, value }) => {
+                if (done) return;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.content) {
+                                process.stdout.write(data.content);
+                            }
+                        } catch (e) {
+                            // Skip malformed JSON
+                        }
+                    }
+                }
+
+                readStream();
+            });
+        }
+
+        readStream();
+    });
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/agent/completions" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json" \
+      -H "Connection: keep-alive" \
+      -H "X-Accel-Buffering: no" \
+      -d '{
+        "agent_config": {
+          "agent_name": "Creative Writer",
+          "model_name": "gpt-4o-mini",
+          "max_tokens": 2048,
+          "temperature": 0.8,
+          "streaming_on": true
+        },
+        "task": "Write a short story about a robot learning to paint"
+      }' \
+      --no-buffer -N
+    ```
+  </Tab>
+</Tabs>
+
+## Advanced Configuration
+
+For more complex streaming scenarios, you can customize the agent configuration:
+
+## Stream Format
+
+The API returns data in Server-Sent Events (SSE) format:
+
+```
+event: metadata
+data: {"job_id": "abc123", "name": "Creative Writer"}
+
+event: chunk
+data: {"content": "Once upon a time"}
+
+event: chunk
+data: {"content": ", in a workshop filled with"}
+
+event: usage
+data: {"tokens_used": 150, "cost": 0.003}
+
+event: done
+data: {"status": "finished"}
+```
+
+## Key Benefits
+
+- **Real-time Feedback**: See results as they're generated
+- **Better User Experience**: Reduced perceived latency
+- **Progress Tracking**: Monitor long-running operations
+- **Immediate Error Detection**: Catch issues early in the process
+
+## Use Cases
+
+- **Creative Writing**: Generate stories, articles, or content with live updates
+- **Data Analysis**: Process large datasets with streaming insights
+- **Research Tasks**: Get research findings as they're discovered
+- **Code Generation**: See code being written in real-time
+- **Educational Content**: Create interactive learning experiences

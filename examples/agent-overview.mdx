@@ -3,6 +3,7 @@ title: "Single Agent Overview"
 description: "Learn how to create and run single AI agents for specific tasks using the Swarms API."
 ---
 
+import { Tabs, Tab } from 'mintlify'
 
 ## What This Example Shows
 
@@ -11,23 +12,16 @@ description: "Learn how to create and run single AI agents for specific tasks us
 - Running agents with structured tasks
 - Handling agent responses and outputs
 
-## Installation
+<Info>
+Single agents are the building blocks of the Swarms API. Each agent can be configured with specific models, temperatures, and expertise areas.
+</Info>
 
-```bash
-pip3 install -U swarms-client
-```
+## Quick Start
 
-## Get Your Swarms API Key
-
-1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
-2. Create an account or sign in
-3. Generate a new API key
-4. Store it securely in your environment variables
-
-## Code
-
-```python
-import os
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
 from swarms_client import SwarmsClient
 from dotenv import load_dotenv
 import json
@@ -65,7 +59,63 @@ result = client.agent.run(
 )
 
 print(json.dumps(result, indent=4))
-```
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    const payload = {
+        agent_config: {
+            agent_name: "Bloodwork Diagnosis Expert",
+            description: "An expert doctor specializing in interpreting and diagnosing blood work results.",
+            system_prompt: "You are an expert medical doctor specializing in the interpretation and diagnosis of blood work. Your expertise includes analyzing laboratory results, identifying abnormal values, explaining their clinical significance, and recommending next diagnostic or treatment steps.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            max_tokens: 1000,
+            temperature: 0.5
+        },
+        task: "A patient presents with the following blood work results: Hemoglobin: 10.2 g/dL (low), WBC: 13,000 /µL (high), Platelets: 180,000 /µL (normal), ALT: 65 U/L (high), AST: 70 U/L (high). Please provide a detailed interpretation, possible diagnoses, and recommended next steps."
+    };
+
+    fetch(`${BASE_URL}/v1/agent/completions`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Agent Result:", JSON.stringify(data, null, 2));
+    })
+    .catch(error => console.error('Error:', error));
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/agent/completions" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "agent_config": {
+          "agent_name": "Bloodwork Diagnosis Expert",
+          "description": "An expert doctor specializing in interpreting and diagnosing blood work results.",
+          "system_prompt": "You are an expert medical doctor specializing in blood work interpretation.",
+          "model_name": "gpt-4o",
+          "max_loops": 1,
+          "max_tokens": 1000,
+          "temperature": 0.5
+        },
+        "task": "A patient presents with blood work results: Hemoglobin 10.2 (low), WBC 13,000 (high), Platelets 180,000 (normal), ALT 65 (high), AST 70 (high). Please interpret and suggest diagnoses."
+      }'
+    ```
+  </Tab>
+</Tabs>
 
 ## Agent Configuration Explained
 

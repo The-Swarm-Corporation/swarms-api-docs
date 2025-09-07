@@ -1,0 +1,387 @@
+---
+title: 'Reasoning Agent Types'
+description: 'Explore different reasoning agent architectures and their applications'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+Discover the different types of reasoning agents available in the Swarms API. The `/v1/reasoning-agent/types` endpoint provides information about specialized reasoning architectures designed for different problem-solving approaches.
+
+<Info>
+Reasoning agents use advanced techniques like self-consistency, majority voting, and iterative refinement to improve answer quality and reliability.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import json
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    def get_reasoning_agent_types():
+        """Get all available reasoning agent types"""
+        response = requests.get(
+            f"{BASE_URL}/v1/reasoning-agent/types",
+            headers=headers
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error: {response.status_code} - {response.text}")
+            return None
+
+    # Get reasoning agent types
+    reasoning_data = get_reasoning_agent_types()
+    if reasoning_data:
+        print("✅ Reasoning agent types retrieved successfully!")
+        print(json.dumps(reasoning_data, indent=2))
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    async function getReasoningAgentTypes() {
+        try {
+            const response = await fetch(`${BASE_URL}/v1/reasoning-agent/types`, {
+                method: 'GET',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("✅ Reasoning agent types retrieved successfully!");
+            console.log(JSON.stringify(data, null, 2));
+            return data;
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
+        }
+    }
+
+    // Get reasoning agent types
+    getReasoningAgentTypes();
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    # Get reasoning agent types
+    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/reasoning-agent/types" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type": "application/json"
+
+    # Example response:
+    # {
+    #   "reasoning-agent": "Basic reasoning agent",
+    #   "reasoning-duo": "Two-agent reasoning system",
+    #   "self-consistency": "Multiple samples for consistency",
+    #   "ire": "Iterative refinement",
+    #   "consistency-agent": "Consistency-focused agent"
+    # }
+    ```
+  </Tab>
+</Tabs>
+
+## Reasoning Agent Type Comparison
+
+| Type | Description | Best For | Samples | Quality Focus |
+|------|-------------|----------|---------|---------------|
+| **reasoning-agent** | Basic reasoning with structured thinking | Simple reasoning tasks | 1 | Balanced |
+| **reasoning-duo** | Two agents with different approaches | Comparative analysis | 2 | Diversity |
+| **self-consistency** | Multiple samples for consistency checking | High-stakes decisions | 3-5 | Consistency |
+| **ire** | Iterative refinement through multiple passes | Complex problem-solving | Variable | Accuracy |
+| **consistency-agent** | Focus on logical consistency | Mathematical/logical problems | 3 | Logical rigor |
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Basic Reasoning Agent">
+    ```python
+    payload = {
+        "agent_name": "Basic Reasoner",
+        "model_name": "gpt-4o",
+        "system_prompt": "You are a logical reasoning assistant.",
+        "max_loops": 1,
+        "swarm_type": "reasoning-agent",
+        "num_samples": 1,
+        "task": "Solve this logic puzzle: If all bloops are razzes and some razzes are fizzles, are all bloops fizzles?"
+    }
+    ```
+  </Tab>
+  <Tab title="Self-Consistency Agent">
+    ```python
+    payload = {
+        "agent_name": "Consistent Reasoner",
+        "model_name": "gpt-4o",
+        "system_prompt": "You are a reasoning agent that values consistency.",
+        "max_loops": 1,
+        "swarm_type": "self-consistency",
+        "num_samples": 3,
+        "task": "Determine the most logical conclusion from these premises: All humans are mortal. Socrates is human. Therefore..."
+    }
+    ```
+  </Tab>
+  <Tab title="Iterative Refinement Agent">
+    ```python
+    payload = {
+        "agent_name": "Refinement Agent",
+        "model_name": "gpt-4o",
+        "system_prompt": "You are an agent that improves through iteration.",
+        "max_loops": 3,
+        "swarm_type": "ire",
+        "num_samples": 2,
+        "task": "Design a more efficient algorithm for sorting a list of numbers."
+    }
+    ```
+  </Tab>
+  <Tab title="Reasoning Duo">
+    ```python
+    payload = {
+        "agent_name": "Dual Reasoner",
+        "model_name": "gpt-4o",
+        "system_prompt": "You are a dual reasoning system.",
+        "max_loops": 1,
+        "swarm_type": "reasoning-duo",
+        "num_samples": 2,
+        "task": "Debate the pros and cons of renewable energy adoption."
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Advanced Configuration
+
+<Tabs>
+  <Tab title="Custom Sample Count">
+    ```python
+    payload = {
+        "agent_name": "High Consistency Agent",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "swarm_type": "self-consistency",
+        "num_samples": 5,  # Higher sample count for better consistency
+        "output_type": "dict",  # Return detailed analysis
+        "task": "Analyze the potential risks of artificial general intelligence."
+    }
+    ```
+  </Tab>
+  <Tab title="Multi-Iteration Reasoning">
+    ```python
+    payload = {
+        "agent_name": "Deep Analysis Agent",
+        "model_name": "gpt-4o",
+        "max_loops": 5,  # Multiple refinement iterations
+        "swarm_type": "ire",
+        "num_samples": 3,
+        "output_type": "final",  # Return only final result
+        "task": "Develop a comprehensive business strategy for a tech startup."
+    }
+    ```
+  </Tab>
+  <Tab title="Knowledge Integration">
+    ```python
+    payload = {
+        "agent_name": "Knowledge Agent",
+        "model_name": "gpt-4o",
+        "max_loops": 2,
+        "swarm_type": "consistency-agent",
+        "num_samples": 3,
+        "num_knowledge_items": 5,  # Include knowledge base
+        "memory_capacity": 10,
+        "task": "Integrate these research findings into a coherent theory."
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Output Types
+
+<Tabs>
+  <Tab title="Dictionary Output">
+    ```python
+    # Returns structured analysis
+    payload = {
+        "swarm_type": "self-consistency",
+        "output_type": "dict",
+        "task": "Analyze market trends"
+    }
+    # Output: {"analysis": "...", "confidence": 0.85, "alternatives": [...]}
+    ```
+  </Tab>
+  <Tab title="List Output">
+    ```python
+    # Returns multiple options
+    payload = {
+        "swarm_type": "reasoning-duo",
+        "output_type": "list",
+        "task": "Generate business ideas"
+    }
+    # Output: ["Idea 1", "Idea 2", "Idea 3"]
+    ```
+  </Tab>
+  <Tab title="Final Answer Only">
+    ```python
+    # Returns only the best result
+    payload = {
+        "swarm_type": "ire",
+        "output_type": "final",
+        "task": "Solve this equation"
+    }
+    # Output: "x = 42"
+    ```
+  </Tab>
+</Tabs>
+
+## Performance Optimization
+
+<Tabs>
+  <Tab title="Quality vs Speed">
+    ```python
+    def optimize_reasoning_config(task_complexity, time_constraint):
+        """Optimize reasoning configuration based on requirements"""
+
+        if time_constraint == "fast":
+            return {
+                "swarm_type": "reasoning-agent",
+                "num_samples": 1,
+                "max_loops": 1,
+                "model_name": "gpt-4o-mini"
+            }
+        elif task_complexity == "high":
+            return {
+                "swarm_type": "ire",
+                "num_samples": 5,
+                "max_loops": 3,
+                "model_name": "gpt-4o"
+            }
+        else:  # balanced
+            return {
+                "swarm_type": "self-consistency",
+                "num_samples": 3,
+                "max_loops": 2,
+                "model_name": "gpt-4o"
+            }
+    ```
+  </Tab>
+  <Tab title="Cost Optimization">
+    ```python
+    def optimize_reasoning_cost(budget, quality_requirement):
+        """Optimize for cost while maintaining quality"""
+
+        if budget < 0.1:
+            return {
+                "swarm_type": "reasoning-agent",
+                "model_name": "gpt-4o-mini",
+                "num_samples": 1
+            }
+        elif quality_requirement == "high":
+            return {
+                "swarm_type": "self-consistency",
+                "model_name": "gpt-4o",
+                "num_samples": 3,
+                "max_tokens": 2048
+            }
+        else:
+            return {
+                "swarm_type": "reasoning-duo",
+                "model_name": "gpt-4o-mini",
+                "num_samples": 2
+            }
+    ```
+  </Tab>
+</Tabs>
+
+## Use Cases by Domain
+
+<Tabs>
+  <Tab title="Scientific Research">
+    ```python
+    payload = {
+        "agent_name": "Scientific Reasoner",
+        "swarm_type": "ire",
+        "num_samples": 3,
+        "max_loops": 4,
+        "task": "Design an experiment to test the hypothesis that X causes Y."
+    }
+    ```
+  </Tab>
+  <Tab title="Business Strategy">
+    ```python
+    payload = {
+        "agent_name": "Strategy Consultant",
+        "swarm_type": "reasoning-duo",
+        "num_samples": 2,
+        "task": "Evaluate three potential market entry strategies for our product."
+    }
+    ```
+  </Tab>
+  <Tab title="Legal Analysis">
+    ```python
+    payload = {
+        "agent_name": "Legal Analyst",
+        "swarm_type": "self-consistency",
+        "num_samples": 5,
+        "task": "Analyze the legal implications of this contract clause."
+    }
+    ```
+  </Tab>
+  <Tab title="Technical Problem Solving">
+    ```python
+    payload = {
+        "agent_name": "Technical Expert",
+        "swarm_type": "consistency-agent",
+        "num_samples": 3,
+        "task": "Debug this software issue and propose a solution."
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+### Configuration Guidelines
+1. **Task Complexity**: Match reasoning type to task complexity
+2. **Sample Count**: Use more samples for high-stakes decisions
+3. **Iteration Count**: Increase iterations for complex refinement
+4. **Model Selection**: Choose appropriate model based on requirements
+
+### Quality Assurance
+1. **Consistency Checking**: Use self-consistency for critical decisions
+2. **Diverse Perspectives**: Leverage reasoning-duo for balanced analysis
+3. **Iterative Improvement**: Apply IRE for complex problem-solving
+4. **Validation**: Always validate reasoning outputs
+
+### Performance Considerations
+1. **Resource Usage**: Monitor token usage and costs
+2. **Response Time**: Balance quality with response speed
+3. **Scalability**: Consider parallel processing for multiple tasks
+4. **Caching**: Cache reasoning results when appropriate
+
+### Error Handling
+1. **Fallback Logic**: Implement fallback to simpler reasoning types
+2. **Timeout Handling**: Set appropriate timeouts for long-running tasks
+3. **Result Validation**: Validate reasoning outputs for correctness
+4. **Logging**: Log reasoning processes for debugging

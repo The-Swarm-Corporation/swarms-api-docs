@@ -1,0 +1,240 @@
+---
+title: 'Available Tools'
+description: 'Discover and explore all available tools supported by the Swarms API'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+Get a comprehensive list of all tools available through the Swarms API. The `/v1/tools/available` endpoint provides information about integrated tools and capabilities that can enhance your agents and swarms.
+
+<Info>
+Tools extend agent capabilities by providing access to external services, APIs, databases, and specialized functions.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import json
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    def get_available_tools():
+        """Get all available tools"""
+        response = requests.get(
+            f"{BASE_URL}/v1/tools/available",
+            headers=headers
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error: {response.status_code} - {response.text}")
+            return None
+
+    # Get available tools
+    tools_data = get_available_tools()
+    if tools_data:
+        print("✅ Available tools retrieved successfully!")
+        print(json.dumps(tools_data, indent=2))
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    async function getAvailableTools() {
+        try {
+            const response = await fetch(`${BASE_URL}/v1/tools/available`, {
+                method: 'GET',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("✅ Available tools retrieved successfully!");
+            console.log(JSON.stringify(data, null, 2));
+            return data;
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
+        }
+    }
+
+    // Get available tools
+    getAvailableTools();
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    # Get available tools
+    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/tools/available" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type": "application/json"
+
+    # Example response:
+    # {
+    #   "status": "success",
+    #   "tools": [
+    #     "web_search",
+    #     "calculator",
+    #     "database_query",
+    #     "file_processor",
+    #     "api_integrator"
+    #   ]
+    # }
+    ```
+  </Tab>
+</Tabs>
+
+## Tool Integration
+
+<Tabs>
+  <Tab title="Web Search">
+    ```python
+    payload = {
+        "agent_config": {
+            "agent_name": "Research Assistant",
+            "model_name": "gpt-4o",
+            "max_tokens": 2048,
+            "tools_enabled": ["web_search"]
+        },
+        "task": "Find the latest developments in quantum computing and summarize the key breakthroughs."
+    }
+    ```
+  </Tab>
+  <Tab title="Calculator">
+    ```python
+    payload = {
+        "agent_config": {
+            "agent_name": "Math Assistant",
+            "model_name": "gpt-4o",
+            "max_tokens": 1024,
+            "tools_enabled": ["calculator"]
+        },
+        "task": "Calculate the compound interest on $10,000 at 5% annual interest over 10 years."
+    }
+    ```
+  </Tab>
+  <Tab title="File Processor">
+    ```python
+    payload = {
+        "agent_config": {
+            "agent_name": "Document Analyst",
+            "model_name": "gpt-4o",
+            "max_tokens": 2048,
+            "tools_enabled": ["file_processor"]
+        },
+        "task": "Analyze the attached PDF document and extract the key findings and recommendations."
+    }
+    ```
+  </Tab>
+  <Tab title="API Integrator">
+    ```python
+    payload = {
+        "agent_config": {
+            "agent_name": "Data Collector",
+            "model_name": "gpt-4o",
+            "max_tokens": 2048,
+            "tools_enabled": ["api_integrator"]
+        },
+        "task": "Fetch the latest weather data for New York City and provide a forecast summary."
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Advanced Tool Configuration
+
+<Tabs>
+  <Tab title="Multiple Tools">
+    ```python
+    payload = {
+        "agent_config": {
+            "agent_name": "Multi-Tool Assistant",
+            "model_name": "gpt-4o",
+            "max_tokens": 4096,
+            "tools_enabled": [
+                "web_search",
+                "calculator",
+                "file_processor",
+                "database_query"
+            ]
+        },
+        "task": "Research the latest stock prices for tech companies, calculate the average, and generate a report."
+    }
+    ```
+  </Tab>
+  <Tab title="Tool-Specific Configuration">
+    ```python
+    payload = {
+        "agent_config": {
+            "agent_name": "Advanced Analyst",
+            "model_name": "gpt-4o",
+            "max_tokens": 4096,
+            "tools_enabled": ["web_search"],
+            "tool_config": {
+                "web_search": {
+                    "max_results": 5,
+                    "search_engine": "google",
+                    "include_images": false
+                }
+            }
+        },
+        "task": "Find recent articles about artificial intelligence ethics."
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Tool Categories
+
+| Category | Tools | Description |
+|----------|-------|-------------|
+| **Search & Discovery** | `web_search`, `database_query` | Find and retrieve information from various sources |
+| **Computation** | `calculator`, `data_analyzer` | Perform calculations and data analysis |
+| **File Processing** | `file_processor`, `document_parser` | Handle and analyze files and documents |
+| **Integration** | `api_integrator`, `webhook_handler` | Connect with external APIs and services |
+| **Communication** | `email_sender`, `notification_service` | Send messages and notifications |
+
+## Best Practices
+
+### Tool Selection
+1. **Match Tools to Tasks**: Choose tools that best fit your specific use case
+2. **Avoid Overloading**: Don't enable too many tools for a single agent
+3. **Test Combinations**: Test tool combinations to ensure they work well together
+4. **Monitor Performance**: Track how tools affect response time and cost
+
+### Configuration
+1. **Set Appropriate Limits**: Configure tool-specific limits and timeouts
+2. **Handle Errors Gracefully**: Implement proper error handling for tool failures
+3. **Cache Results**: Cache tool results when appropriate to improve performance
+4. **Security First**: Ensure tools access only authorized resources
+
+### Usage Optimization
+1. **Batch Operations**: Use tools that support batch operations when possible
+2. **Async Processing**: Leverage asynchronous tool execution for better performance
+3. **Resource Management**: Monitor tool usage and resource consumption
+4. **Cost Awareness**: Be aware of costs associated with tool usage

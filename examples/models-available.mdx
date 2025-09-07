@@ -1,0 +1,549 @@
+---
+title: 'Available Models'
+description: 'Discover and explore all available AI models supported by the Swarms API'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+Get a comprehensive list of all AI models available through the Swarms API. This endpoint provides information about supported models from various providers including OpenAI, Anthropic, Groq, and others.
+
+<Info>
+The `/v1/models/available` endpoint returns all models currently supported by the Swarms API, including their capabilities and limitations.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import json
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    def get_available_models():
+        """Get all available models"""
+        response = requests.get(
+            f"{BASE_URL}/v1/models/available",
+            headers=headers
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error: {response.status_code} - {response.text}")
+            return None
+
+    # Get available models
+    models_data = get_available_models()
+    if models_data:
+        print("✅ Available models retrieved successfully!")
+        print(json.dumps(models_data, indent=2))
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    async function getAvailableModels() {
+        try {
+            const response = await fetch(`${BASE_URL}/v1/models/available`, {
+                method: 'GET',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("✅ Available models retrieved successfully!");
+            console.log(JSON.stringify(data, null, 2));
+            return data;
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
+        }
+    }
+
+    // Get available models
+    getAvailableModels();
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    # Get available models
+    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/models/available" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json"
+
+    # Example response:
+    # {
+    #   "success": true,
+    #   "models": {
+    #     "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+    #     "anthropic": ["claude-sonnet-4-20250514", "claude-haiku-3.5"],
+    #     "groq": ["llama-3.1-70b", "mixtral-8x7b"]
+    #   }
+    # }
+    ```
+  </Tab>
+</Tabs>
+
+## Understanding the Response
+
+The models endpoint returns a structured response with information about all available models:
+
+```json
+{
+  "success": true,
+  "models": {
+    "openai": [
+      "gpt-4o",
+      "gpt-4o-mini",
+      "gpt-4-turbo",
+      "gpt-4",
+      "gpt-3.5-turbo"
+    ],
+    "anthropic": [
+      "claude-sonnet-4-20250514",
+      "claude-sonnet-3.5",
+      "claude-haiku-3.5",
+      "claude-opus-4"
+    ],
+    "groq": [
+      "llama-3.1-70b-versatile",
+      "llama-3.1-8b-instant",
+      "mixtral-8x7b-instruct",
+      "gemma-7b-it"
+    ],
+    "other_providers": [
+      "custom-model-1",
+      "custom-model-2"
+    ]
+  }
+}
+```
+
+## Model Selection Guide
+
+### For Text Generation
+<Tabs>
+  <Tab title="Creative Tasks">
+    ```python
+    # Best for creative writing, brainstorming, content generation
+    recommended_models = [
+        "gpt-4o",                    # Most capable, balanced performance
+        "claude-sonnet-4-20250514", # Excellent for creative tasks
+        "gpt-4o-mini"               # Fast and cost-effective
+    ]
+    ```
+  </Tab>
+  <Tab title="Analytical Tasks">
+    ```python
+    # Best for analysis, reasoning, complex problem-solving
+    recommended_models = [
+        "gpt-4o",                    # Superior reasoning capabilities
+        "claude-sonnet-4-20250514", # Strong analytical performance
+        "gpt-4-turbo"               # Good balance of speed and capability
+    ]
+    ```
+  </Tab>
+  <Tab title="Fast Responses">
+    ```python
+    # Best for quick responses, simple tasks, cost optimization
+    recommended_models = [
+        "gpt-4o-mini",              # Fastest and most cost-effective
+        "llama-3.1-8b-instant",     # Very fast inference
+        "claude-haiku-3.5"         # Fast with good quality
+    ]
+    ```
+  </Tab>
+</Tabs>
+
+## Model Capabilities
+
+<Tabs>
+  <Tab title="Vision Models">
+    ```python
+    # Models that support image analysis
+    vision_models = [
+        "gpt-4o",           # Best vision capabilities
+        "gpt-4-turbo",      # Good vision support
+        "gpt-4o-mini"      # Basic vision support
+    ]
+
+    # Example: Vision-enabled agent
+    payload = {
+        "agent_config": {
+            "agent_name": "Vision Analyst",
+            "model_name": "gpt-4o",  # Vision-capable model
+            "max_tokens": 2048
+        },
+        "task": "Describe this image in detail",
+        "img": "https://example.com/image.jpg"
+    }
+    ```
+  </Tab>
+  <Tab title="Streaming Models">
+    ```python
+    # Models that support streaming responses
+    streaming_models = [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "claude-sonnet-4-20250514",
+        "claude-haiku-3.5"
+    ]
+
+    # Example: Streaming-enabled agent
+    payload = {
+        "agent_config": {
+            "agent_name": "Streaming Writer",
+            "model_name": "gpt-4o",
+            "streaming_on": True,  # Enable streaming
+            "max_tokens": 2048
+        },
+        "task": "Write a creative story"
+    }
+    ```
+  </Tab>
+  <Tab title="Large Context Models">
+    ```python
+    # Models with large context windows
+    large_context_models = [
+        "gpt-4o",                    # 128k+ tokens
+        "claude-sonnet-4-20250514", # 200k+ tokens
+        "gpt-4-turbo",             # 128k tokens
+    ]
+
+    # Example: Large document analysis
+    payload = {
+        "agent_config": {
+            "agent_name": "Document Analyst",
+            "model_name": "gpt-4o",  # Large context
+            "max_tokens": 4096
+        },
+        "task": "Analyze this 50-page document and provide insights"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Dynamic Model Selection
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    def select_best_model(task_type, priority="balanced"):
+        """
+        Dynamically select the best model based on task type and priority
+
+        Args:
+            task_type: Type of task ("creative", "analytical", "fast", "vision")
+            priority: Priority ("quality", "speed", "cost", "balanced")
+        """
+        # Get available models first
+        models_data = get_available_models()
+        if not models_data or not models_data.get("success"):
+            return "gpt-4o-mini"  # Fallback
+
+        available_models = models_data.get("models", {})
+
+        # Model selection logic
+        if task_type == "creative":
+            if priority == "quality":
+                return "gpt-4o" if "gpt-4o" in available_models.get("openai", []) else "claude-sonnet-4-20250514"
+            elif priority == "speed":
+                return "gpt-4o-mini" if "gpt-4o-mini" in available_models.get("openai", []) else "claude-haiku-3.5"
+            else:  # balanced
+                return "gpt-4o-mini"
+
+        elif task_type == "analytical":
+            return "gpt-4o" if "gpt-4o" in available_models.get("openai", []) else "claude-sonnet-4-20250514"
+
+        elif task_type == "fast":
+            return "gpt-4o-mini" if "gpt-4o-mini" in available_models.get("openai", []) else "llama-3.1-8b-instant"
+
+        elif task_type == "vision":
+            return "gpt-4o" if "gpt-4o" in available_models.get("openai", []) else "gpt-4-turbo"
+
+        return "gpt-4o-mini"  # Default fallback
+
+    # Example usage
+    best_model = select_best_model("creative", "quality")
+    print(f"Selected model: {best_model}")
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    function selectBestModel(taskType, priority = "balanced") {
+        // Model selection logic for JavaScript
+        const modelPreferences = {
+            creative: {
+                quality: ["gpt-4o", "claude-sonnet-4-20250514"],
+                speed: ["gpt-4o-mini", "claude-haiku-3.5"],
+                balanced: ["gpt-4o-mini"],
+                cost: ["gpt-4o-mini", "llama-3.1-8b-instant"]
+            },
+            analytical: {
+                quality: ["gpt-4o", "claude-sonnet-4-20250514"],
+                speed: ["gpt-4-turbo"],
+                balanced: ["gpt-4o"],
+                cost: ["gpt-4o-mini"]
+            },
+            fast: {
+                quality: ["gpt-4o-mini"],
+                speed: ["gpt-4o-mini", "llama-3.1-8b-instant"],
+                balanced: ["gpt-4o-mini"],
+                cost: ["gpt-4o-mini", "llama-3.1-8b-instant"]
+            },
+            vision: {
+                quality: ["gpt-4o"],
+                speed: ["gpt-4o-mini"],
+                balanced: ["gpt-4o"],
+                cost: ["gpt-4-turbo"]
+            }
+        };
+
+        const candidates = modelPreferences[taskType]?.[priority] || ["gpt-4o-mini"];
+        return candidates[0]; // Return first preference
+    }
+
+    // Example usage
+    const bestModel = selectBestModel("creative", "quality");
+    console.log(`Selected model: ${bestModel}`);
+    ```
+  </Tab>
+</Tabs>
+
+## Model Performance Comparison
+
+| Model | Context Window | Best For | Speed | Cost |
+|-------|---------------|----------|-------|------|
+| `gpt-4o` | 128k+ | Complex reasoning, vision | Medium | High |
+| `gpt-4o-mini` | 128k+ | General purpose, fast tasks | Fast | Low |
+| `claude-sonnet-4-20250514` | 200k+ | Creative writing, analysis | Medium | High |
+| `claude-haiku-3.5` | 200k+ | Fast responses | Fast | Low |
+| `llama-3.1-70b` | 128k | Complex tasks | Medium | Medium |
+| `llama-3.1-8b` | 128k | Simple tasks | Fast | Low |
+
+## Cost Optimization
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    def optimize_model_selection(task_complexity, budget_constraint):
+        """
+        Select optimal model based on task complexity and budget
+        """
+        if task_complexity == "low":
+            return "gpt-4o-mini" if budget_constraint == "strict" else "llama-3.1-8b-instant"
+        elif task_complexity == "medium":
+            return "gpt-4o-mini" if budget_constraint == "strict" else "gpt-4o"
+        else:  # high complexity
+            return "claude-sonnet-4-20250514" if budget_constraint == "flexible" else "gpt-4o"
+
+    # Example usage
+    model = optimize_model_selection("high", "flexible")
+    print(f"Optimized model: {model}")
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    function optimizeModelSelection(taskComplexity, budgetConstraint) {
+        const optimizationMatrix = {
+            low: {
+                strict: "gpt-4o-mini",
+                flexible: "llama-3.1-8b-instant"
+            },
+            medium: {
+                strict: "gpt-4o-mini",
+                flexible: "gpt-4o"
+            },
+            high: {
+                strict: "gpt-4o",
+                flexible: "claude-sonnet-4-20250514"
+            }
+        };
+
+        return optimizationMatrix[taskComplexity]?.[budgetConstraint] || "gpt-4o-mini";
+    }
+
+    // Example usage
+    const model = optimizeModelSelection("high", "flexible");
+    console.log(`Optimized model: ${model}`);
+    ```
+  </Tab>
+</Tabs>
+
+## Error Handling
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    def get_available_models_with_fallback():
+        """Get available models with proper error handling"""
+        try:
+            response = requests.get(
+                f"{BASE_URL}/v1/models/available",
+                headers=headers,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    return data.get("models", {})
+                else:
+                    print("❌ API returned success=false")
+                    return {}
+            elif response.status_code == 401:
+                print("❌ Authentication failed. Check your API key.")
+                return {}
+            elif response.status_code == 429:
+                print("❌ Rate limit exceeded. Please wait before retrying.")
+                return {}
+            else:
+                print(f"❌ HTTP {response.status_code}: {response.text}")
+                return {}
+
+        except requests.exceptions.Timeout:
+            print("❌ Request timed out")
+            return {}
+        except requests.exceptions.ConnectionError:
+            print("❌ Connection error")
+            return {}
+        except Exception as e:
+            print(f"❌ Unexpected error: {e}")
+            return {}
+
+    # Use with fallback
+    models = get_available_models_with_fallback()
+    if models:
+        print(f"Available providers: {list(models.keys())}")
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    async function getAvailableModelsWithFallback() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch(`${BASE_URL}/v1/models/available`, {
+                method: 'GET',
+                headers: headers,
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    console.log("❌ Authentication failed. Check your API key.");
+                } else if (response.status === 429) {
+                    console.log("❌ Rate limit exceeded. Please wait before retrying.");
+                } else {
+                    console.log(`❌ HTTP ${response.status}: ${await response.text()}`);
+                }
+                return {};
+            }
+
+            const data = await response.json();
+
+            if (!data.success) {
+                console.log("❌ API returned success=false");
+                return {};
+            }
+
+            return data.models || {};
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log("❌ Request timed out");
+            } else if (error.name === 'TypeError') {
+                console.log("❌ Connection error");
+            } else {
+                console.log(`❌ Unexpected error: ${error.message}`);
+            }
+            return {};
+        }
+    }
+
+    // Use with fallback
+    getAvailableModelsWithFallback().then(models => {
+        if (Object.keys(models).length > 0) {
+            console.log(`Available providers: ${Object.keys(models)}`);
+        }
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+1. **Cache Results**: Cache the models list to avoid frequent API calls
+2. **Handle Changes**: Models may be added or removed over time
+3. **Fallback Logic**: Always have fallback models for reliability
+4. **Version Awareness**: Be aware of model versioning and deprecation
+5. **Cost Monitoring**: Track usage costs for different models
+6. **Performance Testing**: Test model performance for your specific use cases
+7. **Documentation Review**: Check model-specific limitations and capabilities
+
+## Integration Examples
+
+### Model Selection in Agent Creation
+```python
+def create_agent_with_best_model(task_type):
+    """Create an agent with the best available model for the task"""
+    models = get_available_models()
+    best_model = select_best_model(task_type)
+
+    return {
+        "agent_config": {
+            "agent_name": f"{task_type.title()} Agent",
+            "model_name": best_model,
+            "max_tokens": 2048,
+            "temperature": 0.7
+        },
+        "task": f"Perform {task_type} task"
+    }
+```
+
+### Batch Processing with Model Optimization
+```python
+def optimize_batch_processing(tasks):
+    """Optimize model selection for batch processing"""
+    optimized_payloads = []
+
+    for task in tasks:
+        task_type = classify_task(task)
+        best_model = select_best_model(task_type, "cost")
+        optimized_payloads.append({
+            "agent_config": {
+                "agent_name": f"Optimized Agent {len(optimized_payloads) + 1}",
+                "model_name": best_model,
+                "max_tokens": 1024
+            },
+            "task": task
+        })
+
+    return optimized_payloads
+```

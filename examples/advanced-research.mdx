@@ -1,1166 +1,190 @@
 ---
-title: "Advanced Research API Examples"
-description: "Complete examples for the Advanced Research API in multiple programming languages with step-by-step setup instructions."
+title: 'Advanced Research'
+description: 'Multi-agent research system with director-worker architecture and external search'
 ---
 
+import { Tabs, Tab } from 'mintlify'
 
-## What This Example Shows
 
-- **Multi-Agent Architecture**: Director-worker pattern for coordinated research
-- **External Search Integration**: Exa search tool for web research
-- **Multiple Language Support**: Examples in Python, TypeScript, JavaScript, cURL, and more
-- **Batch Processing**: Execute multiple research sessions in parallel
-- **Cost Management**: Token usage and pricing calculation
-- **Image Support**: Visual research capabilities
+The Advanced Research API provides a sophisticated multi-agent research system that combines director and worker agents to conduct comprehensive research tasks. The system leverages external search capabilities and supports both single and batch processing modes.
 
-## Step-by-Step Setup
+<Info>
+The Advanced Research system uses a director-worker architecture for coordinated, comprehensive research with external search integration.
+</Info>
 
-### 1. Get Your Swarms API Key
-
-1. **Visit the Swarms Dashboard**: Go to [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
-2. **Create Account**: Sign up or log in to your existing account
-3. **Generate API Key**: Click "Generate New API Key" and give it a descriptive name
-4. **Copy the Key**: Save your API key securely - you won't be able to see it again
-5. **Set Environment Variable**: Add it to your environment variables
-
-### 2. Environment Setup
-
-Create a `.env` file in your project directory:
-
-```bash
-SWARMS_API_KEY=your_api_key_here
-```
-
-### 3. Install Dependencies
+## Quick Start
 
 <Tabs>
-<Tab title="Python">
-```bash
-pip install requests python-dotenv
-# Optional: for async requests
-pip install httpx
-```
-</Tab>
-<Tab title="Node.js/TypeScript">
-```bash
-npm install axios dotenv
-# or
-yarn add axios dotenv
-```
-</Tab>
-<Tab title="JavaScript (Browser)">
-```html
-<!-- Include axios via CDN -->
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-```
-</Tab>
+  <Tab title="Python">
+    ```python
+    import requests
+    import os
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "config": {
+            "name": "AI Ethics Research",
+            "description": "Research on AI ethics and responsible AI development",
+            "worker_model_name": "gpt-4o-mini",
+            "director_model_name": "gpt-4o",
+            "max_loops": 2,
+            "exa_search_num_results": 3
+        },
+        "task": "What are the key ethical considerations in developing AI systems?"
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/advanced-research/completions",
+        headers=headers,
+        json=payload
+    )
+
+    result = response.json()
+    print(result['outputs'])
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    const payload = {
+        config: {
+            name: "AI Ethics Research",
+            description: "Research on AI ethics and responsible AI development",
+            worker_model_name: "gpt-4o-mini",
+            director_model_name: "gpt-4o",
+            max_loops: 2,
+            exa_search_num_results: 3
+        },
+        task: "What are the key ethical considerations in developing AI systems?"
+    };
+
+    fetch(`${BASE_URL}/v1/advanced-research/completions`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Research Results:", data.outputs);
+        console.log("Sources:", data.sources);
+    })
+    .catch(error => console.error('Error:', error));
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/advanced-research/completions" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "config": {
+          "name": "AI Ethics Research",
+          "description": "Research on AI ethics and responsible AI development",
+          "worker_model_name": "gpt-4o-mini",
+          "director_model_name": "gpt-4o",
+          "max_loops": 2,
+          "exa_search_num_results": 3
+        },
+        "task": "What are the key ethical considerations in developing AI systems?"
+      }'
+    ```
+  </Tab>
 </Tabs>
 
-## Language Examples
+## Key Features
 
-<Tabs>
-<Tab title="Python">
+### Multi-Agent Architecture
+- **Director Agent**: Orchestrates the research process and synthesizes results
+- **Worker Agents**: Execute specific research tasks and gather information
+- **External Search**: Integrates with Exa search for web research capabilities
 
-### Basic Research Example
+### Configurable Models
+- Support for multiple LLM providers (OpenAI, Anthropic, etc.)
+- Separate models for director and worker agents
+- Customizable token limits and loops
 
-```python
-import requests
-import os
-from dotenv import load_dotenv
-import json
+### Cost Tracking
+- Transparent token usage reporting
+- Real-time cost calculation
+- Credit system integration
 
-# Load environment variables
-load_dotenv()
+## Use Cases
 
-def run_basic_research():
-    api_url = "https://api.swarms.world"
-    api_key = os.getenv("SWARMS_API_KEY")
-    
-    payload = {
-        "config": {
-            "name": "Healthcare AI Research",
-            "description": "Research on AI applications in healthcare",
-            "worker_model_name": "gpt-4.1",
-            "director_model_name": "gpt-4.1",
-            "max_loops": 1
-        },
-        "task": "What are the main benefits of using AI in healthcare?"
-    }
-    
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": api_key
-    }
-    
-    try:
-        response = requests.post(
-            f"{api_url}/v1/advanced-research/completions",
-            json=payload,
-            headers=headers,
-            timeout=300.0
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error: {e}")
-        return None
+- **Academic Research**: Comprehensive literature reviews and analysis
+- **Market Research**: Competitive analysis and trend identification
+- **Technical Documentation**: In-depth analysis of technical topics
+- **Policy Research**: Analysis of regulations and their implications
+- **Innovation Research**: Exploring emerging technologies and their applications
 
-# Run the research
-result = run_basic_research()
-if result:
-    print(json.dumps(result, indent=2))
-```
+## Batch Processing
 
-### Advanced Configuration Example
+Process multiple research tasks in parallel:
 
 ```python
-def run_advanced_research():
-    api_url = "https://api.swarms.world"
-    api_key = os.getenv("SWARMS_API_KEY")
-    
-    payload = {
-        "config": {
-            "name": "Deep Market Analysis",
-            "description": "Comprehensive market research with multiple sources",
-            "worker_model_name": "claude-sonnet-4-20250514-20241022",
-            "director_agent_name": "Research-Director",
-            "director_model_name": "gpt-4.1",
-            "director_max_tokens": 12000,
-            "max_loops": 3,
-            "director_max_loops": 2,
-            "exa_search_num_results": 5,
-            "exa_search_max_characters": 500
-        },
-        "task": "Conduct comprehensive analysis of renewable energy market trends, including technological innovations, market size, key players, and growth projections for 2024-2026"
-    }
-    
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": api_key
-    }
-    
-    response = requests.post(
-        f"{api_url}/v1/advanced-research/completions",
-        json=payload,
-        headers=headers,
-        timeout=600.0
-    )
-    
-    return response.json()
-
-# Run advanced research
-result = run_advanced_research()
-print(json.dumps(result, indent=2))
-```
-
-### Async Example with httpx
-
-```python
-import httpx
-import asyncio
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-async def run_async_research():
-    api_url = "https://api.swarms.world"
-    api_key = os.getenv("SWARMS_API_KEY")
-    
-    payload = {
-        "config": {
-            "name": "Async Research",
-            "description": "Asynchronous research task",
-            "worker_model_name": "gpt-4.1",
-            "director_model_name": "gpt-4.1",
-            "max_loops": 1
-        },
-        "task": "Research the latest developments in quantum computing"
-    }
-    
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": api_key
-    }
-    
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        response = await client.post(
-            f"{api_url}/v1/advanced-research/completions",
-            json=payload,
-            headers=headers
-        )
-        return response.json()
-
-# Run async research
-result = asyncio.run(run_async_research())
-print(json.dumps(result, indent=2))
-```
-
-### Batch Processing Example
-
-```python
-def run_batch_research():
-    api_url = "https://api.swarms.world"
-    api_key = os.getenv("SWARMS_API_KEY")
-    
-    batch_payload = {
-        "input_schemas": [
-            {
-                "config": {
-                    "name": "Tech Research 1",
-                    "description": "AI technology research",
-                    "worker_model_name": "gpt-4.1",
-                    "director_model_name": "gpt-4.1",
-                    "max_loops": 1
-                },
-                "task": "Research emerging AI technologies in 2024"
-            },
-            {
-                "config": {
-                    "name": "Tech Research 2",
-                    "description": "Blockchain research",
-                    "worker_model_name": "gpt-4.1",
-                    "director_model_name": "gpt-4.1",
-                    "max_loops": 1
-                },
-                "task": "Research blockchain applications in finance"
-            },
-            {
-                "config": {
-                    "name": "Tech Research 3",
-                    "description": "Quantum computing research",
-                    "worker_model_name": "gpt-4.1",
-                    "director_model_name": "gpt-4.1",
-                    "max_loops": 1
-                },
-                "task": "Research quantum computing progress and applications"
-            }
-        ]
-    }
-    
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": api_key
-    }
-    
-    response = requests.post(
-        f"{api_url}/v1/advanced-research/batch/completions",
-        json=batch_payload,
-        headers=headers,
-        timeout=600.0
-    )
-    
-    return response.json()
-
-# Run batch research
-results = run_batch_research()
-for i, result in enumerate(results):
-    print(f"Research {i+1}: {result['name']}")
-    print(json.dumps(result, indent=2))
-    print("-" * 50)
-```
-
-</Tab>
-<Tab title="TypeScript">
-
-### Basic Research Example
-
-```typescript
-import axios from 'axios';
-import * as dotenv from 'dotenv';
-
-dotenv.config();
-
-interface ResearchConfig {
-  name?: string;
-  description?: string;
-  worker_model_name?: string;
-  director_model_name?: string;
-  max_loops?: number;
-  director_max_tokens?: number;
-  exa_search_num_results?: number;
-  exa_search_max_characters?: number;
-}
-
-interface ResearchRequest {
-  config?: ResearchConfig;
-  task?: string;
-  img?: string;
-}
-
-interface ResearchResponse {
-  id?: string;
-  name?: string;
-  description?: string;
-  outputs?: any;
-  timestamp?: string;
-  sources?: number;
-  characters_per_source?: number;
-  usage?: {
-    input_tokens: number;
-    output_tokens: number;
-    total_tokens: number;
-    total_cost_usd: number;
-  };
-}
-
-async function runBasicResearch(): Promise<ResearchResponse | null> {
-  const apiUrl = 'https://api.swarms.world';
-  const apiKey = process.env.SWARMS_API_KEY;
-  
-  const payload: ResearchRequest = {
-    config: {
-      name: 'Healthcare AI Research',
-      description: 'Research on AI applications in healthcare',
-      worker_model_name: 'gpt-4.1',
-      director_model_name: 'gpt-4.1',
-      max_loops: 1
-    },
-    task: 'What are the main benefits of using AI in healthcare?'
-  };
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': apiKey!
-  };
-  
-  try {
-    const response = await axios.post(
-      `${apiUrl}/v1/advanced-research/completions`,
-      payload,
-      { headers, timeout: 300000 }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error:', error);
-    return null;
-  }
-}
-
-// Run the research
-runBasicResearch().then(result => {
-  if (result) {
-    console.log(JSON.stringify(result, null, 2));
-  }
-});
-```
-
-### Advanced Configuration Example
-
-```typescript
-async function runAdvancedResearch(): Promise<ResearchResponse> {
-  const apiUrl = 'https://api.swarms.world';
-  const apiKey = process.env.SWARMS_API_KEY;
-  
-  const payload: ResearchRequest = {
-    config: {
-      name: 'Deep Market Analysis',
-      description: 'Comprehensive market research with multiple sources',
-      worker_model_name: 'claude-sonnet-4-20250514-20241022',
-      director_agent_name: 'Research-Director',
-      director_model_name: 'gpt-4.1',
-      director_max_tokens: 12000,
-      max_loops: 3,
-      director_max_loops: 2,
-      exa_search_num_results: 5,
-      exa_search_max_characters: 500
-    },
-    task: 'Conduct comprehensive analysis of renewable energy market trends, including technological innovations, market size, key players, and growth projections for 2024-2026'
-  };
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': apiKey!
-  };
-  
-  const response = await axios.post(
-    `${apiUrl}/v1/advanced-research/completions`,
-    payload,
-    { headers, timeout: 600000 }
-  );
-  
-  return response.data;
-}
-
-// Run advanced research
-runAdvancedResearch().then(result => {
-  console.log(JSON.stringify(result, null, 2));
-});
-```
-
-### Batch Processing Example
-
-```typescript
-interface BatchRequest {
-  input_schemas: ResearchRequest[];
-}
-
-async function runBatchResearch(): Promise<ResearchResponse[]> {
-  const apiUrl = 'https://api.swarms.world';
-  const apiKey = process.env.SWARMS_API_KEY;
-  
-  const batchPayload: BatchRequest = {
-    input_schemas: [
-      {
-        config: {
-          name: 'Tech Research 1',
-          description: 'AI technology research',
-          worker_model_name: 'gpt-4.1',
-          director_model_name: 'gpt-4.1',
-          max_loops: 1
-        },
-        task: 'Research emerging AI technologies in 2024'
-      },
-      {
-        config: {
-          name: 'Tech Research 2',
-          description: 'Blockchain research',
-          worker_model_name: 'gpt-4.1',
-          director_model_name: 'gpt-4.1',
-          max_loops: 1
-        },
-        task: 'Research blockchain applications in finance'
-      },
-      {
-        config: {
-          name: 'Tech Research 3',
-          description: 'Quantum computing research',
-          worker_model_name: 'gpt-4.1',
-          director_model_name: 'gpt-4.1',
-          max_loops: 1
-        },
-        task: 'Research quantum computing progress and applications'
-      }
-    ]
-  };
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': apiKey!
-  };
-  
-  const response = await axios.post(
-    `${apiUrl}/v1/advanced-research/batch/completions`,
-    batchPayload,
-    { headers, timeout: 600000 }
-  );
-  
-  return response.data;
-}
-
-// Run batch research
-runBatchResearch().then(results => {
-  results.forEach((result, index) => {
-    console.log(`Research ${index + 1}: ${result.name}`);
-    console.log(JSON.stringify(result, null, 2));
-    console.log('-'.repeat(50));
-  });
-});
-```
-
-</Tab>
-<Tab title="JavaScript">
-
-### Basic Research Example
-
-```javascript
-const axios = require('axios');
-require('dotenv').config();
-
-async function runBasicResearch() {
-  const apiUrl = 'https://api.swarms.world';
-  const apiKey = process.env.SWARMS_API_KEY;
-  
-  const payload = {
-    config: {
-      name: 'Healthcare AI Research',
-      description: 'Research on AI applications in healthcare',
-      worker_model_name: 'gpt-4.1',
-      director_model_name: 'gpt-4.1',
-      max_loops: 1
-    },
-    task: 'What are the main benefits of using AI in healthcare?'
-  };
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': apiKey
-  };
-  
-  try {
-    const response = await axios.post(
-      `${apiUrl}/v1/advanced-research/completions`,
-      payload,
-      { headers, timeout: 300000 }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error:', error.message);
-    return null;
-  }
-}
-
-// Run the research
-runBasicResearch().then(result => {
-  if (result) {
-    console.log(JSON.stringify(result, null, 2));
-  }
-});
-```
-
-### Browser Example (Frontend)
-
-```javascript
-// For browser usage - include axios via CDN
-async function runBrowserResearch() {
-  const apiUrl = 'https://api.swarms.world';
-  const apiKey = 'your_api_key_here'; // In production, get this securely
-  
-  const payload = {
-    config: {
-      name: 'Browser Research',
-      description: 'Research from browser',
-      worker_model_name: 'gpt-4.1',
-      director_model_name: 'gpt-4.1',
-      max_loops: 1
-    },
-    task: 'Research the latest web development trends'
-  };
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': apiKey
-  };
-  
-  try {
-    const response = await axios.post(
-      `${apiUrl}/v1/advanced-research/completions`,
-      payload,
-      { headers, timeout: 300000 }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error:', error.message);
-    return null;
-  }
-}
-
-// Usage in browser
-runBrowserResearch().then(result => {
-  if (result) {
-    document.getElementById('result').innerHTML = 
-      `<pre>${JSON.stringify(result, null, 2)}</pre>`;
-  }
-});
-```
-
-</Tab>
-<Tab title="cURL">
-
-### Basic Research Example
-
-```bash
-#!/bin/bash
-
-# Set your API key
-API_KEY="your_api_key_here"
-API_URL="https://api.swarms.world"
-
-# Basic research request
-curl -X POST "${API_URL}/v1/advanced-research/completions" \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: ${API_KEY}" \
-  -d '{
-    "config": {
-      "name": "Healthcare AI Research",
-      "description": "Research on AI applications in healthcare",
-      "worker_model_name": "gpt-4.1",
-      "director_model_name": "gpt-4.1",
-      "max_loops": 1
-    },
-    "task": "What are the main benefits of using AI in healthcare?"
-  }' \
-  --max-time 300
-```
-
-### Advanced Configuration Example
-
-```bash
-#!/bin/bash
-
-API_KEY="your_api_key_here"
-API_URL="https://api.swarms.world"
-
-# Advanced research with multiple sources
-curl -X POST "${API_URL}/v1/advanced-research/completions" \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: ${API_KEY}" \
-  -d '{
-    "config": {
-      "name": "Deep Market Analysis",
-      "description": "Comprehensive market research with multiple sources",
-      "worker_model_name": "claude-sonnet-4-20250514-20241022",
-      "director_agent_name": "Research-Director",
-      "director_model_name": "gpt-4.1",
-      "director_max_tokens": 12000,
-      "max_loops": 3,
-      "director_max_loops": 2,
-      "exa_search_num_results": 5,
-      "exa_search_max_characters": 500
-    },
-    "task": "Conduct comprehensive analysis of renewable energy market trends, including technological innovations, market size, key players, and growth projections for 2024-2026"
-  }' \
-  --max-time 600
-```
-
-### Batch Processing Example
-
-```bash
-#!/bin/bash
-
-API_KEY="your_api_key_here"
-API_URL="https://api.swarms.world"
-
-# Batch research request
-curl -X POST "${API_URL}/v1/advanced-research/batch/completions" \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: ${API_KEY}" \
-  -d '{
+batch_payload = {
     "input_schemas": [
-      {
-        "config": {
-          "name": "Tech Research 1",
-          "description": "AI technology research",
-          "worker_model_name": "gpt-4.1",
-          "director_model_name": "gpt-4.1",
-          "max_loops": 1
+        {
+            "config": {
+                "name": "Healthcare AI",
+                "description": "AI in healthcare research",
+                "worker_model_name": "gpt-4o-mini",
+                "director_model_name": "gpt-4o"
+            },
+            "task": "How is AI transforming healthcare?"
         },
-        "task": "Research emerging AI technologies in 2024"
-      },
-      {
-        "config": {
-          "name": "Tech Research 2",
-          "description": "Blockchain research",
-          "worker_model_name": "gpt-4.1",
-          "director_model_name": "gpt-4.1",
-          "max_loops": 1
-        },
-        "task": "Research blockchain applications in finance"
-      }
+        {
+            "config": {
+                "name": "Sustainable Energy",
+                "description": "Renewable energy research",
+                "worker_model_name": "gpt-4o-mini",
+                "director_model_name": "gpt-4o"
+            },
+            "task": "What are the latest breakthroughs in sustainable energy?"
+        }
     ]
-  }' \
-  --max-time 600
-```
+}
 
-</Tab>
-<Tab title="Go">
-
-### Basic Research Example
-
-```go
-package main
-
-import (
-    "bytes"
-    "encoding/json"
-    "fmt"
-    "io"
-    "net/http"
-    "os"
-    "time"
+response = requests.post(
+    f"{BASE_URL}/v1/advanced-research/batch/completions",
+    headers=headers,
+    json=batch_payload
 )
 
-type ResearchConfig struct {
-    Name                        string `json:"name,omitempty"`
-    Description                 string `json:"description,omitempty"`
-    WorkerModelName            string `json:"worker_model_name,omitempty"`
-    DirectorModelName          string `json:"director_model_name,omitempty"`
-    MaxLoops                   int    `json:"max_loops,omitempty"`
-    DirectorMaxTokens          int    `json:"director_max_tokens,omitempty"`
-    ExaSearchNumResults        int    `json:"exa_search_num_results,omitempty"`
-    ExaSearchMaxCharacters     int    `json:"exa_search_max_characters,omitempty"`
-}
-
-type ResearchRequest struct {
-    Config *ResearchConfig `json:"config,omitempty"`
-    Task   string          `json:"task,omitempty"`
-    Img    string          `json:"img,omitempty"`
-}
-
-type Usage struct {
-    InputTokens   int     `json:"input_tokens"`
-    OutputTokens  int     `json:"output_tokens"`
-    TotalTokens   int     `json:"total_tokens"`
-    TotalCostUSD  float64 `json:"total_cost_usd"`
-}
-
-type ResearchResponse struct {
-    ID                   string      `json:"id,omitempty"`
-    Name                 string      `json:"name,omitempty"`
-    Description          string      `json:"description,omitempty"`
-    Outputs              interface{} `json:"outputs,omitempty"`
-    Timestamp            string      `json:"timestamp,omitempty"`
-    Sources              int         `json:"sources,omitempty"`
-    CharactersPerSource  int         `json:"characters_per_source,omitempty"`
-    Usage                *Usage      `json:"usage,omitempty"`
-}
-
-func runBasicResearch() (*ResearchResponse, error) {
-    apiURL := "https://api.swarms.world"
-    apiKey := os.Getenv("SWARMS_API_KEY")
-    
-    payload := ResearchRequest{
-        Config: &ResearchConfig{
-            Name:               "Healthcare AI Research",
-            Description:        "Research on AI applications in healthcare",
-            WorkerModelName:    "gpt-4.1",
-            DirectorModelName:  "gpt-4.1",
-            MaxLoops:           1,
-        },
-        Task: "What are the main benefits of using AI in healthcare?",
-    }
-    
-    jsonData, err := json.Marshal(payload)
-    if err != nil {
-        return nil, err
-    }
-    
-    req, err := http.NewRequest("POST", apiURL+"/v1/advanced-research/completions", bytes.NewBuffer(jsonData))
-    if err != nil {
-        return nil, err
-    }
-    
-    req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("x-api-key", apiKey)
-    
-    client := &http.Client{Timeout: 300 * time.Second}
-    resp, err := client.Do(req)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return nil, err
-    }
-    
-    var result ResearchResponse
-    err = json.Unmarshal(body, &result)
-    if err != nil {
-        return nil, err
-    }
-    
-    return &result, nil
-}
-
-func main() {
-    result, err := runBasicResearch()
-    if err != nil {
-        fmt.Printf("Error: %v\n", err)
-        return
-    }
-    
-    jsonResult, _ := json.MarshalIndent(result, "", "  ")
-    fmt.Println(string(jsonResult))
-}
+results = response.json()
+for result in results:
+    print(f"Research: {result['name']}")
+    print(f"Results: {result['outputs']}")
 ```
 
-</Tab>
-<Tab title="Java">
+## Configuration Options
 
-### Basic Research Example
-
-```java
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.Map;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-public class AdvancedResearchExample {
-    
-    private static final String API_URL = "https://api.swarms.world";
-    private static final String API_KEY = System.getenv("SWARMS_API_KEY");
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    
-    public static class ResearchConfig {
-        @JsonProperty("name")
-        private String name;
-        
-        @JsonProperty("description")
-        private String description;
-        
-        @JsonProperty("worker_model_name")
-        private String workerModelName;
-        
-        @JsonProperty("director_model_name")
-        private String directorModelName;
-        
-        @JsonProperty("max_loops")
-        private Integer maxLoops;
-        
-        // Getters and setters
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        
-        public String getDescription() { return description; }
-        public void setDescription(String description) { this.description = description; }
-        
-        public String getWorkerModelName() { return workerModelName; }
-        public void setWorkerModelName(String workerModelName) { this.workerModelName = workerModelName; }
-        
-        public String getDirectorModelName() { return directorModelName; }
-        public void setDirectorModelName(String directorModelName) { this.directorModelName = directorModelName; }
-        
-        public Integer getMaxLoops() { return maxLoops; }
-        public void setMaxLoops(Integer maxLoops) { this.maxLoops = maxLoops; }
-    }
-    
-    public static class ResearchRequest {
-        @JsonProperty("config")
-        private ResearchConfig config;
-        
-        @JsonProperty("task")
-        private String task;
-        
-        // Getters and setters
-        public ResearchConfig getConfig() { return config; }
-        public void setConfig(ResearchConfig config) { this.config = config; }
-        
-        public String getTask() { return task; }
-        public void setTask(String task) { this.task = task; }
-    }
-    
-    public static class Usage {
-        @JsonProperty("input_tokens")
-        private Integer inputTokens;
-        
-        @JsonProperty("output_tokens")
-        private Integer outputTokens;
-        
-        @JsonProperty("total_tokens")
-        private Integer totalTokens;
-        
-        @JsonProperty("total_cost_usd")
-        private Double totalCostUsd;
-        
-        // Getters and setters
-        public Integer getInputTokens() { return inputTokens; }
-        public void setInputTokens(Integer inputTokens) { this.inputTokens = inputTokens; }
-        
-        public Integer getOutputTokens() { return outputTokens; }
-        public void setOutputTokens(Integer outputTokens) { this.outputTokens = outputTokens; }
-        
-        public Integer getTotalTokens() { return totalTokens; }
-        public void setTotalTokens(Integer totalTokens) { this.totalTokens = totalTokens; }
-        
-        public Double getTotalCostUsd() { return totalCostUsd; }
-        public void setTotalCostUsd(Double totalCostUsd) { this.totalCostUsd = totalCostUsd; }
-    }
-    
-    public static class ResearchResponse {
-        @JsonProperty("id")
-        private String id;
-        
-        @JsonProperty("name")
-        private String name;
-        
-        @JsonProperty("description")
-        private String description;
-        
-        @JsonProperty("outputs")
-        private Object outputs;
-        
-        @JsonProperty("timestamp")
-        private String timestamp;
-        
-        @JsonProperty("sources")
-        private Integer sources;
-        
-        @JsonProperty("characters_per_source")
-        private Integer charactersPerSource;
-        
-        @JsonProperty("usage")
-        private Usage usage;
-        
-        // Getters and setters
-        public String getId() { return id; }
-        public void setId(String id) { this.id = id; }
-        
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        
-        public String getDescription() { return description; }
-        public void setDescription(String description) { this.description = description; }
-        
-        public Object getOutputs() { return outputs; }
-        public void setOutputs(Object outputs) { this.outputs = outputs; }
-        
-        public String getTimestamp() { return timestamp; }
-        public void setTimestamp(String timestamp) { this.timestamp = timestamp; }
-        
-        public Integer getSources() { return sources; }
-        public void setSources(Integer sources) { this.sources = sources; }
-        
-        public Integer getCharactersPerSource() { return charactersPerSource; }
-        public void setCharactersPerSource(Integer charactersPerSource) { this.charactersPerSource = charactersPerSource; }
-        
-        public Usage getUsage() { return usage; }
-        public void setUsage(Usage usage) { this.usage = usage; }
-    }
-    
-    public static ResearchResponse runBasicResearch() throws IOException, InterruptedException {
-        ResearchConfig config = new ResearchConfig();
-        config.setName("Healthcare AI Research");
-        config.setDescription("Research on AI applications in healthcare");
-        config.setWorkerModelName("gpt-4.1");
-        config.setDirectorModelName("gpt-4.1");
-        config.setMaxLoops(1);
-        
-        ResearchRequest request = new ResearchRequest();
-        request.setConfig(config);
-        request.setTask("What are the main benefits of using AI in healthcare?");
-        
-        String jsonPayload = objectMapper.writeValueAsString(request);
-        
-        HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(30))
-            .build();
-        
-        HttpRequest httpRequest = HttpRequest.newBuilder()
-            .uri(URI.create(API_URL + "/v1/advanced-research/completions"))
-            .header("Content-Type", "application/json")
-            .header("x-api-key", API_KEY)
-            .timeout(Duration.ofSeconds(300))
-            .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
-            .build();
-        
-        HttpResponse<String> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-        
-        return objectMapper.readValue(response.body(), ResearchResponse.class);
-    }
-    
-    public static void main(String[] args) {
-        try {
-            ResearchResponse result = runBasicResearch();
-            System.out.println(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(result));
-        } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
-        }
-    }
-}
-```
-
-</Tab>
-</Tabs>
-
-## Image-Based Research
-
-For visual research tasks, you can include images in your requests:
-
-<Tabs>
-<Tab title="Python">
-```python
-import base64
-
-def run_image_research():
-    api_url = "https://api.swarms.world"
-    api_key = os.getenv("SWARMS_API_KEY")
-    
-    # Read and encode image
-    with open("chart.png", "rb") as image_file:
-        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
-    
-    payload = {
-        "config": {
-            "name": "Visual Analysis Research",
-            "description": "Research based on visual content",
-            "worker_model_name": "gpt-4-vision-preview",
-            "director_model_name": "gpt-4.1",
-            "max_loops": 1
-        },
-        "task": "Analyze this chart and provide insights on the data trends",
-        "img": f"data:image/png;base64,{encoded_image}"
-    }
-    
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": api_key
-    }
-    
-    response = requests.post(
-        f"{api_url}/v1/advanced-research/completions",
-        json=payload,
-        headers=headers,
-        timeout=300.0
-    )
-    
-    return response.json()
-```
-</Tab>
-<Tab title="JavaScript">
-```javascript
-async function runImageResearch() {
-  const apiUrl = 'https://api.swarms.world';
-  const apiKey = process.env.SWARMS_API_KEY;
-  
-  // Read and encode image (Node.js)
-  const fs = require('fs');
-  const imageBuffer = fs.readFileSync('chart.png');
-  const encodedImage = imageBuffer.toString('base64');
-  
-  const payload = {
-    config: {
-      name: 'Visual Analysis Research',
-      description: 'Research based on visual content',
-      worker_model_name: 'gpt-4-vision-preview',
-      director_model_name: 'gpt-4.1',
-      max_loops: 1
-    },
-    task: 'Analyze this chart and provide insights on the data trends',
-    img: `data:image/png;base64,${encodedImage}`
-  };
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': apiKey
-  };
-  
-  const response = await axios.post(
-    `${apiUrl}/v1/advanced-research/completions`,
-    payload,
-    { headers, timeout: 300000 }
-  );
-  
-  return response.data;
-}
-```
-</Tab>
-</Tabs>
-
-## Error Handling
-
-Here's how to handle errors properly across different languages:
-
-<Tabs>
-<Tab title="Python">
-```python
-def robust_research_call(payload):
-    try:
-        response = requests.post(
-            f"{api_url}/v1/advanced-research/completions",
-            json=payload,
-            headers=headers,
-            timeout=300.0
-        )
-        response.raise_for_status()
-        return response.json()
-        
-    except requests.exceptions.Timeout:
-        return {"error": "Request timed out"}
-    except requests.exceptions.HTTPError as e:
-        return {"error": f"HTTP error: {e.response.status_code}"}
-    except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
-    except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
-```
-</Tab>
-<Tab title="TypeScript">
-```typescript
-async function robustResearchCall(payload: ResearchRequest): Promise<ResearchResponse | { error: string }> {
-  try {
-    const response = await axios.post(
-      `${apiUrl}/v1/advanced-research/completions`,
-      payload,
-      { headers, timeout: 300000 }
-    );
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.code === 'ECONNABORTED') {
-        return { error: 'Request timed out' };
-      }
-      if (error.response) {
-        return { error: `HTTP error: ${error.response.status}` };
-      }
-      return { error: `Request failed: ${error.message}` };
-    }
-    return { error: `Unexpected error: ${error}` };
-  }
-}
-```
-</Tab>
-</Tabs>
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `worker_model_name` | string | "gpt-4.1" | Model for worker agents |
+| `director_model_name` | string | "gpt-4.1" | Model for director agent |
+| `max_loops` | integer | 1 | Number of research iterations |
+| `director_max_tokens` | integer | 8000 | Token limit for director |
+| `exa_search_num_results` | integer | 2 | Number of search results |
+| `exa_search_max_characters` | integer | 100 | Characters per search result |
 
 ## Best Practices
 
-### 1. Configuration Optimization
-
-- **Model Selection**: Use `gpt-4.1` or `claude-sonnet-4-20250514` for complex research
-- **Loop Configuration**: Start with `max_loops: 1` for simple tasks
-- **Search Configuration**: Adjust `exa_search_num_results` based on research depth needed
-
-### 2. Task Definition
-
-- **Clear Objectives**: Define specific, measurable research goals
-- **Scope Boundaries**: Limit task scope to avoid excessive token usage
-- **Context Provision**: Include relevant background information
-
-### 3. Cost Management
-
-- Monitor token usage in responses
-- Use batch processing for multiple related tasks
-- Consider simpler models for basic research tasks
-
-## Expected Output
-
-A successful research response will include:
-
-```json
-{
-  "id": "uuid-string",
-  "name": "Healthcare AI Research",
-  "description": "Research on AI applications in healthcare",
-  "outputs": "Comprehensive research results...",
-  "timestamp": "2024-01-01T00:00:00Z",
-  "sources": 2,
-  "characters_per_source": 100,
-  "usage": {
-    "input_tokens": 1500,
-    "output_tokens": 800,
-    "total_tokens": 2300,
-    "total_cost_usd": 0.078
-  }
-}
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Missing Model Names**: Ensure both worker and director models are specified
-2. **Invalid Max Loops**: Verify max_loops is greater than 0
-3. **Authentication Errors**: Check API key validity and format
-4. **Timeout Issues**: Increase timeout for complex research tasks
-
-### Support
-
-For additional support:
-- Review error messages for specific error codes
-- Check logs for detailed execution information
-- Contact support through [Swarms Support](https://cal.com/swarms)
-- Refer to the main API documentation for general issues
-
-## Next Steps
-
-After mastering the Advanced Research API, explore:
-- Multi-agent swarms for complex workflows
-- Custom agent configurations
-- Integration with your existing applications
-- Advanced search and filtering capabilities
+1. **Task Specificity**: Provide clear, specific research questions
+2. **Model Selection**: Use more capable models for complex research tasks
+3. **Loop Configuration**: Increase loops for deeper analysis (2-3 loops recommended)
+4. **Search Parameters**: Adjust search results based on research scope
+5. **Cost Monitoring**: Monitor token usage for budget management

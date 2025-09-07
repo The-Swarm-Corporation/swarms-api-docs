@@ -1,0 +1,335 @@
+---
+title: 'Search-Enabled Agents'
+description: 'Agents with web search capabilities for real-time information retrieval'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+The Swarms API supports search-enabled agents that can access real-time web information using integrated search capabilities. This allows agents to provide up-to-date answers and research current topics.
+
+<Info>
+Enable web search by setting `"search_enabled": true` to access current information and real-time data.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import os
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Research Assistant",
+            "description": "AI assistant with web search capabilities",
+            "system_prompt": "You are a research assistant that can search the web for current information.",
+            "model_name": "gpt-4o",
+            "max_tokens": 4096,
+            "temperature": 0.7
+        },
+        "task": "What are the latest developments in quantum computing?",
+        "search_enabled": True
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload
+    )
+
+    result = response.json()
+    print(result['outputs'])
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    const payload = {
+        agent_config: {
+            agent_name: "News Analyst",
+            description: "Current events and news analysis specialist",
+            system_prompt: "You are a news analyst who researches current events and provides analysis.",
+            model_name: "gpt-4o",
+            max_tokens: 4096,
+            temperature: 0.6
+        },
+        task: "What are the latest headlines about artificial intelligence regulations?",
+        search_enabled: true
+    };
+
+    fetch(`${BASE_URL}/v1/agent/completions`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Search Results:", data.outputs);
+    })
+    .catch(error => console.error('Error:', error));
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/agent/completions" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "agent_config": {
+          "agent_name": "Research Assistant",
+          "model_name": "gpt-4o",
+          "max_tokens": 4096,
+          "temperature": 0.7
+        },
+        "task": "What are the latest developments in quantum computing?",
+        "search_enabled": true
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+## Search Integration
+
+When `search_enabled` is set to `true`, the agent can:
+
+- Access real-time web information
+- Search for current news and developments
+- Verify facts with up-to-date sources
+- Provide contextually relevant information
+- Cite sources for transparency
+
+## Use Cases
+
+### Current Events Research
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Current Events Researcher",
+        "description": "Specializes in current events and breaking news",
+        "system_prompt": "You research current events and provide factual summaries.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048
+    },
+    "task": "Summarize the latest developments in climate change policy.",
+    "search_enabled": True
+}
+```
+
+### Market Research
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Market Researcher",
+        "description": "Market trends and competitive analysis",
+        "system_prompt": "You analyze market trends and provide competitive intelligence.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096
+    },
+    "task": "What are the current market trends in electric vehicles?",
+    "search_enabled": True
+}
+```
+
+### Technical Research
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Technical Researcher",
+        "description": "Research latest technical developments",
+        "system_prompt": "You research technical topics and explain complex concepts.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096
+    },
+    "task": "What are the latest advancements in machine learning algorithms?",
+    "search_enabled": True
+}
+```
+
+### Product Research
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Product Researcher",
+        "description": "Product reviews and comparisons",
+        "system_prompt": "You research products and provide detailed comparisons.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048
+    },
+    "task": "Compare the latest smartphones from different manufacturers.",
+    "search_enabled": True
+}
+```
+
+## Search Quality Control
+
+### Source Verification
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Fact Checker",
+        "description": "Verifies information with reliable sources",
+        "system_prompt": "You verify facts and cite reliable sources.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048
+    },
+    "task": "Verify the accuracy of recent claims about renewable energy adoption rates.",
+    "search_enabled": True
+}
+```
+
+### Recent Information Priority
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Recent News Analyst",
+        "description": "Focuses on the most recent information",
+        "system_prompt": "You prioritize the most recent and relevant information.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048
+    },
+    "task": "What are the most recent developments in space exploration from the past week?",
+    "search_enabled": True
+}
+```
+
+## Advanced Search Configuration
+
+### Combined with Conversation History
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Research Conversationalist",
+        "description": "Maintains context while researching",
+        "system_prompt": "You maintain conversation context while researching current information.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096
+    },
+    "task": "Based on our previous discussion about AI, what are the latest regulatory developments?",
+    "search_enabled": True,
+    "history": {
+        "previous_context": {
+            "role": "user",
+            "content": "Tell me about AI safety concerns"
+        },
+        "ai_response": {
+            "role": "assistant",
+            "content": "AI safety involves alignment, robustness, and ethical considerations..."
+        }
+    }
+}
+```
+
+## Best Practices
+
+1. **Specific Queries**: Ask specific questions for better search results
+2. **Time Sensitivity**: Specify time frames for time-sensitive topics
+3. **Source Quality**: Request verification from reliable sources when needed
+4. **Context Preservation**: Use conversation history for follow-up questions
+5. **Cost Awareness**: Search-enabled agents use additional tokens
+
+## Cost Considerations
+
+- **Search Operations**: Additional costs for web search access
+- **Token Usage**: Increased token consumption for search results processing
+- **Quality Trade-off**: Balance search quality with cost efficiency
+
+## Error Handling
+
+```python
+try:
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=60
+    )
+
+    if response.status_code == 200:
+        result = response.json()
+        print("Search Results:", result['outputs'])
+
+        # Check if search was actually used
+        if 'search_results' in result:
+            print("Search sources:", result['search_results'])
+
+    elif response.status_code == 429:
+        print("Rate limit exceeded for search operations")
+    else:
+        print(f"Search error: {response.status_code} - {response.text}")
+
+except requests.exceptions.Timeout:
+    print("Search request timed out")
+except requests.exceptions.ConnectionError:
+    print("Failed to connect to search service")
+except Exception as e:
+    print(f"Search integration error: {e}")
+```
+
+## Search Result Format
+
+Search-enabled agents typically return:
+
+```json
+{
+  "outputs": "Comprehensive analysis based on current web data...",
+  "search_results": [
+    {
+      "title": "Latest AI Developments",
+      "url": "https://example.com/ai-news",
+      "snippet": "Recent breakthroughs in artificial intelligence...",
+      "date": "2024-01-15"
+    }
+  ],
+  "usage": {
+    "input_tokens": 150,
+    "output_tokens": 300,
+    "search_cost": 0.05,
+    "total_cost": 0.008
+  }
+}
+```
+
+## Rate Limiting
+
+Search operations may have additional rate limits:
+
+- **Per Minute**: 10 search requests
+- **Per Hour**: 100 search requests
+- **Per Day**: 500 search requests
+
+Implement exponential backoff for rate limit handling:
+
+```python
+import time
+
+def search_with_backoff(payload, max_retries=3):
+    for attempt in range(max_retries):
+        response = requests.post(f"{BASE_URL}/v1/agent/completions", json=payload, headers=headers)
+
+        if response.status_code == 429:
+            wait_time = 2 ** attempt  # Exponential backoff
+            print(f"Rate limited, waiting {wait_time} seconds...")
+            time.sleep(wait_time)
+            continue
+
+        return response
+
+    raise Exception("Max retries exceeded for search request")
+```

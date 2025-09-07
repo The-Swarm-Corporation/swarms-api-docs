@@ -3,6 +3,8 @@ title: "Batch Processing"
 description: "Learn how to process multiple tasks efficiently using batch processing with the Swarms API."
 ---
 
+import { Tabs, Tab } from 'mintlify'
+
 ## What This Example Shows
 
 - Processing multiple agent tasks in a single request
@@ -10,34 +12,23 @@ description: "Learn how to process multiple tasks efficiently using batch proces
 - Efficient batch execution for multiple related tasks
 - Handling diverse task types with specialized agents
 
-## Installation
+## Quick Start
 
-```bash
-pip3 install -U swarms-client
-```
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    from swarms_client import SwarmsClient
+    from dotenv import load_dotenv
+    import json
 
-## Get Your Swarms API Key
+    # Load environment variables
+    load_dotenv()
 
-1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
-2. Create an account or sign in
-3. Generate a new API key
-4. Store it securely in your environment variables
-
-## Code
-
-```python
-import os
-from swarms_client import SwarmsClient
-from dotenv import load_dotenv
-import json
-
-# Load environment variables
-load_dotenv()
-
-# Initialize the client
-client = SwarmsClient(
-    api_key=os.getenv("SWARMS_API_KEY"),
-)
+    # Initialize the client
+    client = SwarmsClient(
+        api_key=os.getenv("SWARMS_API_KEY"),
+    )
 
 # Define multiple batch requests
 batch_requests = [
@@ -80,7 +71,85 @@ batch_requests = [
 result = client.agent.batch.run(body=batch_requests)
 
 print(json.dumps(result, indent=4))
-```
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    const batchPayload = [
+        {
+            agent_config: {
+                agent_name: "Bloodwork Diagnosis Expert",
+                description: "Expert in blood work interpretation.",
+                system_prompt: "You are a doctor who interprets blood work. Give concise, clear explanations and possible diagnoses.",
+                model_name: "gpt-4o",
+                max_loops: 1,
+                max_tokens: 1000,
+                temperature: 0.5
+            },
+            task: "Blood work: Hemoglobin 10.2 (low), WBC 13,000 (high), Platelets 180,000 (normal), ALT 65 (high), AST 70 (high). Interpret and suggest diagnoses."
+        },
+        {
+            agent_config: {
+                agent_name: "Radiology Report Summarizer",
+                description: "Expert in summarizing radiology reports.",
+                system_prompt: "You are a radiologist. Summarize the findings of radiology reports in clear, patient-friendly language.",
+                model_name: "gpt-4o",
+                max_loops: 1,
+                max_tokens: 1000,
+                temperature: 0.5
+            },
+            task: "Radiology report: Chest X-ray shows mild cardiomegaly, no infiltrates, no effusion. Summarize the findings."
+        }
+    ];
+
+    fetch(`${BASE_URL}/v1/agent/batch/completions`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(batchPayload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Batch Results:", JSON.stringify(data, null, 2));
+    })
+    .catch(error => console.error('Error:', error));
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/agent/batch/completions" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json" \
+      -d '[
+        {
+          "agent_config": {
+            "agent_name": "Bloodwork Diagnosis Expert",
+            "model_name": "gpt-4o",
+            "max_tokens": 1000,
+            "temperature": 0.5
+          },
+          "task": "Blood work analysis..."
+        },
+        {
+          "agent_config": {
+            "agent_name": "Radiology Report Summarizer",
+            "model_name": "gpt-4o",
+            "max_tokens": 1000,
+            "temperature": 0.5
+          },
+          "task": "Radiology report summary..."
+        }
+      ]'
+    ```
+  </Tab>
+</Tabs>
 
 ## Batch Processing Benefits
 
