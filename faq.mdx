@@ -1,0 +1,306 @@
+---
+title: 'FAQ'
+description: 'Get answers to the most common questions about the Swarms API platform, pricing, capabilities, and implementation.'
+---
+
+# FAQ
+
+Get answers to the most common questions about the Swarms API platform.
+
+<AccordionGroup>
+<Accordion title="What is the Swarms API?">
+The Swarms API is a comprehensive platform for building and orchestrating AI agents and multi-agent systems. It enables developers to create individual intelligent agents or coordinate thousands of agents in complex workflows, allowing them to communicate, collaborate, and solve problems together.
+
+**Key Benefits:**
+- **Agent Orchestration**: Create and manage AI agents that can work independently or collaborate
+- **Multi-Agent Communication**: Enable agents to communicate and share information seamlessly
+- **Flexible Workflows**: Support for sequential, concurrent, hierarchical, and other workflow patterns
+- **Enterprise Scale**: Handle up to 10,000+ agents working together
+- **Multi-Model Support**: Integration with OpenAI, Anthropic, and Groq models
+</Accordion>
+
+<Accordion title="Why should I use the Swarms API?">
+The Swarms API is designed for developers who need more than just a simple AI completion endpoint. Here's why you should choose Swarms:
+
+- **Complete Agent Ecosystem**: Full ecosystem for building, deploying, and scaling intelligent AI systems
+- **Advanced Multi-Agent Architectures**: Build complex hierarchical, sequential, and parallel agent collaboration systems
+- **Agent-to-Agent Communication**: Advanced communication protocols enable seamless agent interaction
+- **Ultra-Optimized Runtime**: High-performance runtime with built-in optimization for concurrent operations
+- **Enterprise-Ready**: Built-in security, governance, and compliance features
+</Accordion>
+
+<Accordion title="How does agent orchestration work?">
+Agent orchestration in the Swarms API allows you to:
+
+- **Create Individual Agents**: Deploy single agents for specific tasks
+- **Coordinate Multiple Agents**: Build swarms where agents work together
+- **Define Workflow Patterns**: Choose from sequential, concurrent, hierarchical, and other patterns
+- **Enable Communication**: Agents can share information and collaborate
+- **Scale Dynamically**: Add or remove agents based on workload
+
+**Example Use Cases:**
+- Research teams with multiple agents researching different aspects
+- Medical analysis with lab analyzer and clinical specialist working together
+- Financial analysis with market analyst and economic forecaster collaborating
+- Content creation with writer, editor, and fact-checker in sequence
+</Accordion>
+
+<Accordion title="What types of workflows are supported?">
+The Swarms API supports multiple workflow patterns:
+
+| Workflow Type | Description | Best For |
+|---------------|-------------|----------|
+| **Sequential** | Agents work in order, each building on the previous output | Step-by-step processes, analysis pipelines |
+| **Concurrent** | Agents work simultaneously on the same task | Parallel processing, multiple perspectives |
+| **Hierarchical** | Structured multi-level approach with clear authority | Complex decision-making, management structures |
+| **Multi-Agent Router** | Intelligent task distribution based on capabilities | Load balancing, specialized task routing |
+| **Mixture of Agents** | Diverse teams with specialized skills | Complex problems requiring multiple expertise |
+| **Majority Voting** | Consensus-based decision making | Verification, quality assurance |
+| **Agent Rearrange** | Dynamic agent reconfiguration | Adaptive systems, optimization |
+</Accordion>
+
+<Accordion title="What models are supported?">
+The Swarms API supports multiple AI model providers:
+
+**OpenAI Models:**
+- gpt-4: High-quality reasoning and complex task handling
+- gpt-4o: Optimized version with improved performance
+- gpt-4o-mini: Lightweight version for faster responses
+
+**Anthropic Models:**
+- claude-sonnet-4-20250514-20240620: Balanced performance and reasoning
+- claude-3-7-sonnet-latest: Latest Claude model with enhanced capabilities
+
+**Groq Models:**
+- groq/llama3-70b-8192: High-performance open-source model
+- groq/deepseek-r1-distill-llama-70b: Specialized reasoning model
+</Accordion>
+
+<Accordion title="How much does it cost?">
+The Swarms API uses a transparent, usage-based pricing model:
+
+| Item | Standard Cost | Flex Cost | Notes |
+|------|---------------|-----------|-------|
+| **Base cost per agent** | $0.01 per agent | $0.01 per agent | Charged for each agent in a swarm |
+| **Input tokens (swarm)** | $3.00 per 1M tokens | $0.75 per 1M tokens | 75% discount in Flex mode |
+| **Output tokens (swarm)** | $15.00 per 1M tokens | $3.75 per 1M tokens | 75% discount in Flex mode |
+| **Input tokens (agent)** | $2.00 per 1M tokens | N/A | For single agent completions |
+| **Output tokens (agent)** | $4.50 per 1M tokens | N/A | For single agent completions |
+| **MCP cost** | $0.10 per call | $0.10 per call | Charged if an agent uses an MCP URL |
+| **Image cost** | $0.25 per image | $0.25 per image | Charged for each image processed |
+| **Night-time discount** | 75% off token costs | 75% off token costs | 8pm–6am California time |
+
+**Flex Tier Benefits:**
+- 75% discount on token costs
+- May have higher latency or retries
+- Ideal for cost-sensitive applications
+</Accordion>
+
+<Accordion title="What are the rate limits?">
+Rate limits are tier-based to ensure fair usage:
+
+| Rate Limit Type | Free Tier | Premium Tier | Time Window |
+|----------------|-----------|--------------|-------------|
+| **Requests per Minute** | 100 | 2,000 | 1 minute |
+| **Requests per Hour** | 50 | 10,000 | 1 hour |
+| **Requests per Day** | 1,200 | 100,000 | 24 hours |
+| **Tokens per Agent** | 200,000 | 2,000,000 | Per request |
+| **Prompt Length** | 200,000 | 200,000 | Per request |
+| **Batch Size** | 10 | 10 | Per request |
+
+**Premium Tier Benefits:**
+- 20x more requests per minute (2,000 vs 100)
+- 200x more requests per hour (10,000 vs 50)
+- 83x more requests per day (100,000 vs 1,200)
+- 10x more tokens per agent (2M vs 200K)
+</Accordion>
+
+<Accordion title="How do I get started?">
+**1. Get Your API Key**
+Visit [Swarms Platform](https://swarms.world/platform/api-keys) to get your free API key.
+
+**2. Install Client Libraries**
+```bash
+# Python
+pip install swarms-client
+
+# JavaScript/TypeScript
+npm install axios dotenv
+```
+
+**3. Make Your First API Call**
+```python
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+
+load_dotenv()
+
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+)
+
+result = client.agent.run(
+    agent_config={
+        "agent_name": "My First Agent",
+        "system_prompt": "You are a helpful assistant.",
+        "model_name": "gpt-4o-mini",
+        "max_tokens": 1000,
+        "temperature": 0.7,
+    },
+    task="Hello, world!"
+)
+
+print(result)
+```
+</Accordion>
+
+<Accordion title="What tools and integrations are available?">
+**Built-in Tools:**
+- **Search Capabilities**: Web search integration for research tasks
+- **MCP Integration**: Model Context Protocol for enhanced interactions
+- **Custom Tools**: Define your own function tools for specific needs
+
+**MCP (Model Context Protocol) Integration:**
+- Connect to external data sources
+- Integrate with databases and APIs
+- Enable real-time data access for agents
+
+**Custom Tool Development:**
+Create specialized tools using OpenAPI-style function specifications for enhanced agent capabilities.
+</Accordion>
+
+<Accordion title="How do I handle errors and troubleshooting?">
+**Common Issues and Solutions:**
+
+**Authentication Errors:**
+- Verify your API key is correct and active
+- Check that the `x-api-key` header is properly set
+- Ensure your API key has the necessary permissions
+
+**Rate Limit Exceeded:**
+- Implement exponential backoff for failed requests
+- Monitor your API usage to stay within limits
+- Consider upgrading to Premium for higher limits
+
+**Timeout Issues:**
+- Increase request timeout values
+- Consider breaking complex tasks into smaller chunks
+- Use batch processing for multiple operations
+
+**Model Availability:**
+- Check if your requested model is currently available
+- Have fallback models configured
+- Monitor model status through the health endpoint
+</Accordion>
+
+<Accordion title="What security features are available?">
+**Enterprise Security:**
+- **API Key Authentication**: Secure authentication for all requests
+- **Rate Limiting**: Prevents abuse and ensures fair usage
+- **Data Encryption**: All data is encrypted in transit and at rest
+- **Access Controls**: Granular permissions and access management
+
+**Best Practices:**
+- Never commit API keys to version control
+- Use environment variables for all sensitive configuration
+- Implement proper access controls in production environments
+- Regularly rotate API keys
+</Accordion>
+
+<Accordion title="How can I get support?">
+**Community Resources:**
+- **Documentation**: [docs.swarms.world](https://docs.swarms.world/)
+- **Discord Community**: [Join Discord](https://discord.gg/EamjgSaEQf)
+- **Technical Blog**: [Medium](https://medium.com/@kyeg)
+
+**Professional Support:**
+- **Technical Support**: [Book Support Session](https://cal.com/swarms/swarms-technical-support)
+- **Enterprise Support**: Contact through the platform
+- **Onboarding Sessions**: [Book with Kye Gomez](https://cal.com/swarms/swarms-onboarding-session)
+
+**Stay Updated:**
+- **Twitter**: [@kyegomez](https://twitter.com/kyegomez)
+- **LinkedIn**: [The Swarm Corporation](https://www.linkedin.com/company/the-swarm-corporation)
+- **YouTube**: [Swarms Channel](https://www.youtube.com/channel/UC9yXyitkbU_WSy7bd_41SqQ)
+</Accordion>
+
+<Accordion title="Can I use Swarms for production applications?">
+Yes! The Swarms API is designed for production use with:
+
+- **High Availability**: 99.9% uptime SLA
+- **Scalability**: Handle thousands of concurrent agents
+- **Enterprise Features**: Security, compliance, and governance
+- **Monitoring**: Comprehensive logging and analytics
+- **Support**: Professional support for production deployments
+
+**Production Best Practices:**
+- Implement proper error handling and retry logic
+- Monitor API usage and costs
+- Use appropriate rate limiting strategies
+- Test thoroughly before deployment
+- Keep API keys secure and rotate regularly
+</Accordion>
+
+<Accordion title="What's the difference between single agents and swarms?">
+**Single Agents:**
+- **Purpose**: Focused tasks that don't require collaboration
+- **Use Cases**: Simple Q&A, content generation, data analysis
+- **Benefits**: Fast, simple, cost-effective
+- **Limitations**: Limited to single perspective, no collaboration
+
+**Multi-Agent Swarms:**
+- **Purpose**: Complex tasks requiring multiple perspectives or specialized skills
+- **Use Cases**: Research teams, medical analysis, financial forecasting
+- **Benefits**: Multiple perspectives, specialized expertise, parallel processing
+- **Complexity**: Higher setup and coordination requirements
+</Accordion>
+
+<Accordion title="How do I choose the right model for my use case?">
+**Model Selection Guidelines:**
+
+**For Complex Analysis:**
+- Use GPT-4 or Claude-3.5-Sonnet for tasks requiring deep reasoning
+- Higher token limits for comprehensive analysis
+
+**For Fast Responses:**
+- Choose GPT-4o-mini for quick, straightforward tasks
+- Lower costs for high-volume applications
+
+**For Creative Tasks:**
+- Higher temperature settings (0.7-0.9) work better
+- GPT-4 or Claude models for creative content
+
+**For Factual Tasks:**
+- Lower temperature settings (0.1-0.3) provide more consistent responses
+- Any model can work well with proper prompting
+</Accordion>
+
+<Accordion title="Can I integrate Swarms with my existing systems?">
+Yes! The Swarms API is designed for easy integration:
+
+**Integration Options:**
+- **REST API**: Standard HTTP endpoints for any language
+- **Client Libraries**: Official SDKs for Python, TypeScript, Go, Java
+- **Webhooks**: Real-time notifications for long-running tasks
+- **Batch Processing**: Process multiple requests efficiently
+
+**Common Integration Patterns:**
+- **Microservices**: Deploy as independent services
+- **API Gateway**: Integrate with existing API infrastructure
+- **Event-Driven**: Trigger agents based on system events
+- **Scheduled Tasks**: Run agents on regular schedules
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Still Have Questions?
+
+If you don't see your question answered here, we're here to help:
+
+- **Join our Discord**: [discord.gg/EamjgSaEQf](https://discord.gg/EamjgSaEQf)
+- **Book Technical Support**: [cal.com/swarms/swarms-technical-support](https://cal.com/swarms/swarms-technical-support)
+- **Check Documentation**: [docs.swarms.world](https://docs.swarms.world/)
+
+*Built with dedication by [The Swarm Corporation](https://swarms.ai)*
