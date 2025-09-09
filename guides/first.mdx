@@ -1,0 +1,494 @@
+---
+title: "Introduction to The Swarms API Python Client"
+description: "Learn how to set up the Swarms API client and perform basic operations like checking health, models, and rate limits."
+---
+
+This guide covers everything you need to get started with the Swarms API Python Client, from initial setup through advanced multi-agent implementations. It provides clear instructions, practical examples, and best practices to help you effectively leverage multi-agent collaboration in your projects.
+
+
+### Key Features and Capabilities
+
+The Swarms API Python Client offers several distinctive features that set it apart from other AI development tools:
+
+**Type Safety and Modern Python Support**: The library provides complete type definitions for all request parameters and response fields, ensuring that developers can catch errors at compile time rather than runtime. Built specifically for Python 3.8 and higher versions, it leverages modern Python features including async/await support for concurrent operations.
+
+**Dual Client Architecture**: The library offers both synchronous and asynchronous clients powered by httpx, allowing developers to choose the most appropriate approach for their specific use case. This flexibility is crucial for applications that need to handle multiple concurrent requests or integrate with existing asynchronous codebases.
+
+**Comprehensive API Coverage**: Every endpoint of the Swarms API is accessible through the client library, providing developers with complete control over their multi-agent systems. This includes swarm creation, management, monitoring, and advanced configuration options.
+
+**Environment Integration**: The client seamlessly integrates with environment variables and .env files, making it easy to manage API keys and configuration settings across different deployment environments.
+
+## Installation and Environment Setup
+
+Getting started with the Swarms API Python Client is straightforward, requiring just a few simple steps to get your development environment ready.
+
+### Installing the Client Library
+
+The installation process is streamlined through Python's package manager. Execute the following command in your terminal or command prompt:
+
+```bash
+pip install swarms-client
+```
+
+For users who prefer to ensure they have the latest version, or those working in environments where package versions might be cached, the following command provides an upgrade flag:
+
+```bash
+pip3 install -U swarms-client
+```
+
+This installation will automatically handle all dependencies, including httpx for HTTP operations, pydantic for data validation, and other essential libraries required for the client to function properly.
+
+### Obtaining Your API Key
+
+Before you can begin using the Swarms API, you'll need to obtain an API key, which serves as your authentication credential for accessing the service. The process is designed to be user-friendly and secure:
+
+1. Navigate to the Swarms platform at https://swarms.world/platform/api-keys
+2. Create a new account if you don't already have one, or sign in to your existing account
+3. Once logged in, locate the API key generation section
+4. Generate a new API key, ensuring you copy it immediately as it may not be displayed again for security reasons
+5. Store the API key securely, preferably using environment variables or a secure key management system
+
+### Environment Configuration
+
+Proper environment configuration is crucial for both security and ease of development. Create a `.env` file in your project's root directory and add your API key:
+
+```
+SWARMS_API_KEY=your_api_key_here
+```
+
+This approach keeps sensitive information out of your source code and makes it easy to manage different API keys across development, staging, and production environments.
+
+For loading environment variables in your Python application, you'll also need to install the python-dotenv package if it's not already available:
+
+```bash
+pip install python-dotenv
+```
+
+## Client Initialization and Basic Configuration
+
+Once you have installed the library and configured your environment, initializing the Swarms client is straightforward. The client supports multiple initialization patterns to accommodate different development scenarios.
+
+### Basic Client Setup
+
+The simplest way to initialize the client uses environment variables for configuration:
+
+```python
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Initialize client with automatic environment variable detection
+client = SwarmsClient()
+```
+
+This approach automatically looks for the `SWARMS_API_KEY` environment variable, making your code cleaner and more secure.
+
+### Direct API Key Configuration
+
+For scenarios where you need to specify the API key directly, perhaps when loading from a different source or for testing purposes:
+
+```python
+client = SwarmsClient(api_key="your_api_key_here")
+```
+
+### Advanced Configuration Options
+
+The client also supports advanced configuration for specialized use cases:
+
+```python
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+    base_url="https://api.swarms.world",  # Custom base URL if needed
+    timeout=30.0,  # Request timeout in seconds
+)
+```
+
+These configuration options allow you to customize the client behavior to match your specific requirements, including custom timeout values for long-running operations or alternative base URLs for different environments.
+
+### Verifying Your Setup
+
+Before proceeding with agent creation, it's important to verify that your client is properly configured and can communicate with the Swarms API. The following code demonstrates how to perform basic health checks and gather information about your API access:
+
+```python
+import os
+import json
+from dotenv import load_dotenv
+from swarms_client import SwarmsClient
+
+# Load environment variables
+load_dotenv()
+
+# Initialize the client
+client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+
+# Check API health status
+health_status = client.health.check()
+print("API Health Status:")
+print(json.dumps(health_status, indent=4))
+
+# List available models
+available_models = client.models.list_available()
+print("\nAvailable Models:")
+print(json.dumps(available_models, indent=4))
+
+# Check current rate limits
+rate_limits = client.client.rate.get_limits()
+print("\nRate Limits:")
+print(json.dumps(rate_limits, indent=4))
+
+# Get swarm availability status
+swarm_availability = client.swarms.check_available()
+print("\nSwarm Availability:")
+print(json.dumps(swarm_availability, indent=4))
+```
+
+This verification script provides valuable information about your API access, including the health status of the service, available AI models, your current rate limit usage, and the availability of swarm services.
+
+## Running Your First Single Agent
+
+With your client properly configured and verified, you're now ready to create and run your first AI agent. Single agents are the building blocks of more complex multi-agent systems, and understanding how to configure and deploy them is essential for leveraging the full power of the Swarms API.
+
+### Understanding Agent Configuration
+
+Every agent in the Swarms system requires several key parameters that define its behavior, capabilities, and role within the larger system. These parameters include:
+
+**Agent Name and Description**: These provide human-readable identifiers and explanations of the agent's purpose, making it easier to manage and understand complex multi-agent systems.
+
+**System Prompt**: This is perhaps the most critical parameter, as it defines the agent's personality, expertise, and behavioral guidelines. A well-crafted system prompt can dramatically improve the agent's performance and ensure it behaves in accordance with your requirements.
+
+**Model Selection**: The choice of underlying AI model affects the agent's capabilities, response quality, and processing speed. Different models excel in different areas, so selecting the appropriate model for your use case is crucial.
+
+**Operational Parameters**: These include settings like maximum loops, token limits, and temperature values that control how the agent processes information and generates responses.
+
+### Creating a Simple Analysis Agent
+
+Let's start with a practical example by creating a single agent designed to perform text analysis tasks:
+
+```python
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+
+load_dotenv()
+client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+
+# Define the task for our agent
+analysis_task = """
+Analyze the following customer feedback and provide insights:
+"The new product update has improved performance significantly, but the user interface changes are confusing. Many customers are struggling to find features they previously used daily. While the speed improvements are appreciated, the learning curve is steep."
+
+Please provide:
+1. Key sentiment indicators
+2. Specific pain points mentioned
+3. Positive aspects highlighted
+4. Recommendations for improvement
+"""
+
+# Create and run a single agent
+response = client.swarms.run(
+    name="Customer Feedback Analyzer",
+    description="Analyzes customer feedback to extract insights and recommendations",
+    swarm_type="SequentialWorkflow",
+    task=analysis_task,
+    agents=[
+        {
+            "agent_name": "Feedback Analyst",
+            "description": "Specializes in analyzing customer feedback for business insights",
+            "system_prompt": """You are a customer experience analyst with expertise in feedback interpretation. 
+                              Analyze customer feedback systematically, identifying both positive and negative aspects. 
+                              Provide actionable insights and specific recommendations based on the feedback content. 
+                              Structure your analysis clearly and professionally.""",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "analyst",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        }
+    ],
+)
+
+print("Analysis Results:")
+print(response)
+```
+
+This example demonstrates how to create a focused, single-purpose agent that can provide valuable business insights. The agent is configured with specific parameters that optimize it for analytical tasks, including a relatively low temperature value for consistent, focused responses.
+
+### Understanding Agent Parameters in Detail
+
+Each parameter in the agent configuration serves a specific purpose:
+
+**max_loops**: This parameter controls how many times the agent will iterate on its response. For simple tasks, a value of 1 is often sufficient, while more complex problems might benefit from multiple iterations.
+
+**max_tokens**: This sets the maximum length of the agent's response, helping control costs and ensuring responses remain focused and relevant.
+
+**temperature**: This parameter controls the creativity and randomness in the agent's responses. Lower values (0.1-0.3) produce more consistent, focused outputs, while higher values (0.7-0.9) generate more creative and varied responses.
+
+**role**: While not strictly enforced by the API, the role parameter helps organize agents within larger systems and can be used for filtering and management purposes.
+
+## Scaling to Multiple Agents
+
+While single agents can handle straightforward tasks effectively, the true power of the Swarms API becomes apparent when multiple agents work together on complex problems. Multi-agent systems enable specialization, parallel processing, and sophisticated workflows that can tackle challenges that would be difficult or impossible for a single agent to handle effectively.
+
+### Understanding Multi-Agent Workflows
+
+The Swarms API supports different types of multi-agent workflows, each optimized for specific use cases:
+
+**Sequential Workflows**: In this pattern, agents work in a specific order, with each agent building upon the work of the previous one. This is ideal for tasks that require a logical progression, such as research followed by analysis followed by report generation.
+
+**Concurrent Workflows**: This pattern allows multiple agents to work simultaneously on different aspects of the same problem, then combine their results. This approach is excellent for tasks that can be parallelized, such as analyzing multiple data sources or generating content from different perspectives.
+
+### Building Your First Multi-Agent System
+
+Let's create a comprehensive multi-agent system designed to handle a complex business analysis task. This example will demonstrate how different agents can specialize in specific aspects of a problem while working together toward a common goal:
+
+```python
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+
+load_dotenv()
+client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+
+# Define a complex business analysis task
+business_analysis_task = """
+A tech startup is considering expanding into the European market. They currently operate in North America 
+and have the following characteristics:
+- SaaS product with $2M ARR
+- 50-person team
+- B2B focus on mid-market companies
+- Strong growth (200% YoY)
+- Limited international experience
+
+Analyze the expansion opportunity and provide comprehensive recommendations including market analysis, 
+operational considerations, financial projections, and risk assessment.
+"""
+
+# Create a multi-agent system for comprehensive business analysis
+expansion_analysis = client.swarms.run(
+    name="EU Market Expansion Analysis",
+    description="Multi-agent system for comprehensive market expansion analysis",
+    swarm_type="SequentialWorkflow",
+    task=business_analysis_task,
+    agents=[
+        {
+            "agent_name": "Market Research Specialist",
+            "description": "Analyzes target markets, competition, and opportunities",
+            "system_prompt": """You are a senior market research analyst with deep expertise in European markets 
+                              and SaaS business models. Analyze market size, competitive landscape, regulatory 
+                              considerations, and customer segments. Provide data-driven insights about market 
+                              entry strategies and potential challenges.""",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "researcher",
+            "max_loops": 1,
+            "max_tokens": 6144,
+            "temperature": 0.2,
+        },
+        {
+            "agent_name": "Operations Strategist",
+            "description": "Evaluates operational requirements and implementation strategies",
+            "system_prompt": """You are an operations strategy consultant specializing in international expansion 
+                              for tech companies. Focus on operational requirements, team structure, legal and 
+                              compliance needs, technology infrastructure, and implementation timeline. Consider 
+                              both challenges and solutions for scaling operations internationally.""",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "strategist",
+            "max_loops": 1,
+            "max_tokens": 6144,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Financial Analyst",
+            "description": "Provides financial modeling and investment analysis",
+            "system_prompt": """You are a senior financial analyst with expertise in SaaS metrics and international 
+                              expansion financial modeling. Develop financial projections, analyze investment 
+                              requirements, assess ROI potential, and identify key financial risks and opportunities. 
+                              Focus on realistic scenarios and key financial assumptions.""",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "financial_analyst",
+            "max_loops": 1,
+            "max_tokens": 6144,
+            "temperature": 0.2,
+        },
+        {
+            "agent_name": "Risk Assessment Specialist",
+            "description": "Evaluates potential risks and mitigation strategies",
+            "system_prompt": """You are a risk management consultant specializing in international business expansion. 
+                              Identify and analyze potential risks including market risks, operational risks, 
+                              financial risks, regulatory risks, and competitive risks. For each risk identified, 
+                              provide specific mitigation strategies and contingency planning recommendations.""",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "risk_analyst",
+            "max_loops": 1,
+            "max_tokens": 5120,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Strategic Synthesizer",
+            "description": "Combines insights from all agents into cohesive recommendations",
+            "system_prompt": """You are a senior strategy consultant who synthesizes complex analysis from multiple 
+                              sources into clear, actionable recommendations. Review all previous analyses and create 
+                              a comprehensive strategic recommendation that includes executive summary, key findings, 
+                              recommended approach, timeline, resource requirements, and success metrics.""",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "synthesizer",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.4,
+        }
+    ],
+)
+
+print("Comprehensive Business Analysis:")
+print(expansion_analysis)
+```
+
+This multi-agent system demonstrates several important concepts:
+
+**Specialization**: Each agent has a specific area of expertise and a tailored system prompt that guides its analysis in that domain.
+
+**Sequential Processing**: The agents work in a logical sequence, with later agents building upon the insights generated by earlier ones.
+
+**Varying Complexity**: Different agents have different max_loops and max_tokens settings based on the complexity of their assigned tasks.
+
+**Synthesis**: The final agent serves as a synthesizer, combining insights from all previous agents into a cohesive, actionable recommendation.
+
+### Advanced Multi-Agent Patterns
+
+As you become more comfortable with multi-agent systems, you can explore more sophisticated patterns and configurations:
+
+```python
+# Example: Concurrent analysis with multiple perspectives
+market_research_swarm = client.swarms.run(
+    name="Multi-Perspective Market Analysis",
+    description="Concurrent analysis from different market perspectives",
+    swarm_type="ConcurrentWorkflow",
+    task="Analyze the potential for AI-powered customer service solutions in the healthcare sector",
+    agents=[
+        {
+            "agent_name": "Technology Analyst",
+            "description": "Analyzes technological feasibility and requirements",
+            "system_prompt": "You are a healthcare technology analyst. Focus on technical requirements, integration challenges, and technology trends.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "tech_analyst",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.2,
+        },
+        {
+            "agent_name": "Healthcare Industry Expert",
+            "description": "Provides healthcare sector insights and requirements",
+            "system_prompt": "You are a healthcare industry consultant. Focus on industry-specific needs, regulations, and adoption patterns.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "industry_expert",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Customer Experience Researcher",
+            "description": "Analyzes user experience and adoption factors",
+            "system_prompt": "You are a UX researcher specializing in healthcare technology. Focus on user adoption, experience design, and patient satisfaction factors.",
+            "model_name": "groq/openai/gpt-oss-120b",
+            "role": "ux_researcher",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.4,
+        }
+    ],
+)
+```
+
+## Advanced Features and Best Practices
+
+As your experience with the Swarms API grows, you'll want to leverage more advanced features and implement best practices that ensure optimal performance, reliability, and maintainability of your multi-agent systems.
+
+### Asynchronous Operations
+
+For applications that need to handle multiple concurrent requests or integrate with existing asynchronous codebases, the Swarms API client provides full asynchronous support:
+
+```python
+import asyncio
+from swarms_client import AsyncSwarmsClient
+
+async def run_concurrent_analysis():
+    client = AsyncSwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+    
+    # Define multiple analysis tasks
+    tasks = [
+        client.swarms.run(
+            name="Financial Analysis",
+            description="Analyze financial performance",
+            swarm_type="SequentialWorkflow",
+            task="Analyze Q4 financial results",
+            agents=[...] # Agent configuration
+        ),
+        client.swarms.run(
+            name="Market Analysis",
+            description="Analyze market conditions",
+            swarm_type="SequentialWorkflow", 
+            task="Analyze current market trends",
+            agents=[...] # Agent configuration
+        ),
+        client.models.list_available()
+    ]
+    
+    # Execute all tasks concurrently
+    results = await asyncio.gather(*tasks)
+    return results
+
+# Run the async operations
+results = asyncio.run(run_concurrent_analysis())
+```
+
+### Monitoring and Management
+
+Effective monitoring and management of your multi-agent systems is crucial for production deployments. The Swarms API provides several endpoints for monitoring system health and usage:
+
+```python
+# Monitor system health and usage
+def monitor_system_status(client):
+    # Check API health
+    health_status = client.health.check()
+    if health_status['status'] != 'healthy':
+        print(f"API health issue detected: {health_status}")
+    
+    # Monitor rate limits
+    rate_limits = client.client.rate.get_limits()
+    usage_percentage = (rate_limits['current_usage'] / rate_limits['requests_per_minute']) * 100
+    
+    if usage_percentage > 80:
+        print(f"High API usage detected: {usage_percentage:.1f}% of rate limit")
+    
+    # Check swarm availability
+    availability = client.swarms.check_available()
+    if not availability.get('available', False):
+        print("Swarm services currently unavailable")
+    
+    # Review recent logs
+    logs = client.swarms.get_logs()
+    recent_errors = [log for log in logs if log.get('level') == 'error']
+    if recent_errors:
+        print(f"Recent errors detected: {len(recent_errors)}")
+
+# Run monitoring
+monitor_system_status(client)
+```
+
+### Performance Optimization
+
+To optimize the performance of your multi-agent systems, consider these strategies:
+
+**Model Selection**: Different models have different performance characteristics. Choose models that match your specific requirements for speed, quality, and cost.
+
+**Token Management**: Carefully configure max_tokens based on your needs. Excessive token limits increase costs and processing time, while insufficient limits may truncate important responses.
+
+**Temperature Tuning**: Adjust temperature values based on the type of task. Use lower temperatures (0.1-0.3) for factual, analytical tasks and higher temperatures (0.5-0.8) for creative tasks.
+
+## Conclusion and Next Steps
+
+The Swarms API Python Client marks a significant step forward in making advanced multi-agent AI systems accessible to developers and organizations of all sizes. Throughout this guide, we've covered the essential concepts, practical implementation strategies, and advanced techniques needed to harness the full power of multi-agent collaboration. From single-agent implementations to complex orchestrations, the platform’s scalability and flexibility enable you to create specialized agents that work together to solve problems that would be difficult or impossible for traditional single-agent approaches. Key takeaways include the importance of well-crafted system prompts, selecting the right workflow types (sequential or concurrent), and ensuring robust error handling, monitoring, and performance optimization for production-ready systems.
+
+Looking ahead, the Swarms API is poised to evolve with new capabilities such as enhanced agent coordination, more sophisticated workflow patterns, improved performance features, and expanded model options. Its commitment to comprehensive Python client support and a strong developer experience makes it an excellent choice for integrating advanced AI into a wide range of applications—from customer service automation and content generation to data analysis and business intelligence. As you continue to explore and implement multi-agent systems, remember that starting simple and gradually increasing complexity is often the most effective approach. The examples and patterns in this guide provide a solid foundation for building scalable, adaptable solutions that can grow with your needs.

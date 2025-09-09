@@ -127,6 +127,17 @@
           ]
         }
       ]
+    },
+    {
+      "tab": "Guides",
+      "groups": [
+        {
+          "group": "Getting Started",
+          "pages": [
+            "guides/first"
+          ]
+        }
+      ]
     }
     ],
     "global": {

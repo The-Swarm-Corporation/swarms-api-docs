@@ -206,7 +206,7 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     payload = {
         "agent_name": "Knowledge Agent",
         "model_name": "gpt-4o",
-        "max_loops": 2,
+        "max_loops": 1,
         "swarm_type": "consistency-agent",
         "num_samples": 3,
         "num_knowledge_items": 5,  # Include knowledge base
@@ -281,7 +281,7 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
             return {
                 "swarm_type": "self-consistency",
                 "num_samples": 3,
-                "max_loops": 2,
+                "max_loops": 1,
                 "model_name": "gpt-4o"
             }
     ```
