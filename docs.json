@@ -85,7 +85,7 @@
     },
     {
       "tab": "API Reference",
-      "openapi": "https://api.swarms.world/openapi.json"
+      "openapi": "/openapi.json"
     },
     {
       "tab": "Examples",
@@ -167,7 +167,9 @@
   },
   "api": {
     "baseUrl": "https://api.swarms.world",
-    "openapi": "https://api.swarms.world/openapi.json"
+    "playground": {
+      "proxy": true
+    }
   },
   "navbar": {
     "links": [
