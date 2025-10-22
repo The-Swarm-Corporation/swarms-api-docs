@@ -14,7 +14,7 @@
   },
   "servers": [
     {
-      "url": "https://swarms-api-285321057562.us-east1.run.app"
+      "url": "https://api.swarms.world"
     }
   ],
   "favicon": "favicon.ico",
@@ -85,7 +85,7 @@
     },
     {
       "tab": "API Reference",
-      "openapi": "https://swarms-api-285321057562.us-east1.run.app/openapi.json"
+      "openapi": "https://api.swarms.world/openapi.json"
     },
     {
       "tab": "Examples",
@@ -166,7 +166,8 @@
     "dark": "/logo/dark.svg"
   },
   "api": {
-    "openapi": "https://swarms-api-285321057562.us-east1.run.app/openapi.json"
+    "baseUrl": "https://api.swarms.world",
+    "openapi": "https://api.swarms.world/openapi.json"
   },
   "navbar": {
     "links": [
