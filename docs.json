@@ -17,7 +17,7 @@
       "url": "https://api.swarms.world"
     }
   ],
-  "favicon": "favicon.ico",
+  "favicon": "/logo.svg",
   "navigation": {
       "tabs": [
     {
