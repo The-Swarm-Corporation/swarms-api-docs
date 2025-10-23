@@ -181,12 +181,11 @@
     "openapi": "https://api.swarms.world/openapi.json",
     "baseUrl": "https://api.swarms.world",
     "playground": {
-      "proxy": true
+      "proxy": false
     },
     "auth": {
       "method": "key",
-      "name": "x-api-key",
-      "inputPrefix": "Bearer "
+      "name": "x-api-key"
     }
   },
   "navbar": {
