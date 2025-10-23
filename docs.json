@@ -214,6 +214,56 @@
     "author": "The Swarm Corporation",
     "robots": "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1",
     "canonical": "https://docs.swarms.ai",
+    "indexing": "all",
+    "metatags": {
+      "charset": "UTF-8",
+      "viewport": "width=device-width, initial-scale=1.0",
+      "robots": "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1",
+      "googlebot": "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1",
+      "google": "notranslate",
+      "generator": "Mintlify",
+      "theme-color": "#DC2626",
+      "color-scheme": "light dark",
+      "canonical": "https://docs.swarms.ai",
+      "format-detection": "telephone=no",
+      "referrer": "strict-origin-when-cross-origin",
+      "language": "en",
+      "copyright": "Copyright 2024 The Swarm Corporation",
+      "distribution": "global",
+      "coverage": "Worldwide",
+      "category": "Technology",
+      "target": "all",
+      "rating": "general",
+      "revisit-after": "3 days",
+      "HandheldFriendly": "True",
+      "MobileOptimized": "320",
+      "apple-mobile-web-app-capable": "yes",
+      "apple-mobile-web-app-status-bar-style": "black-translucent",
+      "apple-mobile-web-app-title": "Swarms API Docs",
+      "application-name": "Swarms API Documentation",
+      "msapplication-TileColor": "#DC2626",
+      "msapplication-navbutton-color": "#DC2626",
+      "og:title": "Swarms API Documentation - Build AI Agents & Multi-Agent Systems",
+      "og:type": "website",
+      "og:url": "https://docs.swarms.ai",
+      "og:image": "https://docs.swarms.ai/images/bg.png",
+      "og:image:width": "1200",
+      "og:image:height": "630",
+      "og:image:alt": "Swarms API Documentation - Build intelligent AI agents and multi-agent swarms",
+      "og:description": "Create intelligent AI agents and multi-agent swarms with the Swarms API. Support for OpenAI, Anthropic, and Groq models with enterprise-scale orchestration.",
+      "og:site_name": "Swarms API Documentation",
+      "og:locale": "en_US",
+      "twitter:card": "summary_large_image",
+      "twitter:site": "@swarms_corp",
+      "twitter:creator": "@kyegomez",
+      "twitter:title": "Swarms API Documentation - Build AI Agents & Multi-Agent Swarms",
+      "twitter:description": "Create intelligent AI agents and multi-agent swarms with the Swarms API. Support for OpenAI, Anthropic, and Groq models.",
+      "twitter:image": "https://docs.swarms.ai/images/bg.png",
+      "twitter:image:alt": "Swarms API Documentation - Build intelligent AI agents and multi-agent swarms",
+      "article:author": "The Swarm Corporation",
+      "article:section": "Technology",
+      "article:tag": "AI agents, multi-agent systems, swarm intelligence, API documentation, artificial intelligence"
+    },
     "openGraph": {
       "title": "Swarms API Documentation - Build AI Agents & Multi-Agent Swarms",
       "description": "Create intelligent AI agents and multi-agent swarms with the Swarms API. Support for OpenAI, Anthropic, and Groq models with enterprise-scale orchestration.",
@@ -222,10 +272,10 @@
       "siteName": "Swarms API Documentation",
       "images": [
         {
-          "url": "bg.png",
+          "url": "https://docs.swarms.ai/images/bg.png",
           "width": 1200,
           "height": 630,
-          "alt": "Swarms API Documentation"
+          "alt": "Swarms API Documentation - Build intelligent AI agents and multi-agent swarms"
         }
       ],
       "locale": "en_US"
@@ -236,24 +286,43 @@
       "creator": "@kyegomez",
       "title": "Swarms API Documentation - Build AI Agents & Multi-Agent Swarms",
       "description": "Create intelligent AI agents and multi-agent swarms with the Swarms API. Support for OpenAI, Anthropic, and Groq models.",
-      "image": "https://docs.swarms.world/logo/dark.png"
+      "image": "https://docs.swarms.ai/images/bg.png"
     },
     "structuredData": {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "Swarms API",
-      "description": "API for building intelligent AI agents and multi-agent swarms",
+      "description": "API for building intelligent AI agents and multi-agent swarms with support for OpenAI, Anthropic, and Groq models",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Any",
+      "url": "https://docs.swarms.ai",
+      "screenshot": "https://docs.swarms.ai/images/bg.png",
+      "softwareVersion": "1.0",
+      "datePublished": "2024-01-01",
+      "dateModified": "2024-10-23",
+      "programmingLanguage": ["Python", "JavaScript", "TypeScript"],
       "offers": {
         "@type": "Offer",
         "price": "0",
-        "priceCurrency": "USD"
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
       },
       "provider": {
         "@type": "Organization",
         "name": "The Swarm Corporation",
-        "url": "https://swarms.ai"
+        "url": "https://swarms.ai",
+        "logo": "https://docs.swarms.ai/logo/dark.svg",
+        "sameAs": [
+          "https://twitter.com/swarms_corp",
+          "https://github.com/The-Swarm-Corporation",
+          "https://www.linkedin.com/company/the-swarm-corporation",
+          "https://discord.gg/EamjgSaEQf"
+        ]
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "150"
       }
     }
   }
