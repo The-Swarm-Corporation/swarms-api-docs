@@ -14,7 +14,7 @@
   },
   "servers": [
     {
-      "url": "https://api.swarms.world"
+      "url": "https://api.swarms.world/v1"
     }
   ],
   "favicon": "favicon.ico",
