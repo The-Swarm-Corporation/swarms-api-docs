@@ -181,7 +181,7 @@
     "openapi": "https://api.swarms.world/openapi.json",
     "baseUrl": "https://api.swarms.world",
     "playground": {
-      "proxy": false
+      "proxy": true
     },
     "auth": {
       "method": "key",
