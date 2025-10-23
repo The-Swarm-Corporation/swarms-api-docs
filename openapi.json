@@ -1,0 +1,696 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Swarms API",
+    "description": "Build intelligent AI agents and multi-agent swarms with the Swarms API",
+    "version": "1.0.0",
+    "contact": {
+      "name": "The Swarm Corporation",
+      "url": "https://swarms.ai"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.swarms.world",
+      "description": "Production server"
+    },
+    {
+      "url": "https://swarms-api-285321057562.us-east1.run.app",
+      "description": "Development server"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Check the health status of the API",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/models/available": {
+      "get": {
+        "summary": "Get Available Models",
+        "description": "Get a comprehensive list of all AI models available through the Swarms API",
+        "operationId": "getAvailableModels",
+        "responses": {
+          "200": {
+            "description": "List of available models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {"type": "string"},
+                          "name": {"type": "string"},
+                          "provider": {"type": "string"},
+                          "capabilities": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent/completions": {
+      "post": {
+        "summary": "Run Agent",
+        "description": "Run an agent with the specified task. Supports streaming when stream=True.",
+        "operationId": "runAgent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "agent_config": {
+                    "type": "object",
+                    "properties": {
+                      "agent_name": {"type": "string"},
+                      "description": {"type": "string"},
+                      "system_prompt": {"type": "string"},
+                      "model_name": {"type": "string"},
+                      "max_tokens": {"type": "integer"},
+                      "temperature": {"type": "number"}
+                    },
+                    "required": ["agent_name"]
+                  },
+                  "task": {"type": "string"},
+                  "history": {"type": "array"},
+                  "img": {"type": "string"},
+                  "imgs": {"type": "array", "items": {"type": "string"}},
+                  "tools_enabled": {"type": "array", "items": {"type": "string"}}
+                },
+                "required": ["agent_config", "task"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": {"type": "string"},
+                    "success": {"type": "boolean"},
+                    "name": {"type": "string"},
+                    "description": {"type": "string"},
+                    "temperature": {"type": "number"},
+                    "outputs": {"type": "object"},
+                    "usage": {"type": "object"},
+                    "timestamp": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent/batch/completions": {
+      "post": {
+        "summary": "Run Agent Batch",
+        "description": "Run multiple agent tasks in batch processing",
+        "operationId": "runAgentBatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "agent_config": {"type": "object"},
+                        "task": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": {"type": "string"},
+                    "status": {"type": "string"},
+                    "results": {"type": "array"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/swarm/completions": {
+      "post": {
+        "summary": "Run Swarm",
+        "description": "Run a swarm with the specified task. Supports streaming when stream=True.",
+        "operationId": "runSwarm",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "description": {"type": "string"},
+                  "task": {"type": "string"},
+                  "swarm_type": {"type": "string"},
+                  "agents": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "agent_name": {"type": "string"},
+                        "description": {"type": "string"},
+                        "model_name": {"type": "string"},
+                        "system_prompt": {"type": "string"}
+                      }
+                    }
+                  },
+                  "max_loops": {"type": "integer"},
+                  "stream": {"type": "boolean"}
+                },
+                "required": ["name", "task", "swarm_type"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": {"type": "string"},
+                    "status": {"type": "string"},
+                    "swarm_name": {"type": "string"},
+                    "description": {"type": "string"},
+                    "swarm_type": {"type": "string"},
+                    "output": {"type": "object"},
+                    "number_of_agents": {"type": "integer"},
+                    "service_tier": {"type": "string"},
+                    "execution_time": {"type": "number"},
+                    "usage": {"type": "object"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/swarm/batch/completions": {
+      "post": {
+        "summary": "Run Swarm Batch",
+        "description": "Run multiple swarm tasks in batch processing",
+        "operationId": "runSwarmBatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {"type": "string"},
+                        "task": {"type": "string"},
+                        "swarm_type": {"type": "string"},
+                        "agents": {"type": "array"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": {"type": "string"},
+                    "status": {"type": "string"},
+                    "results": {"type": "array"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/swarms/available": {
+      "get": {
+        "summary": "Get Available Swarms",
+        "description": "Explore all available swarm architectures supported by the Swarms API",
+        "operationId": "getAvailableSwarms",
+        "responses": {
+          "200": {
+            "description": "List of available swarm types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "swarms": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {"type": "string"},
+                          "name": {"type": "string"},
+                          "description": {"type": "string"},
+                          "capabilities": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/swarm/logs": {
+      "get": {
+        "summary": "Get Swarm Logs",
+        "description": "Access comprehensive logs of all your API requests and swarm executions",
+        "operationId": "getSwarmLogs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of logs to return",
+            "schema": {
+              "type": "integer",
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of logs to skip",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of swarm logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "logs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {"type": "string"},
+                          "timestamp": {"type": "string", "format": "date-time"},
+                          "endpoint": {"type": "string"},
+                          "status_code": {"type": "integer"},
+                          "execution_time": {"type": "number"}
+                        }
+                      }
+                    },
+                    "total": {"type": "integer"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rate/limits": {
+      "get": {
+        "summary": "Get Rate Limits",
+        "description": "Get the rate limits and current usage for the user associated with the provided API key",
+        "operationId": "getRateLimits",
+        "responses": {
+          "200": {
+            "description": "Rate limits information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rate_limits": {"type": "object"},
+                    "usage": {"type": "object"},
+                    "reset_time": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/available": {
+      "get": {
+        "summary": "Get Available Tools",
+        "description": "Retrieve comprehensive information about all available tools and capabilities supported by the Swarms API",
+        "operationId": "getAvailableTools",
+        "responses": {
+          "200": {
+            "description": "List of available tools",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {"type": "string"},
+                          "name": {"type": "string"},
+                          "description": {"type": "string"},
+                          "category": {"type": "string"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reasoning-agent/completions": {
+      "post": {
+        "summary": "Run Reasoning Agent",
+        "description": "Run a reasoning agent with advanced problem-solving capabilities",
+        "operationId": "runReasoningAgent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "agent_config": {"type": "object"},
+                  "task": {"type": "string"},
+                  "reasoning_type": {"type": "string"}
+                },
+                "required": ["agent_config", "task"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": {"type": "string"},
+                    "status": {"type": "string"},
+                    "output": {"type": "object"},
+                    "reasoning_steps": {"type": "array"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reasoning-agent/types": {
+      "get": {
+        "summary": "Get Reasoning Agent Types",
+        "description": "Get available reasoning agent types and their capabilities",
+        "operationId": "getReasoningAgentTypes",
+        "responses": {
+          "200": {
+            "description": "List of reasoning agent types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "types": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {"type": "string"},
+                          "name": {"type": "string"},
+                          "description": {"type": "string"},
+                          "capabilities": {"type": "array", "items": {"type": "string"}}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auto-swarm-builder/completions": {
+      "post": {
+        "summary": "Run Auto Swarm Builder",
+        "description": "Automatically build and run a swarm based on task requirements",
+        "operationId": "runAutoSwarmBuilder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "task": {"type": "string"},
+                  "requirements": {"type": "object"},
+                  "complexity": {"type": "string"}
+                },
+                "required": ["task"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": {"type": "string"},
+                    "status": {"type": "string"},
+                    "swarm_config": {"type": "object"},
+                    "output": {"type": "object"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auto-swarm-builder/execution-types": {
+      "get": {
+        "summary": "Get Auto Swarm Builder Execution Types",
+        "description": "Get available execution types for auto swarm builder",
+        "operationId": "getAutoSwarmBuilderExecutionTypes",
+        "responses": {
+          "200": {
+            "description": "List of execution types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "execution_types": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {"type": "string"},
+                          "name": {"type": "string"},
+                          "description": {"type": "string"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/advanced-research/completions": {
+      "post": {
+        "summary": "Run Advanced Research",
+        "description": "Run advanced research with multi-agent collaboration",
+        "operationId": "runAdvancedResearch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "task": {"type": "string"},
+                  "config": {"type": "object"},
+                  "research_type": {"type": "string"}
+                },
+                "required": ["task"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": {"type": "string"},
+                    "status": {"type": "string"},
+                    "research_results": {"type": "object"},
+                    "sources": {"type": "array"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/advanced-research/batch/completions": {
+      "post": {
+        "summary": "Run Advanced Research Batch",
+        "description": "Run multiple advanced research tasks in batch",
+        "operationId": "runAdvancedResearchBatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "task": {"type": "string"},
+                        "config": {"type": "object"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": {"type": "string"},
+                    "status": {"type": "string"},
+                    "results": {"type": "array"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    }
+  }
+}
