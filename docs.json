@@ -88,12 +88,6 @@
       "openapi": "https://api.swarms.world/openapi.json"
     },
     {
-      "tab": "Changelog",
-      "pages": [
-        "docs/documentation/changelog"
-      ]
-    },
-    {
       "tab": "Examples",
       "groups": [
         {
@@ -155,6 +149,12 @@
             "docs/guides/guides/first"
           ]
         }
+      ]
+    },
+    {
+      "tab": "Changelog",
+      "pages": [
+        "docs/documentation/changelog"
       ]
     }
     ],
