@@ -1,0 +1,1070 @@
+---
+title: "Marketplace Examples"
+description: "Complete examples for working with the Swarms marketplace API"
+---
+
+# Marketplace Examples
+
+This page provides comprehensive examples for common marketplace operations, including creating agents and prompts, querying the marketplace, and handling various scenarios.
+
+---
+
+## Complete Agent Lifecycle Example
+
+This example demonstrates the complete lifecycle of an agent in the marketplace: creation, querying, and updating.
+
+<CodeGroup>
+
+```python Python
+import requests
+import time
+
+# Configuration
+API_KEY = "your-api-key-here"
+BASE_URL = "https://swarms.world"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Step 1: Create a new agent
+print("Creating a new agent...")
+agent_data = {
+    "name": "SQL Query Generator",
+    "agent": """from swarms import Agent
+
+class SQLQueryGenerator(Agent):
+    def __init__(self):
+        super().__init__(
+            agent_name="SQL-Generator",
+            system_prompt="You are an expert SQL developer who writes optimized queries."
+        )
+
+    def generate_query(self, description):
+        prompt = f"Generate a SQL query for: {description}"
+        return self.run(prompt)
+""",
+    "description": "An AI agent that generates optimized SQL queries based on natural language descriptions",
+    "language": "python",
+    "requirements": [
+        {
+            "package": "swarms",
+            "installation": "pip install swarms"
+        }
+    ],
+    "useCases": [
+        {
+            "title": "Database Query Generation",
+            "description": "Generate complex SQL queries from natural language"
+        },
+        {
+            "title": "Query Optimization",
+            "description": "Optimize existing SQL queries for better performance"
+        }
+    ],
+    "tags": "sql,database,query,automation,data",
+    "is_free": False,
+    "price_usd": 14.99,
+    "category": "data-science",
+    "seller_wallet_address": "your-wallet-address"
+}
+
+response = requests.post(
+    f"{BASE_URL}/api/add-agent",
+    json=agent_data,
+    headers=headers
+)
+
+if response.status_code == 200:
+    result = response.json()
+    agent_id = result["id"]
+    print(f"✓ Agent created successfully!")
+    print(f"  ID: {agent_id}")
+    print(f"  URL: {result['listing_url']}")
+else:
+    print(f"✗ Error creating agent: {response.json()}")
+    exit(1)
+
+# Wait a moment for the agent to be indexed
+time.sleep(2)
+
+# Step 2: Query for the agent
+print("\nQuerying for SQL agents...")
+query_data = {
+    "search": "sql query",
+    "category": "data-science",
+    "sortBy": "newest",
+    "limit": 5
+}
+
+response = requests.post(
+    f"{BASE_URL}/api/query-agents",
+    json=query_data,
+    headers={"Content-Type": "application/json"}
+)
+
+agents = response.json()
+print(f"✓ Found {len(agents)} agent(s)")
+for agent in agents[:3]:
+    print(f"  - {agent['name']} (${agent['price_usd']})")
+
+# Step 3: Update the agent
+print("\nUpdating agent details...")
+update_data = {
+    "id": agent_id,
+    "description": "Enhanced SQL query generator with optimization and validation capabilities",
+    "price_usd": 19.99,
+    "tags": "sql,database,query,automation,data,optimization"
+}
+
+response = requests.post(
+    f"{BASE_URL}/api/edit-agent",
+    json=update_data,
+    headers=headers
+)
+
+if response.status_code == 200:
+    print("✓ Agent updated successfully!")
+    print(f"  New price: ${response.json()['updated_data'].get('price_usd', 'N/A')}")
+else:
+    print(f"✗ Error updating agent: {response.json()}")
+
+print("\n✓ Agent lifecycle complete!")
+```
+
+```javascript JavaScript
+// Configuration
+const API_KEY = 'your-api-key-here';
+const BASE_URL = 'https://swarms.world';
+const headers = {
+  'Authorization': `Bearer ${API_KEY}`,
+  'Content-Type': 'application/json'
+};
+
+async function completeAgentLifecycle() {
+  try {
+    // Step 1: Create a new agent
+    console.log('Creating a new agent...');
+    const agentData = {
+      name: 'SQL Query Generator',
+      agent: `from swarms import Agent
+
+class SQLQueryGenerator(Agent):
+    def __init__(self):
+        super().__init__(
+            agent_name="SQL-Generator",
+            system_prompt="You are an expert SQL developer who writes optimized queries."
+        )
+
+    def generate_query(self, description):
+        prompt = f"Generate a SQL query for: {description}"
+        return self.run(prompt)
+`,
+      description: 'An AI agent that generates optimized SQL queries based on natural language descriptions',
+      language: 'python',
+      requirements: [
+        {
+          package: 'swarms',
+          installation: 'pip install swarms'
+        }
+      ],
+      useCases: [
+        {
+          title: 'Database Query Generation',
+          description: 'Generate complex SQL queries from natural language'
+        }
+      ],
+      tags: 'sql,database,query,automation,data',
+      is_free: false,
+      price_usd: 14.99,
+      category: 'data-science',
+      seller_wallet_address: 'your-wallet-address'
+    };
+
+    const createResponse = await fetch(`${BASE_URL}/api/add-agent`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(agentData)
+    });
+
+    const createResult = await createResponse.json();
+    const agentId = createResult.id;
+    console.log('✓ Agent created successfully!');
+    console.log(`  ID: ${agentId}`);
+    console.log(`  URL: ${createResult.listing_url}`);
+
+    // Wait for indexing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Step 2: Query for the agent
+    console.log('\nQuerying for SQL agents...');
+    const queryResponse = await fetch(`${BASE_URL}/api/query-agents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        search: 'sql query',
+        category: 'data-science',
+        sortBy: 'newest',
+        limit: 5
+      })
+    });
+
+    const agents = await queryResponse.json();
+    console.log(`✓ Found ${agents.length} agent(s)`);
+    agents.slice(0, 3).forEach(agent => {
+      console.log(`  - ${agent.name} ($${agent.price_usd})`);
+    });
+
+    // Step 3: Update the agent
+    console.log('\nUpdating agent details...');
+    const updateResponse = await fetch(`${BASE_URL}/api/edit-agent`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        id: agentId,
+        description: 'Enhanced SQL query generator with optimization and validation capabilities',
+        price_usd: 19.99,
+        tags: 'sql,database,query,automation,data,optimization'
+      })
+    });
+
+    const updateResult = await updateResponse.json();
+    console.log('✓ Agent updated successfully!');
+    console.log(`  New price: $${updateResult.updated_data?.price_usd || 'N/A'}`);
+
+    console.log('\n✓ Agent lifecycle complete!');
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+completeAgentLifecycle();
+```
+
+</CodeGroup>
+
+---
+
+## Complete Prompt Lifecycle Example
+
+This example shows how to create, query, and update prompts in the marketplace.
+
+<CodeGroup>
+
+```python Python
+import requests
+
+API_KEY = "your-api-key-here"
+BASE_URL = "https://swarms.world"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Create a prompt
+print("Creating a new prompt...")
+prompt_data = {
+    "name": "Code Review Assistant",
+    "prompt": """You are an expert code reviewer with years of experience in software development. When reviewing code, you:
+
+1. Check for bugs and logical errors
+2. Evaluate code quality and readability
+3. Suggest performance improvements
+4. Ensure best practices are followed
+5. Provide constructive feedback
+
+Code to review:
+{code}
+
+Programming language: {language}""",
+    "description": "A comprehensive code review prompt that provides detailed feedback on code quality, bugs, and improvements",
+    "useCases": [
+        {
+            "title": "Pull Request Reviews",
+            "description": "Review pull requests and provide detailed feedback"
+        },
+        {
+            "title": "Code Quality Assessment",
+            "description": "Assess overall code quality and suggest improvements"
+        },
+        {
+            "title": "Bug Detection",
+            "description": "Identify potential bugs and security issues"
+        }
+    ],
+    "tags": "code,review,quality,development,programming",
+    "is_free": True,
+    "category": "development"
+}
+
+response = requests.post(
+    f"{BASE_URL}/api/add-prompt",
+    json=prompt_data,
+    headers=headers
+)
+
+if response.status_code == 200:
+    result = response.json()
+    prompt_id = result["id"]
+    print(f"✓ Prompt created successfully!")
+    print(f"  ID: {prompt_id}")
+    print(f"  URL: {result['listing_url']}")
+
+    # Query prompts
+    print("\nQuerying for code review prompts...")
+    query_response = requests.post(
+        f"{BASE_URL}/api/query-prompts",
+        json={
+            "search": "code review",
+            "category": "development",
+            "priceFilter": "free",
+            "sortBy": "newest",
+            "limit": 5
+        },
+        headers={"Content-Type": "application/json"}
+    )
+
+    prompts = query_response.json()
+    print(f"✓ Found {len(prompts)} prompt(s)")
+    for p in prompts[:3]:
+        price_display = "Free" if p['is_free'] else f"${p['price_usd']}"
+        print(f"  - {p['name']} ({price_display})")
+
+    # Update the prompt to paid
+    print("\nUpdating prompt to paid version...")
+    update_response = requests.post(
+        f"{BASE_URL}/api/edit-prompt",
+        json={
+            "id": prompt_id,
+            "is_free": False,
+            "price_usd": 2.99,
+            "description": "Premium code review assistant with advanced analysis capabilities",
+            "seller_wallet_address": "your-wallet-address"
+        },
+        headers=headers
+    )
+
+    if update_response.status_code == 200:
+        print("✓ Prompt updated to paid version!")
+        print(f"  New price: $2.99")
+else:
+    print(f"✗ Error: {response.json()}")
+```
+
+```javascript JavaScript
+const API_KEY = 'your-api-key-here';
+const BASE_URL = 'https://swarms.world';
+
+async function promptLifecycle() {
+  const headers = {
+    'Authorization': `Bearer ${API_KEY}`,
+    'Content-Type': 'application/json'
+  };
+
+  // Create a prompt
+  console.log('Creating a new prompt...');
+  const createResponse = await fetch(`${BASE_URL}/api/add-prompt`, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({
+      name: 'Code Review Assistant',
+      prompt: `You are an expert code reviewer with years of experience in software development. When reviewing code, you:
+
+1. Check for bugs and logical errors
+2. Evaluate code quality and readability
+3. Suggest performance improvements
+4. Ensure best practices are followed
+5. Provide constructive feedback
+
+Code to review:
+{code}
+
+Programming language: {language}`,
+      description: 'A comprehensive code review prompt that provides detailed feedback',
+      useCases: [
+        {
+          title: 'Pull Request Reviews',
+          description: 'Review pull requests and provide detailed feedback'
+        },
+        {
+          title: 'Code Quality Assessment',
+          description: 'Assess overall code quality and suggest improvements'
+        }
+      ],
+      tags: 'code,review,quality,development,programming',
+      is_free: true,
+      category: 'development'
+    })
+  });
+
+  const createResult = await createResponse.json();
+  const promptId = createResult.id;
+  console.log('✓ Prompt created!');
+  console.log(`  URL: ${createResult.listing_url}`);
+
+  // Query prompts
+  console.log('\nQuerying prompts...');
+  const queryResponse = await fetch(`${BASE_URL}/api/query-prompts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      search: 'code review',
+      category: 'development',
+      priceFilter: 'free',
+      limit: 5
+    })
+  });
+
+  const prompts = await queryResponse.json();
+  console.log(`✓ Found ${prompts.length} prompt(s)`);
+
+  // Update to paid
+  console.log('\nUpdating to paid version...');
+  await fetch(`${BASE_URL}/api/edit-prompt`, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({
+      id: promptId,
+      is_free: false,
+      price_usd: 2.99,
+      seller_wallet_address: 'your-wallet-address'
+    })
+  });
+
+  console.log('✓ Updated to paid version!');
+}
+
+promptLifecycle();
+```
+
+</CodeGroup>
+
+---
+
+## Pagination Example
+
+This example demonstrates how to implement pagination when querying the marketplace.
+
+<CodeGroup>
+
+```python Python
+import requests
+
+def fetch_all_prompts(category=None, search=None):
+    """Fetch all prompts with pagination"""
+    BASE_URL = "https://swarms.world"
+    all_prompts = []
+    offset = 0
+    limit = 20
+
+    while True:
+        query_data = {
+            "limit": limit,
+            "offset": offset,
+            "sortBy": "newest"
+        }
+
+        if category:
+            query_data["category"] = category
+        if search:
+            query_data["search"] = search
+
+        response = requests.post(
+            f"{BASE_URL}/api/query-prompts",
+            json=query_data,
+            headers={"Content-Type": "application/json"}
+        )
+
+        prompts = response.json()
+
+        if not prompts:
+            break
+
+        all_prompts.extend(prompts)
+        print(f"Fetched {len(prompts)} prompts (total: {len(all_prompts)})")
+
+        # If we got fewer results than the limit, we've reached the end
+        if len(prompts) < limit:
+            break
+
+        offset += limit
+
+    return all_prompts
+
+# Usage
+print("Fetching all development prompts...")
+dev_prompts = fetch_all_prompts(category="development")
+print(f"\nTotal prompts found: {len(dev_prompts)}")
+
+# Display statistics
+free_count = sum(1 for p in dev_prompts if p['is_free'])
+paid_count = len(dev_prompts) - free_count
+
+print(f"Free prompts: {free_count}")
+print(f"Paid prompts: {paid_count}")
+
+if paid_count > 0:
+    avg_price = sum(p['price_usd'] for p in dev_prompts if not p['is_free']) / paid_count
+    print(f"Average price: ${avg_price:.2f}")
+```
+
+```javascript JavaScript
+async function fetchAllPrompts(category = null, search = null) {
+  const BASE_URL = 'https://swarms.world';
+  const allPrompts = [];
+  let offset = 0;
+  const limit = 20;
+
+  while (true) {
+    const queryData = {
+      limit: limit,
+      offset: offset,
+      sortBy: 'newest'
+    };
+
+    if (category) queryData.category = category;
+    if (search) queryData.search = search;
+
+    const response = await fetch(`${BASE_URL}/api/query-prompts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(queryData)
+    });
+
+    const prompts = await response.json();
+
+    if (prompts.length === 0) break;
+
+    allPrompts.push(...prompts);
+    console.log(`Fetched ${prompts.length} prompts (total: ${allPrompts.length})`);
+
+    if (prompts.length < limit) break;
+
+    offset += limit;
+  }
+
+  return allPrompts;
+}
+
+// Usage
+console.log('Fetching all development prompts...');
+const devPrompts = await fetchAllPrompts('development');
+console.log(`\nTotal prompts found: ${devPrompts.length}`);
+
+// Statistics
+const freeCount = devPrompts.filter(p => p.is_free).length;
+const paidCount = devPrompts.length - freeCount;
+
+console.log(`Free prompts: ${freeCount}`);
+console.log(`Paid prompts: ${paidCount}`);
+
+if (paidCount > 0) {
+  const avgPrice = devPrompts
+    .filter(p => !p.is_free)
+    .reduce((sum, p) => sum + p.price_usd, 0) / paidCount;
+  console.log(`Average price: $${avgPrice.toFixed(2)}`);
+}
+```
+
+</CodeGroup>
+
+---
+
+## Error Handling Example
+
+This example demonstrates proper error handling for common scenarios.
+
+<CodeGroup>
+
+```python Python
+import requests
+from typing import Optional, Dict, Any
+
+class MarketplaceClient:
+    def __init__(self, api_key: str, base_url: str = "https://swarms.world"):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+    def create_agent(self, agent_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create an agent with comprehensive error handling"""
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/add-agent",
+                json=agent_data,
+                headers=self.headers,
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 400:
+                error = response.json()
+                print(f"Validation Error: {error.get('message', 'Unknown error')}")
+                return None
+            elif response.status_code == 401:
+                print("Authentication Error: Invalid API key")
+                return None
+            elif response.status_code == 429:
+                error = response.json()
+                print(f"Rate Limit Exceeded: {error.get('message')}")
+                print(f"Reset time: {error.get('resetTime')}")
+                return None
+            elif response.status_code == 403:
+                error = response.json()
+                print(f"Content Validation Failed: {error.get('message')}")
+                return None
+            else:
+                print(f"Unexpected Error: Status {response.status_code}")
+                return None
+
+        except requests.exceptions.Timeout:
+            print("Request timed out. Please try again.")
+            return None
+        except requests.exceptions.ConnectionError:
+            print("Connection error. Please check your internet connection.")
+            return None
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+            return None
+
+# Usage example
+client = MarketplaceClient("your-api-key")
+
+agent_data = {
+    "name": "Test Agent",
+    "agent": "Agent code here...",
+    "description": "Test agent description",
+    "useCases": [
+        {
+            "title": "Test Use Case",
+            "description": "Test description"
+        }
+    ],
+    "tags": "test,example",
+    "is_free": True
+}
+
+result = client.create_agent(agent_data)
+if result:
+    print(f"✓ Agent created: {result['id']}")
+else:
+    print("✗ Failed to create agent")
+```
+
+```javascript JavaScript
+class MarketplaceClient {
+  constructor(apiKey, baseUrl = 'https://swarms.world') {
+    this.apiKey = apiKey;
+    this.baseUrl = baseUrl;
+    this.headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  async createAgent(agentData) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/add-agent`, {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify(agentData)
+      });
+
+      const data = await response.json();
+
+      if (response.status === 200) {
+        return data;
+      } else if (response.status === 400) {
+        console.error(`Validation Error: ${data.message || 'Unknown error'}`);
+        return null;
+      } else if (response.status === 401) {
+        console.error('Authentication Error: Invalid API key');
+        return null;
+      } else if (response.status === 429) {
+        console.error(`Rate Limit Exceeded: ${data.message}`);
+        console.error(`Reset time: ${data.resetTime}`);
+        return null;
+      } else if (response.status === 403) {
+        console.error(`Content Validation Failed: ${data.message}`);
+        return null;
+      } else {
+        console.error(`Unexpected Error: Status ${response.status}`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`Request failed: ${error.message}`);
+      return null;
+    }
+  }
+}
+
+// Usage
+const client = new MarketplaceClient('your-api-key');
+
+const agentData = {
+  name: 'Test Agent',
+  agent: 'Agent code here...',
+  description: 'Test agent description',
+  useCases: [
+    {
+      title: 'Test Use Case',
+      description: 'Test description'
+    }
+  ],
+  tags: 'test,example',
+  is_free: true
+};
+
+const result = await client.createAgent(agentData);
+if (result) {
+  console.log(`✓ Agent created: ${result.id}`);
+} else {
+  console.log('✗ Failed to create agent');
+}
+```
+
+</CodeGroup>
+
+---
+
+## Bulk Operations Example
+
+This example shows how to create multiple items efficiently.
+
+<CodeGroup>
+
+```python Python
+import requests
+import time
+from typing import List, Dict, Any
+
+def bulk_create_prompts(prompts_data: List[Dict[str, Any]], api_key: str) -> List[Dict[str, Any]]:
+    """Create multiple prompts with rate limiting awareness"""
+    BASE_URL = "https://swarms.world"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    results = []
+    failed = []
+
+    for i, prompt_data in enumerate(prompts_data, 1):
+        print(f"Creating prompt {i}/{len(prompts_data)}: {prompt_data['name']}")
+
+        response = requests.post(
+            f"{BASE_URL}/api/add-prompt",
+            json=prompt_data,
+            headers=headers
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            results.append(result)
+            print(f"  ✓ Created: {result['id']}")
+        elif response.status_code == 429:
+            print(f"  ✗ Rate limit reached. Stopping bulk operation.")
+            print(f"  Successfully created: {len(results)}")
+            print(f"  Remaining: {len(prompts_data) - i}")
+            break
+        else:
+            error = response.json()
+            print(f"  ✗ Failed: {error.get('message', 'Unknown error')}")
+            failed.append({
+                "prompt": prompt_data,
+                "error": error
+            })
+
+        # Small delay to avoid overwhelming the API
+        time.sleep(0.5)
+
+    print(f"\n Summary:")
+    print(f"  Created: {len(results)}")
+    print(f"  Failed: {len(failed)}")
+
+    return results
+
+# Example usage
+prompts = [
+    {
+        "name": "Python Tutor",
+        "prompt": "You are a patient Python programming tutor...",
+        "description": "Help beginners learn Python",
+        "useCases": [{"title": "Learning", "description": "Teach Python basics"}],
+        "tags": "python,education,programming",
+        "is_free": True
+    },
+    {
+        "name": "JavaScript Expert",
+        "prompt": "You are a JavaScript expert...",
+        "description": "Advanced JavaScript assistance",
+        "useCases": [{"title": "Debugging", "description": "Debug JS code"}],
+        "tags": "javascript,programming",
+        "is_free": True
+    },
+    # Add more prompts...
+]
+
+results = bulk_create_prompts(prompts, "your-api-key")
+```
+
+</CodeGroup>
+
+---
+
+## Search and Filter Example
+
+Advanced search and filtering capabilities.
+
+<CodeGroup>
+
+```python Python
+import requests
+from typing import List, Dict, Any
+
+def advanced_search(
+    search_term: str = None,
+    categories: List[str] = None,
+    price_range: tuple = None,
+    min_rating: float = None
+) -> List[Dict[str, Any]]:
+    """Advanced search with multiple filters"""
+    BASE_URL = "https://swarms.world"
+
+    # Search in multiple categories
+    all_results = []
+
+    categories = categories or ["development", "data-science", "content"]
+
+    for category in categories:
+        query_data = {
+            "search": search_term,
+            "category": category,
+            "sortBy": "rating",
+            "limit": 50
+        }
+
+        response = requests.post(
+            f"{BASE_URL}/api/query-prompts",
+            json=query_data,
+            headers={"Content-Type": "application/json"}
+        )
+
+        if response.status_code == 200:
+            results = response.json()
+            all_results.extend(results)
+
+    # Apply additional filters
+    filtered_results = all_results
+
+    # Filter by price range
+    if price_range:
+        min_price, max_price = price_range
+        filtered_results = [
+            r for r in filtered_results
+            if (r['is_free'] and min_price == 0) or
+               (not r['is_free'] and min_price <= r['price_usd'] <= max_price)
+        ]
+
+    # Sort by relevance
+    filtered_results.sort(
+        key=lambda x: x.get('rating', 0) if min_rating else x['created_at'],
+        reverse=True
+    )
+
+    return filtered_results
+
+# Usage
+results = advanced_search(
+    search_term="code assistant",
+    categories=["development", "ai"],
+    price_range=(0, 10),
+)
+
+print(f"Found {len(results)} results")
+for prompt in results[:5]:
+    price = "Free" if prompt['is_free'] else f"${prompt['price_usd']}"
+    print(f"- {prompt['name']} ({price})")
+```
+
+</CodeGroup>
+
+---
+
+## Rate Limit Monitoring
+
+Monitor your API usage and rate limits.
+
+<CodeGroup>
+
+```python Python
+import requests
+from datetime import datetime
+
+class RateLimitMonitor:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://swarms.world"
+        self.headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        self.usage_count = 0
+
+    def check_limits(self) -> dict:
+        """Check current rate limit status by making a test request"""
+        # Make a minimal query to check status
+        response = requests.post(
+            f"{self.base_url}/api/query-prompts",
+            json={"limit": 1},
+            headers={"Content-Type": "application/json"}
+        )
+
+        # If we hit rate limit, we'll get the usage info
+        if response.status_code == 429:
+            return response.json()
+
+        return {"status": "ok", "usage": self.usage_count}
+
+    def create_with_monitoring(self, endpoint: str, data: dict) -> dict:
+        """Create item with rate limit monitoring"""
+        response = requests.post(
+            f"{self.base_url}{endpoint}",
+            json=data,
+            headers=self.headers
+        )
+
+        if response.status_code == 200:
+            self.usage_count += 1
+            result = response.json()
+            print(f"✓ Created successfully (Usage: {self.usage_count}/500)")
+            return result
+        elif response.status_code == 429:
+            limit_info = response.json()
+            print(f"✗ Rate limit exceeded!")
+            print(f"  Current usage: {limit_info['currentUsage']}")
+            print(f"  Reset time: {limit_info['resetTime']}")
+            return None
+        else:
+            print(f"✗ Error: {response.json()}")
+            return None
+
+# Usage
+monitor = RateLimitMonitor("your-api-key")
+
+# Create multiple items with monitoring
+for i in range(10):
+    result = monitor.create_with_monitoring(
+        "/api/add-prompt",
+        {
+            "name": f"Test Prompt {i}",
+            "prompt": "Test content...",
+            "useCases": [{"title": "Test", "description": "Test"}],
+            "tags": "test",
+            "is_free": True
+        }
+    )
+
+    if not result:
+        print("Stopping due to rate limit")
+        break
+```
+
+</CodeGroup>
+
+---
+
+## Best Practices
+
+### 1. Always Handle Errors
+
+```python
+try:
+    response = requests.post(url, json=data, headers=headers, timeout=30)
+    response.raise_for_status()
+except requests.exceptions.RequestException as e:
+    print(f"Request failed: {e}")
+```
+
+### 2. Implement Retry Logic for Transient Failures
+
+```python
+from time import sleep
+
+def create_with_retry(data, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, json=data)
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 429:
+                # Don't retry rate limits
+                return None
+        except requests.exceptions.RequestException:
+            if attempt < max_retries - 1:
+                sleep(2 ** attempt)  # Exponential backoff
+            else:
+                raise
+    return None
+```
+
+### 3. Validate Data Before Sending
+
+```python
+def validate_prompt_data(data):
+    required_fields = ["name", "prompt", "useCases"]
+    for field in required_fields:
+        if field not in data:
+            raise ValueError(f"Missing required field: {field}")
+
+    if len(data["name"]) < 2:
+        raise ValueError("Name must be at least 2 characters")
+
+    if len(data["prompt"]) < 5:
+        raise ValueError("Prompt must be at least 5 characters")
+
+    return True
+```
+
+### 4. Use Environment Variables for API Keys
+
+```python
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+API_KEY = os.getenv("SWARMS_API_KEY")
+
+if not API_KEY:
+    raise ValueError("SWARMS_API_KEY environment variable not set")
+```
+
+### 5. Implement Pagination Correctly
+
+```python
+def fetch_all_with_pagination(query_params):
+    all_items = []
+    offset = 0
+    limit = 50
+
+    while True:
+        query_params.update({"offset": offset, "limit": limit})
+        response = requests.post(url, json=query_params)
+        items = response.json()
+
+        if not items:
+            break
+
+        all_items.extend(items)
+
+        if len(items) < limit:
+            break
+
+        offset += limit
+
+    return all_items
+```

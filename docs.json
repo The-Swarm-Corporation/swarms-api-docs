@@ -19,144 +19,152 @@
   ],
   "favicon": "/logo.svg",
   "navigation": {
-      "tabs": [
-    {
-      "tab": "Documentation",
-      "groups": [
-        {
-          "group": "Getting Started",
-          "pages": [
-            "docs/documentation/index",
-            "docs/documentation/faq",
-            "docs/documentation/getting-started/quickstart",
-            "docs/documentation/getting-started/api-key-setup",
-            "docs/documentation/getting-started/setup",
-            "docs/documentation/getting-started/architecture"
-          ]
-        },
-        {
-          "group": "Clients",
-          "pages": [
-            "docs/documentation/resources/client-libraries",
-            "docs/documentation/clients/python-client"
-          ]
-        },
-        {
-          "group": "Agent Completions",
-          "pages": [
-            "docs/documentation/capabilities/agent"
-          ]
-        },
-        {
-          "group": "Multi-Agent",
-          "pages": [
-            "docs/documentation/multi-agent/swarm_types",
-            "docs/documentation/multi-agent/best_practices",
-            "docs/documentation/multi-agent/sequential_workflow",
-            "docs/documentation/multi-agent/concurrent_workflow",
-            "docs/documentation/multi-agent/multi_agent_router",
-            "docs/documentation/multi-agent/mixture_of_agents",
-            "docs/documentation/multi-agent/majority_voting",
-            "docs/documentation/multi-agent/hierarchical_swarm",
-            "docs/documentation/multi-agent/agent_rearrange",
-            "docs/documentation/multi-agent/advanced_research"
-          ]
-        },
-        {
-          "group": "Capabilities",
-          "pages": [
-            "docs/documentation/capabilities/swarms_api_tools",
-            "docs/documentation/capabilities/mcp_integration",
-            "docs/documentation/capabilities/tools"
-          ]
-        },
-        {
-          "group": "Resources",
-          "pages": [
-            "docs/documentation/resources/ratelimits",
-            "docs/documentation/resources/pricing",
-            "docs/documentation/resources/community",
-            "docs/documentation/resources/technical-support",
-            "docs/documentation/resources/referral",
-            "docs/documentation/resources/contributors"
-          ]
-        }
-      ]
-    },
-    {
-      "tab": "API Reference",
-      "openapi": "https://api.swarms.world/openapi.json"
-    },
-    {
-      "tab": "Examples",
-      "groups": [
-        {
-          "group": "Getting Started",
-          "pages": [
-            "docs/examples/examples/client-setup",
-            "docs/examples/examples/agent-overview",
-            "docs/examples/examples/batch-processing"
-          ]
-        },
-        {
-          "group": "Features",
-          "pages": [
-            "docs/examples/examples/streaming",
-            "docs/examples/examples/search-enabled",
-            "docs/examples/examples/mcp-integration",
-            "docs/examples/examples/advanced-research"
-          ]
-        },
-        {
-          "group": "Applications",
-          "pages": [
-            "docs/examples/examples/hospital-team",
-            "docs/examples/examples/legal-team",
-            "docs/examples/examples/icd-analysis"
-          ]
-        },
-        {
-          "group": "API Utilities",
-          "pages": [
-            "docs/examples/examples/rate-limits",
-            "docs/examples/examples/swarm-logs",
-            "docs/examples/examples/models-available",
-            "docs/examples/examples/available-tools",
-            "docs/examples/examples/swarm-types",
-            "docs/examples/examples/reasoning-agent-types"
-          ]
-        },
-        {
-          "group": "Python Code Examples",
-          "pages": [
-            "docs/examples/api_examples/client_example",
-            "docs/examples/api_examples/agent_overview",
-            "docs/examples/api_examples/batch_example",
-            "docs/examples/api_examples/hospital_team",
-            "docs/examples/api_examples/legal_team",
-            "docs/examples/api_examples/icd_ten_analysis",
-            "docs/examples/api_examples/rate_limits"
-          ]
-        }
-      ]
-    },
-    {
-      "tab": "Guides",
-      "groups": [
-        {
-          "group": "Getting Started",
-          "pages": [
-            "docs/guides/guides/first"
-          ]
-        }
-      ]
-    },
-    {
-      "tab": "Changelog",
-      "pages": [
-        "docs/documentation/changelog"
-      ]
-    }
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "docs/documentation/index",
+              "docs/documentation/faq",
+              "docs/documentation/getting-started/quickstart",
+              "docs/documentation/getting-started/api-key-setup",
+              "docs/documentation/getting-started/setup",
+              "docs/documentation/getting-started/architecture"
+            ]
+          },
+          {
+            "group": "Clients",
+            "pages": [
+              "docs/documentation/resources/client-libraries",
+              "docs/documentation/clients/python-client"
+            ]
+          },
+          {
+            "group": "Agent Completions",
+            "pages": [
+              "docs/documentation/capabilities/agent"
+            ]
+          },
+          {
+            "group": "Multi-Agent",
+            "pages": [
+              "docs/documentation/multi-agent/swarm_types",
+              "docs/documentation/multi-agent/best_practices",
+              "docs/documentation/multi-agent/sequential_workflow",
+              "docs/documentation/multi-agent/concurrent_workflow",
+              "docs/documentation/multi-agent/multi_agent_router",
+              "docs/documentation/multi-agent/mixture_of_agents",
+              "docs/documentation/multi-agent/majority_voting",
+              "docs/documentation/multi-agent/hierarchical_swarm",
+              "docs/documentation/multi-agent/agent_rearrange",
+              "docs/documentation/multi-agent/advanced_research"
+            ]
+          },
+          {
+            "group": "Capabilities",
+            "pages": [
+              "docs/documentation/capabilities/swarms_api_tools",
+              "docs/documentation/capabilities/mcp_integration",
+              "docs/documentation/capabilities/tools"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "docs/documentation/resources/ratelimits",
+              "docs/documentation/resources/pricing",
+              "docs/documentation/resources/community",
+              "docs/documentation/resources/technical-support",
+              "docs/documentation/resources/referral",
+              "docs/documentation/resources/contributors"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "openapi": "https://api.swarms.world/openapi.json"
+      },
+      {
+        "tab": "Examples",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "docs/examples/examples/client-setup",
+              "docs/examples/examples/agent-overview",
+              "docs/examples/examples/batch-processing"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "docs/examples/examples/streaming",
+              "docs/examples/examples/search-enabled",
+              "docs/examples/examples/mcp-integration",
+              "docs/examples/examples/advanced-research"
+            ]
+          },
+          {
+            "group": "Applications",
+            "pages": [
+              "docs/examples/examples/hospital-team",
+              "docs/examples/examples/legal-team",
+              "docs/examples/examples/icd-analysis"
+            ]
+          },
+          {
+            "group": "API Utilities",
+            "pages": [
+              "docs/examples/examples/rate-limits",
+              "docs/examples/examples/swarm-logs",
+              "docs/examples/examples/models-available",
+              "docs/examples/examples/available-tools",
+              "docs/examples/examples/swarm-types",
+              "docs/examples/examples/reasoning-agent-types"
+            ]
+          },
+          {
+            "group": "Python Code Examples",
+            "pages": [
+              "docs/examples/api_examples/client_example",
+              "docs/examples/api_examples/agent_overview",
+              "docs/examples/api_examples/batch_example",
+              "docs/examples/api_examples/hospital_team",
+              "docs/examples/api_examples/legal_team",
+              "docs/examples/api_examples/icd_ten_analysis",
+              "docs/examples/api_examples/rate_limits"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "docs/guides/guides/first"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Changelog",
+        "pages": [
+          "docs/documentation/changelog"
+        ]
+      },
+      {
+        "tab": "Marketplace",
+        "pages": [
+          "docs/marketplace/agents-api",
+          "docs/marketplace/prompts-api",
+          "docs/marketplace/examples"
+        ]
+      }
     ],
     "global": {
       "anchors": [
