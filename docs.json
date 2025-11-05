@@ -158,7 +158,7 @@
         ]
       },
       {
-        "tab": "Marketplace",
+        "tab": "Marketplace API",
         "pages": [
           "docs/marketplace/agents-api",
           "docs/marketplace/prompts-api",
