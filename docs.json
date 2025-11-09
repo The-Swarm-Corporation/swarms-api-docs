@@ -137,14 +137,9 @@
               "docs/examples/api_examples/icd_ten_analysis",
               "docs/examples/api_examples/rate_limits"
             ]
-          }
-        ]
-      },
-      {
-        "tab": "Guides",
-        "groups": [
+          },
           {
-            "group": "Getting Started",
+            "group": "Guides",
             "pages": [
               "docs/guides/guides/first"
             ]
