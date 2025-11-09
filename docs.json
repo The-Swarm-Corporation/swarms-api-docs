@@ -15,6 +15,9 @@
   "servers": [
     {
       "url": "https://api.swarms.world"
+    },
+    {
+      "url": "https://swarms-api-285321057562.us-east1.run.app"
     }
   ],
   "favicon": "/logo.svg",
