@@ -1,0 +1,336 @@
+---
+title: Swarms MCP Client Proxy — Quickstart (x402)
+description: Use x402 to access paid endpoints on Swarms MCP Client Proxy with Python and TypeScript.
+---
+
+<Callout type="info">
+  <b>Base URL</b>: <code>https://mcp-gateway.swarms.world/</code><br />
+  Service homepage: <Link href="https://mcp-gateway.swarms.world/">https://mcp-gateway.swarms.world/</Link>
+  <br /><br />
+  x402 clients handle 402 flows automatically (detect payment, construct headers, retry).
+  Provide a wallet signer via <code>PRIVATE_KEY</code> or a server wallet.
+  Learn more at the x402 docs.
+  <br />
+</Callout>
+
+<Steps>
+  <Step title="Prerequisites">
+    - An EVM wallet with sufficient USDC on Base
+    - Either:
+      - Node.js 18+ and npm
+      - Python 3.9+ and pip
+    - Env var: <code>PRIVATE_KEY</code> (hex <code>0x...</code>) for signing x402 payments
+  </Step>
+
+  <Step title="Install Dependencies">
+    <Tabs>
+      <Tab title="Python">
+
+```bash
+pip install x402 httpx python-dotenv eth_account
+```
+      </Tab>
+      <Tab title="TypeScript">
+
+```bash
+npm install x402-axios axios dotenv viem
+```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Configure Environment">
+
+```bash
+BASE_URL=https://mcp-gateway.swarms.world
+PRIVATE_KEY=0xyour_private_key # used to sign payment headers
+
+# For MCP endpoints:
+MCP_SERVER_URL=https://your-mcp-server.example.com
+MCP_AUTH_TOKEN=optional_mcp_bearer_token
+TOOLS_FORMAT=openai # or mcp
+
+# Research Agent (optional override)
+TASK=Summarize the latest developments in MCP (Model Context Protocol).
+```
+  </Step>
+
+  <Step title="Use the Research Agent (POST /research-agent)">
+    <Tabs>
+      <Tab title="Python">
+
+```python
+import asyncio, os, json
+from dotenv import load_dotenv
+from eth_account import Account
+from x402.clients.httpx import x402HttpxClient
+
+async def main():
+    load_dotenv()
+    base_url = os.getenv("BASE_URL", "https://mcp-gateway.swarms.world").rstrip("/")
+    private_key = os.environ["PRIVATE_KEY"]
+    task = os.getenv("TASK", "Summarize the latest developments in MCP (Model Context Protocol).")
+
+    account = Account.from_key(private_key)
+    async with x402HttpxClient(account=account, base_url=base_url) as client:
+        response = await client.post("/research-agent", json={"task": task})
+        print(json.dumps(response.json(), indent=2))
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+      </Tab>
+      <Tab title="TypeScript">
+
+```ts
+import "dotenv/config";
+import axios from "axios";
+import { withPaymentInterceptor, decodeXPaymentResponse } from "x402-axios";
+import { privateKeyToAccount } from "viem/accounts";
+
+async function main() {
+  const baseUrl = (process.env.BASE_URL || "https://mcp-gateway.swarms.world").replace(/\/+$/, "");
+  const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+  const api = withPaymentInterceptor(axios.create({ baseURL: baseUrl }), account);
+
+  const task =
+    process.env.TASK || "Summarize the latest developments in MCP (Model Context Protocol).";
+
+  const res = await api.post("/research-agent", { task });
+  console.log(res.data);
+
+  const paymentHeader = res.headers["x-payment-response"];
+  if (paymentHeader) {
+    console.log("Payment:", decodeXPaymentResponse(paymentHeader));
+  }
+}
+
+main().catch(err => {
+  console.error(err?.response?.data || err?.message || err);
+  process.exit(1);
+});
+```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Discover MCP Tools (GET /mcp/tools)">
+    <Callout>
+      Query parameters:
+      <ul>
+        <li><code>url</code> — Target MCP server URL</li>
+        <li><code>format</code> — <code>openai</code> | <code>mcp</code> (default <code>openai</code>)</li>
+      </ul>
+    </Callout>
+    <Tabs>
+      <Tab title="Python">
+
+```python
+import asyncio, os, json
+from dotenv import load_dotenv
+from eth_account import Account
+from x402.clients.httpx import x402HttpxClient
+
+async def main():
+    load_dotenv()
+    base_url = os.getenv("BASE_URL", "https://mcp-gateway.swarms.world").rstrip("/")
+    target_mcp_url = os.environ["MCP_SERVER_URL"]
+    output_format = os.getenv("TOOLS_FORMAT", "openai")
+
+    account = Account.from_key(os.environ["PRIVATE_KEY"])
+    async with x402HttpxClient(account=account, base_url=base_url) as client:
+        res = await client.get("/mcp/tools", params={"url": target_mcp_url, "format": output_format})
+        print(json.dumps(res.json(), indent=2))
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+      </Tab>
+      <Tab title="TypeScript">
+
+```ts
+import "dotenv/config";
+import axios from "axios";
+import { withPaymentInterceptor } from "x402-axios";
+import { privateKeyToAccount } from "viem/accounts";
+
+async function main() {
+  const baseUrl = (process.env.BASE_URL || "https://mcp-gateway.swarms.world").replace(/\/+$/, "");
+  const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+  const api = withPaymentInterceptor(axios.create({ baseURL: baseUrl }), account);
+
+  const targetMcpUrl = process.env.MCP_SERVER_URL!;
+  const format = process.env.TOOLS_FORMAT || "openai";
+
+  const res = await api.get("/mcp/tools", { params: { url: targetMcpUrl, format } });
+  console.log(res.data);
+}
+
+main().catch(err => {
+  console.error(err?.response?.data || err?.message || err);
+  process.exit(1);
+});
+```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Discover MCP Tools (POST /mcp/tools)">
+    <Callout>
+      JSON body:
+      <ul>
+        <li><code>url</code> — Target MCP server URL</li>
+        <li><code>format</code> — <code>openai</code> | <code>mcp</code> (optional)</li>
+        <li><code>authorization_token</code> — Bearer token passed to the MCP server (optional)</li>
+      </ul>
+    </Callout>
+    <Tabs>
+      <Tab title="Python">
+
+```python
+import asyncio, os, json
+from typing import Any, Dict
+from dotenv import load_dotenv
+from eth_account import Account
+from x402.clients.httpx import x402HttpxClient
+
+async def main():
+    load_dotenv()
+    base_url = os.getenv("BASE_URL", "https://mcp-gateway.swarms.world").rstrip("/")
+    account = Account.from_key(os.environ["PRIVATE_KEY"])
+
+    body: Dict[str, Any] = {
+        "url": os.environ["MCP_SERVER_URL"],
+        "format": os.getenv("TOOLS_FORMAT", "openai"),
+    }
+    auth_token = os.getenv("MCP_AUTH_TOKEN")
+    if auth_token:
+        body["authorization_token"] = auth_token
+
+    async with x402HttpxClient(account=account, base_url=base_url) as client:
+        res = await client.post("/mcp/tools", json=body)
+        print(json.dumps(res.json(), indent=2))
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+      </Tab>
+      <Tab title="TypeScript">
+
+```ts
+import "dotenv/config";
+import axios from "axios";
+import { withPaymentInterceptor } from "x402-axios";
+import { privateKeyToAccount } from "viem/accounts";
+
+async function main() {
+  const baseUrl = (process.env.BASE_URL || "https://mcp-gateway.swarms.world").replace(/\/+$/, "");
+  const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+  const api = withPaymentInterceptor(axios.create({ baseURL: baseUrl }), account);
+
+  const body: any = {
+    url: process.env.MCP_SERVER_URL!,
+    format: process.env.TOOLS_FORMAT || "openai",
+  };
+  if (process.env.MCP_AUTH_TOKEN) body.authorization_token = process.env.MCP_AUTH_TOKEN;
+
+  const res = await api.post("/mcp/tools", body);
+  console.log(res.data);
+}
+
+main().catch(err => {
+  console.error(err?.response?.data || err?.message || err);
+  process.exit(1);
+});
+```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Proxy a Tool Call (POST /mcp/request)">
+    <Callout>
+      JSON body:
+      <ul>
+        <li><code>url</code> — Target MCP server URL</li>
+        <li><code>tool_name</code> — Name of tool to call</li>
+        <li><code>arguments</code> — Tool arguments (object)</li>
+        <li><code>authorization_token</code> — Bearer token for target MCP (optional)</li>
+      </ul>
+    </Callout>
+    <Tabs>
+      <Tab title="Python">
+
+```python
+import asyncio, os, json
+from typing import Any, Dict
+from dotenv import load_dotenv
+from eth_account import Account
+from x402.clients.httpx import x402HttpxClient
+
+async def main():
+    load_dotenv()
+    base_url = os.getenv("BASE_URL", "https://mcp-gateway.swarms.world").rstrip("/")
+    account = Account.from_key(os.environ["PRIVATE_KEY"])
+
+    body: Dict[str, Any] = {
+        "url": os.environ["MCP_SERVER_URL"],
+        "tool_name": os.environ["TOOL_NAME"],
+        "arguments": json.loads(os.getenv("TOOL_ARGS", "{}")),
+    }
+    auth_token = os.getenv("MCP_AUTH_TOKEN")
+    if auth_token:
+        body["authorization_token"] = auth_token
+
+    async with x402HttpxClient(account=account, base_url=base_url) as client:
+        res = await client.post("/mcp/request", json=body)
+        print(json.dumps(res.json(), indent=2))
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+      </Tab>
+      <Tab title="TypeScript">
+
+```ts
+import "dotenv/config";
+import axios from "axios";
+import { withPaymentInterceptor } from "x402-axios";
+import { privateKeyToAccount } from "viem/accounts";
+
+async function main() {
+  const baseUrl = (process.env.BASE_URL || "https://mcp-gateway.swarms.world").replace(/\/+$/, "");
+  const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+  const api = withPaymentInterceptor(axios.create({ baseURL: baseUrl }), account);
+
+  const args = JSON.parse(process.env.TOOL_ARGS || "{}");
+  const body: any = {
+    url: process.env.MCP_SERVER_URL!,
+    tool_name: process.env.TOOL_NAME!,
+    arguments: args
+  };
+  if (process.env.MCP_AUTH_TOKEN) body.authorization_token = process.env.MCP_AUTH_TOKEN;
+
+  const res = await api.post("/mcp/request", body);
+  console.log(res.data);
+}
+
+main().catch(err => {
+  console.error(err?.response?.data || err?.message || err);
+  process.exit(1);
+});
+```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+<Callout type="success">
+  You're ready to integrate paid endpoints with x402. Use the hosted base URL above or point to your local server if self-hosting.
+  <br />
+  Links:
+  <ul>
+    <li>Service homepage: <Link href="https://mcp-gateway.swarms.world/">https://mcp-gateway.swarms.world/</Link></li>
+  </ul>
+</Callout>
+
+

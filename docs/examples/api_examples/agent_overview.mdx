@@ -1,3 +1,31 @@
+---
+title: "Agent Overview Example"
+description: "Python code example for creating and running a single AI agent with the Swarms API."
+---
+
+## Overview
+
+This example demonstrates how to create and run a single AI agent for a specific task using the Swarms API.
+
+## Step 1: Installation
+
+Install the required package:
+
+```bash
+pip install swarms-client python-dotenv
+```
+
+## Step 2: API Key Setup
+
+Set your API key in a `.env` file:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Step 3: Code Example
+
+```python
 import os
 from swarms_client import SwarmsClient
 from dotenv import load_dotenv
@@ -34,3 +62,7 @@ result = client.agent.run(
 )
 
 print(json.dumps(result, indent=4))
+```
+
+Run the script to execute the agent and receive a medical diagnosis based on blood work results.
+
