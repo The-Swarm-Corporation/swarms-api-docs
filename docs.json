@@ -286,7 +286,7 @@
       "og:title": "Swarms API Documentation - Build AI Agents & Multi-Agent Systems",
       "og:type": "website",
       "og:url": "https://docs.swarms.ai",
-      "og:image": "https://docs.swarms.ai/bg.png",
+      "og:image": "https://docs.swarms.ai/bg.jpg",
       "og:image:width": "1200",
       "og:image:height": "630",
       "og:image:alt": "Swarms API Documentation - Build intelligent AI agents and multi-agent swarms",
@@ -298,7 +298,7 @@
       "twitter:creator": "@kyegomez",
       "twitter:title": "Swarms API Documentation - Build AI Agents & Multi-Agent Swarms",
       "twitter:description": "Create intelligent AI agents and multi-agent swarms with the Swarms API. Support for OpenAI, Anthropic, and Groq models.",
-      "twitter:image": "https://docs.swarms.ai/bg.png",
+      "twitter:image": "https://docs.swarms.ai/bg.jpg",
       "twitter:image:alt": "Swarms API Documentation - Build intelligent AI agents and multi-agent swarms",
       "article:author": "The Swarm Corporation",
       "article:section": "Technology",
@@ -312,7 +312,7 @@
       "siteName": "Swarms API Documentation",
       "images": [
         {
-          "url": "https://docs.swarms.ai/bg.png",
+          "url": "https://docs.swarms.ai/bg.jpg",
           "width": 1200,
           "height": 630,
           "alt": "Swarms API Documentation - Build intelligent AI agents and multi-agent swarms"
@@ -326,7 +326,7 @@
       "creator": "@kyegomez",
       "title": "Swarms API Documentation - Build AI Agents & Multi-Agent Swarms",
       "description": "Create intelligent AI agents and multi-agent swarms with the Swarms API. Support for OpenAI, Anthropic, and Groq models.",
-      "image": "https://docs.swarms.ai/bg.png"
+      "image": "https://docs.swarms.ai/bg.jpg"
     },
     "structuredData": {
       "@context": "https://schema.org",
@@ -336,7 +336,7 @@
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Any",
       "url": "https://docs.swarms.ai",
-      "screenshot": "https://docs.swarms.ai/bg.png",
+      "screenshot": "https://docs.swarms.ai/bg.jpg",
       "softwareVersion": "1.0",
       "datePublished": "2024-01-01",
       "dateModified": "2024-10-23",
