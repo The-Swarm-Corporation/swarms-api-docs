@@ -213,19 +213,23 @@
     "links": [
       {
         "label": "Get API Key",
-        "href": "https://swarms.world/platform/api-keys"
+        "href": "https://swarms.world/platform/api-keys",
+        "icon": "key"
       },
       {
         "label": "Account Management",
-        "href": "https://swarms.world/platform/account"
+        "href": "https://swarms.world/platform/account",
+        "icon": "user"
       },
       {
         "label": "Support",
-        "href": "https://cal.com/swarms/swarms-technical-support?overlayCalendar=true"
+        "href": "https://cal.com/swarms/swarms-technical-support?overlayCalendar=true",
+        "icon": "headset"
       },
       {
         "label": "Clients",
-        "href": "https://docs.swarms.ai/docs/documentation/resources/client-libraries"
+        "href": "https://docs.swarms.ai/docs/documentation/resources/client-libraries",
+        "icon": "book-open"
       }
     ]
   },
