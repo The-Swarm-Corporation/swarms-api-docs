@@ -1,0 +1,210 @@
+---
+title: 'Design Philosophy'
+description: 'The principles and values that guide how we build the Swarms API platform and shape the agent economy.'
+---
+
+
+Every feature, every decision, and every line of code in the Swarms API is guided by a set of core principles. These principles ensure we build tools that are powerful, accessible, and aligned with our mission of building the agent economy.
+
+## Core Principles
+
+### 1. Developer-First
+
+**Developers are our foundation.** We build for developers who are creating the future, and we prioritize their experience above all else.
+
+**What this means:**
+
+- **Intuitive APIs** - Clear, consistent interfaces that feel natural to use
+- **Comprehensive documentation** - Detailed guides, examples, and references
+- **Fast iteration** - Tools that let you build and test quickly
+- **Transparent behavior** - Predictable, well-documented functionality
+- **Community feedback** - We listen and respond to developer needs
+
+**In practice:**
+
+```python
+# Simple, intuitive API design
+client = SwarmsClient(api_key=api_key)
+result = client.agent.run(
+    agent_config={...},
+    task="Your task here"
+)
+```
+
+### 2. Power Through Simplicity
+
+**Complex problems don't require complex solutions.** We believe the best tools are powerful yet simple—they handle complexity internally while presenting a clean interface.
+
+**What this means:**
+
+- **Abstraction over configuration** - Sensible defaults that work for most cases
+- **Progressive disclosure** - Simple for beginners, powerful for experts
+- **Minimal boilerplate** - Get started quickly, customize when needed
+- **Clear mental models** - Concepts that map to how you think about problems
+
+**Example:**
+
+You can start with a simple agent configuration and gradually add complexity as needed:
+
+```python
+# Simple - works out of the box
+agent_config = {
+    "agent_name": "Assistant",
+    "system_prompt": "You are helpful.",
+    "model_name": "gpt-4o-mini"
+}
+
+# Advanced - when you need more control
+agent_config = {
+    "agent_name": "Specialist",
+    "system_prompt": "You are an expert...",
+    "model_name": "claude-sonnet-4",
+    "tools_list_dictionary": [...],
+    "max_loops": 5,
+    "temperature": 0.7
+}
+```
+
+### 3. Scale Without Compromise
+
+**Performance and scale shouldn't be trade-offs.** You shouldn't have to choose between building something that works and something that scales.
+
+**What this means:**
+
+- **Built for scale** - Handle everything from prototypes to production systems
+- **Efficient by default** - Optimized runtime and resource management
+- **No artificial limits** - Scale from one agent to thousands seamlessly
+- **Production-ready** - Reliability and performance you can depend on
+
+**Capabilities:**
+
+- Support for 10,000+ agents in a single swarm
+- Ultra-optimized execution runtime
+- Concurrent processing for maximum efficiency
+- Enterprise-grade reliability and uptime
+
+### 4. Open and Extensible
+
+**The best platforms are platforms others can build on.** We provide the foundation, and you build what matters to you.
+
+**What this means:**
+
+- **Flexible architecture** - Support multiple workflow patterns and use cases
+- **Tool integration** - Extend agent capabilities with custom functions
+- **Multi-model support** - Choose the right model for each task
+- **API-first design** - Build integrations with any language or framework
+- **Community-driven** - Open to contributions and feedback
+
+**Extensibility:**
+
+```python
+# Add custom tools to extend agent capabilities
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "custom_analysis",
+            "description": "Perform specialized analysis",
+            "parameters": {...}
+        }
+    }
+]
+```
+
+### 5. Transparent and Honest
+
+**Trust is built through transparency.** We're honest about capabilities, limitations, pricing, and our roadmap.
+
+**What this means:**
+
+- **Clear pricing** - No hidden fees, transparent cost structure
+- **Honest limitations** - We tell you what works and what doesn't
+- **Open communication** - Regular updates and clear roadmap
+- **Fair practices** - Ethical use, responsible AI, user privacy
+
+**Transparency in action:**
+
+- Detailed pricing breakdowns
+- Clear rate limits and quotas
+- Open API specifications
+- Regular changelog updates
+
+### 6. Safety and Responsibility
+
+**Powerful tools require responsible stewardship.** We build with safety, security, and ethical considerations from the ground up.
+
+**What this means:**
+
+- **Security first** - Enterprise-grade security and compliance
+- **Ethical AI** - Responsible use and deployment practices
+- **User privacy** - Protection of user data and information
+- **Access controls** - Granular permissions and governance
+
+**Security features:**
+
+- API key authentication
+- Encrypted data transmission
+- Rate limiting and abuse prevention
+- Enterprise compliance features
+
+## Design Decisions
+
+### Why REST APIs?
+
+REST APIs are universal, language-agnostic, and work with any toolchain. They're the foundation that makes our platform accessible to everyone.
+
+### Why Multiple Workflow Patterns?
+
+Different problems require different approaches. Sequential workflows for pipelines, concurrent for parallel processing, hierarchical for complex decision-making. We support them all.
+
+### Why Multi-Model Support?
+
+No single model is perfect for every task. By supporting OpenAI, Anthropic, and Groq, you can choose the right tool for each job.
+
+### Why Agent-to-Agent Communication?
+
+True multi-agent systems require agents to communicate, share information, and collaborate. This isn't just multiple agents—it's a coordinated team.
+
+### Why Developer Experience Focus?
+
+Developers are the builders of the agent economy. By making their experience exceptional, we accelerate the entire ecosystem.
+
+## Evolution and Learning
+
+Our design philosophy isn't static. As we learn from developers, observe how the platform is used, and see new patterns emerge, we evolve our approach.
+
+**We're always learning:**
+
+- From developer feedback and feature requests
+- From usage patterns and performance data
+- From the broader AI and agent ecosystem
+- From our own experiments and research
+
+**We adapt:**
+
+- Adding new workflow patterns as needs emerge
+- Improving APIs based on developer feedback
+- Optimizing performance based on real-world usage
+- Expanding capabilities as the ecosystem grows
+
+## Building Together
+
+Our design philosophy guides us, but the platform is shaped by everyone who uses it. Your feedback, your use cases, and your innovations inform how we build.
+
+**We want to hear from you:**
+
+- What works well and what doesn't
+- What features you need
+- What patterns you're discovering
+- What challenges you're facing
+
+**[Join Our Community →](https://discord.gg/EamjgSaEQf)**
+
+**[Share Feedback →](https://cal.com/swarms/swarms-technical-support)**
+
+**[View Our Roadmap →](https://docs.swarms.ai/documentation/changelog)**
+
+---
+
+*Built with intention. Designed for impact. [The Swarm Corporation](https://swarms.ai)*
+

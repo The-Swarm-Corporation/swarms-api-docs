@@ -83,6 +83,14 @@
               "docs/documentation/resources/referral",
               "docs/documentation/resources/contributors"
             ]
+          },
+          {
+            "group": "About Us",
+            "pages": [
+              "docs/documentation/about/mission",
+              "docs/documentation/about/design-philosophy",
+              "docs/documentation/about/hiring"
+            ]
           }
         ]
       },
