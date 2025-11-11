@@ -1,0 +1,76 @@
+---
+title: 'List Your Agents'
+description: '3-step quick start to list agents you created'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+## Step 1 — Get your API key
+
+Create an API key in your dashboard: `https://swarms.world/platform/api-keys`
+
+## Step 2 — Add it to .env
+
+```bash
+SWARMS_API_KEY=your-api-key-here
+```
+
+## Step 3 — Run the code
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    BASE_URL = "https://api.swarms.world"
+    headers = {
+        "x-api-key": os.getenv("SWARMS_API_KEY"),
+        "Content-Type": "application/json",
+    }
+
+    resp = requests.get(f"{BASE_URL}/v1/agents/list", headers=headers)
+    print(resp.status_code)
+    data = resp.json()
+    print(json.dumps(data, indent=2))
+    print(f"Number of agents: {data.get('count')}")
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    require('dotenv').config();
+
+    const BASE_URL = "https://api.swarms.world";
+    const API_KEY = process.env.SWARMS_API_KEY;
+
+    async function main() {
+      const res = await fetch(`${BASE_URL}/v1/agents/list`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log(res.status);
+      const data = await res.json();
+      console.log(JSON.stringify(data, null, 2));
+      console.log(`Number of agents: ${data.count}`);
+    }
+
+    main().catch(console.error);
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X GET "https://api.swarms.world/v1/agents/list" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json"
+    ```
+  </Tab>
+</Tabs>
+
+

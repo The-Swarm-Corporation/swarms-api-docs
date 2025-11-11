@@ -1,0 +1,80 @@
+---
+title: 'Marketplace Agents'
+description: '3-step quick start to list public marketplace agents'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+## Step 1 — Get your API key
+
+Create an API key in your dashboard: `https://swarms.world/platform/api-keys`
+
+## Step 2 — Add it to .env
+
+```bash
+SWARMS_API_KEY=your-api-key-here
+```
+
+## Step 3 — Run the code
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    from dotenv import load_dotenv
+    import requests
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    # BASE_URL = "https://api.swarms.world"
+    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+
+    headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+    resp = requests.get(
+        f"{BASE_URL}/v1/marketplace/agents",
+        headers=headers,
+        json={"number_of_items": 10},  # optional
+    )
+    print(resp.status_code)
+    print(json.dumps(resp.json(), indent=2))
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    require('dotenv').config();
+
+    const API_KEY = process.env.SWARMS_API_KEY;
+    // const BASE_URL = "https://api.swarms.world";
+    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+
+    async function main() {
+      const res = await fetch(`${BASE_URL}/v1/marketplace/agents`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ number_of_items: 10 }) // optional
+      });
+      console.log(res.status);
+      const data = await res.json();
+      console.log(JSON.stringify(data, null, 2));
+    }
+
+    main().catch(console.error);
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    # Basic request
+    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/marketplace/agents" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json"
+    ```
+  </Tab>
+</Tabs>
+
+

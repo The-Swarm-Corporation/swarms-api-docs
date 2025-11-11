@@ -1,0 +1,102 @@
+---
+title: 'List Your Agents'
+description: 'Retrieve all agents you have created via the API'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+Fetch a list of your previously created agent configurations.
+
+- Endpoint: `GET /v1/agents/list`
+- Auth: `x-api-key` header
+- Returns your agents and a `count` of total agents
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import json
+    import os
+    from typing import Any, Dict
+
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    # BASE_URL = "http://localhost:8080"
+    # BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+    BASE_URL = "https://api.swarms.world"
+
+    HEADERS = {
+        "x-api-key": os.getenv("SWARMS_API_KEY"),
+        "Content-Type": "application/json",
+    }
+
+    def list_agents() -> Dict[str, Any]:
+        """Retrieve all unique agent configurations"""
+        try:
+            response = requests.get(f"{BASE_URL}/v1/agents/list", headers=HEADERS)
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+            response_data = response.json()
+
+            print(json.dumps(response_data, indent=4))
+            count = response_data["count"]
+            print(f"Number of agents: {count}")
+            return response_data
+        except Exception as e:
+            print(str(e))
+            return {}
+
+    if __name__ == "__main__":
+        list_agents()
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    require('dotenv').config();
+
+    // const BASE_URL = "http://localhost:8080";
+    // const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+    const BASE_URL = "https://api.swarms.world";
+    const API_KEY = process.env.SWARMS_API_KEY;
+
+    async function listAgents() {
+      const resp = await fetch(`${BASE_URL}/v1/agents/list`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!resp.ok) {
+        console.error(`Error: ${resp.status} - ${await resp.text()}`);
+        return;
+      }
+      const data = await resp.json();
+      console.log(JSON.stringify(data, null, 2));
+      console.log(`Number of agents: ${data.count}`);
+    }
+
+    listAgents().catch(console.error);
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    #!/usr/bin/env bash
+
+    # const BASE_URL="http://localhost:8080"
+    # const BASE_URL="https://swarms-api-285321057562.us-east1.run.app"
+    BASE_URL="https://api.swarms.world"
+
+    curl -X GET "${BASE_URL}/v1/agents/list" \
+      -H "x-api-key: ${SWARMS_API_KEY}" \
+      -H "Content-Type: application/json"
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+Responses include a `count` of agents and an array of agent definitions you previously created.
+</Note>
+
+

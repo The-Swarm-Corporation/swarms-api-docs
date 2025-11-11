@@ -70,7 +70,9 @@
             "pages": [
               "docs/documentation/capabilities/swarms_api_tools",
               "docs/documentation/capabilities/mcp_integration",
-              "docs/documentation/capabilities/tools"
+              "docs/documentation/capabilities/tools",
+              "docs/documentation/capabilities/marketplace_agents",
+              "docs/documentation/capabilities/agents_list"
             ]
           },
           {
@@ -142,7 +144,9 @@
               "docs/examples/examples/models-available",
               "docs/examples/examples/available-tools",
               "docs/examples/examples/swarm-types",
-              "docs/examples/examples/reasoning-agent-types"
+              "docs/examples/examples/reasoning-agent-types",
+              "docs/examples/examples/marketplace-agents",
+              "docs/examples/examples/list-agents"
             ]
           },
           {
