@@ -116,7 +116,8 @@
             "pages": [
               "docs/examples/examples/client-setup",
               "docs/examples/examples/agent-overview",
-              "docs/examples/examples/batch-processing"
+              "docs/examples/examples/batch-processing",
+              "docs/examples/api_examples/client_example"
             ]
           },
           {
@@ -133,31 +134,20 @@
             "pages": [
               "docs/examples/examples/hospital-team",
               "docs/examples/examples/legal-team",
-              "docs/examples/examples/icd-analysis"
+              "docs/examples/examples/icd-analysis",
+              "docs/examples/api_examples/legal_team"
             ]
           },
           {
             "group": "API Utilities",
             "pages": [
-              "docs/examples/examples/rate-limits",
               "docs/examples/examples/swarm-logs",
               "docs/examples/examples/models-available",
               "docs/examples/examples/available-tools",
               "docs/examples/examples/swarm-types",
               "docs/examples/examples/reasoning-agent-types",
               "docs/examples/examples/marketplace-agents",
-              "docs/examples/examples/list-agents"
-            ]
-          },
-          {
-            "group": "Python Code Examples",
-            "pages": [
-              "docs/examples/api_examples/client_example",
-              "docs/examples/api_examples/agent_overview",
-              "docs/examples/api_examples/batch_example",
-              "docs/examples/api_examples/hospital_team",
-              "docs/examples/api_examples/legal_team",
-              "docs/examples/api_examples/icd_ten_analysis",
+              "docs/examples/examples/list-agents",
               "docs/examples/api_examples/rate_limits"
             ]
           },
