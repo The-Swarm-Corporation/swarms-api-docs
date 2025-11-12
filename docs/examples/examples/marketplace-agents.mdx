@@ -31,21 +31,25 @@ SWARMS_API_KEY=your-api-key-here
 
     BASE_URL = "https://api.swarms.world"
 
-    headers = {"x-api-key": API_KEY}
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
 
     # Get 10 agents (default)
-    resp = requests.get(
+    resp = requests.post(
         f"{BASE_URL}/v1/marketplace/agents",
-        headers=headers
+        headers=headers,
+        json={}
     )
     print(resp.status_code)
     print(json.dumps(resp.json(), indent=2))
 
-    # Get 25 agents using query parameter
-    resp = requests.get(
+    # Get 25 agents
+    resp = requests.post(
         f"{BASE_URL}/v1/marketplace/agents",
         headers=headers,
-        params={"number_of_items": 25}
+        json={"number_of_items": 25}
     )
     print(resp.status_code)
     print(json.dumps(resp.json(), indent=2))
@@ -61,21 +65,25 @@ SWARMS_API_KEY=your-api-key-here
     async function main() {
       // Get 10 agents (default)
       const res = await fetch(`${BASE_URL}/v1/marketplace/agents`, {
-        method: 'GET',
+        method: 'POST',
         headers: {
-          'x-api-key': API_KEY
-        }
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
       });
       console.log(res.status);
       const data = await res.json();
       console.log(JSON.stringify(data, null, 2));
 
-      // Get 30 agents using query parameter
-      const res2 = await fetch(`${BASE_URL}/v1/marketplace/agents?number_of_items=30`, {
-        method: 'GET',
+      // Get 30 agents
+      const res2 = await fetch(`${BASE_URL}/v1/marketplace/agents`, {
+        method: 'POST',
         headers: {
-          'x-api-key': API_KEY
-        }
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ number_of_items: 30 })
       });
       console.log(res2.status);
       const data2 = await res2.json();
@@ -88,12 +96,16 @@ SWARMS_API_KEY=your-api-key-here
   <Tab title="cURL">
     ```bash
     # Basic request (default 10 items)
-    curl -X GET "https://api.swarms.world/v1/marketplace/agents" \
-      -H "x-api-key: $SWARMS_API_KEY"
+    curl -X POST "https://api.swarms.world/v1/marketplace/agents" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{}'
 
-    # With custom limit via query parameter
-    curl -X GET "https://api.swarms.world/v1/marketplace/agents?number_of_items=25" \
-      -H "x-api-key: $SWARMS_API_KEY"
+    # Get 25 agents
+    curl -X POST "https://api.swarms.world/v1/marketplace/agents" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"number_of_items": 25}'
     ```
   </Tab>
 </Tabs>

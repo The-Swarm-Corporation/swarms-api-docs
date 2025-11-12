@@ -7,9 +7,9 @@ import { Tabs, Tab } from 'mintlify'
 
 Fetch a list of publicly available agents from the Swarms Marketplace.
 
-- Endpoint: `GET /v1/marketplace/agents`
+- Endpoint: `POST /v1/marketplace/agents`
 - Auth: `x-api-key` header
-- Query parameter: `number_of_items` (optional, default: 10, max: 100)
+- Request body: `{"number_of_items": <int>}` (optional, default: 10, max: 100)
 
 <Tabs>
   <Tab title="Python">
@@ -18,7 +18,7 @@ Fetch a list of publicly available agents from the Swarms Marketplace.
     import os
 
     from dotenv import load_dotenv
-    from requests import get
+    from requests import post
 
     load_dotenv()
 
@@ -26,23 +26,27 @@ Fetch a list of publicly available agents from the Swarms Marketplace.
 
     BASE_URL = "https://api.swarms.world"
 
-    headers = {"x-api-key": API_KEY}
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
 
     # Get 10 agents (default)
-    response = get(
+    response = post(
         f"{BASE_URL}/v1/marketplace/agents",
-        headers=headers
+        headers=headers,
+        json={}
     )
 
     print(f"Status Code: {response.status_code}")
     out = response.json()
     print(json.dumps(out, indent=4))
 
-    # Get 25 agents using query parameter
-    response = get(
+    # Get 25 agents
+    response = post(
         f"{BASE_URL}/v1/marketplace/agents",
         headers=headers,
-        params={"number_of_items": 25}
+        json={"number_of_items": 25}
     )
 
     print(f"Status Code: {response.status_code}")
@@ -60,21 +64,25 @@ Fetch a list of publicly available agents from the Swarms Marketplace.
     async function listMarketplaceAgents() {
       // Get 10 agents (default)
       const resp = await fetch(`${BASE_URL}/v1/marketplace/agents`, {
-        method: 'GET',
+        method: 'POST',
         headers: {
           'x-api-key': API_KEY,
-        }
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
       });
       console.log('Status:', resp.status);
       const data = await resp.json();
       console.log(JSON.stringify(data, null, 2));
 
-      // Get 30 agents using query parameter
-      const resp2 = await fetch(`${BASE_URL}/v1/marketplace/agents?number_of_items=30`, {
-        method: 'GET',
+      // Get 30 agents
+      const resp2 = await fetch(`${BASE_URL}/v1/marketplace/agents`, {
+        method: 'POST',
         headers: {
           'x-api-key': API_KEY,
-        }
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ number_of_items: 30 })
       });
       console.log('Status:', resp2.status);
       const data2 = await resp2.json();
@@ -87,22 +95,28 @@ Fetch a list of publicly available agents from the Swarms Marketplace.
   <Tab title="cURL">
     ```bash
     # Basic request (default 10 items)
-    curl -X GET "https://api.swarms.world/v1/marketplace/agents" \
-      -H "x-api-key: $SWARMS_API_KEY"
+    curl -X POST "https://api.swarms.world/v1/marketplace/agents" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{}'
 
-    # With custom limit via query parameter
-    curl -X GET "https://api.swarms.world/v1/marketplace/agents?number_of_items=25" \
-      -H "x-api-key: $SWARMS_API_KEY"
+    # Get 25 agents
+    curl -X POST "https://api.swarms.world/v1/marketplace/agents" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"number_of_items": 25}'
 
     # Get 100 agents (maximum)
-    curl -X GET "https://api.swarms.world/v1/marketplace/agents?number_of_items=100" \
-      -H "x-api-key: $SWARMS_API_KEY"
+    curl -X POST "https://api.swarms.world/v1/marketplace/agents" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"number_of_items": 100}'
     ```
   </Tab>
 </Tabs>
 
 <Info>
-The `number_of_items` parameter is passed as a query string parameter in the URL (e.g., `?number_of_items=25`), not in a request body. GET requests do not accept request bodies per HTTP standards.
+The `number_of_items` parameter is passed in the JSON request body. If omitted or an empty object is sent, the endpoint returns 10 items by default.
 </Info>
 
 
