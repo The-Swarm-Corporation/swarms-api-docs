@@ -1,0 +1,664 @@
+---
+name: "BatchedGridWorkflow"
+description: "Execute multiple tasks across multiple agents in a grid pattern, with each agent processing all tasks in parallel batches"
+---
+
+**Swarm Type**: `BatchedGridWorkflow`
+
+## Overview
+
+The BatchedGridWorkflow swarm type executes multiple tasks across multiple agents in a grid-like pattern, where each agent processes every task independently. This creates a comprehensive matrix of results, allowing you to compare how different agents approach the same set of tasks. The workflow supports iterative refinement through the `max_loops` parameter, enabling agents to improve their outputs over multiple iterations.
+
+Key features:
+- **Grid Execution Pattern**: Each agent processes every task, creating a complete task-agent matrix
+- **Parallel Batch Processing**: All agent-task combinations run in parallel for maximum efficiency
+- **Iterative Refinement**: Support for multiple loops to refine and improve outputs
+- **Comparative Analysis**: Easy comparison of different agent approaches to the same tasks
+- **Structured Output Mapping**: Results organized by agent name for each task
+
+## Use Cases
+
+- A/B testing different agent configurations on the same tasks
+- Multi-perspective analysis where each expert reviews all aspects
+- Quality assurance with multiple reviewers checking all items
+- Comparative research across different methodological approaches
+- Content generation with multiple styles or tones for the same topics
+
+## API Usage
+
+### Basic BatchedGridWorkflow Example
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/batched-grid-workflow/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Product Review Analysis Grid",
+    "description": "Multiple analysts reviewing multiple product categories",
+    "agent_completions": [
+      {
+        "agent_name": "Technical Analyst",
+        "description": "Focuses on technical specifications and performance",
+        "system_prompt": "You are a technical analyst. Evaluate products based on specifications, performance metrics, build quality, and technical innovation.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "User Experience Analyst",
+        "description": "Focuses on usability and user satisfaction",
+        "system_prompt": "You are a UX analyst. Evaluate products based on ease of use, user interface, customer satisfaction, and overall user experience.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.4
+      },
+      {
+        "agent_name": "Value Analyst",
+        "description": "Focuses on pricing and value proposition",
+        "system_prompt": "You are a value analyst. Evaluate products based on pricing, cost-effectiveness, ROI, and overall value for money.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      }
+    ],
+    "tasks": [
+      "Analyze the smartphone market segment and top products",
+      "Analyze the laptop market segment and top products",
+      "Analyze the tablet market segment and top products"
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+workflow_config = {
+    "name": "Product Review Analysis Grid",
+    "description": "Multiple analysts reviewing multiple product categories",
+    "agent_completions": [
+        {
+            "agent_name": "Technical Analyst",
+            "description": "Focuses on technical specifications and performance",
+            "system_prompt": "You are a technical analyst. Evaluate products based on specifications, performance metrics, build quality, and technical innovation.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "User Experience Analyst",
+            "description": "Focuses on usability and user satisfaction",
+            "system_prompt": "You are a UX analyst. Evaluate products based on ease of use, user interface, customer satisfaction, and overall user experience.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.4
+        },
+        {
+            "agent_name": "Value Analyst",
+            "description": "Focuses on pricing and value proposition",
+            "system_prompt": "You are a value analyst. Evaluate products based on pricing, cost-effectiveness, ROI, and overall value for money.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        }
+    ],
+    "tasks": [
+        "Analyze the smartphone market segment and top products",
+        "Analyze the laptop market segment and top products",
+        "Analyze the tablet market segment and top products"
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/batched-grid-workflow/completions",
+    headers=headers,
+    json=workflow_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print("BatchedGridWorkflow completed successfully!")
+    print(f"Job ID: {result['job_id']}")
+    print(f"Total cost: ${result['usage']['token_cost']}")
+    print(f"Output tokens: {result['usage']['output_tokens']}")
+
+    # Access results by task and agent
+    for task_idx, task_results in enumerate(result['outputs']):
+        print(f"\nTask {task_idx + 1} results:")
+        for agent_name, output in task_results.items():
+            print(f"  {agent_name}: {output[:100]}...")
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const workflowConfig = {
+    name: "Product Review Analysis Grid",
+    description: "Multiple analysts reviewing multiple product categories",
+    agent_completions: [
+        {
+            agent_name: "Technical Analyst",
+            description: "Focuses on technical specifications and performance",
+            system_prompt: "You are a technical analyst. Evaluate products based on specifications, performance metrics, build quality, and technical innovation.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        },
+        {
+            agent_name: "User Experience Analyst",
+            description: "Focuses on usability and user satisfaction",
+            system_prompt: "You are a UX analyst. Evaluate products based on ease of use, user interface, customer satisfaction, and overall user experience.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.4
+        },
+        {
+            agent_name: "Value Analyst",
+            description: "Focuses on pricing and value proposition",
+            system_prompt: "You are a value analyst. Evaluate products based on pricing, cost-effectiveness, ROI, and overall value for money.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        }
+    ],
+    tasks: [
+        "Analyze the smartphone market segment and top products",
+        "Analyze the laptop market segment and top products",
+        "Analyze the tablet market segment and top products"
+    ],
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/batched-grid-workflow/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(workflowConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("BatchedGridWorkflow completed successfully!");
+        console.log(`Job ID: ${result.job_id}`);
+        console.log(`Total cost: $${result.usage.token_cost}`);
+        console.log(`Output tokens: ${result.usage.output_tokens}`);
+
+        // Access results by task and agent
+        result.outputs.forEach((taskResults, taskIdx) => {
+            console.log(`\nTask ${taskIdx + 1} results:`);
+            for (const [agentName, output] of Object.entries(taskResults)) {
+                console.log(`  ${agentName}: ${output.substring(0, 100)}...`);
+            }
+        });
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type AgentSpec struct {
+    AgentName    string  `json:"agent_name"`
+    Description  string  `json:"description"`
+    SystemPrompt string  `json:"system_prompt"`
+    ModelName    string  `json:"model_name"`
+    MaxLoops     int     `json:"max_loops"`
+    Temperature  float64 `json:"temperature"`
+}
+
+type WorkflowConfig struct {
+    Name              string      `json:"name"`
+    Description       string      `json:"description"`
+    AgentCompletions  []AgentSpec `json:"agent_completions"`
+    Tasks             []string    `json:"tasks"`
+    MaxLoops          int         `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    workflowConfig := WorkflowConfig{
+        Name:        "Product Review Analysis Grid",
+        Description: "Multiple analysts reviewing multiple product categories",
+        AgentCompletions: []AgentSpec{
+            {
+                AgentName:    "Technical Analyst",
+                Description:  "Focuses on technical specifications and performance",
+                SystemPrompt: "You are a technical analyst. Evaluate products based on specifications, performance metrics, build quality, and technical innovation.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+            {
+                AgentName:    "User Experience Analyst",
+                Description:  "Focuses on usability and user satisfaction",
+                SystemPrompt: "You are a UX analyst. Evaluate products based on ease of use, user interface, customer satisfaction, and overall user experience.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.4,
+            },
+            {
+                AgentName:    "Value Analyst",
+                Description:  "Focuses on pricing and value proposition",
+                SystemPrompt: "You are a value analyst. Evaluate products based on pricing, cost-effectiveness, ROI, and overall value for money.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+        },
+        Tasks: []string{
+            "Analyze the smartphone market segment and top products",
+            "Analyze the laptop market segment and top products",
+            "Analyze the tablet market segment and top products",
+        },
+        MaxLoops: 1,
+    }
+
+    jsonData, _ := json.Marshal(workflowConfig)
+
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/batched-grid-workflow/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let workflow_config = json!({
+        "name": "Product Review Analysis Grid",
+        "description": "Multiple analysts reviewing multiple product categories",
+        "agent_completions": [
+            {
+                "agent_name": "Technical Analyst",
+                "description": "Focuses on technical specifications and performance",
+                "system_prompt": "You are a technical analyst. Evaluate products based on specifications, performance metrics, build quality, and technical innovation.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "User Experience Analyst",
+                "description": "Focuses on usability and user satisfaction",
+                "system_prompt": "You are a UX analyst. Evaluate products based on ease of use, user interface, customer satisfaction, and overall user experience.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.4
+            },
+            {
+                "agent_name": "Value Analyst",
+                "description": "Focuses on pricing and value proposition",
+                "system_prompt": "You are a value analyst. Evaluate products based on pricing, cost-effectiveness, ROI, and overall value for money.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            }
+        ],
+        "tasks": [
+            "Analyze the smartphone market segment and top products",
+            "Analyze the laptop market segment and top products",
+            "Analyze the tablet market segment and top products"
+        ],
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/batched-grid-workflow/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&workflow_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("BatchedGridWorkflow completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "batched-grid-workflow-XyZ123AbC456",
+    "name": "Product Review Analysis Grid",
+    "description": "Multiple analysts reviewing multiple product categories",
+    "status": "success",
+    "outputs": [
+        {
+            "Technical Analyst": "Smartphone Market Analysis: The current smartphone market is dominated by flagship devices with advanced processors (Snapdragon 8 Gen 3, Apple A17 Pro), high refresh rate displays (120Hz+), and improved camera systems with computational photography...",
+            "User Experience Analyst": "Smartphone Market Analysis: Modern smartphones excel in user experience with intuitive interfaces, gesture navigation, and seamless ecosystem integration. Top products like iPhone 15 Pro and Samsung Galaxy S24 Ultra offer polished UX with minimal learning curves...",
+            "Value Analyst": "Smartphone Market Analysis: The smartphone market offers varied value propositions. Flagship devices ($800-$1200) provide premium features but face strong competition from mid-range options ($400-$600) that deliver 80% of the performance at half the cost..."
+        },
+        {
+            "Technical Analyst": "Laptop Market Analysis: The laptop segment showcases impressive technical advancement with Apple's M3 chips, Intel's 14th Gen processors, and AMD's Ryzen 7000 series. Performance metrics show 40% improvements in multi-core workloads...",
+            "User Experience Analyst": "Laptop Market Analysis: User experience varies significantly by form factor and OS. MacBook Air/Pro lead in build quality and battery life, while Windows ultrabooks like Dell XPS offer flexibility. Gaming laptops trade portability for performance...",
+            "Value Analyst": "Laptop Market Analysis: Value positioning spans from budget Chromebooks ($300-$500) to premium workstations ($2000+). Best value currently found in mid-tier business laptops ($800-$1200) offering professional features without premium pricing..."
+        },
+        {
+            "Technical Analyst": "Tablet Market Analysis: Tablet technology centers on display quality (OLED, mini-LED), processor efficiency (M2, Snapdragon 8 Gen 2), and stylus integration. iPad Pro and Galaxy Tab S9 Ultra lead with desktop-class performance...",
+            "User Experience Analyst": "Tablet Market Analysis: Tablets excel for content consumption and creative work. iPad ecosystem offers superior app quality, while Android tablets provide better customization. Surface Pro bridges tablet-laptop gap with full desktop OS...",
+            "Value Analyst": "Tablet Market Analysis: Tablet value depends on use case. Budget tablets ($200-$400) suit basic needs, while premium options ($800-$1300) justify cost for professionals and creatives. Mid-tier options ($400-$600) offer best balance..."
+        }
+    ],
+    "usage": {
+        "input_tokens": 450,
+        "output_tokens": 4850,
+        "total_tokens": 5300,
+        "token_cost": 0.0803,
+        "cost_per_agent": 0.03
+    },
+    "timestamp": "2025-01-12T10:30:45.123456Z"
+}
+```
+
+## Advanced Example: Multi-Loop Refinement
+
+<Tabs>
+<Tab title="Python">
+```python
+import requests
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+# Example with multiple loops for iterative refinement
+workflow_config = {
+    "name": "Creative Writing Grid with Refinement",
+    "description": "Multiple writing styles with iterative improvement",
+    "agent_completions": [
+        {
+            "agent_name": "Technical Writer",
+            "description": "Clear, precise technical writing",
+            "system_prompt": "You are a technical writer. Write clearly and precisely, focusing on accuracy and comprehensibility. In subsequent loops, refine based on previous output.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.4
+        },
+        {
+            "agent_name": "Creative Writer",
+            "description": "Engaging, narrative-driven writing",
+            "system_prompt": "You are a creative writer. Write engagingly with vivid descriptions and narrative flow. In subsequent loops, enhance the storytelling elements.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.7
+        },
+        {
+            "agent_name": "Academic Writer",
+            "description": "Formal, research-oriented writing",
+            "system_prompt": "You are an academic writer. Write formally with citations, evidence-based arguments, and scholarly tone. In subsequent loops, strengthen the academic rigor.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        }
+    ],
+    "tasks": [
+        "Write about the impact of artificial intelligence on society",
+        "Write about climate change solutions"
+    ],
+    "max_loops": 3  # Run 3 iterations for refinement
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/batched-grid-workflow/completions",
+    headers=headers,
+    json=workflow_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(f"Workflow completed with {workflow_config['max_loops']} refinement loops")
+    print(f"Total tokens: {result['usage']['total_tokens']}")
+    print(f"Total cost: ${result['usage']['token_cost']:.4f}")
+
+    # Compare different writing styles for each topic
+    for task_idx, task_results in enumerate(result['outputs']):
+        print(f"\n{'='*60}")
+        print(f"Topic {task_idx + 1}")
+        print('='*60)
+        for agent_name, output in task_results.items():
+            print(f"\n{agent_name}:")
+            print(output[:200] + "...")
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+</Tabs>
+
+## Request Schema
+
+### BatchedGridWorkflowInput
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | The name of the batched grid workflow |
+| `description` | string | Yes | A description of what the workflow does |
+| `agent_completions` | array | Yes | List of agent configurations (see AgentSpec below) |
+| `tasks` | array | Yes | List of tasks that each agent will process |
+| `max_loops` | integer | No | Number of iterations for refinement (default: 1) |
+| `imgs` | array | No | List of image URLs for vision-enabled models |
+
+### AgentSpec
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agent_name` | string | Yes | Unique name for the agent |
+| `description` | string | No | Description of the agent's role |
+| `system_prompt` | string | Yes | System prompt defining agent behavior |
+| `model_name` | string | Yes | Model to use (e.g., "gpt-4o", "claude-3-5-sonnet-20241022") |
+| `max_loops` | integer | No | Max loops per agent (default: 1) |
+| `temperature` | float | No | Sampling temperature 0.0-1.0 (default: 0.5) |
+| `context_length` | integer | No | Maximum context window size |
+| `user_name` | string | No | User name for the agent |
+
+## Response Schema
+
+### BatchedGridWorkflowOutput
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `job_id` | string | Unique identifier for the workflow execution |
+| `name` | string | Name of the workflow |
+| `description` | string | Description of the workflow |
+| `status` | string | Execution status ("success" or "error") |
+| `outputs` | array | Array of task results, each containing agent outputs mapped by agent name |
+| `usage` | object | Token usage and cost information |
+| `timestamp` | string | ISO 8601 timestamp of completion |
+
+### Usage Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input_tokens` | integer | Total input tokens consumed |
+| `output_tokens` | integer | Total output tokens generated |
+| `total_tokens` | integer | Sum of input and output tokens |
+| `token_cost` | float | Cost in credits for token usage |
+| `cost_per_agent` | float | Fixed cost per agent (0.01 credits per agent) |
+
+## Pricing
+
+BatchedGridWorkflow pricing consists of two components:
+
+1. **Agent Cost**: $0.01 per agent
+2. **Token Cost**:
+   - Input tokens: $4.00 per 1M tokens
+   - Output tokens: $12.50 per 1M tokens
+
+<Note>
+**Implementation Note**: There is currently a bug in the API implementation where the `cost_per_agent` is calculated before agents are added to the list (line 136), resulting in zero agent costs being charged. This will be fixed in a future update. The pricing model described here reflects the intended behavior.
+</Note>
+
+**Example Calculation** (based on intended pricing):
+- 3 agents processing 3 tasks
+- 450 input tokens, 4850 output tokens
+- Agent cost: 3 × $0.01 = $0.03
+- Input cost: (450 / 1,000,000) × $4.00 = $0.0018
+- Output cost: (4850 / 1,000,000) × $12.50 = $0.0606
+- **Total**: $0.0924
+
+**Current Actual Cost** (due to bug):
+- Agent cost: $0.00 (bug: calculated before agents are populated)
+- Token costs: $0.0624
+- **Total**: $0.0624
+
+## Grid Execution Pattern
+
+The BatchedGridWorkflow creates a matrix where:
+- **Rows**: Represent tasks
+- **Columns**: Represent agents
+- **Cells**: Contain each agent's response to each task
+
+```
+                Agent 1         Agent 2         Agent 3
+Task 1      [Response 1.1]  [Response 1.2]  [Response 1.3]
+Task 2      [Response 2.1]  [Response 2.2]  [Response 2.3]
+Task 3      [Response 3.1]  [Response 3.2]  [Response 3.3]
+```
+
+The output structure groups results by task:
+```python
+outputs = [
+    {  # Task 1 results
+        "Agent 1": "Response 1.1",
+        "Agent 2": "Response 1.2",
+        "Agent 3": "Response 1.3"
+    },
+    {  # Task 2 results
+        "Agent 1": "Response 2.1",
+        "Agent 2": "Response 2.2",
+        "Agent 3": "Response 2.3"
+    }
+]
+```
+
+## Best Practices
+
+### When to Use BatchedGridWorkflow
+
+- **Comparative Analysis**: Need multiple perspectives on the same set of tasks
+- **A/B Testing**: Testing different agent configurations on identical inputs
+- **Multi-Expert Review**: Multiple specialists reviewing the same items
+- **Style Variations**: Generating content in different styles or tones
+- **Quality Assurance**: Multiple reviewers checking all aspects
+
+### When to Use Other Workflows
+
+- **Sequential dependencies**: Use [SequentialWorkflow](/docs/documentation/multi-agent/sequential_workflow)
+- **Independent parallel tasks**: Use [ConcurrentWorkflow](/docs/documentation/multi-agent/concurrent_workflow)
+- **Task routing**: Use [MultiAgentRouter](/docs/documentation/multi-agent/multi_agent_router)
+- **Consensus decisions**: Use [MajorityVoting](/docs/documentation/multi-agent/majority_voting)
+
+### Design Recommendations
+
+1. **Agent Diversity**: Design agents with distinct specializations for meaningful comparisons
+2. **Task Granularity**: Break complex topics into specific tasks for better analysis
+3. **Temperature Settings**: Use lower temperatures (0.3-0.5) for analytical tasks, higher (0.6-0.8) for creative tasks
+4. **Iterative Refinement**: Use `max_loops > 1` when quality improvement is worth the added cost
+5. **Result Processing**: Implement post-processing to compare and synthesize agent outputs
+
+### Cost Optimization
+
+- Start with fewer agents and tasks to test your workflow
+- Use appropriate models (GPT-4o for quality, GPT-3.5-turbo for cost)
+- Monitor token usage and adjust prompt verbosity
+- Cache common results when possible
+- Batch multiple related workflows in a single session
+
+## Error Handling
+
+The API returns standard HTTP status codes:
+
+- **200**: Success
+- **400**: Bad request (invalid configuration)
+- **401**: Unauthorized (invalid API key)
+- **402**: Payment required (insufficient credits)
+- **500**: Server error
+
+Example error response:
+```json
+{
+    "detail": "BatchedGridWorkflowCompletionError: Invalid agent configuration"
+}
+```
+
+## Limitations
+
+- Maximum recommended: 10 agents × 10 tasks (100 total executions per workflow)
+- Each agent-task combination counts toward rate limits
+- Large grids may experience longer processing times
+- Token limits apply per agent execution
+
+## Related Workflows
+
+- [SequentialWorkflow](/docs/documentation/multi-agent/sequential_workflow) - For step-by-step processing
+- [ConcurrentWorkflow](/docs/documentation/multi-agent/concurrent_workflow) - For parallel independent tasks
+- [MixtureOfAgents](/docs/documentation/multi-agent/mixture_of_agents) - For combining diverse specialists
+- [MajorityVoting](/docs/documentation/multi-agent/majority_voting) - For consensus-based decisions
