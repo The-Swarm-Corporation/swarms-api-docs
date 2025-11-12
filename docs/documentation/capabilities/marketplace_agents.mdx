@@ -7,9 +7,9 @@ import { Tabs, Tab } from 'mintlify'
 
 Fetch a list of publicly available agents from the Swarms Marketplace.
 
-- Endpoint: `GET /v1/marketplace/agents`
+- Endpoint: `POST /v1/marketplace/agents`
 - Auth: `x-api-key` header
-- Optional body: `{"number_of_items": <int>}` to limit results
+- Request body: `{"number_of_items": <int>}` (optional, default: 10, max: 100)
 
 <Tabs>
   <Tab title="Python">
@@ -18,7 +18,7 @@ Fetch a list of publicly available agents from the Swarms Marketplace.
     import os
 
     from dotenv import load_dotenv
-    from requests import get
+    from requests import post
 
     load_dotenv()
 
@@ -26,12 +26,27 @@ Fetch a list of publicly available agents from the Swarms Marketplace.
 
     BASE_URL = "https://api.swarms.world"
 
-    headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
 
-    response = get(
+    # Get 10 agents (default)
+    response = post(
         f"{BASE_URL}/v1/marketplace/agents",
         headers=headers,
-        json={"number_of_items": 10},  # optional
+        json={}
+    )
+
+    print(f"Status Code: {response.status_code}")
+    out = response.json()
+    print(json.dumps(out, indent=4))
+
+    # Get 25 agents
+    response = post(
+        f"{BASE_URL}/v1/marketplace/agents",
+        headers=headers,
+        json={"number_of_items": 25}
     )
 
     print(f"Status Code: {response.status_code}")
@@ -44,23 +59,34 @@ Fetch a list of publicly available agents from the Swarms Marketplace.
     require('dotenv').config();
 
     const API_KEY = process.env.SWARMS_API_KEY;
-    // const BASE_URL = "http://localhost:8080";
-    // const BASE_URL = "https://api.swarms.world";
-    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+    const BASE_URL = "https://api.swarms.world";
 
     async function listMarketplaceAgents() {
+      // Get 10 agents (default)
       const resp = await fetch(`${BASE_URL}/v1/marketplace/agents`, {
-        method: 'GET',
+        method: 'POST',
         headers: {
           'x-api-key': API_KEY,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        // Some servers accept a JSON body on GET; omit if unsupported
-        body: JSON.stringify({ number_of_items: 10 })
+        body: JSON.stringify({})
       });
       console.log('Status:', resp.status);
       const data = await resp.json();
       console.log(JSON.stringify(data, null, 2));
+
+      // Get 30 agents
+      const resp2 = await fetch(`${BASE_URL}/v1/marketplace/agents`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ number_of_items: 30 })
+      });
+      console.log('Status:', resp2.status);
+      const data2 = await resp2.json();
+      console.log(JSON.stringify(data2, null, 2));
     }
 
     listMarketplaceAgents().catch(console.error);
@@ -68,22 +94,29 @@ Fetch a list of publicly available agents from the Swarms Marketplace.
   </Tab>
   <Tab title="cURL">
     ```bash
-    # Basic request
-    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/marketplace/agents" \
-      -H "x-api-key: $SWARMS_API_KEY" \
-      -H "Content-Type: application/json"
-
-    # With optional limit (if server accepts body on GET)
-    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/marketplace/agents" \
+    # Basic request (default 10 items)
+    curl -X POST "https://api.swarms.world/v1/marketplace/agents" \
       -H "x-api-key: $SWARMS_API_KEY" \
       -H "Content-Type: application/json" \
-      -d '{"number_of_items": 10}'
+      -d '{}'
+
+    # Get 25 agents
+    curl -X POST "https://api.swarms.world/v1/marketplace/agents" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"number_of_items": 25}'
+
+    # Get 100 agents (maximum)
+    curl -X POST "https://api.swarms.world/v1/marketplace/agents" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"number_of_items": 100}'
     ```
   </Tab>
 </Tabs>
 
 <Info>
-If your HTTP client or proxy rejects a body on `GET`, omit the JSON body or pass `number_of_items` via query string if supported by your environment.
+The `number_of_items` parameter is passed in the JSON request body. If omitted or an empty object is sent, the endpoint returns 10 items by default.
 </Info>
 
 
