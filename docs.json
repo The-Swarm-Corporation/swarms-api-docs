@@ -81,6 +81,7 @@
             "pages": [
               "docs/documentation/resources/ratelimits",
               "docs/documentation/resources/pricing",
+              "docs/documentation/resources/global-availability",
               "docs/documentation/resources/community",
               "docs/documentation/resources/technical-support",
               "docs/documentation/resources/referral",
