@@ -62,6 +62,7 @@
               "docs/documentation/multi-agent/majority_voting",
               "docs/documentation/multi-agent/hierarchical_swarm",
               "docs/documentation/multi-agent/agent_rearrange",
+              "docs/documentation/multi-agent/batched_grid_workflow",
               "docs/documentation/multi-agent/advanced_research"
             ]
           },
