@@ -157,7 +157,8 @@
             "group": "Guides",
             "pages": [
               "docs/guides/guides/first",
-              "docs/guides/guides/x402_agents"
+              "docs/guides/guides/x402_agents",
+              "docs/guides/guides/agdp"
             ]
           }
         ]
