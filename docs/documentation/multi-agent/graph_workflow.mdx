@@ -1,0 +1,902 @@
+---
+name: "Graph Workflow Reference"
+description: "The Graph Workflow API enables you to create and execute complex multi-agent workflows using a directed graph structure. Agents serve as nodes in the graph, and edges define the flow of data and execution between agents. This allows for sophisticated parallel processing, sequential pipelines, and complex multi-layer workflows."
+---
+## Overview
+
+The Graph Workflow API enables you to create and execute complex multi-agent workflows using a directed graph structure. Agents serve as nodes in the graph, and edges define the flow of data and execution between agents. This allows for sophisticated parallel processing, sequential pipelines, and complex multi-layer workflows.
+
+**Endpoint:** `POST /v1/graph-workflow/completions`
+
+**Base URL:** `https://api.swarms.world` (production) or your custom deployment URL
+
+## Authentication
+
+All requests require an API key passed in the `x-api-key` header:
+
+```python
+headers = {
+    "x-api-key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+```
+
+## Input Parameters
+
+### GraphWorkflowInput Schema
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | `string` | No | `null` | Unique identifier for the workflow |
+| `description` | `string` | No | `null` | Detailed description of the workflow's purpose |
+| `agents` | `List[AgentSpec]` | Yes | - | List of agent specifications to use as nodes in the workflow graph |
+| `edges` | `List[EdgeSpec\|dict]` | No | `null` | List of edges connecting nodes. Can be EdgeSpec objects or dictionaries |
+| `entry_points` | `List[string]` | No | `null` | List of node IDs (agent names) that serve as starting points |
+| `end_points` | `List[string]` | No | `null` | List of node IDs (agent names) that serve as ending points |
+| `max_loops` | `integer` | No | `1` | Maximum number of execution loops for the workflow |
+| `task` | `string` | No | `null` | The task to be executed by the workflow |
+| `img` | `string` | No | `null` | Optional image path/URL for vision-enabled agents |
+| `auto_compile` | `boolean` | No | `true` | Whether to automatically compile the workflow for optimization |
+| `verbose` | `boolean` | No | `false` | Whether to enable detailed logging |
+
+### AgentSpec Schema
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `agent_name` | `string` | Yes | - | Unique name identifying the agent (used as node ID) |
+| `description` | `string` | No | `null` | Description of the agent's purpose and capabilities |
+| `system_prompt` | `string` | No | `null` | Initial instruction or context provided to the agent |
+| `model_name` | `string` | No | `"gpt-4.1"` | AI model to use (e.g., "gpt-4o", "gpt-4o-mini", "claude-sonnet-4-20250514") |
+| `max_tokens` | `integer` | No | `8192` | Maximum number of tokens the agent can generate |
+| `temperature` | `float` | No | `0.5` | Randomness control (0.0-1.0, lower = more deterministic) |
+| `role` | `string` | No | `"worker"` | Agent's role within the swarm |
+| `max_loops` | `integer` | No | `1` | Maximum number of times the agent can repeat its task |
+| `tools_list_dictionary` | `List[dict]` | No | `null` | List of tools the agent can use |
+| `mcp_url` | `string` | No | `null` | URL of MCP server for the agent |
+| `streaming_on` | `boolean` | No | `false` | Whether the agent should stream its output |
+| `llm_args` | `dict` | No | `null` | Additional LLM arguments (top_p, frequency_penalty, etc.) |
+| `dynamic_temperature_enabled` | `boolean` | No | `true` | Whether to dynamically adjust temperature |
+| `mcp_config` | `MCPConnection` | No | `null` | MCP connection configuration |
+| `mcp_configs` | `MultipleMCPConnections` | No | `null` | Multiple MCP connections configuration |
+| `tool_call_summary` | `boolean` | No | `true` | Whether to summarize tool calls |
+| `reasoning_effort` | `string` | No | `null` | Reasoning effort level |
+| `thinking_tokens` | `integer` | No | `null` | Number of tokens for thinking |
+| `reasoning_enabled` | `boolean` | No | `false` | Whether to enable reasoning capabilities |
+
+### EdgeSpec Schema
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `source` | `string` | Yes | - | Source node ID (agent name) |
+| `target` | `string` | Yes | - | Target node ID (agent name) |
+| `metadata` | `dict` | No | `null` | Optional metadata for the edge (custom key-value pairs) |
+
+**Edge Format Options:**
+- Dictionary: `{"source": "Agent1", "target": "Agent2", "metadata": {...}}`
+- Tuple: `("Agent1", "Agent2")` or `("Agent1", "Agent2", {"metadata": {...}})`
+- EdgeSpec object: Pydantic EdgeSpec instance
+
+## Output Parameters
+
+### GraphWorkflowOutput Schema
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `job_id` | `string` | Unique identifier for the workflow execution job |
+| `name` | `string` | Workflow name from input |
+| `description` | `string` | Workflow description from input |
+| `status` | `string` | Execution status ("success" if completed) |
+| `outputs` | `dict` | Results from all nodes in the workflow, keyed by agent name |
+| `usage` | `Usage` | Usage statistics including tokens and costs |
+| `timestamp` | `string` | ISO8601 UTC timestamp when job finished |
+
+### Usage Schema
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input_tokens` | `integer` | Total number of input tokens consumed |
+| `output_tokens` | `integer` | Total number of output tokens generated |
+| `total_tokens` | `integer` | Sum of input and output tokens |
+| `token_cost` | `float` | Total cost in credits for token usage |
+| `cost_per_agent` | `float` | Cost per agent (0.01 * number_of_agents) |
+
+## Cost Calculation
+
+Credits are deducted in two stages:
+
+1. **Agent Cost:** `0.01 * number_of_agents`
+2. **Token Cost:** 
+   - Output tokens: `(output_tokens / 1,000,000) * $12.50`
+   - Input tokens: `(input_tokens / 1,000,000) * $4.00`
+   - Total: `agent_cost + output_token_cost + input_token_cost`
+
+## Error Responses
+
+| Status Code | Description |
+|-------------|-------------|
+| `400` | Bad Request - Invalid workflow configuration |
+| `401` | Unauthorized - Invalid or missing API key |
+| `429` | Too Many Requests - Rate limit exceeded |
+| `500` | Internal Server Error - Workflow execution failed |
+
+## Examples
+
+### Example 1: Basic Sequential Workflow
+
+This example demonstrates a simple two-agent sequential workflow where one agent performs research and another analyzes the results.
+
+```python
+import httpx
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BASE_URL = os.getenv("SWARMS_BASE_URL", "https://api.swarms.world")
+API_KEY = os.getenv("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+# Define agents for the workflow
+agents = [
+    {
+        "agent_name": "ResearchAgent",
+        "description": "Conducts research on given topics",
+        "system_prompt": "You are an expert researcher. Conduct thorough research and provide comprehensive findings.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "AnalysisAgent",
+        "description": "Analyzes research findings and provides insights",
+        "system_prompt": "You are an expert analyst. Analyze the provided research and extract key insights.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+]
+
+# Define edges - sequential flow: ResearchAgent -> AnalysisAgent
+edges = [
+    {
+        "source": "ResearchAgent",
+        "target": "AnalysisAgent",
+    }
+]
+
+# Create the graph workflow request
+workflow_input = {
+    "name": "Research-Analysis-Workflow",
+    "description": "A simple sequential workflow for research and analysis",
+    "agents": agents,
+    "edges": edges,
+    "entry_points": ["ResearchAgent"],
+    "end_points": ["AnalysisAgent"],
+    "max_loops": 1,
+    "task": "What are the latest trends in AI development?",
+    "auto_compile": True,
+    "verbose": False,
+}
+
+# Make the request
+response = httpx.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=300.0,
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(f"Job ID: {result['job_id']}")
+    print(f"Status: {result['status']}")
+    print(f"\nResearchAgent Output: {result['outputs']['ResearchAgent']}")
+    print(f"AnalysisAgent Output: {result['outputs']['AnalysisAgent']}")
+    print(f"\nUsage:")
+    print(f"  Input tokens: {result['usage']['input_tokens']}")
+    print(f"  Output tokens: {result['usage']['output_tokens']}")
+    print(f"  Total tokens: {result['usage']['total_tokens']}")
+    print(f"  Token cost: ${result['usage']['token_cost']:.4f}")
+else:
+    print(f"Error: {response.status_code}")
+    print(response.text)
+```
+
+**Expected Output:**
+```json
+{
+  "job_id": "graph-workflow-abc123xyz",
+  "name": "Research-Analysis-Workflow",
+  "description": "A simple sequential workflow for research and analysis",
+  "status": "success",
+  "outputs": {
+    "ResearchAgent": "Research findings on AI trends...",
+    "AnalysisAgent": "Analysis of research findings..."
+  },
+  "usage": {
+    "input_tokens": 1250,
+    "output_tokens": 3200,
+    "total_tokens": 4450,
+    "token_cost": 0.0400,
+    "cost_per_agent": 0.02
+  },
+  "timestamp": "2024-01-15T10:30:45.123456+00:00"
+}
+```
+
+### Example 2: Parallel Workflow with Multiple Entry Points
+
+This example demonstrates a workflow with multiple parallel entry points that converge into a single analysis agent.
+
+```python
+import httpx
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BASE_URL = os.getenv("SWARMS_BASE_URL", "https://api.swarms.world")
+API_KEY = os.getenv("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+# Define agents
+agents = [
+    {
+        "agent_name": "MarketResearcher",
+        "description": "Researches market trends and opportunities",
+        "system_prompt": "You are a market research expert. Analyze market trends and identify opportunities.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "CompetitorAnalyst",
+        "description": "Analyzes competitor strategies and positioning",
+        "system_prompt": "You are a competitive intelligence expert. Analyze competitor strategies and market positioning.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "TechnologyScout",
+        "description": "Scouts emerging technologies and innovations",
+        "system_prompt": "You are a technology scouting expert. Identify emerging technologies and innovations.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "StrategicSynthesizer",
+        "description": "Synthesizes multiple research streams into strategic insights",
+        "system_prompt": "You are a strategic synthesis expert. Combine multiple research streams into actionable strategic insights.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 6000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+]
+
+# Define edges - all three researchers feed into the synthesizer
+edges = [
+    {"source": "MarketResearcher", "target": "StrategicSynthesizer"},
+    {"source": "CompetitorAnalyst", "target": "StrategicSynthesizer"},
+    {"source": "TechnologyScout", "target": "StrategicSynthesizer"},
+]
+
+# Create the workflow request
+workflow_input = {
+    "name": "Parallel-Research-Synthesis-Workflow",
+    "description": "Parallel research workflow with multiple entry points converging into synthesis",
+    "agents": agents,
+    "edges": edges,
+    "entry_points": ["MarketResearcher", "CompetitorAnalyst", "TechnologyScout"],
+    "end_points": ["StrategicSynthesizer"],
+    "max_loops": 1,
+    "task": "Conduct comprehensive strategic analysis of the AI-powered SaaS market, including market trends, competitor analysis, and emerging technologies",
+    "auto_compile": True,
+    "verbose": False,
+}
+
+# Make the request
+response = httpx.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=600.0,
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(f"Job ID: {result['job_id']}")
+    print(f"Status: {result['status']}")
+    print(f"\nOutputs:")
+    for agent_name in ["MarketResearcher", "CompetitorAnalyst", "TechnologyScout", "StrategicSynthesizer"]:
+        if agent_name in result['outputs']:
+            output_preview = str(result['outputs'][agent_name])[:200]
+            print(f"  {agent_name}: {output_preview}...")
+    print(f"\nUsage:")
+    print(f"  Input tokens: {result['usage']['input_tokens']}")
+    print(f"  Output tokens: {result['usage']['output_tokens']}")
+    print(f"  Total tokens: {result['usage']['total_tokens']}")
+    print(f"  Token cost: ${result['usage']['token_cost']:.4f}")
+    print(f"  Cost per agent: ${result['usage']['cost_per_agent']:.4f}")
+else:
+    print(f"Error: {response.status_code}")
+    print(response.text)
+```
+
+**Expected Output:**
+```json
+{
+  "job_id": "graph-workflow-def456uvw",
+  "name": "Parallel-Research-Synthesis-Workflow",
+  "description": "Parallel research workflow with multiple entry points converging into synthesis",
+  "status": "success",
+  "outputs": {
+    "MarketResearcher": "Market analysis findings...",
+    "CompetitorAnalyst": "Competitor analysis findings...",
+    "TechnologyScout": "Technology scouting findings...",
+    "StrategicSynthesizer": "Synthesized strategic insights combining all research streams..."
+  },
+  "usage": {
+    "input_tokens": 3800,
+    "output_tokens": 8500,
+    "total_tokens": 12300,
+    "token_cost": 0.1063,
+    "cost_per_agent": 0.04
+  },
+  "timestamp": "2024-01-15T10:35:20.456789+00:00"
+}
+```
+
+### Example 3: Complex Multi-Layer Workflow
+
+This example demonstrates a sophisticated three-layer workflow with data collection, analysis, validation, and synthesis stages.
+
+```python
+import httpx
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BASE_URL = os.getenv("SWARMS_BASE_URL", "https://api.swarms.world")
+API_KEY = os.getenv("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+# Define agents for different stages
+agents = [
+    # Layer 1: Data Collectors
+    {
+        "agent_name": "DataCollector1",
+        "description": "Collects data from source 1",
+        "system_prompt": "You are a data collector. Gather comprehensive data from your assigned source.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "DataCollector2",
+        "description": "Collects data from source 2",
+        "system_prompt": "You are a data collector. Gather comprehensive data from your assigned source.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "DataCollector3",
+        "description": "Collects data from source 3",
+        "system_prompt": "You are a data collector. Gather comprehensive data from your assigned source.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    # Layer 2: Analysts
+    {
+        "agent_name": "Analyst1",
+        "description": "Performs analysis on collected data",
+        "system_prompt": "You are an analyst. Analyze the provided data and extract key insights.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "Analyst2",
+        "description": "Performs analysis on collected data",
+        "system_prompt": "You are an analyst. Analyze the provided data and extract key insights.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "Analyst3",
+        "description": "Performs analysis on collected data",
+        "system_prompt": "You are an analyst. Analyze the provided data and extract key insights.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    # Layer 3: Validators
+    {
+        "agent_name": "Validator1",
+        "description": "Validates analysis results",
+        "system_prompt": "You are a validator. Review and validate the provided analysis for accuracy and completeness.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.2,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "Validator2",
+        "description": "Validates analysis results",
+        "system_prompt": "You are a validator. Review and validate the provided analysis for accuracy and completeness.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.2,
+        "max_loops": 1,
+    },
+    # Final Layer: Synthesis
+    {
+        "agent_name": "SynthesisAgent",
+        "description": "Synthesizes all validated results",
+        "system_prompt": "You are a synthesis expert. Combine all validated analyses into a comprehensive final report.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 6000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+]
+
+# Define edges creating a complex multi-layer structure
+# Layer 1 -> Layer 2: All collectors feed all analysts (parallel chain)
+# Layer 2 -> Layer 3: All analysts feed validators
+# Layer 3 -> Final: All validators feed synthesis agent
+edges = [
+    # Layer 1 -> Layer 2: Parallel chain pattern
+    {"source": "DataCollector1", "target": "Analyst1"},
+    {"source": "DataCollector1", "target": "Analyst2"},
+    {"source": "DataCollector1", "target": "Analyst3"},
+    {"source": "DataCollector2", "target": "Analyst1"},
+    {"source": "DataCollector2", "target": "Analyst2"},
+    {"source": "DataCollector2", "target": "Analyst3"},
+    {"source": "DataCollector3", "target": "Analyst1"},
+    {"source": "DataCollector3", "target": "Analyst2"},
+    {"source": "DataCollector3", "target": "Analyst3"},
+    # Layer 2 -> Layer 3: Analysts feed validators
+    {"source": "Analyst1", "target": "Validator1"},
+    {"source": "Analyst2", "target": "Validator1"},
+    {"source": "Analyst3", "target": "Validator1"},
+    {"source": "Analyst1", "target": "Validator2"},
+    {"source": "Analyst2", "target": "Validator2"},
+    {"source": "Analyst3", "target": "Validator2"},
+    # Layer 3 -> Final: Validators feed synthesis
+    {"source": "Validator1", "target": "SynthesisAgent"},
+    {"source": "Validator2", "target": "SynthesisAgent"},
+]
+
+# Create the graph workflow request
+workflow_input = {
+    "name": "Complex-Multi-Layer-Workflow",
+    "description": "Complex multi-layer workflow with data collection, analysis, validation, and synthesis",
+    "agents": agents,
+    "edges": edges,
+    "entry_points": ["DataCollector1", "DataCollector2", "DataCollector3"],
+    "end_points": ["SynthesisAgent"],
+    "max_loops": 1,
+    "task": "Conduct comprehensive research on renewable energy markets including data collection, multi-perspective analysis, validation, and final synthesis",
+    "auto_compile": True,
+    "verbose": True,
+}
+
+# Make the request
+response = httpx.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=900.0,  # 15 minute timeout for complex workflows
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(f"Job ID: {result['job_id']}")
+    print(f"Status: {result['status']}")
+    print(f"\nFinal synthesis output:")
+    outputs = result.get("outputs", {})
+    if "SynthesisAgent" in outputs:
+        print(f"  {outputs['SynthesisAgent']}")
+    print(f"\nUsage:")
+    usage = result.get("usage", {})
+    print(f"  Input tokens: {usage.get('input_tokens', 0)}")
+    print(f"  Output tokens: {usage.get('output_tokens', 0)}")
+    print(f"  Total tokens: {usage.get('total_tokens', 0)}")
+    print(f"  Token cost: ${usage.get('token_cost', 0):.4f}")
+    print(f"  Cost per agent: ${usage.get('cost_per_agent', 0):.4f}")
+else:
+    print(f"Error: {response.status_code}")
+    print(response.text)
+```
+
+**Expected Output:**
+```json
+{
+  "job_id": "graph-workflow-ghi789rst",
+  "name": "Complex-Multi-Layer-Workflow",
+  "description": "Complex multi-layer workflow with data collection, analysis, validation, and synthesis",
+  "status": "success",
+  "outputs": {
+    "DataCollector1": "Data collection results from source 1...",
+    "DataCollector2": "Data collection results from source 2...",
+    "DataCollector3": "Data collection results from source 3...",
+    "Analyst1": "Analysis results from analyst 1...",
+    "Analyst2": "Analysis results from analyst 2...",
+    "Analyst3": "Analysis results from analyst 3...",
+    "Validator1": "Validation results from validator 1...",
+    "Validator2": "Validation results from validator 2...",
+    "SynthesisAgent": "Comprehensive synthesis combining all validated analyses..."
+  },
+  "usage": {
+    "input_tokens": 12000,
+    "output_tokens": 25000,
+    "total_tokens": 37000,
+    "token_cost": 0.3125,
+    "cost_per_agent": 0.09
+  },
+  "timestamp": "2024-01-15T10:40:15.789012+00:00"
+}
+```
+
+### Example 4: Workflow with Edge Metadata
+
+This example demonstrates how to use custom metadata on edges to provide additional context and configuration.
+
+```python
+import httpx
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BASE_URL = os.getenv("SWARMS_BASE_URL", "https://api.swarms.world")
+API_KEY = os.getenv("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+# Define agents with specific roles
+agents = [
+    {
+        "agent_name": "ResearchAgent",
+        "description": "Conducts research on given topics",
+        "system_prompt": "You are an expert researcher. Conduct thorough research and provide comprehensive findings.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "AnalysisAgent",
+        "description": "Analyzes research findings and provides insights",
+        "system_prompt": "You are an expert analyst. Analyze the provided research and extract key insights.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "ReportGenerator",
+        "description": "Generates final reports",
+        "system_prompt": "You are a report generation expert. Create comprehensive, well-structured reports.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+]
+
+# Define edges with custom metadata
+edges = [
+    {
+        "source": "ResearchAgent",
+        "target": "AnalysisAgent",
+        "metadata": {
+            "data_type": "research_findings",
+            "priority": "high",
+            "timeout": 300,
+            "retry_on_failure": True,
+        },
+    },
+    {
+        "source": "AnalysisAgent",
+        "target": "ReportGenerator",
+        "metadata": {
+            "data_type": "analysis_results",
+            "priority": "high",
+            "format": "structured",
+        },
+    },
+]
+
+# Create the graph workflow request
+workflow_input = {
+    "name": "Metadata-Workflow",
+    "description": "Workflow demonstrating metadata usage on edges",
+    "agents": agents,
+    "edges": edges,
+    "entry_points": ["ResearchAgent"],
+    "end_points": ["ReportGenerator"],
+    "max_loops": 1,
+    "task": "Research and analyze the impact of climate change on agriculture, then generate a comprehensive report",
+    "auto_compile": True,
+    "verbose": False,
+}
+
+# Make the request
+response = httpx.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=300.0,
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(f"Job ID: {result['job_id']}")
+    print(f"Status: {result['status']}")
+    print(f"\nOutputs:")
+    outputs = result.get("outputs", {})
+    for agent_name in ["ResearchAgent", "AnalysisAgent", "ReportGenerator"]:
+        if agent_name in outputs:
+            output_preview = str(outputs[agent_name])[:150]
+            print(f"  {agent_name}: {output_preview}...")
+    print(f"\nUsage:")
+    usage = result.get("usage", {})
+    print(f"  Input tokens: {usage.get('input_tokens', 0)}")
+    print(f"  Output tokens: {usage.get('output_tokens', 0)}")
+    print(f"  Total tokens: {usage.get('total_tokens', 0)}")
+    print(f"  Token cost: ${usage.get('token_cost', 0):.4f}")
+    print(f"  Cost per agent: ${usage.get('cost_per_agent', 0):.4f}")
+else:
+    print(f"Error: {response.status_code}")
+    print(response.text)
+```
+
+**Expected Output:**
+```json
+{
+  "job_id": "graph-workflow-jkl012mno",
+  "name": "Metadata-Workflow",
+  "description": "Workflow demonstrating metadata usage on edges",
+  "status": "success",
+  "outputs": {
+    "ResearchAgent": "Research findings on climate change impact on agriculture...",
+    "AnalysisAgent": "Analysis of research findings with key insights...",
+    "ReportGenerator": "Comprehensive report on climate change and agriculture..."
+  },
+  "usage": {
+    "input_tokens": 2100,
+    "output_tokens": 4800,
+    "total_tokens": 6900,
+    "token_cost": 0.0600,
+    "cost_per_agent": 0.03
+  },
+  "timestamp": "2024-01-15T10:45:30.345678+00:00"
+}
+```
+
+### Example 5: Async Workflow with Vision Support
+
+This example demonstrates an asynchronous workflow request with image input for vision-enabled agents.
+
+```python
+import httpx
+import asyncio
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BASE_URL = os.getenv("SWARMS_BASE_URL", "https://api.swarms.world")
+API_KEY = os.getenv("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+
+async def run_vision_workflow():
+    """Example of using Graph Workflow with vision/image support"""
+    
+    # Define agents with vision capabilities
+    agents = [
+        {
+            "agent_name": "ImageAnalyzer",
+            "description": "Analyzes images and extracts visual information",
+            "system_prompt": "You are an expert image analyst. Analyze images and extract detailed visual information.",
+            "model_name": "gpt-4o",  # Vision-capable model
+            "max_tokens": 4000,
+            "temperature": 0.3,
+            "max_loops": 1,
+        },
+        {
+            "agent_name": "ContentGenerator",
+            "description": "Generates content based on image analysis",
+            "system_prompt": "You are a content generation expert. Create engaging content based on image analysis.",
+            "model_name": "gpt-4.1",
+            "max_tokens": 4000,
+            "temperature": 0.5,
+            "max_loops": 1,
+        },
+        {
+            "agent_name": "QualityReviewer",
+            "description": "Reviews and validates generated content",
+            "system_prompt": "You are a quality reviewer. Review content for accuracy, clarity, and engagement.",
+            "model_name": "gpt-4.1",
+            "max_tokens": 3000,
+            "temperature": 0.2,
+            "max_loops": 1,
+        },
+    ]
+    
+    # Define edges
+    edges = [
+        {"source": "ImageAnalyzer", "target": "ContentGenerator"},
+        {"source": "ContentGenerator", "target": "QualityReviewer"},
+    ]
+    
+    # Create the workflow request with image
+    workflow_input = {
+        "name": "Vision-Content-Workflow",
+        "description": "Workflow for analyzing images and generating content",
+        "agents": agents,
+        "edges": edges,
+        "entry_points": ["ImageAnalyzer"],
+        "end_points": ["QualityReviewer"],
+        "max_loops": 1,
+        "task": "Analyze this image and generate engaging social media content about it",
+        "img": "https://example.com/image.jpg",  # Image URL or path
+        "auto_compile": True,
+        "verbose": False,
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=600.0) as client:
+            response = await client.post(
+                f"{BASE_URL}/v1/graph-workflow/completions",
+                headers=headers,
+                json=workflow_input,
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"Job ID: {result['job_id']}")
+                print(f"Status: {result['status']}")
+                print(f"\nOutputs:")
+                outputs = result.get("outputs", {})
+                for agent_name in ["ImageAnalyzer", "ContentGenerator", "QualityReviewer"]:
+                    if agent_name in outputs:
+                        output_preview = str(outputs[agent_name])[:200]
+                        print(f"  {agent_name}: {output_preview}...")
+                print(f"\nUsage:")
+                usage = result.get("usage", {})
+                print(f"  Input tokens: {usage.get('input_tokens', 0)}")
+                print(f"  Output tokens: {usage.get('output_tokens', 0)}")
+                print(f"  Total tokens: {usage.get('total_tokens', 0)}")
+                print(f"  Token cost: ${usage.get('token_cost', 0):.4f}")
+                print(f"  Cost per agent: ${usage.get('cost_per_agent', 0):.4f}")
+                return result
+            else:
+                print(f"Error: {response.status_code}")
+                print(response.text)
+                return {"error": response.status_code, "response": response.text}
+                
+    except httpx.TimeoutException:
+        print("Request timed out. Vision workflows can take several minutes.")
+        return {"error": "Request timed out"}
+    except httpx.RequestError as e:
+        print(f"Network error: {e}")
+        return {"error": f"Network error: {e}"}
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return {"error": f"Unexpected error: {e}"}
+
+
+if __name__ == "__main__":
+    asyncio.run(run_vision_workflow())
+```
+
+**Expected Output:**
+```json
+{
+  "job_id": "graph-workflow-pqr345stu",
+  "name": "Vision-Content-Workflow",
+  "description": "Workflow for analyzing images and generating content",
+  "status": "success",
+  "outputs": {
+    "ImageAnalyzer": "Detailed analysis of the image including visual elements, composition, and key features...",
+    "ContentGenerator": "Engaging social media content based on the image analysis...",
+    "QualityReviewer": "Quality review confirming content accuracy and engagement..."
+  },
+  "usage": {
+    "input_tokens": 3500,
+    "output_tokens": 4200,
+    "total_tokens": 7700,
+    "token_cost": 0.0525,
+    "cost_per_agent": 0.03
+  },
+  "timestamp": "2024-01-15T10:50:45.567890+00:00"
+}
+```
+
+## Best Practices
+
+1. **Agent Naming:** Use descriptive, unique names for agents as they serve as node identifiers in the graph.
+
+2. **Entry and End Points:** Always specify `entry_points` and `end_points` to ensure predictable workflow execution.
+
+3. **Edge Definitions:** Ensure all edges reference valid agent names. The source and target must match `agent_name` values.
+
+4. **Timeout Configuration:** Set appropriate timeouts based on workflow complexity:
+   - Simple workflows: 300 seconds (5 minutes)
+   - Medium workflows: 600 seconds (10 minutes)
+   - Complex workflows: 900+ seconds (15+ minutes)
+
+5. **Error Handling:** Always check response status codes and handle errors appropriately. Use try-except blocks for network errors.
+
+6. **Token Management:** Monitor token usage through the `usage` field in responses to optimize costs and stay within limits.
+
+7. **Model Selection:** Choose appropriate models based on task requirements:
+   - For vision tasks: Use vision-capable models like `gpt-4o`
+   - For complex reasoning: Use models like `claude-sonnet-4-20250514`
+   - For cost efficiency: Use `gpt-4o-mini` for simpler tasks
+
+8. **Workflow Compilation:** Keep `auto_compile` enabled (default) for optimal performance, unless you need to debug workflow structure.
+
+9. **Parallel Execution:** Design workflows with multiple entry points to leverage parallel execution capabilities.
+
+10. **Metadata Usage:** Use edge metadata to provide additional context or configuration that can be used by custom workflow logic.
+
+## Rate Limits
+
+Rate limits are enforced per API key and subscription tier:
+
+- **Free Tier:** 100 requests per minute, 50 requests per hour, 1,200 requests per day
+- **Premium Tier:** 2,000 requests per minute, 10,000 requests per hour, 100,000 requests per day
+
+Rate limit information is returned in response headers:
+- `X-RateLimit-Limit`: Maximum requests allowed
+- `X-RateLimit-Remaining`: Remaining requests in current window
+- `X-RateLimit-Reset`: Timestamp when limit resets
+
+## Support
+
+For additional support, examples, and updates:
+- Check the main documentation: [Swarms API Documentation](https://docs.swarms.world)
+- Review example code in the `examples/multi_agent/graph_workflow/` directory
+- Contact support through your Swarms dashboard
+
