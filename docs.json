@@ -82,6 +82,7 @@
             "pages": [
               "docs/documentation/resources/ratelimits",
               "docs/documentation/resources/pricing",
+              "docs/documentation/resources/premium-endpoints",
               "docs/documentation/resources/global-availability",
               "docs/documentation/resources/community",
               "docs/documentation/resources/technical-support",
