@@ -15,10 +15,34 @@ Access to these endpoints is restricted to Pro and Ultra plans. To upgrade, see 
 | `/v1/auto-swarm-builder/completions` | POST | Generate and orchestrate agent swarms autonomously using AI-powered swarm composition and task decomposition. |
 | `/v1/advanced-research/completions` | POST | Execute comprehensive research sessions with multi-source data collection, analysis, and synthesis capabilities. |
 | `/v1/advanced-research/batch/completions` | POST | Execute multiple advanced research sessions concurrently with independent configurations for high-throughput research workflows. |
+| `/v1/agent/batch/completions` | POST | Process multiple agent tasks in parallel batches with high-throughput batch processing capabilities. Ideal for large-scale document analysis, data processing, and enterprise-scale operations. |
+| `/v1/swarm/batch/completions` | POST | Execute batch swarm completions with concurrent multi-agent execution for complex collaborative workflows at scale. |
+| `/v1/reasoning-agent/completions` | POST | Execute advanced reasoning agent tasks using specialized reasoning architectures like self-consistency, majority voting, and iterative refinement for improved answer quality and reliability. |
+| `/v1/batched-grid-workflow/completions` | POST | Execute multiple tasks across multiple agents in a grid pattern with parallel batch processing. Creates comprehensive task-agent matrices for comparative analysis and multi-perspective evaluation. |
+
+### Why These Endpoints Require Premium Access
+
+These endpoints are resource-intensive operations that provide:
+- **High-throughput batch processing** - Process hundreds of tasks concurrently
+- **Concurrent multi-agent execution** - Run multiple specialized agents simultaneously
+- **Advanced reasoning capabilities** - Utilize sophisticated reasoning architectures for complex problem-solving
+- **Enterprise-scale workflow orchestration** - Coordinate large-scale, multi-step agent workflows
+
+Premium tier restrictions ensure sustainable infrastructure costs while maintaining quality service for enterprise customers.
+
+### Error Response for Free Tier Users
+
+Free tier users attempting to access these endpoints will receive a **403 Forbidden** error with upgrade instructions:
+
+```json
+{
+  "detail": "This endpoint is limited to premium subscribers. Your current account is on the free tier and does not include access to this feature. To unlock this endpoint and other premium features, please consider upgrading your account at https://swarms.world/platform/account. Premium subscriptions provide access to high-throughput batch processing, concurrent execution, and enterprise-scale workflow capabilities."
+}
+```
 
 ### Notes
 - These endpoints may have different rate limits aligned with premium tiers.
-- Ensure your API key is associated with a Pro or Ultra subscription.
+- Ensure your API key is associated with a Pro, Ultra, or Premium subscription.
 - For endpoint schemas and examples, see related documentation pages.
 
 
