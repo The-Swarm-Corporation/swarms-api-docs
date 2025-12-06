@@ -5,6 +5,10 @@ description: "Execute multiple tasks across multiple agents in a grid pattern, w
 
 **Swarm Type**: `BatchedGridWorkflow`
 
+<Warning>
+**Premium Tier Required**: The `/v1/batched-grid-workflow/completions` endpoint is restricted to Pro, Ultra, and Premium plan subscribers. Free tier users will receive a 403 error. [Upgrade your account](https://swarms.world/platform/account) to access batched grid workflow capabilities.
+</Warning>
+
 ## Overview
 
 The BatchedGridWorkflow swarm type executes multiple tasks across multiple agents in a grid-like pattern, where each agent processes every task independently. This creates a comprehensive matrix of results, allowing you to compare how different agents approach the same set of tasks. The workflow supports iterative refinement through the `max_loops` parameter, enabling agents to improve their outputs over multiple iterations.

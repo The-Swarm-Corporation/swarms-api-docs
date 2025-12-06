@@ -74,11 +74,15 @@ These limits control the amount of text processing allowed per request.
 
 These limits control concurrent processing capabilities.
 
+<Note>
+**Premium Access Required**: Batch endpoints (`/v1/agent/batch/completions`, `/v1/swarm/batch/completions`) are available only on Pro, Ultra, and Premium plans. See [Premium Endpoints](/docs/documentation/resources/premium-endpoints).
+</Note>
+
 #### **Batch Size Limit**
 
-- **All Tiers**: 10 agents maximum per batch
+- **Premium Tiers**: 10 agents maximum per batch
 
-- **Applies to**: `/v1/agent/batch/completions` endpoint
+- **Applies to**: `/v1/agent/batch/completions` and `/v1/swarm/batch/completions` endpoints
 
 - **Error**: Returns 400 error if exceeded
 
