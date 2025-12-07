@@ -102,12 +102,22 @@
       },
       {
         "tab": "Marketplace API",
-        "pages": [
-          "docs/marketplace/agents-vs-prompts",
-          "docs/marketplace/agents-api",
-          "docs/marketplace/prompts-api",
-          "docs/marketplace/tokenization",
-          "docs/marketplace/examples"
+        "groups": [
+          {
+            "group": "Platform",
+            "pages": [
+              "docs/marketplace/agents-vs-prompts",
+              "docs/marketplace/examples"
+            ]
+          },
+          {
+            "group": "API",
+            "pages": [
+              "docs/marketplace/agents-api",
+              "docs/marketplace/prompts-api",
+              "docs/marketplace/tokenization"
+            ]
+          }
         ]
       },
       {
