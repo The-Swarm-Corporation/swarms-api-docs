@@ -1,0 +1,185 @@
+---
+title: "Agents vs Prompts"
+description: "Understanding the differences between Agents and Prompts in the Swarms Marketplace"
+---
+
+The Swarms Marketplace offers two primary product types: **Agents** and **Prompts**. While both are designed to enhance AI capabilities, they serve different purposes and have distinct features.
+
+---
+
+## Quick Comparison
+
+| Feature | Agents | Prompts |
+|---------|--------|---------|
+| **Code** | ✅ Contains executable code | ❌ No code |
+| **Requirements** | ✅ Package dependencies | ❌ None |
+| **Environment Variables** | ✅ Configurable | ❌ None |
+| **Export to ChatGPT** | ❌ Not available | ✅ Available |
+| **Export to Claude** | ❌ Not available | ✅ Available |
+| **View Modes** | Overview, JSON Metadata | Chat, Preview, Markdown, Text, Framework, API |
+| **Downloadable Files** | ✅ Code files | ❌ Text only |
+
+---
+
+## Agents
+
+Agents are **autonomous AI entities with executable code**. They contain implementation logic that can be run, configured, and integrated into your applications.
+
+### Key Features
+
+<CardGroup cols={2}>
+  <Card title="Executable Code" icon="code">
+    Agents include actual code (Python, JavaScript, etc.) that implements the agent's logic and behaviors.
+  </Card>
+  <Card title="Package Requirements" icon="box">
+    Agents specify their dependencies, showing which packages need to be installed (e.g., `pip install swarms`).
+  </Card>
+  <Card title="Environment Variables" icon="key">
+    Agents can require environment variables for API keys and configuration.
+  </Card>
+  <Card title="Downloadable Files" icon="download">
+    Download the agent's code files directly from the marketplace.
+  </Card>
+</CardGroup>
+
+### Agent Page Sections
+
+When viewing an agent in the marketplace, you'll see:
+
+- **Overview** - Description, use cases, and general information
+- **JSON Metadata** - Structured data about the agent
+- **Requirements** - List of packages and installation commands
+- **Environment Variables** - Required configuration variables
+- **Agent Code** - The full implementation code with syntax highlighting
+
+### Best For
+
+- Complex automation tasks
+- Multi-step workflows
+- Integration with external APIs and tools
+- Custom logic and behaviors
+- Reusable code components
+
+---
+
+## Prompts
+
+Prompts are **system prompt templates without any code**. They define how an AI should behave, respond, and process information through natural language instructions.
+
+### Key Features
+
+<CardGroup cols={2}>
+  <Card title="No Code Required" icon="file-lines">
+    Prompts are pure text instructions—no programming knowledge needed to use them.
+  </Card>
+  <Card title="Export to ChatGPT" icon="arrow-up-right-from-square">
+    One-click export to use the prompt directly in ChatGPT.
+  </Card>
+  <Card title="Export to Claude" icon="arrow-up-right-from-square">
+    One-click export to use the prompt directly in Claude.
+  </Card>
+  <Card title="Multiple View Modes" icon="eye">
+    View prompts in different formats: Chat, Preview, Markdown, Text, Framework, or API.
+  </Card>
+</CardGroup>
+
+### Prompt Page Sections
+
+When viewing a prompt in the marketplace, you'll see:
+
+- **Main Prompt** - The full prompt text with multiple view options:
+  - **Chat** - Interactive chat preview
+  - **Preview** - Formatted preview
+  - **Markdown** - Raw markdown format
+  - **Text** - Plain text format
+  - **Framework** - Format for Swarms Framework integration
+  - **API** - Format for API integration
+
+### Export to AI Platforms
+
+Prompts include an **"Export to AI"** feature that allows you to:
+
+- Export directly to **ChatGPT** for immediate use
+- Export directly to **Claude** for immediate use
+
+This makes it easy to try prompts across different AI platforms without manual copying.
+
+### Best For
+
+- System prompts for AI assistants
+- Persona definitions
+- Task-specific instructions
+- Role-playing scenarios
+- Structured output templates
+
+---
+
+## When to Use Each
+
+### Choose Agents When:
+
+- You need custom logic and automation
+- Your solution requires specific packages or dependencies
+- You want to run code locally or in your infrastructure
+- You're building complex multi-agent workflows
+- You need integration with external APIs or databases
+
+### Choose Prompts When:
+
+- You want to define AI behavior without coding
+- You need portable instructions that work across platforms
+- You want to quickly test prompts in ChatGPT or Claude
+- You're creating persona or role definitions
+- You want to share prompt engineering techniques
+
+---
+
+## Availability Across Platforms
+
+### Agents
+
+Agents are available through:
+- **Swarms Python Framework** - Import and run directly
+- **Swarms API** - Access via REST API
+
+### Prompts
+
+Prompts are available through:
+- **Swarms Python Framework** - Use as system prompts
+- **Swarms API** - Query and retrieve via REST API
+- **Swarms Chat** - Use directly in the chat interface
+- **ChatGPT** - Export and use
+- **Claude** - Export and use
+
+---
+
+## Examples
+
+### Agent Example
+
+An agent like "ETF Analysis BatchedGridWorkflow" includes:
+- Python code for risk analysis and quantitative evaluation
+- Requirements: `swarms`, `httpx`
+- Environment variables: `SWARMS_API_KEY`
+- Downloadable `main.py` file
+
+### Prompt Example
+
+A prompt like "Medical Researcher System Prompt" includes:
+- Detailed instructions for clinical research analysis
+- Multiple view formats (Chat, Markdown, Text, etc.)
+- Export options to ChatGPT and Claude
+- No code or dependencies
+
+---
+
+## Summary
+
+<Info>
+**Agents** = Code + Logic + Dependencies → For developers building automated solutions
+
+**Prompts** = Instructions + Templates → For anyone defining AI behavior without code
+</Info>
+
+Both product types can be tokenized on the marketplace and are subject to the same quality validation process. Choose the type that best fits your needs and technical requirements.
+

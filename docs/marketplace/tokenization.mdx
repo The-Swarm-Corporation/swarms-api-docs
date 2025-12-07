@@ -1,0 +1,219 @@
+---
+title: "Tokenization"
+description: "Launch and tokenize your AI agents, prompts, and tools on the Swarms Marketplace"
+---
+
+Tokenization enables you to launch your AI agents, prompts, and tools on the Swarms Marketplace with a unique ticker symbol. This allows your products to be discoverable, tradeable, and accessible across the Swarms ecosystem.
+
+<Info>
+**Tokenization is only available through the web interface** at [swarms.world/launch](https://swarms.world/launch). There is no API for tokenization.
+</Info>
+
+---
+
+## Tokenization Fee
+
+<Warning>
+Creating a token on the Swarms Marketplace costs **0.04 SOL** (Solana). This fee covers the blockchain transaction costs for minting your unique token.
+</Warning>
+
+---
+
+## Getting Started
+
+To tokenize your product on the Swarms Marketplace:
+
+<Steps>
+  <Step title="Sign In">
+    Log in to your Swarms account at [swarms.world](https://swarms.world)
+  </Step>
+  <Step title="Navigate to Launch">
+    Go to [https://swarms.world/launch](https://swarms.world/launch) to access the launch portal
+  </Step>
+  <Step title="Select Your Product Type">
+    Choose what you want to publish: **Agent**, **Prompt**, or **Tool**
+  </Step>
+  <Step title="Fill in Product Details">
+    Complete all required fields including name, description, image, and use cases
+  </Step>
+  <Step title="Enable Tokenization">
+    At the bottom of the form, select **Tokenization** and enter your unique ticker symbol
+  </Step>
+  <Step title="Pay the Fee">
+    Pay the **0.04 SOL** tokenization fee to mint your token on the blockchain
+  </Step>
+  <Step title="Submit for Review">
+    Submit your product for quality validation
+  </Step>
+</Steps>
+
+---
+
+## Product Types
+
+### Agents
+
+Agents are autonomous AI entities **with executable code**. Use this option when your product includes:
+
+- Python or other language code implementations
+- Custom agent logic and behaviors
+- Integration with external tools and APIs
+- Specific requirements and dependencies
+
+<Info>
+Agents require actual code that can be executed. They include types, docstrings, and can have package dependencies.
+</Info>
+
+### Prompts (System Prompts)
+
+Prompts are powerful prompt templates **without any code**. Choose this when you're sharing:
+
+- System prompts for LLM interactions
+- Instruction templates
+- Persona definitions
+- Task-specific prompt engineering
+
+<Note>
+Prompts are available across multiple Swarms platforms:
+- **Swarms Python Framework** - Use programmatically in your applications
+- **Swarms API** - Access via REST API calls
+- **Swarms Chat** - Use directly in the chat interface
+</Note>
+
+### Tools
+
+Tools are utility functions and integrations that extend agent capabilities:
+
+- API connectors
+- Data processing utilities
+- External service integrations
+- Custom functions
+
+---
+
+## Tokenization Details
+
+### Ticker Symbol Requirements
+
+Your unique ticker symbol for the marketplace must meet these requirements:
+
+- Maximum **10 characters**
+- **Uppercase letters and numbers only**
+- Must be **unique** across the marketplace
+- Examples: `AGENT`, `MYBOT`, `DATA123`
+
+### Required Fields
+
+All tokenized products require:
+
+<CardGroup cols={2}>
+  <Card title="Image" icon="image">
+    **Required** - A representative image for your product (max 60MB). This helps users identify and discover your listing.
+  </Card>
+  <Card title="Name" icon="tag">
+    **Required** - A descriptive name (minimum 2 characters) for your product.
+  </Card>
+  <Card title="Description" icon="align-left">
+    **Required** - Detailed description of what your product does and how to use it.
+  </Card>
+  <Card title="Use Cases" icon="lightbulb">
+    **Required** - At least one practical use case demonstrating your product's value.
+  </Card>
+</CardGroup>
+
+---
+
+## Pricing Options
+
+You can choose between two pricing models for your tokenized product:
+
+### Free
+
+Make your product freely available to all users.
+
+### Paid
+
+Set a price in USD for your product. Requirements:
+- Minimum price: $0.01
+- Wallet address required for receiving payments
+
+---
+
+## Import from GitHub
+
+You can import agents directly from a public GitHub repository:
+
+<Steps>
+  <Step title="Prepare Your Repository">
+    Ensure your GitHub repository is **public** (private repositories are not supported yet)
+  </Step>
+  <Step title="Enter Repository URL">
+    On the launch page, enter your public GitHub repository URL in the import field
+  </Step>
+  <Step title="Import and Configure">
+    Click **Import** to pull the repository contents and configure tokenization settings
+  </Step>
+</Steps>
+
+<Warning>
+Private repositories are not currently supported. Make sure your repository is public before attempting to import.
+</Warning>
+
+---
+
+## Accessing Your Tokenized Products
+
+Once published, your tokenized prompts are available across multiple Swarms platforms:
+
+- **Swarms Python Framework** - Use marketplace prompts programmatically in your applications
+- **Swarms API** - Query and retrieve marketplace prompts via REST API calls
+- **Swarms Chat** - Browse and use prompts directly at [swarms.world/chat](https://swarms.world/chat)
+
+---
+
+## Quality Validation
+
+All submissions undergo automated quality validation to maintain marketplace standards:
+
+<AccordionGroup>
+  <Accordion title="Duplicate Detection">
+    The system checks for duplicate content to ensure originality and prevent spam.
+  </Accordion>
+  <Accordion title="Quality Assessment">
+    Code completeness, documentation quality, and adherence to best practices are evaluated.
+  </Accordion>
+  <Accordion title="Security Scanning">
+    All agent code is scanned for potential security issues and malicious content.
+  </Accordion>
+  <Accordion title="Trustworthiness Scoring">
+    Each submission receives a trust score based on quality metrics.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Descriptive Tickers" icon="hashtag">
+    Choose ticker symbols that relate to your product's purpose (e.g., `RESEARCH` for a research agent)
+  </Card>
+  <Card title="High-Quality Images" icon="image">
+    Use clear, professional images that represent your product well
+  </Card>
+  <Card title="Detailed Descriptions" icon="file-lines">
+    Write comprehensive descriptions explaining features, use cases, and benefits
+  </Card>
+  <Card title="Multiple Use Cases" icon="list-check">
+    Provide diverse use cases to help users understand your product's versatility
+  </Card>
+</CardGroup>
+
+---
+
+## Support
+
+Need help with tokenization? Reach out through:
+
+- **Discord**: [Join our community](https://discord.gg/EamjgSaEQf)
+- **Technical Support**: [Schedule a call](https://cal.com/swarms/swarms-technical-support?overlayCalendar=true)
