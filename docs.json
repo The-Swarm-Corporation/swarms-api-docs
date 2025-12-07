@@ -107,7 +107,7 @@
             "group": "Platform",
             "pages": [
               "docs/marketplace/agents-vs-prompts",
-              "docs/marketplace/examples"
+              "docs/marketplace/tokenization"
             ]
           },
           {
@@ -115,7 +115,7 @@
             "pages": [
               "docs/marketplace/agents-api",
               "docs/marketplace/prompts-api",
-              "docs/marketplace/tokenization"
+              "docs/marketplace/examples"
             ]
           }
         ]
