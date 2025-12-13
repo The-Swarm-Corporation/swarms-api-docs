@@ -107,7 +107,8 @@
             "group": "Platform",
             "pages": [
               "docs/marketplace/agents-vs-prompts",
-              "docs/marketplace/tokenization"
+              "docs/marketplace/tokenization",
+              "docs/marketplace/tokenization_details"
             ]
           },
           {
