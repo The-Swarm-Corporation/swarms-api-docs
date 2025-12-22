@@ -33,6 +33,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `agent_name` | `string` | Yes | - | Unique identifier for the agent |
 | `description` | `string` | No | - | Detailed explanation of agent's purpose |
 | `system_prompt` | `string` | No | - | Initial instructions guiding agent behavior |
+| `marketplace_prompt_id` | `string` | No | - | UUID of a marketplace prompt to use as the system prompt |
 | `model_name` | `string` | No | `"gpt-4.1"` | AI model to use (e.g., gpt-4o, gpt-4o-mini, claude-sonnet-4-20250514) |
 | `auto_generate_prompt` | `boolean` | No | `false` | Auto-generate prompts based on task requirements |
 | `max_tokens` | `integer` | No | `8192` | Maximum tokens for agent responses |
@@ -212,6 +213,32 @@ payload = {
     "task": "Write a creative story about time travel"
 }
 ```
+
+### Agent with Marketplace Prompt
+
+You can use prompts from the Swarms marketplace by specifying the `marketplace_prompt_id`. The system will automatically retrieve and use the prompt from the marketplace.
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "marketplace-agent",
+        "description": "Agent using a marketplace prompt",
+        "model_name": "gpt-4o-mini",
+        "marketplace_prompt_id": "92a11cf5-ac78-41b7-a4a6-005a92670462",
+        "max_loops": 1,
+        "max_tokens": 8192
+    },
+    "task": "Your task here"
+}
+
+response = requests.post(
+    "https://api.swarms.world/v1/agent/completions",
+    headers={"x-api-key": "your-api-key"},
+    json=payload
+)
+```
+
+**Note**: When `marketplace_prompt_id` is provided, it takes precedence over the `system_prompt` field. You can find marketplace prompts using the [Query Prompts API](/marketplace/prompts-api#query-prompts).
 
 ## Batch Processing
 
