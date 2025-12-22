@@ -619,3 +619,156 @@ interface Prompt {
   updated_at: string;            // Last update timestamp
 }
 ```
+
+---
+
+## Using Marketplace Prompts with Agents
+
+Once you have a prompt in the marketplace, you can use it with any agent by specifying the `marketplace_prompt_id` in the agent configuration. The Swarms API will automatically retrieve the prompt from the marketplace and apply it to your agent.
+
+### How It Works
+
+1. Query the marketplace to find a suitable prompt using the [Query Prompts](#query-prompts) endpoint
+2. Copy the prompt's `id` from the response
+3. Use the `marketplace_prompt_id` field in your agent configuration
+4. The system automatically retrieves and applies the prompt to your agent
+
+### Example: Using a Marketplace Prompt
+
+<CodeGroup>
+
+```python Python
+import requests
+
+# Step 1: Find a suitable prompt
+query_response = requests.post(
+    "https://swarms.world/api/query-prompts",
+    headers={"Content-Type": "application/json"},
+    json={
+        "search": "technical writing",
+        "category": "content",
+        "limit": 1
+    }
+)
+
+prompts = query_response.json()
+prompt_id = prompts[0]["id"]  # Get the prompt ID
+
+# Step 2: Use the prompt with an agent
+agent_response = requests.post(
+    "https://api.swarms.world/v1/agent/completions",
+    headers={
+        "x-api-key": "YOUR_API_KEY",
+        "Content-Type": "application/json"
+    },
+    json={
+        "agent_config": {
+            "agent_name": "marketplace-agent",
+            "model_name": "gpt-4o-mini",
+            "marketplace_prompt_id": prompt_id,
+            "max_loops": 1
+        },
+        "task": "Write a blog post about Python async/await"
+    }
+)
+
+print(agent_response.json())
+```
+
+```javascript JavaScript
+// Step 1: Find a suitable prompt
+const queryResponse = await fetch('https://swarms.world/api/query-prompts', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    search: 'technical writing',
+    category: 'content',
+    limit: 1
+  })
+});
+
+const prompts = await queryResponse.json();
+const promptId = prompts[0].id;
+
+// Step 2: Use the prompt with an agent
+const agentResponse = await fetch('https://api.swarms.world/v1/agent/completions', {
+  method: 'POST',
+  headers: {
+    'x-api-key': 'YOUR_API_KEY',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    agent_config: {
+      agent_name: 'marketplace-agent',
+      model_name: 'gpt-4o-mini',
+      marketplace_prompt_id: promptId,
+      max_loops: 1
+    },
+    task: 'Write a blog post about Python async/await'
+  })
+});
+
+const result = await agentResponse.json();
+console.log(result);
+```
+
+```bash cURL
+# Step 1: Find a suitable prompt
+PROMPT_ID=$(curl -X POST https://swarms.world/api/query-prompts \
+  -H "Content-Type: application/json" \
+  -d '{"search": "technical writing", "category": "content", "limit": 1}' \
+  | jq -r '.[0].id')
+
+# Step 2: Use the prompt with an agent
+curl -X POST https://api.swarms.world/v1/agent/completions \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"agent_config\": {
+      \"agent_name\": \"marketplace-agent\",
+      \"model_name\": \"gpt-4o-mini\",
+      \"marketplace_prompt_id\": \"$PROMPT_ID\",
+      \"max_loops\": 1
+    },
+    \"task\": \"Write a blog post about Python async/await\"
+  }"
+```
+
+</CodeGroup>
+
+### Direct Usage with Known Prompt ID
+
+If you already know the prompt ID, you can use it directly:
+
+```python
+import requests
+
+response = requests.post(
+    "https://api.swarms.world/v1/agent/completions",
+    headers={
+        "x-api-key": "YOUR_API_KEY",
+        "Content-Type": "application/json"
+    },
+    json={
+        "agent_config": {
+            "agent_name": "marketplace-agent",
+            "model_name": "gpt-4o-mini",
+            "marketplace_prompt_id": "92a11cf5-ac78-41b7-a4a6-005a92670462",
+            "max_loops": 1
+        },
+        "task": "Your task here"
+    }
+)
+
+print(response.json())
+```
+
+### Important Notes
+
+- When `marketplace_prompt_id` is provided, it takes precedence over the `system_prompt` field
+- The prompt is automatically retrieved from the marketplace and applied to the agent
+- You don't need to manually fetch or pass the prompt content
+- Both free and paid marketplace prompts can be used with agents
+- For more details on agent configuration, see the [Agent Completions Reference](/documentation/capabilities/agent)
