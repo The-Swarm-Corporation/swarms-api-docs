@@ -549,29 +549,7 @@ else:
 
 ## Pricing
 
-BatchedGridWorkflow pricing consists of two components:
-
-1. **Agent Cost**: $0.01 per agent
-2. **Token Cost**:
-   - Input tokens: $4.00 per 1M tokens
-   - Output tokens: $12.50 per 1M tokens
-
-<Note>
-**Implementation Note**: There is currently a bug in the API implementation where the `cost_per_agent` is calculated before agents are added to the list (line 136), resulting in zero agent costs being charged. This will be fixed in a future update. The pricing model described here reflects the intended behavior.
-</Note>
-
-**Example Calculation** (based on intended pricing):
-- 3 agents processing 3 tasks
-- 450 input tokens, 4850 output tokens
-- Agent cost: 3 × $0.01 = $0.03
-- Input cost: (450 / 1,000,000) × $4.00 = $0.0018
-- Output cost: (4850 / 1,000,000) × $12.50 = $0.0606
-- **Total**: $0.0924
-
-**Current Actual Cost** (due to bug):
-- Agent cost: $0.00 (bug: calculated before agents are populated)
-- Token costs: $0.0624
-- **Total**: $0.0624
+BatchedGridWorkflow uses unified pricing with agent costs. For detailed pricing information, see the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
 
 ## Grid Execution Pattern
 
