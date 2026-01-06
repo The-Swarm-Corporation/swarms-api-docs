@@ -15,9 +15,6 @@
   "servers": [
     {
       "url": "https://api.swarms.world"
-    },
-    {
-      "url": "https://swarms-api-285321057562.us-east1.run.app"
     }
   ],
   "favicon": "/logo.svg",
@@ -222,7 +219,7 @@
     "openapi": "https://api.swarms.world/openapi.json",
     "baseUrl": "https://api.swarms.world",
     "playground": {
-      "proxy": false
+      "proxy": true
     },
     "auth": {
       "method": "key",
