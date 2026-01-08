@@ -12,11 +12,6 @@
     "light": "#FFFFFF",
     "dark": "#000000"
   },
-  "servers": [
-    {
-      "url": "https://api.swarms.world"
-    }
-  ],
   "favicon": "/logo.svg",
   "navigation": {
     "tabs": [
