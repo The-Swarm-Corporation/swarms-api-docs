@@ -74,6 +74,7 @@
             "pages": [
               "docs/documentation/resources/ratelimits",
               "docs/documentation/resources/pricing",
+              "docs/documentation/resources/response-compression",
               "docs/documentation/resources/premium-endpoints",
               "docs/documentation/resources/priority-processing",
               "docs/documentation/resources/global-availability",
