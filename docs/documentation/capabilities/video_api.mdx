@@ -1,0 +1,131 @@
+# Video Generation API Documentation
+
+This document describes the video generation endpoints added under `/v1/video`.
+
+Overview
+- The Video Generation endpoints let you create and manage video generation jobs using multiple providers (sync or async).
+- Typical workflow: submit a job (`POST /v1/video/completions`), poll status (`GET /v1/video/completions/{job_id}`), download result (`GET /v1/video/completions/{job_id}/download`).
+
+Rate limiting
+- Video endpoints are rate-limited more strictly than other endpoints. Example: 10 requests/minute (implementation-specific).
+
+Authentication
+- All video endpoints require a valid API key via the standard API authentication mechanism used by the API (see main docs).
+
+Endpoints
+
+1) Create video completion
+
+- Endpoint: `POST /v1/video/completions`
+- Description: Create a new video generation job. Supports synchronous and asynchronous workflows. Use synchronous processing for short/lightweight jobs and async for long-running jobs.
+- Common request fields (example):
+
+```json
+{
+      "prompt": "A short cinematic sequence of a sunrise over mountains",
+        "model": "provider-model-name",
+          "provider": "provider_name",
+            "duration": 10,
+              "resolution": "1920x1080",
+                "fps": 30,
+                  "input_image": null,
+                    "input_video": null,
+                      "provider_config": { /* provider-specific overrides */ },
+                        "webhook_url": "https://example.com/webhook",
+                          "sync": false
+}
+```
+
+- Common response (pending / completed / failed):
+
+```json
+{
+      "job_id": "<uuid>",
+        "status": "pending",
+          "provider": "provider_name",
+            "model": "provider-model-name",
+              "estimated_cost": 0.25,
+                "usage": { "estimated_cost": 0.25 },
+                  "timestamp": "2026-01-10T12:34:56Z"
+}
+```
+
+Notes:
+- If `sync` (or the endpoint decides to run synchronously), the response will include `video_url`, `duration_generated`, `processing_time`, and full `usage` details.
+- If async, the response will be a pending job with `job_id` and `estimated_cost`. The server will process the job in background and optionally call `webhook_url` on completion.
+
+2) Get video completion status
+
+- Endpoint: `GET /v1/video/completions/{job_id}`
+- Description: Retrieve job status and, when available, result metadata.
+- Response example (completed):
+
+```json
+{
+      "job_id": "<uuid>",
+        "status": "completed",
+          "provider": "provider_name",
+            "model": "provider-model-name",
+              "video_url": "https://storage.example.com/videos/<id>.mp4",
+                "thumbnail_url": "https://storage.example.com/thumbnails/<id>.jpg",
+                  "audio_url": null,
+                    "duration_generated": 10.0,
+                      "resolution_output": "1920x1080",
+                        "file_size_mb": 45.2,
+                          "processing_time": 120.5,
+                            "usage": { "cost": 0.45 },
+                              "estimated_cost": 0.25,
+                                "timestamp": "2026-01-10T12:36:56Z"
+}
+```
+
+3) Cancel video completion
+
+- Endpoint: `DELETE /v1/video/completions/{job_id}`
+- Description: Cancel a pending or processing job. Returns a success or appropriate error if job already completed or not found.
+
+4) Download generated video
+
+- Endpoint: `GET /v1/video/completions/{job_id}/download`
+- Query parameters: `format` (e.g., `mp4`), `quality` (e.g., `original`, `compressed`)
+- Description: Returns a file/redirect or streaming response for the generated video. Requires authentication and that the job is completed and accessible by the caller.
+
+Webhooks
+- If a `webhook_url` is provided when creating the job, the server will POST a JSON payload on completion or failure. Payload contains `job_id`, `status`, `timestamp`, and `video_url` or `error_message` when applicable.
+
+Costs and billing
+- Jobs include `estimated_cost` values in initial responses. When processing completes, the actual cost is calculated and recorded in `usage`.
+- Users should ensure sufficient credit balance prior to submitting expensive jobs. See the main pricing docs for details.
+
+Provider configuration
+- The `provider_config` field can pass provider-specific options (e.g., engine variants, style presets). Consult the provider's documentation or the API's provider factory implementation for supported keys.
+
+Best practices
+- Use async mode for long or high-resolution jobs.
+- Provide a `webhook_url` for large jobs to avoid polling.
+- Test with small durations and lower resolutions to estimate costs before running production-scale jobs.
+
+Examples
+
+- Create async job (curl):
+
+```bash
+curl -X POST "http://localhost:8080/v1/video/completions" \
+  -H "Authorization: Bearer <API_KEY>" \
+    -H "Content-Type: application/json" \
+      -d '{"prompt":"A sunrise over mountains","provider":"example","model":"v1","duration":5,"resolution":"1280x720","sync":false}'
+      ```
+
+      - Poll status (curl):
+
+      ```bash
+      curl -X GET "http://localhost:8080/v1/video/completions/<job_id>" \
+        -H "Authorization: Bearer <API_KEY>"
+        ```
+
+        Support
+        - If you encounter issues with video generation, check server logs and the provider-specific logs (if available). Open an issue in the repository including the `job_id` and relevant logs.
+        
+}
+}
+}
