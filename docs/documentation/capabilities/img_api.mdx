@@ -1,0 +1,439 @@
+# Image Generation API Documentation
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Supported Providers and Models](#supported-providers-and-models)
+3. [API Endpoints](#api-endpoints)
+4. [Input/Output Schemas](#inputoutput-schemas)
+5. [Pricing and Cost Management](#pricing-and-cost-management)
+6. [Usage Examples](#usage-examples)
+7. [Advanced Features](#advanced-features)
+8. [Error Handling](#error-handling)
+9. [Best Practices](#best-practices)
+10. [Troubleshooting](#troubleshooting)
+
+## Overview
+
+The Image Generation API provides access to multiple AI image generation providers through a unified interface. Generate high-quality images from text prompts using state-of-the-art models from Black Forest Labs, FAL AI, Google, and Runway ML.
+
+### Key Features
+
+- **Multi-Provider Support**: Access to FLUX, Stable Diffusion, and other leading models
+- **Flexible Parameters**: Control size, quality, style, and generation settings
+- **Reference Images**: Support for image-to-image generation and style transfer
+- **Advanced Controls**: Seed control, guidance scale, negative prompts
+- **Batch Generation**: Generate multiple images in a single request
+- **Async Processing**: Queue large jobs for background processing
+- **Cost Transparency**: Detailed usage tracking and pricing
+
+### Authentication
+
+All requests require an API key passed in the `x-api-key` header:
+
+```bash
+curl -X POST "https://api.swarms.world/v1/images/generations" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json"
+```
+
+## Supported Providers and Models
+
+### Black Forest Labs (BFL)
+- **FLUX.2 Pro**: High-quality, photorealistic images
+- **FLUX.2 Max**: Maximum quality with enhanced details
+- **FLUX.2 Dev**: Development model for rapid iteration
+- **FLUX.1 Schnell**: Fast generation with good quality
+
+### FAL AI
+- **FLUX.2 Pro**: Premium FLUX model via FAL
+- **FLUX.2 Max**: Maximum quality FLUX via FAL
+- **FLUX.2 Flex**: Flexible FLUX model
+- **Nano Banana 2**: Fast, efficient generation
+- **Recraft V3**: High-quality, consistent results
+
+### Google
+- **Nano Banana Pro**: Professional quality images
+- **Nano Banana**: Standard quality, fast generation
+
+### Runway ML
+- **Gen-4 Image**: High-quality video-to-image generation
+- **Gen-4 References**: Advanced reference-based generation
+
+## API Endpoints
+
+### Generate Images
+
+**Endpoint:** `POST /v1/images/generations`
+
+Generate one or more images from a text prompt.
+
+**Request Body:** `ImageCompletionRequest`
+
+**Response:** `ImageCompletionResponse`
+
+### Get Generation Status
+
+**Endpoint:** `GET /v1/images/generations/{job_id}`
+
+Check the status of an async image generation job.
+
+**Response:** `ImageCompletionResponse`
+
+## Input/Output Schemas
+
+### ImageCompletionRequest
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `prompt` | `string` | Yes | - | Text description of desired image (1-4000 chars) |
+| `model` | `string` | Yes | - | Model identifier (e.g., "flux-2-pro", "nano-banana-2") |
+| `provider` | `ImageProvider` | No | Auto | Explicit provider override |
+| `n` | `integer` | No | 1 | Number of images to generate (1-10) |
+| `size` | `ImageSize \| string` | No | Auto | Image dimensions (e.g., "1024x1024") |
+| `aspect_ratio` | `ImageAspectRatio` | No | Auto | Aspect ratio for generation |
+| `quality` | `ImageQuality` | No | "standard" | Generation quality level |
+| `style` | `ImageStyle \| string` | No | Auto | Style preferences |
+| `negative_prompt` | `string` | No | - | What to avoid in the image (max 2000 chars) |
+| `reference_images` | `List[ReferenceImage \| string]` | No | - | Reference images for style/content transfer |
+| `seed` | `integer` | No | Random | Random seed for reproducibility (0-4294967295) |
+| `guidance_scale` | `float` | No | Auto | Prompt adherence strength (1.0-20.0) |
+| `steps` | `integer` | No | Auto | Number of diffusion steps (1-100) |
+| `sync` | `boolean` | No | true | Wait for completion (false for async) |
+| `stream` | `boolean` | No | false | Stream progress updates |
+| `webhook_url` | `string` | No | - | Webhook URL for async notifications |
+| `mask_image` | `string` | No | - | Mask image URL for inpainting |
+| `control_image` | `string` | No | - | Control image URL for controlNet |
+| `control_type` | `string` | No | - | Type of control (canny, depth, pose, etc.) |
+
+### ImageCompletionResponse
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `job_id` | `string` | Unique job identifier |
+| `status` | `string` | Generation status ("pending", "processing", "success", "failed") |
+| `provider` | `string` | Provider used for generation |
+| `model` | `string` | Model used for generation |
+| `images` | `List[string]` | Generated image URLs (when complete) |
+| `usage` | `ImageGenerationUsage` | Usage statistics |
+| `metadata` | `dict` | Generation metadata (seed, steps, etc.) |
+| `timestamp` | `string` | ISO8601 UTC timestamp |
+
+### ImageGenerationUsage
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input_tokens` | `integer` | Number of prompt tokens processed |
+| `images_generated` | `integer` | Number of images generated |
+| `cost` | `float` | Total cost in USD |
+| `resolution` | `string` | Image resolution |
+| `provider_cost` | `float` | Cost charged by provider |
+| `swarms_margin` | `float` | Service margin |
+| `total_time` | `float` | Total generation time in seconds |
+
+## Supported Sizes
+
+| Size | Description | Aspect Ratio |
+|------|-------------|--------------|
+| `512x512` | Square, small | 1:1 |
+| `768x768` | Square, medium | 1:1 |
+| `1024x1024` | Square, large | 1:1 |
+| `768x1024` | Portrait | 3:4 |
+| `1024x768` | Landscape | 4:3 |
+| `896x1152` | Portrait, HD | 7:9 |
+| `1152x896` | Landscape, HD | 9:7 |
+| `1024x1536` | Portrait, tall | 2:3 |
+| `1536x1024` | Landscape, wide | 3:2 |
+| `1344x768` | Wide | 7:4 |
+| `1536x640` | Ultra-wide | 12:5 |
+| `1920x1080` | HD video | 16:9 |
+| `4096x4096` | UHD square | 1:1 |
+
+## Supported Styles
+
+- `realistic`
+- `digital_art`
+- `anime`
+- `cinematic`
+- `fantasy_art`
+- `photography`
+- `illustration`
+- `oil_painting`
+- `watercolor`
+- `pencil_drawing`
+- `cartoon`
+- `pixel_art`
+- `vector_art`
+- `logo`
+- `isometric`
+- `low_poly`
+
+## Pricing and Cost Management
+
+### Base Costs per Image
+
+| Provider/Model | Cost (USD) |
+|----------------|------------|
+| BFL FLUX.2 Pro | $0.12 |
+| BFL FLUX.2 Max | $0.15 |
+| BFL FLUX.2 Dev | $0.10 |
+| BFL FLUX.1 Schnell | $0.08 |
+| FAL FLUX.2 Pro | $0.10 |
+| FAL FLUX.2 Max | $0.13 |
+| FAL FLUX.2 Flex | $0.08 |
+| FAL Nano Banana 2 | $0.039 |
+| FAL Recraft V3 | $0.15 |
+| Google Nano Banana Pro | $0.039 |
+| Google Nano Banana | $0.029 |
+| Runway Gen-4 Image | $0.08 |
+| Runway Gen-4 References | $0.12 |
+
+### Cost Multipliers
+
+- **HD Quality**: 1.5x base cost
+- **Ultra HD Quality**: 2.5x base cost
+- **Large Sizes**: 1.5-4x base cost (see size multipliers)
+- **Reference Images**: +$0.02 per reference
+- **Inpainting**: +$0.05 per image
+- **ControlNet**: +$0.03 per image
+
+### Service Margin
+
+Swarms adds a 20% margin to provider costs for service maintenance and development.
+
+## Usage Examples
+
+### Basic Image Generation
+
+```python
+import requests
+
+url = "https://api.swarms.world/v1/images/generations"
+headers = {
+    "x-api-key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+
+data = {
+    "prompt": "A majestic eagle soaring over snow-capped mountains at sunrise, photorealistic",
+    "model": "flux-2-pro",
+    "n": 1,
+    "size": "1024x1024",
+    "quality": "hd"
+}
+
+response = requests.post(url, headers=headers, json=data)
+result = response.json()
+
+print(f"Job ID: {result['job_id']}")
+print(f"Image URL: {result['images'][0]}")
+```
+
+### Advanced Generation with References
+
+```python
+data = {
+    "prompt": "A cyberpunk cityscape in the style of Blade Runner",
+    "model": "flux-2-pro",
+    "n": 2,
+    "size": "1344x768",
+    "quality": "hd",
+    "style": "cinematic",
+    "negative_prompt": "blurry, distorted, low quality, cartoon",
+    "reference_images": [
+        {
+            "url": "https://example.com/reference-image.jpg",
+            "weight": 0.7,
+            "mode": "style"
+        }
+    ],
+    "seed": 12345,
+    "guidance_scale": 12.0,
+    "steps": 30
+}
+```
+
+### Batch Generation
+
+```python
+data = {
+    "prompt": "Various perspectives of a modern office building",
+    "model": "nano-banana-2",
+    "n": 4,
+    "size": "1024x1024",
+    "aspect_ratio": "16:9"
+}
+```
+
+### Async Generation
+
+```python
+data = {
+    "prompt": "A detailed architectural blueprint",
+    "model": "recraft-v3",
+    "n": 10,
+    "size": "4096x4096",
+    "quality": "ultra_hd",
+    "sync": False,
+    "webhook_url": "https://your-app.com/webhook/image-complete"
+}
+
+# Check status later
+job_response = requests.get(
+    f"https://api.swarms.world/v1/images/generations/{job_id}",
+    headers=headers
+)
+```
+
+## Advanced Features
+
+### Reference Images
+
+Use reference images for style transfer or image-to-image generation:
+
+```python
+reference_images = [
+    "https://example.com/style-reference.jpg",  # Simple URL
+    {
+        "url": "https://example.com/content-reference.png",
+        "weight": 0.8,
+        "mode": "content"
+    }
+]
+```
+
+### Inpainting
+
+Fill in masked areas of an image:
+
+```python
+data = {
+    "prompt": "A beautiful garden in the background",
+    "model": "flux-2-pro",
+    "mask_image": "https://example.com/mask.png",
+    "control_image": "https://example.com/original.png"
+}
+```
+
+### ControlNet
+
+Use control images to guide generation:
+
+```python
+data = {
+    "prompt": "A person standing confidently",
+    "model": "flux-2-pro",
+    "control_image": "https://example.com/pose-reference.png",
+    "control_type": "pose"
+}
+```
+
+## Error Handling
+
+### Common Error Responses
+
+```python
+{
+    "error": "Content policy violation",
+    "provider": "bfl",
+    "model": "flux-2-pro",
+    "request_id": "req_123456",
+    "details": {"policy_violation": "violence"},
+    "retry_after": 60
+}
+```
+
+### Error Types
+
+- **ContentPolicyViolationError**: Prompt violates provider policies
+- **RateLimitExceededError**: Provider rate limit exceeded
+- **ProviderUnavailableError**: Provider service unavailable
+- **ImageGenerationError**: Generic generation failure
+
+### Retry Logic
+
+```python
+import time
+import requests
+
+def generate_with_retry(prompt, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, headers=headers, json=data)
+            if response.status_code == 429:
+                retry_after = response.headers.get('Retry-After', 5)
+                time.sleep(int(retry_after))
+                continue
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as e:
+            if attempt == max_retries - 1:
+                raise e
+            time.sleep(2 ** attempt)  # Exponential backoff
+```
+
+## Best Practices
+
+### Prompt Engineering
+
+1. **Be Specific**: "A red sports car on a mountain road at sunset" vs "car"
+2. **Include Style**: "photorealistic", "digital art", "oil painting"
+3. **Add Details**: Lighting, mood, composition, colors
+4. **Use Weights**: "(masterpiece:1.2), best quality, highly detailed"
+
+### Performance Optimization
+
+1. **Choose Appropriate Models**: Fast models for iteration, premium for final results
+2. **Use Smaller Sizes**: For testing and iteration
+3. **Batch Wisely**: Balance batch size with generation time
+4. **Cache Seeds**: Use seeds for reproducible results
+
+### Cost Management
+
+1. **Monitor Usage**: Track costs per model and size
+2. **Use Cheaper Models**: For non-critical generations
+3. **Batch Generation**: Reduce per-image overhead
+4. **Optimize Prompts**: Shorter prompts = lower token costs
+
+## Troubleshooting
+
+### Common Issues
+
+**"Content policy violation"**
+- Remove sensitive or inappropriate content from prompts
+- Avoid copyrighted character names
+- Use more generic descriptions
+
+**"Rate limit exceeded"**
+- Implement exponential backoff
+- Reduce request frequency
+- Consider upgrading your plan
+
+**"Provider unavailable"**
+- Try a different provider
+- Check provider status pages
+- Retry with different model
+
+**"Invalid image URL"**
+- Ensure URLs are publicly accessible
+- Check image format (JPG, PNG, WebP)
+- Verify image size limits
+
+### Getting Help
+
+1. Check the [API Status Page](https://status.swarms.world)
+2. Review the [Provider Documentation](#supported-providers-and-models)
+3. Contact support at support@swarms.world
+4. Check community forums for similar issues
+
+### Debug Mode
+
+Enable verbose logging for troubleshooting:
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
+This will show detailed request/response information and help identify issues.</content>
+<parameter name="filePath">/workspaces/Swarms-API/docs/IMAGE_GENERATION_API_DOCUMENTATION.md
