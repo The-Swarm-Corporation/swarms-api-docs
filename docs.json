@@ -102,7 +102,8 @@
             "pages": [
               "docs/marketplace/agents-vs-prompts",
               "docs/marketplace/tokenization",
-              "docs/marketplace/tokenization_details"
+              "docs/marketplace/tokenization_details",
+              "docs/marketplace/creator-fees"
             ]
           },
           {
