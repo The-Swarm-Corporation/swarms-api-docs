@@ -12,14 +12,6 @@
     "light": "#FFFFFF",
     "dark": "#000000"
   },
-  "servers": [
-    {
-      "url": "https://api.swarms.world"
-    },
-    {
-      "url": "https://swarms-api-285321057562.us-east1.run.app"
-    }
-  ],
   "favicon": "/logo.svg",
   "navigation": {
     "tabs": [
@@ -82,7 +74,9 @@
             "pages": [
               "docs/documentation/resources/ratelimits",
               "docs/documentation/resources/pricing",
+              "docs/documentation/resources/response-compression",
               "docs/documentation/resources/premium-endpoints",
+              "docs/documentation/resources/priority-processing",
               "docs/documentation/resources/global-availability",
               "docs/documentation/resources/community",
               "docs/documentation/resources/technical-support",
@@ -101,11 +95,32 @@
         ]
       },
       {
-        "tab": "Marketplace API",
-        "pages": [
-          "docs/marketplace/agents-api",
-          "docs/marketplace/prompts-api",
-          "docs/marketplace/examples"
+        "tab": "Marketplace",
+        "groups": [
+          {
+            "group": "Platform",
+            "pages": [
+              "docs/marketplace/agents-vs-prompts",
+              "docs/marketplace/tokenization",
+              "docs/marketplace/tokenization_details",
+              "docs/marketplace/creator-fees"
+            ]
+          },
+          {
+            "group": "API",
+            "pages": [
+              "docs/marketplace/agents-api",
+              "docs/marketplace/prompts-api",
+              "docs/marketplace/examples"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "docs/marketplace/launch-checklist",
+              "docs/marketplace/foundry"
+            ]
+          }
         ]
       },
       {
@@ -201,7 +216,7 @@
     "openapi": "https://api.swarms.world/openapi.json",
     "baseUrl": "https://api.swarms.world",
     "playground": {
-      "proxy": false
+      "proxy": true
     },
     "auth": {
       "method": "key",

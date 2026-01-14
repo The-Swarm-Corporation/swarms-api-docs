@@ -87,30 +87,72 @@ Critical support, compliance, and control for large-scale enterprises.
 
 ## Usage-based pricing
 
-Pay only for what you use with transparent, per-operation pricing
+Pay only for what you use with transparent, per-operation pricing. All API endpoints use a unified pricing structure for token costs.
 
-| Item                      | Cost (Standard)      | Cost (Flex)         | Notes                                                     |
-| ------------------------- | -------------------- | ------------------- | --------------------------------------------------------- |
-| **Base cost per agent**   | $0.01 per agent      | $0.01 per agent     | Charged for each agent in a swarm                         |
-| **Input tokens (swarm)**  | $3.00 per 1M tokens  | $1.50 per 1M tokens | 50% discount in Flex mode                                 |
-| **Output tokens (swarm)** | $15.00 per 1M tokens | $7.50 per 1M tokens | 50% discount in Flex mode                                 |
-| **Input tokens (agent)**  | $4.00 per 1M tokens  | N/A                 | For single agent completions                              |
-| **Output tokens (agent)** | $12.50 per 1M tokens | N/A                 | For single agent completions                              |
-| **MCP cost**              | $0.10 per call       | $0.10 per call      | Charged if an agent uses an MCP URL                       |
-| **Image cost**            | $0.25 per image      | $0.25 per image     | Charged for each image processed                          |
-| **Night-time discount**   | 50% off token costs  | 50% off token costs | 8pm–6am California time |
+### Pricing Table
 
-### Deductions
+| Item | Price | Unit | Notes |
+|------|-------|------|-------|
+| **Input Tokens** | $6.50 | per 1M tokens | Unified pricing across all endpoints |
+| **Output Tokens** | $18.50 | per 1M tokens | Unified pricing across all endpoints |
+| **Agent Cost** | $0.01 | per agent | For swarms and workflows |
+| **Image Processing** | $0.25 | per image | Charged when image provided |
+| **MCP Call** | $0.10 | per call | Charged when MCP URL provided |
+| **Exa Search Tool** | $0.04 | per search | Charged per search execution |
+| **Web Scraper Tool** | $0.15 | per scrape | Charged per scrape execution |
+| **Night-time Discount** | 50% off tokens | 8 PM - 6 AM PT | Swarm Completions only |
+| **Frenzy Mode** | $0.00 | all requests | Black Friday (24 hours) - all free |
 
-* Credits are deducted from your account for each API call based on the above rates.
-* Free credits are used first, then regular credits.
-* If you use an MCP URL, an additional $0.10 is deducted per call.
+### Unified Pricing
 
-### Flex Tier
+All API endpoints use the same token pricing:
+- **Input Tokens**: $6.50 per 1 million tokens
+- **Output Tokens**: $18.50 per 1 million tokens
 
-* Flex tier offers a 50% discount on token costs but may have higher latency or retries.
+This applies to:
+| Endpoint                        | Notes                       |
+|----------------------------------|-----------------------------|
+| Swarm Completions                | Agent cost applies          |
+| Agent Completions                |                             |
+| Advanced Research                |                             |
+| Auto Swarm Builder               |                             |
+| Graph Workflow                   | Agent cost applies          |
+| Batched Grid Workflow            | Agent cost applies          |
 
-### Night-time Discount
+### Discounts
 
-* 50% discount on token costs between 8pm and 6am California time.
+**Night Time Discount**: Swarm completions receive a 50% discount on token costs during 8 PM - 6 AM Pacific Time. Agent costs remain the same.
 
+**Frenzy Mode**: All API requests are free during Black Friday (4th Friday of November) for 24 hours. Automatically applied.
+
+### Retrieving Current Costs
+
+You can retrieve the current pricing using the `/v1/usage/costs` endpoint:
+
+```bash
+GET /v1/usage/costs
+```
+
+**Example Response:**
+```json
+{
+  "swarm_completions_agent_cost": 0.01,
+  "swarm_completions_input_cost_per_1m": 6.5,
+  "swarm_completions_output_cost_per_1m": 18.5,
+  "agent_completions_input_cost_per_1m": 6.5,
+  "agent_completions_output_cost_per_1m": 18.5,
+  "agent_completions_img_cost": 0.25,
+  "agent_completions_mcp_cost": 0.1,
+  "night_time_discount": 0.5,
+  "frenzy_mode_active": false
+}
+```
+
+### Important Notes
+
+| Important Note                                                      | Description                                                                                  |
+|---------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| Credits Deduction                                                   | Credits are deducted automatically after each request completes.                              |
+| Credits Usage Order                                                 | Free credits are used first, followed by regular credits.                                    |
+| Token Counting                                                      | Token counts are calculated using model-specific tokenizers.                                  |
+| Pricing Updates                                                     | Pricing may be updated periodically. Check `/v1/usage/costs` for current pricing.            |

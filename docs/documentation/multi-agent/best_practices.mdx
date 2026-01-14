@@ -42,13 +42,12 @@ This comprehensive guide outlines production-grade best practices for using the 
 | Strategy | Implementation | Impact |
 |----------|----------------|---------|
 | Batch Processing | Group related tasks | 20-30% cost reduction |
-| Off-peak Usage | Schedule for 8 PM - 6 AM PT | 15-25% cost reduction |
+| Off-peak Usage | Schedule for 8 PM - 6 AM PT | 50% cost reduction (Swarm Completions only) |
 | Token Optimization | Precise prompts, focused tasks | 10-20% cost reduction |
 | Caching | Store reusable results | 30-40% cost reduction |
 | Agent Optimization | Use minimum required agents | 15-25% cost reduction |
 | Smart Routing | Route to specialized agents | 10-15% cost reduction |
 | Prompt Engineering | Optimize input tokens | 15-20% cost reduction |
-| Flex Processing | Use flex tier for non-urgent tasks | 50% cost reduction |
 
 ### Service Tiers
 
@@ -57,7 +56,7 @@ This comprehensive guide outlines production-grade best practices for using the 
 | Tier | Best For | Benefits | Considerations |
 |------|----------|----------|----------------|
 | Standard | • Real-time processing<br/>• Time-sensitive tasks<br/>• Critical workflows | • Immediate execution<br/>• Higher priority<br/>• Predictable timing | • Higher cost<br/>• 5-min timeout |
-| Flex | • Batch processing<br/>• Non-urgent tasks<br/>• Cost-sensitive workloads | • 50% cost reduction<br/>• Longer timeouts<br/>• Auto-retries | • Variable timing<br/>• Resource contention |
+| Off-peak (Swarm Completions) | • Batch processing<br/>• Non-urgent tasks<br/>• Cost-sensitive workloads | • 50% cost reduction on tokens<br/>• 8 PM - 6 AM PT | • Only applies to Swarm Completions<br/>• Time window restriction |
 
 ### Industry Solutions
 
@@ -141,7 +140,7 @@ Use this framework to select the optimal swarm architecture for your use case:
 - Cache repeated results
 - Rotate API keys regularly
 - Choose appropriate service tier based on task urgency
-- Use flex processing for batch and non-urgent tasks
+- Schedule non-urgent tasks during off-peak hours (8 PM - 6 AM PT) for Swarm Completions to benefit from night-time discount
 
 **Anti-patterns to Avoid**
 - Hardcoding API keys
@@ -149,8 +148,7 @@ Use this framework to select the optimal swarm architecture for your use case:
 - Missing error handling
 - Excessive agent count
 - Inadequate monitoring
-- Using standard tier for non-urgent tasks
-- Not implementing retry logic for flex tier
+- Not implementing retry logic for failed requests
 
 ### Performance Benchmarks
 
@@ -158,12 +156,12 @@ Use this framework to select the optimal swarm architecture for your use case:
 
 | Metric | Target Range | Warning Threshold |
 |--------|--------------|-------------------|
-| Response Time | < 2s (standard)<br/>< 15s (flex) | > 5s (standard)<br/>> 30s (flex) |
+| Response Time | < 2s | > 5s |
 | Success Rate | > 99% | < 95% |
-| Cost per Task | < $0.05 (standard)<br/>< $0.025 (flex) | > $0.10 (standard)<br/>> $0.05 (flex) |
+| Cost per Task | < $0.05 | > $0.10 |
 | Cache Hit Rate | > 80% | < 60% |
 | Error Rate | < 1% | > 5% |
-| Retry Rate (flex) | < 10% | > 30% |
+| Retry Rate | < 10% | > 30% |
 
 ### Additional Resources
 
