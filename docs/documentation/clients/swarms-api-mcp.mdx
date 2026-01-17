@@ -1,0 +1,520 @@
+---
+title: 'Swarms API MCP Server'
+description: 'Model Context Protocol server for accessing the Swarms AI agent platform through a standardized interface'
+---
+
+The Swarms TypeScript MCP Server is a Model Context Protocol server implementation that provides access to the Swarms AI agent platform through a standardized interface. Built with Stainless, this server enables AI assistants and applications to interact with Swarms' agent orchestration capabilities, including single agents, swarms, reasoning agents, and batch processing operations.
+
+## Table of Contents
+
+1. [Installation](#installation)
+2. [Configuration](#configuration)
+3. [Tool Exposure Strategies](#tool-exposure-strategies)
+4. [Client Compatibility](#client-compatibility)
+5. [Available Tools and Resources](#available-tools-and-resources)
+6. [Advanced Usage](#advanced-usage)
+7. [Error Handling](#error-handling)
+8. [Best Practices](#best-practices)
+
+## Installation
+
+### Prerequisites
+
+- Node.js (version 14 or higher recommended)
+- A valid Swarms API key
+- An MCP-compatible client application
+
+### Method 1: Direct Invocation via npx
+
+For quick testing or one-time usage, you can run the MCP server directly without installation:
+
+```bash
+export SWARMS_API_KEY="your_api_key_here"
+npx -y swarms-ts-mcp@latest
+```
+
+### Method 2: Installation via npm
+
+For persistent usage or integration into projects:
+
+```bash
+npm install swarms-ts-mcp
+```
+
+### Method 3: MCP Client Configuration
+
+Most MCP clients support configuration through a JSON file. Add the following configuration to your client's MCP server settings:
+
+```json
+{
+  "mcpServers": {
+    "swarms_ts_api": {
+      "command": "npx",
+      "args": ["-y", "swarms-ts-mcp", "--client=claude", "--tools=all"],
+      "env": {
+        "SWARMS_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+Replace `your_api_key_here` with your actual Swarms API key.
+
+## Configuration
+
+### Environment Variables
+
+The server requires the following environment variable:
+
+- `SWARMS_API_KEY`: Your Swarms platform API key (required)
+
+### Command-Line Arguments
+
+The MCP server supports extensive command-line configuration:
+
+#### Tool Selection
+
+- `--tools=all`: Expose all available tools
+- `--tools=dynamic`: Enable dynamic tool discovery mode
+- `--tool=<name>`: Include a specific tool by name
+- `--no-tool=<name>`: Exclude a specific tool by name
+
+#### Resource Filtering
+
+- `--resource=<name>`: Include all tools under a specific resource
+- `--resource=<pattern>*`: Include resources matching a wildcard pattern
+- `--no-resource=<name>`: Exclude a specific resource
+
+#### Operation Filtering
+
+- `--operation=read`: Include only read operations (GET/LIST)
+- `--operation=write`: Include only write operations (POST/PUT/DELETE)
+
+#### Client Configuration
+
+- `--client=<type>`: Configure for a specific MCP client
+  - Valid values: `openai-agents`, `claude`, `claude-code`, `cursor`
+
+#### Capability Settings
+
+- `--capability=<name>`: Enable specific client capabilities
+  - `top-level-unions`: Support for top-level union types
+  - `valid-json`: JSON string parsing for arguments
+  - `refs`: Support for $ref pointers in schemas
+  - `unions`: Support for union types (anyOf)
+  - `formats`: Support for format validations
+  - `tool-name-length=N`: Maximum tool name length
+
+#### Utility Commands
+
+- `--list`: Display all available tools
+- `--help`: Show help information
+
+### Configuration Examples
+
+**Filter for read-only operations on a specific resource:**
+```bash
+npx swarms-ts-mcp --resource=agent --operation=read
+```
+
+**Exclude specific tools while including others:**
+```bash
+npx swarms-ts-mcp --resource=swarms --no-tool=run_swarms_batch
+```
+
+**Configure for Cursor with custom capabilities:**
+```bash
+npx swarms-ts-mcp --client=cursor --capability=tool-name-length=40
+```
+
+**Complex multi-criteria filtering:**
+```bash
+npx swarms-ts-mcp --resource=agent,swarms --operation=read --no-tool=get_logs_swarms
+```
+
+## Tool Exposure Strategies
+
+The Swarms MCP server offers two primary strategies for exposing API endpoints as tools:
+
+### Static Tool Exposure
+
+In this mode, each API endpoint is exposed as a dedicated tool with a fully-defined schema. This approach provides:
+
+- Better autocomplete and type safety in client applications
+- More accurate parameter validation
+- Clearer documentation for each endpoint
+- Optimal performance for smaller API surfaces
+
+**Recommendation:** Use static exposure when working with a focused subset of the API or when the client has sufficient context window capacity.
+
+### Dynamic Tool Discovery
+
+When configured with `--tools=dynamic`, the server exposes three meta-tools that enable runtime endpoint discovery:
+
+#### `list_api_endpoints`
+Discovers available endpoints with optional search filtering.
+
+**Parameters:**
+- `search` (optional): Query string to filter endpoints
+
+**Use case:** Finding relevant endpoints without loading all schemas into context.
+
+#### `get_api_endpoint_schema`
+Retrieves detailed schema information for a specific endpoint.
+
+**Parameters:**
+- `endpoint`: The name or identifier of the endpoint
+
+**Use case:** Obtaining parameter requirements before invoking an endpoint.
+
+#### `invoke_api_endpoint`
+Executes any endpoint with appropriate parameters.
+
+**Parameters:**
+- `endpoint`: The endpoint to invoke
+- `parameters`: JSON object containing endpoint-specific parameters
+
+**Use case:** Making API calls after discovering and understanding the schema.
+
+**Recommendation:** Use dynamic tools when:
+- Working with a large API surface
+- Context window limitations are a concern
+- Runtime endpoint discovery is required
+- The full API schema exceeds available context
+
+### Hybrid Approach
+
+You can combine both strategies by specifying explicit tools alongside dynamic tools:
+
+```bash
+npx swarms-ts-mcp --tool=run_agent --tools=dynamic
+```
+
+This provides immediate access to frequently-used tools while maintaining the flexibility of dynamic discovery.
+
+## Client Compatibility
+
+Different MCP clients have varying capabilities for handling tool schemas and complex types. The Swarms MCP server automatically adapts its output based on the specified client.
+
+### Supported Clients
+
+#### Claude (`--client=claude`)
+Optimized for Claude AI assistant with full schema support.
+
+#### Claude Code (`--client=claude-code`)
+Configured for the Claude Code command-line environment.
+
+#### Cursor (`--client=cursor`)
+Adapted for the Cursor IDE with appropriate schema simplifications.
+
+#### OpenAI Agents (`--client=openai-agents`)
+Compatible with OpenAI's agent framework.
+
+### Manual Capability Configuration
+
+For clients not listed above or to override defaults:
+
+```bash
+npx swarms-ts-mcp --capability=top-level-unions,refs,unions,formats,tool-name-length=50
+```
+
+Available capabilities:
+
+- `top-level-unions`: Enables union types at the schema root
+- `valid-json`: Enables JSON string parsing for complex arguments
+- `refs`: Enables JSON Schema $ref pointers
+- `unions`: Enables anyOf union types
+- `formats`: Enables format validators (date-time, email, etc.)
+- `tool-name-length=N`: Sets maximum tool name length
+
+## Available Tools and Resources
+
+### Complete Tools Reference Table
+
+| Tool Name | Resource | Operation Type | Description | Primary Use Case |
+|-----------|----------|----------------|-------------|------------------|
+| `get_root_client` | $client | Read | Root client information | API connectivity verification and health checks |
+| `check_health` | health | Read | Health status of the Swarms API | Monitoring API uptime and status |
+| `run_agent` | agent | Write | Execute a single agent with a specified task | Running individual AI agents for specific tasks |
+| `run_agent_batch` | agent.batch | Write | Execute multiple agents concurrently using thread pool | Parallel processing of multiple independent agent tasks |
+| `list_available_models` | models | Read | Retrieve all available AI models | Model discovery and selection for agent configuration |
+| `check_available_swarms` | swarms | Read | Query available swarm types and configurations | Determining which swarm architecture to use |
+| `get_logs_swarms` | swarms | Read | Retrieve API request logs for associated API keys | Auditing, debugging, and usage analysis |
+| `run_swarms` | swarms | Write | Execute a swarm with a specified task | Orchestrating multiple agents in coordinated patterns |
+| `run_swarms_batch` | swarms.batch | Write | Execute multiple swarms concurrently using thread pool | Large-scale parallel swarm processing |
+| `create_completion_reasoning_agents` | reasoning_agents | Write | Execute a reasoning agent with chain-of-thought | Complex problem-solving requiring step-by-step analysis |
+| `list_types_reasoning_agents` | reasoning_agents | Read | List available reasoning agent types | Selecting appropriate reasoning strategies |
+| `get_limits_client_rate` | client.rate | Read | Query rate limits and current usage statistics | Monitoring API quota and preventing rate limit violations |
+
+### Dynamic Discovery Tools
+
+When using `--tools=dynamic`, these additional meta-tools become available:
+
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `list_api_endpoints` | Discover available endpoints with optional filtering | `search` (optional): Query string to filter endpoints |
+| `get_api_endpoint_schema` | Retrieve detailed schema for a specific endpoint | `endpoint`: Endpoint name or identifier |
+| `invoke_api_endpoint` | Execute any endpoint with appropriate parameters | `endpoint`: Endpoint to invoke<br>`parameters`: JSON object with endpoint-specific parameters |
+
+### Resource: $client
+
+**get_root_client** (read)
+- Description: Root client information
+- Use case: Health checks and API connectivity verification
+
+### Resource: health
+
+**check_health** (read)
+- Description: Health status of the Swarms API
+- Returns: API health metrics and status
+- Use case: Monitoring and uptime verification
+
+### Resource: agent
+
+**run_agent** (write)
+- Description: Execute a single agent with a specified task
+- Parameters:
+  - `task`: The task description for the agent
+  - Additional agent configuration parameters
+- Returns: Agent execution results
+- Use case: Running individual AI agents for specific tasks
+
+### Resource: agent.batch
+
+**run_agent_batch** (write)
+- Description: Execute multiple agents concurrently using a thread pool
+- Parameters:
+  - `tasks`: Array of task descriptions
+  - Batch configuration options
+- Returns: Aggregated results from all agents
+- Use case: Parallel processing of multiple independent tasks
+
+### Resource: models
+
+**list_available_models** (read)
+- Description: Retrieve all available AI models
+- Returns: List of model identifiers and capabilities
+- Use case: Model discovery and selection
+
+### Resource: swarms
+
+**check_available_swarms** (read)
+- Description: Query available swarm types and configurations
+- Returns: List of swarm architectures and their capabilities
+- Use case: Determining which swarm pattern to use
+
+**get_logs_swarms** (read)
+- Description: Retrieve API request logs for all associated API keys
+- Returns: Log entries (excluding client IP information)
+- Use case: Auditing, debugging, and usage analysis
+
+**run_swarms** (write)
+- Description: Execute a swarm with a specified task
+- Parameters:
+  - `task`: The task for the swarm to execute
+  - `swarm_type`: The type of swarm architecture
+  - Additional swarm configuration
+- Returns: Swarm execution results
+- Use case: Orchestrating multiple agents in coordinated patterns
+
+### Resource: swarms.batch
+
+**run_swarms_batch** (write)
+- Description: Execute multiple swarms concurrently using a thread pool
+- Parameters:
+  - `tasks`: Array of swarm tasks
+  - Batch and swarm configuration
+- Returns: Aggregated swarm results
+- Use case: Large-scale parallel swarm processing
+
+### Resource: reasoning_agents
+
+**create_completion_reasoning_agents** (write)
+- Description: Execute a reasoning agent with chain-of-thought capabilities
+- Parameters:
+  - `task`: The reasoning task
+  - Reasoning configuration options
+- Returns: Reasoning output with intermediate steps
+- Use case: Complex problem-solving requiring step-by-step analysis
+
+**list_types_reasoning_agents** (read)
+- Description: List available reasoning agent types
+- Returns: Reasoning agent architectures and their characteristics
+- Use case: Selecting appropriate reasoning strategies
+
+### Resource: client.rate
+
+**get_limits_client_rate** (read)
+- Description: Query rate limits and current usage
+- Returns: Rate limit information and usage statistics
+- Use case: Monitoring API quota and preventing rate limit violations
+
+### Tools by Operation Type
+
+#### Read Operations (12 tools)
+Read operations are safe, idempotent operations that retrieve information without modifying state:
+
+- `get_root_client`
+- `check_health`
+- `list_available_models`
+- `check_available_swarms`
+- `get_logs_swarms`
+- `list_types_reasoning_agents`
+- `get_limits_client_rate`
+
+Plus dynamic tools (when enabled):
+- `list_api_endpoints`
+- `get_api_endpoint_schema`
+
+#### Write Operations (5 tools)
+Write operations execute actions and may modify state or consume resources:
+
+- `run_agent`
+- `run_agent_batch`
+- `run_swarms`
+- `run_swarms_batch`
+- `create_completion_reasoning_agents`
+
+Plus dynamic tool (when enabled):
+- `invoke_api_endpoint`
+
+## Advanced Usage
+
+### Programmatic Integration
+
+For custom integrations, you can import and configure the server programmatically:
+
+```typescript
+import { server, endpoints, init } from "swarms-ts-mcp/server";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+// Initialize the server with all endpoints
+init({ server, endpoints });
+
+// Start the server
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+### Importing Specific Tools
+
+```typescript
+import getRootClient from "swarms-ts-mcp/tools/top-level/get-root-client";
+import { init } from "swarms-ts-mcp/server";
+
+// Initialize with only specific tools
+init({ 
+  server: myServer, 
+  endpoints: [getRootClient] 
+});
+```
+
+### Creating Custom Endpoints
+
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
+
+const myServer = new McpServer({
+  name: "custom-swarms-server",
+  version: "1.0.0"
+});
+
+const myCustomEndpoint = {
+  tool: {
+    name: 'my_custom_tool',
+    description: 'Custom tool for specialized operations',
+    inputSchema: zodToJsonSchema(z.object({ 
+      query: z.string(),
+      options: z.object({
+        verbose: z.boolean().optional()
+      }).optional()
+    })),
+  },
+  handler: async (client, args) => {
+    // Custom implementation
+    return { 
+      result: "Custom operation completed",
+      data: args 
+    };
+  }
+};
+
+init({ 
+  server: myServer, 
+  endpoints: [myCustomEndpoint] 
+});
+```
+
+## Error Handling
+
+When integrating with the Swarms MCP server, implement appropriate error handling:
+
+### Common Error Scenarios
+
+1. **Authentication Errors**: Invalid or missing API key
+2. **Rate Limiting**: Exceeded API quota
+3. **Invalid Parameters**: Malformed requests or missing required fields
+4. **Network Issues**: Connectivity problems or timeouts
+5. **Resource Unavailability**: Requested models or swarm types not available
+
+### Best Practices for Error Management
+
+- Always validate the presence of the `SWARMS_API_KEY` environment variable
+- Implement retry logic with exponential backoff for transient failures
+- Monitor rate limits using `get_limits_client_rate` before heavy operations
+- Log errors with sufficient context for debugging
+- Provide meaningful error messages to end users
+
+## Best Practices
+
+### Performance Optimization
+
+1. **Use Batch Operations**: When processing multiple tasks, prefer batch endpoints to reduce overhead
+2. **Filter Unnecessary Tools**: Minimize context window usage by exposing only required tools
+3. **Monitor Rate Limits**: Regularly check usage with `get_limits_client_rate`
+4. **Cache Model Lists**: Store the output of `list_available_models` to avoid repeated calls
+
+### Security Considerations
+
+1. **Secure API Key Storage**: Never commit API keys to version control
+2. **Environment Variables**: Use secure environment variable management
+3. **Access Control**: Limit tool exposure based on user permissions when applicable
+4. **Audit Logging**: Utilize `get_logs_swarms` for security auditing
+
+### Development Workflow
+
+1. **Start with Dynamic Tools**: Use `--tools=dynamic` during exploration and development
+2. **Transition to Static**: Once your use case is defined, switch to static tool exposure for better performance
+3. **Test Tool Filters**: Verify that your `--tool`, `--resource`, and `--operation` filters expose the expected endpoints
+4. **Client-Specific Testing**: Test with your target client configuration to ensure compatibility
+
+### Deployment Recommendations
+
+1. **Version Pinning**: Specify exact versions in production (`swarms-ts-mcp@0.1.0-alpha.10`)
+2. **Health Monitoring**: Implement regular health checks using `check_health`
+3. **Graceful Degradation**: Handle API unavailability gracefully in your application
+4. **Documentation**: Maintain internal documentation of which tools are exposed and why
+
+## Resources
+
+- **GitHub Repository**: [https://github.com/The-Swarm-Corporation/swarms-ts](https://github.com/The-Swarm-Corporation/swarms-ts/tree/next/packages/mcp-server)
+- **npm Package**: [https://www.npmjs.com/package/swarms-ts-mcp](https://www.npmjs.com/package/swarms-ts-mcp)
+- **Model Context Protocol**: [https://modelcontextprotocol.io](https://modelcontextprotocol.io)
+- **License**: Apache-2.0
+
+## Version Information
+
+- **Current Version**: 0.1.0-alpha.10
+- **Status**: Alpha release
+- **Last Updated**: 6 months ago
+
+## Support
+
+For issues, feature requests, or contributions:
+
+- Open an issue on the GitHub repository
+- Review existing documentation and examples
+- Check the Model Context Protocol specification for general MCP questions

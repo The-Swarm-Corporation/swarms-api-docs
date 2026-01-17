@@ -33,7 +33,8 @@
             "group": "Clients",
             "pages": [
               "docs/documentation/resources/client-libraries",
-              "docs/documentation/clients/python-client"
+              "docs/documentation/clients/python-client",
+              "docs/documentation/clients/swarms-api-mcp"
             ]
           },
           {
