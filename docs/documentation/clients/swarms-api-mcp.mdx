@@ -1,11 +1,24 @@
 ---
 title: 'Swarms API MCP Server'
-description: 'Model Context Protocol server for accessing the Swarms AI agent platform through a standardized interface'
+description: 'Connect MCP-compatible agents and applications to Swarms AI through the Model Context Protocol. Execute agents, orchestrate swarms, run reasoning workflows, and process batches—all via a standardized MCP interface.'
 ---
 
 ## Overview
 
-The Swarms TypeScript MCP Server is a Model Context Protocol server implementation that provides access to the Swarms AI agent platform through a standardized interface. Built with Stainless, this server enables AI assistants and applications to interact with Swarms' agent orchestration capabilities, including single agents, swarms, reasoning agents, and batch processing operations.
+The Swarms TypeScript MCP Server bridges MCP-compatible agents (Claude Desktop, Cursor IDE, OpenAI Agents, and other MCP clients) with the Swarms AI agent platform. Built with Stainless and following the Model Context Protocol standard, this server exposes Swarms' API endpoints as discoverable tools that agents can invoke directly—enabling agents to execute single agents, orchestrate multi-agent swarms, run reasoning workflows, and process batch operations without custom API integration code.
+
+### Key Capabilities
+
+- **Single Agent Execution**: Run individual Swarms agents with custom tasks, model selection, and configuration parameters
+- **Multi-Agent Orchestration**: Coordinate swarms using architectural patterns including sequential workflows, concurrent execution, hierarchical structures, graph-based routing, and majority voting
+- **Reasoning Agents**: Execute chain-of-thought reasoning agents for step-by-step problem analysis and complex decision-making
+- **Batch Processing**: Process multiple agent tasks or swarm operations in parallel using thread pools for high-throughput workloads
+- **Dynamic Discovery**: Use runtime endpoint discovery to explore available API operations, or configure static tool exposure for better performance and type safety
+- **Client Optimization**: Automatically adapts tool schemas and capabilities to match your MCP client (Claude Desktop, Cursor IDE, OpenAI Agents, Claude Code, and custom clients)
+
+### Why Use This Server?
+
+The Swarms MCP Server eliminates the need to write custom API integration code when building agent-powered applications. Instead of manually constructing HTTP requests, handling authentication, and parsing responses, agents can directly invoke Swarms operations through standardized MCP tools. The server provides production-ready error handling, rate limit monitoring, health checks, and flexible configuration options—allowing you to expose only the tools your agents need while maintaining full compatibility with the MCP ecosystem.
 
 ## Table of Contents
 
