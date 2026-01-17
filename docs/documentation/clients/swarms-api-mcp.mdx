@@ -30,6 +30,7 @@ The Swarms MCP Server eliminates the need to write custom API integration code w
 6. [Advanced Usage](#advanced-usage)
 7. [Error Handling](#error-handling)
 8. [Best Practices](#best-practices)
+9. [Client Setup Examples](#client-setup-examples)
 
 ## Installation
 
@@ -485,40 +486,357 @@ When integrating with the Swarms MCP server, implement appropriate error handlin
 
 ## Best Practices
 
-### Performance Optimization
 
-1. **Use Batch Operations**: When processing multiple tasks, prefer batch endpoints to reduce overhead
-2. **Filter Unnecessary Tools**: Minimize context window usage by exposing only required tools
-3. **Monitor Rate Limits**: Regularly check usage with `get_limits_client_rate`
-4. **Cache Model Lists**: Store the output of `list_available_models` to avoid repeated calls
+| Best Practice Category           | Recommendation                                                                                                  | Description/Details                                                                                                 |
+|----------------------------------|----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| **Batch Operations**             | Use batch endpoints                                                                                            | When processing multiple tasks, prefer batch endpoints to reduce overhead.                                          |
+| **Tool Exposure**                | Filter unnecessary tools                                                                                       | Minimize context window usage by exposing only the tools required for your workflow.                                |
+| **Rate Limit Monitoring**        | Monitor rate limits                                                                                            | Regularly check your usage with `get_limits_client_rate` to avoid hitting rate limits.                              |
+| **Model List Optimization**      | Cache model lists                                                                                              | Store the output of `list_available_models` to prevent repeated, redundant API calls.                               |
+| **API Key Security**             | Secure API key storage                                                                                         | Never commit API keys to version control; use secure secrets management.                                            |
+| **Environment Management**       | Use environment variables                                                                                      | Manage sensitive information via secure environment variable configuration.                                         |
+| **Access Control**               | Limit tool exposure by permission                                                                              | Restrict tool access based on user permissions when possible.                                                       |
+| **Audit Logging**                | Utilize audit logging                                                                                          | Use `get_logs_swarms` for security auditing and tracking usage.                                                     |
+| **Tool Strategy (Exploration)**  | Start with dynamic tools                                                                                       | Use `--tools=dynamic` during early exploration and development to discover available endpoints.                     |
+| **Tool Strategy (Production)**   | Transition to static tool exposure                                                                             | Once requirements are clear, switch to static tool exposure for performance and predictability.                     |
+| **Tool Filter Testing**          | Test tool/resource/operation filters                                                                           | Verify your configurations (`--tool`, `--resource`, `--operation`) to ensure only expected endpoints are exposed.   |
+| **Client Compatibility**         | Test with target client                                                                                        | Always verify integration and tool compatibility with your specific client setup.                                   |
+| **Version Management**           | Pin production versions                                                                                        | Specify the exact package version (e.g., `swarms-ts-mcp@0.1.0-alpha.10`) in production deployments.                 |
+| **Health Monitoring**            | Implement health checks                                                                                        | Regularly call `check_health` to ensure server and API availability.                                                |
+| **API Reliability**              | Handle API unavailability gracefully                                                                          | Implement graceful degradation strategies for scenarios when the API is down.                                       |
+| **Internal Documentation**       | Maintain documentation of exposed tools                                                                        | Keep internal documentation up-to-date on which tools/endpoints are available and why they're exposed.              |
 
-### Security Considerations
 
-1. **Secure API Key Storage**: Never commit API keys to version control
-2. **Environment Variables**: Use secure environment variable management
-3. **Access Control**: Limit tool exposure based on user permissions when applicable
-4. **Audit Logging**: Utilize `get_logs_swarms` for security auditing
+## Client Setup Examples
 
-### Development Workflow
+### Claude Code
 
-1. **Start with Dynamic Tools**: Use `--tools=dynamic` during exploration and development
-2. **Transition to Static**: Once your use case is defined, switch to static tool exposure for better performance
-3. **Test Tool Filters**: Verify that your `--tool`, `--resource`, and `--operation` filters expose the expected endpoints
-4. **Client-Specific Testing**: Test with your target client configuration to ensure compatibility
+Claude Code is a command-line tool that enables Claude to interact with your codebase and execute operations. Here's how to configure the Swarms MCP server for Claude Code.
 
-### Deployment Recommendations
+#### Configuration
 
-1. **Version Pinning**: Specify exact versions in production (`swarms-ts-mcp@0.1.0-alpha.10`)
-2. **Health Monitoring**: Implement regular health checks using `check_health`
-3. **Graceful Degradation**: Handle API unavailability gracefully in your application
-4. **Documentation**: Maintain internal documentation of which tools are exposed and why
+Add the Swarms MCP server to your Claude Code configuration file (typically located at `~/.config/claude-code/mcp.json` or similar):
+
+```json
+{
+  "mcpServers": {
+    "swarms_api": {
+      "command": "npx",
+      "args": ["-y", "swarms-ts-mcp@latest", "--client=claude-code", "--tools=all"],
+      "env": {
+        "SWARMS_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+#### Recommended Configuration for Claude Code
+
+For optimal performance with Claude Code, consider using a focused set of tools:
+
+```json
+{
+  "mcpServers": {
+    "swarms_api": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "swarms-ts-mcp@latest",
+        "--client=claude-code",
+        "--resource=agent,swarms,reasoning_agents",
+        "--capability=tool-name-length=50"
+      ],
+      "env": {
+        "SWARMS_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+#### Usage Example: Running an Agent
+
+Once configured, you can ask Claude Code to execute Swarms agents directly:
+
+```bash
+# In Claude Code, you can now use natural language:
+# "Run a Swarms agent to analyze this codebase and generate a summary"
+```
+
+Claude Code will automatically invoke the `run_agent` tool:
+
+```json
+{
+  "tool": "run_agent",
+  "parameters": {
+    "task": "Analyze the codebase structure and generate a comprehensive summary of the architecture, key components, and dependencies.",
+    "model": "gpt-4",
+    "max_tokens": 2000
+  }
+}
+```
+
+#### Usage Example: Batch Processing
+
+For processing multiple files or tasks:
+
+```bash
+# "Process all Python files in this directory using a batch of agents"
+```
+
+Claude Code will use the batch endpoint:
+
+```json
+{
+  "tool": "run_agent_batch",
+  "parameters": {
+    "tasks": [
+      "Analyze file1.py and extract function signatures",
+      "Analyze file2.py and identify class definitions",
+      "Analyze file3.py and document module exports"
+    ],
+    "model": "gpt-4"
+  }
+}
+```
+
+#### Usage Example: Multi-Agent Swarm
+
+For complex tasks requiring multiple agents:
+
+```bash
+# "Use a sequential swarm to: 1) analyze the code, 2) generate tests, 3) create documentation"
+```
+
+```json
+{
+  "tool": "run_swarms",
+  "parameters": {
+    "task": "Analyze the codebase, generate comprehensive tests, and create API documentation",
+    "swarm_type": "sequential_workflow",
+    "model": "gpt-4"
+  }
+}
+```
+
+#### Usage Example: Reasoning Agent
+
+For complex problem-solving tasks:
+
+```bash
+# "Use a reasoning agent to debug this error and provide a step-by-step solution"
+```
+
+```json
+{
+  "tool": "create_completion_reasoning_agents",
+  "parameters": {
+    "task": "Debug the following error: [error message]. Provide a step-by-step analysis and solution.",
+    "reasoning_type": "chain_of_thought"
+  }
+}
+```
+
+#### Dynamic Tool Discovery
+
+If you prefer runtime discovery, configure with dynamic tools:
+
+```json
+{
+  "mcpServers": {
+    "swarms_api": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "swarms-ts-mcp@latest",
+        "--client=claude-code",
+        "--tools=dynamic"
+      ],
+      "env": {
+        "SWARMS_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+Then use the discovery tools:
+
+```json
+{
+  "tool": "list_api_endpoints",
+  "parameters": {
+    "search": "agent"
+  }
+}
+```
+
+### Claude Chat (Claude Desktop)
+
+Claude Chat (Claude Desktop) provides a conversational interface where Claude can use MCP tools to interact with the Swarms API.
+
+#### Configuration
+
+Add the Swarms MCP server to your Claude Desktop configuration file. On macOS, this is typically located at `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "swarms_api": {
+      "command": "npx",
+      "args": ["-y", "swarms-ts-mcp@latest", "--client=claude", "--tools=all"],
+      "env": {
+        "SWARMS_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+#### Recommended Configuration for Claude Chat
+
+For Claude Chat, you may want to expose all tools for maximum flexibility:
+
+```json
+{
+  "mcpServers": {
+    "swarms_api": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "swarms-ts-mcp@latest",
+        "--client=claude",
+        "--tools=all"
+      ],
+      "env": {
+        "SWARMS_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+#### Usage Example: Health Check
+
+Start by verifying the connection:
+
+```
+You: "Check if the Swarms API is healthy"
+```
+
+Claude will automatically use the health check tool:
+
+```json
+{
+  "tool": "check_health",
+  "parameters": {}
+}
+```
+
+#### Usage Example: Agent Execution
+
+Execute agents through natural conversation:
+
+```
+You: "Run a Swarms agent to summarize the key points from this document"
+```
+
+Claude will invoke the agent:
+
+```json
+{
+  "tool": "run_agent",
+  "parameters": {
+    "task": "Summarize the key points from the provided document",
+    "model": "gpt-4",
+    "max_tokens": 1000
+  }
+}
+```
+
+#### Usage Example: Model Discovery
+
+Discover available models before running agents:
+
+```
+You: "What models are available in Swarms?"
+```
+
+```json
+{
+  "tool": "list_available_models",
+  "parameters": {}
+}
+```
+
+#### Usage Example: Swarm Orchestration
+
+Use multi-agent swarms for complex workflows:
+
+```
+You: "Use a concurrent swarm to analyze these three documents in parallel and provide a comparative analysis"
+```
+
+```json
+{
+  "tool": "run_swarms",
+  "parameters": {
+    "task": "Analyze three documents in parallel and provide a comparative analysis",
+    "swarm_type": "concurrent_workflow",
+    "model": "gpt-4"
+  }
+}
+```
+
+#### Usage Example: Rate Limit Monitoring
+
+Check your API usage:
+
+```
+You: "What's my current rate limit status?"
+```
+
+```json
+{
+  "tool": "get_limits_client_rate",
+  "parameters": {}
+}
+```
+
+#### Filtered Configuration Example
+
+If you want to limit Claude Chat to read-only operations:
+
+```json
+{
+  "mcpServers": {
+    "swarms_api": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "swarms-ts-mcp@latest",
+        "--client=claude",
+        "--operation=read"
+      ],
+      "env": {
+        "SWARMS_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+This configuration exposes only read operations like `check_health`, `list_available_models`, `check_available_swarms`, and `get_limits_client_rate`, preventing accidental execution of agents or swarms.
 
 ## Resources
 
-- **GitHub Repository**: [https://github.com/The-Swarm-Corporation/swarms-ts](https://github.com/The-Swarm-Corporation/swarms-ts/tree/next/packages/mcp-server)
-- **npm Package**: [https://www.npmjs.com/package/swarms-ts-mcp](https://www.npmjs.com/package/swarms-ts-mcp)
-- **Model Context Protocol**: [https://modelcontextprotocol.io](https://modelcontextprotocol.io)
-- **License**: Apache-2.0
+| Resource                  | Link                                                                                                                              |
+|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| **GitHub Repository**     | [swarms-ts GitHub](https://github.com/The-Swarm-Corporation/swarms-ts/tree/next/packages/mcp-server)                             |
+| **npm Package**           | [swarms-ts-mcp on npm](https://www.npmjs.com/package/swarms-ts-mcp)                                                              |
+| **Model Context Protocol**| [modelcontextprotocol.io](https://modelcontextprotocol.io)                                                                        |
+| **License**               | Apache-2.0                                                                                                                       |
 
 ## Version Information
 
