@@ -1,0 +1,580 @@
+---
+title: "Medical Image Analysis Agent"
+description: "Build a healthcare agent that analyzes medical images (X-rays, MRIs, skin conditions) using base64 encoding in 3 simple steps."
+---
+
+## What This Example Shows
+
+- Encoding medical images to base64 for API transmission
+- Creating a specialized medical imaging analysis agent
+- Processing and interpreting visual diagnostic data
+
+<Warning>
+**Disclaimer**: This example is for educational purposes only. AI-assisted medical image analysis should always be reviewed by qualified healthcare professionals. Never use AI outputs as the sole basis for medical decisions.
+</Warning>
+
+## Prerequisites
+
+```bash
+pip install requests python-dotenv
+```
+
+Get your API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+
+---
+
+## 3-Step Tutorial
+
+### Step 1: Encode Your Medical Image to Base64
+
+Medical images must be converted to base64 format before sending to the API. This works with X-rays, CT scans, MRI images, dermatology photos, and more.
+
+```python
+import base64
+import os
+from pathlib import Path
+
+def encode_medical_image(image_path: str) -> str:
+    """
+    Encode a medical image file to base64 string.
+
+    Supports: PNG, JPEG, DICOM exports, and other standard formats.
+
+    Args:
+        image_path: Path to the medical image file
+
+    Returns:
+        Base64 encoded string with proper data URI prefix
+    """
+    # Verify file exists
+    if not Path(image_path).exists():
+        raise FileNotFoundError(f"Image not found: {image_path}")
+
+    # Determine MIME type from extension
+    extension = Path(image_path).suffix.lower()
+    mime_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp"
+    }
+
+    mime_type = mime_types.get(extension, "image/png")
+
+    # Read and encode the image
+    with open(image_path, "rb") as image_file:
+        encoded = base64.b64encode(image_file.read()).decode("utf-8")
+
+    # Return with data URI prefix (required by the API)
+    return f"data:{mime_type};base64,{encoded}"
+
+
+# Example usage:
+# image_base64 = encode_medical_image("chest_xray.png")
+```
+
+<Tip>
+**Image Size**: For optimal performance, keep images under 20MB. Resize large DICOM images before encoding if needed.
+</Tip>
+
+---
+
+### Step 2: Configure the Medical Imaging Agent
+
+Create a specialized agent with expertise in medical image interpretation. The system prompt is crucial for accurate, clinically-relevant analysis.
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+def create_medical_imaging_agent(
+    specialty: str = "radiology",
+    image_type: str = "X-ray"
+) -> dict:
+    """
+    Create an agent configuration for medical image analysis.
+
+    Args:
+        specialty: Medical specialty (radiology, dermatology, pathology, ophthalmology)
+        image_type: Type of image being analyzed
+
+    Returns:
+        Agent configuration dictionary
+    """
+
+    specialty_prompts = {
+        "radiology": f"""You are an expert radiologist AI assistant specializing in {image_type} interpretation.
+
+When analyzing medical images, provide:
+
+1. **IMAGE QUALITY ASSESSMENT**
+   - Technical adequacy (positioning, exposure, artifacts)
+   - Any limitations affecting interpretation
+
+2. **SYSTEMATIC FINDINGS**
+   - Describe all visible anatomical structures
+   - Note normal findings explicitly
+   - Identify any abnormalities with precise location and characteristics
+   - Use standard radiological terminology
+
+3. **DIFFERENTIAL DIAGNOSIS**
+   - List possible diagnoses in order of likelihood
+   - Explain the imaging features supporting each
+   - Note any findings that argue against certain diagnoses
+
+4. **RECOMMENDATIONS**
+   - Suggested additional views or imaging studies if needed
+   - Clinical correlation recommendations
+   - Follow-up imaging timeline if applicable
+
+5. **CRITICAL FINDINGS**
+   - Flag any urgent or emergent findings prominently
+   - Indicate if immediate clinical attention is warranted
+
+Always maintain appropriate medical uncertainty and recommend clinical correlation.""",
+
+        "dermatology": """You are an expert dermatology AI assistant specializing in skin lesion analysis.
+
+When analyzing skin images, provide:
+
+1. **LESION DESCRIPTION (ABCDE Criteria)**
+   - Asymmetry: Is the lesion asymmetrical?
+   - Border: Are borders irregular, ragged, or blurred?
+   - Color: Is there color variation or multiple colors?
+   - Diameter: Estimated size assessment
+   - Evolution: Note any described changes
+
+2. **MORPHOLOGICAL ANALYSIS**
+   - Primary lesion type (macule, papule, nodule, plaque, etc.)
+   - Secondary features (scaling, crusting, ulceration)
+   - Distribution pattern
+   - Surface characteristics
+
+3. **DIFFERENTIAL DIAGNOSIS**
+   - Most likely diagnosis with reasoning
+   - Alternative possibilities
+   - Red flags for malignancy
+
+4. **RISK ASSESSMENT**
+   - Benign vs. concerning features
+   - Urgency level for clinical evaluation
+
+5. **RECOMMENDATIONS**
+   - Need for biopsy or dermoscopy
+   - Follow-up timeline
+   - Clinical correlation needed
+
+Flag any features concerning for melanoma or other skin cancers prominently.""",
+
+        "pathology": """You are an expert pathology AI assistant specializing in histological image analysis.
+
+Provide systematic analysis of tissue samples including:
+- Tissue architecture and organization
+- Cellular morphology and atypia
+- Inflammatory patterns
+- Any pathological changes
+- Differential diagnosis with supporting features
+- Recommended additional stains or studies""",
+
+        "ophthalmology": """You are an expert ophthalmology AI assistant specializing in retinal and eye imaging analysis.
+
+Analyze fundus photos, OCT scans, or other ophthalmic images for:
+- Optic disc appearance (cupping, pallor, edema)
+- Macular findings
+- Vascular changes
+- Retinal lesions or hemorrhages
+- Signs of diabetic retinopathy, glaucoma, or macular degeneration
+- Recommended follow-up or additional testing"""
+    }
+
+    return {
+        "agent_name": f"Medical Imaging Analyst - {specialty.title()}",
+        "description": f"Expert {specialty} AI assistant for {image_type} analysis",
+        "system_prompt": specialty_prompts.get(specialty, specialty_prompts["radiology"]),
+        "model_name": "gpt-4o",  # Vision-capable model required
+        "max_tokens": 4096,
+        "temperature": 0.3,  # Lower temperature for medical accuracy
+        "max_loops": 1
+    }
+```
+
+---
+
+### Step 3: Analyze the Medical Image
+
+Combine the encoded image with the agent to perform the analysis.
+
+```python
+def analyze_medical_image(
+    image_path: str,
+    clinical_context: str = "",
+    specialty: str = "radiology",
+    image_type: str = "X-ray"
+) -> dict:
+    """
+    Analyze a medical image using the specialized healthcare agent.
+
+    Args:
+        image_path: Path to the medical image file
+        clinical_context: Patient history, symptoms, or clinical question
+        specialty: Medical specialty for analysis
+        image_type: Type of medical image
+
+    Returns:
+        API response with analysis results
+    """
+
+    # Step 1: Encode the image
+    print(f"Encoding image: {image_path}")
+    image_base64 = encode_medical_image(image_path)
+    print(f"Image encoded successfully ({len(image_base64)} characters)")
+
+    # Step 2: Create the agent configuration
+    agent_config = create_medical_imaging_agent(
+        specialty=specialty,
+        image_type=image_type
+    )
+
+    # Step 3: Build the analysis request
+    task = f"""Analyze this {image_type} image and provide a comprehensive interpretation.
+
+CLINICAL CONTEXT:
+{clinical_context if clinical_context else "No clinical history provided. Please analyze based on imaging findings alone."}
+
+Provide your analysis following the systematic approach in your training."""
+
+    payload = {
+        "agent_config": agent_config,
+        "task": task,
+        "img": image_base64  # Base64 encoded image
+    }
+
+    # Make the API request
+    print("Sending image to analysis agent...")
+    response = requests.post(
+        f"{API_BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=120  # Medical images may take longer to process
+    )
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"API Error: {response.status_code} - {response.text}")
+
+
+def display_analysis_report(result: dict, image_type: str):
+    """Format and display the medical imaging analysis report."""
+
+    print("\n" + "=" * 70)
+    print(f"MEDICAL IMAGING ANALYSIS REPORT")
+    print(f"Image Type: {image_type}")
+    print("=" * 70)
+
+    # Extract the analysis
+    outputs = result.get("outputs", "No analysis generated")
+
+    print(f"\n{outputs}")
+
+    # Usage information
+    usage = result.get("usage", {})
+    print(f"\n{'─' * 70}")
+    print("ANALYSIS METADATA")
+    print(f"  Job ID: {result.get('job_id', 'N/A')}")
+    print(f"  Tokens used: {usage.get('total_tokens', 0):,}")
+    print(f"  Image processing cost: ${usage.get('img_cost', 0):.4f}")
+    print(f"  Total cost: ${usage.get('total_cost', 0):.4f}")
+    print("=" * 70)
+
+
+# =============================================================================
+# MAIN EXAMPLE
+# =============================================================================
+
+def main():
+    """Run a complete medical image analysis example."""
+
+    # Example: Chest X-ray analysis
+    print("Medical Image Analysis Agent - Demo")
+    print("=" * 50)
+
+    # In production, this would be a real medical image path
+    IMAGE_PATH = "chest_xray_sample.png"  # Replace with your image
+
+    # Clinical context improves analysis accuracy
+    CLINICAL_CONTEXT = """
+    Patient: 58-year-old male
+    Chief Complaint: Persistent cough for 3 weeks, mild fever
+    History: Former smoker (quit 5 years ago), 30 pack-year history
+    Current symptoms: Productive cough, night sweats, 5lb weight loss
+    Question: Please evaluate for any pulmonary pathology
+    """
+
+    try:
+        # Run the analysis
+        result = analyze_medical_image(
+            image_path=IMAGE_PATH,
+            clinical_context=CLINICAL_CONTEXT,
+            specialty="radiology",
+            image_type="Chest X-ray"
+        )
+
+        # Display the report
+        display_analysis_report(result, "Chest X-ray")
+
+    except FileNotFoundError as e:
+        print(f"Image not found: {e}")
+        print("\nTo test this example, provide a valid image path.")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+## Complete Working Example
+
+Here's the full code in one file:
+
+```python
+"""
+Medical Image Analysis Agent
+============================
+Analyze medical images (X-rays, MRIs, skin lesions) using the Swarms API.
+
+Usage:
+    1. Set your SWARMS_API_KEY environment variable
+    2. Update IMAGE_PATH to your medical image
+    3. Run the script
+
+Requirements:
+    pip install requests python-dotenv
+"""
+
+import base64
+import os
+import requests
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configuration
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+
+def encode_medical_image(image_path: str) -> str:
+    """Encode a medical image file to base64 with data URI prefix."""
+    if not Path(image_path).exists():
+        raise FileNotFoundError(f"Image not found: {image_path}")
+
+    extension = Path(image_path).suffix.lower()
+    mime_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+    }
+    mime_type = mime_types.get(extension, "image/png")
+
+    with open(image_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode("utf-8")
+
+    return f"data:{mime_type};base64,{encoded}"
+
+
+def analyze_medical_image(image_path: str, clinical_context: str = "") -> dict:
+    """Analyze a medical image and return structured findings."""
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Medical Imaging Radiologist",
+            "description": "Expert radiologist for medical image interpretation",
+            "system_prompt": """You are an expert radiologist AI assistant.
+
+Analyze medical images systematically:
+1. IMAGE QUALITY - Technical adequacy and limitations
+2. FINDINGS - Describe all normal and abnormal findings
+3. DIFFERENTIAL DIAGNOSIS - Ranked by likelihood with supporting features
+4. RECOMMENDATIONS - Additional studies, clinical correlation, follow-up
+5. CRITICAL FINDINGS - Flag any urgent findings prominently
+
+Use standard medical terminology. Always recommend clinical correlation.""",
+            "model_name": "gpt-4o",
+            "max_tokens": 4096,
+            "temperature": 0.3
+        },
+        "task": f"""Analyze this medical image comprehensively.
+
+Clinical Context: {clinical_context or 'Not provided'}
+
+Provide systematic analysis with findings and recommendations.""",
+        "img": encode_medical_image(image_path)
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=120
+    )
+
+    if response.status_code == 200:
+        return response.json()
+    raise Exception(f"API Error: {response.status_code} - {response.text}")
+
+
+# Example usage
+if __name__ == "__main__":
+    result = analyze_medical_image(
+        image_path="your_medical_image.png",
+        clinical_context="65-year-old with shortness of breath"
+    )
+    print(result.get("outputs", "No output"))
+```
+
+---
+
+## Multiple Image Analysis
+
+For comparing multiple images (e.g., before/after, multiple views):
+
+```python
+def analyze_multiple_images(image_paths: list[str], clinical_context: str) -> dict:
+    """Analyze multiple medical images for comparison."""
+
+    # Encode all images
+    encoded_images = [encode_medical_image(path) for path in image_paths]
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Medical Imaging Comparator",
+            "system_prompt": """You are an expert radiologist comparing multiple medical images.
+
+For each image, provide findings, then synthesize a comparison highlighting:
+- Changes between images
+- Progression or improvement
+- New findings vs resolved findings
+- Overall assessment""",
+            "model_name": "gpt-4o",
+            "max_tokens": 6000,
+            "temperature": 0.3
+        },
+        "task": f"""Compare these {len(image_paths)} medical images.
+
+Clinical Context: {clinical_context}
+
+Analyze each image, then provide comparative assessment.""",
+        "imgs": encoded_images  # Note: 'imgs' for multiple images
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=180
+    )
+
+    return response.json() if response.status_code == 200 else None
+```
+
+---
+
+## Expected Output
+
+```
+======================================================================
+MEDICAL IMAGING ANALYSIS REPORT
+Image Type: Chest X-ray
+======================================================================
+
+**IMAGE QUALITY ASSESSMENT**
+Technical adequacy: Good. PA view, adequate inspiration, no rotation.
+No significant artifacts affecting interpretation.
+
+**SYSTEMATIC FINDINGS**
+
+Lungs:
+- Right upper lobe: 2.5cm irregular opacity with spiculated margins
+- Remainder of lung fields: Clear, no consolidation or effusion
+- No pneumothorax
+
+Mediastinum:
+- Heart size: Normal cardiothoracic ratio
+- Mediastinal contours: Within normal limits
+- No lymphadenopathy apparent
+
+Bones/Soft Tissues:
+- Visualized osseous structures: No acute abnormality
+- Soft tissues: Unremarkable
+
+**DIFFERENTIAL DIAGNOSIS**
+1. Primary lung malignancy (most likely given spiculated margins,
+   smoking history, and constitutional symptoms)
+2. Granuloma (less likely given irregular margins)
+3. Metastatic disease (requires clinical correlation)
+
+**RECOMMENDATIONS**
+- CT chest with contrast for further characterization
+- Consider PET-CT for staging if malignancy confirmed
+- Tissue sampling via bronchoscopy or CT-guided biopsy
+- Urgent pulmonology referral recommended
+
+**CRITICAL FINDINGS**
+⚠️ Suspicious pulmonary nodule requiring urgent follow-up
+
+──────────────────────────────────────────────────────────────────────
+ANALYSIS METADATA
+  Job ID: agent-abc123xyz
+  Tokens used: 2,450
+  Image processing cost: $0.0150
+  Total cost: $0.0298
+======================================================================
+```
+
+---
+
+## Supported Specialties
+
+| Specialty | Image Types | Key Analysis Features |
+|-----------|-------------|----------------------|
+| Radiology | X-ray, CT, MRI | Systematic anatomical review, pathology detection |
+| Dermatology | Skin photos | ABCDE criteria, lesion morphology, malignancy risk |
+| Pathology | Histology slides | Tissue architecture, cellular atypia, diagnosis |
+| Ophthalmology | Fundus, OCT | Retinal findings, diabetic changes, glaucoma signs |
+
+---
+
+## Best Practices
+
+1. **Always provide clinical context** - Patient history dramatically improves accuracy
+2. **Use appropriate image quality** - Clear, well-lit images produce better results
+3. **Specify image type** - Tell the agent what kind of image it's analyzing
+4. **Review with professionals** - AI analysis should supplement, not replace, clinical judgment
+5. **Handle PHI carefully** - Ensure HIPAA compliance when processing real patient images
+
+## Next Steps
+
+- Explore [Hospital Team Swarm](/docs/examples/examples/hospital-team) for multi-agent medical workflows
+- Learn about [ICD Code Analysis](/docs/examples/examples/icd-analysis) for diagnostic coding
+- See [Batch Processing](/docs/examples/examples/batch-processing) for high-volume image analysis
