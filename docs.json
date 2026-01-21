@@ -13,6 +13,9 @@
     "dark": "#000000"
   },
   "favicon": "/logo.svg",
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude", "cursor", "vscode"]
+  },
   "navigation": {
     "tabs": [
       {
@@ -120,6 +123,27 @@
             "pages": [
               "docs/marketplace/launch-checklist",
               "docs/marketplace/foundry"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "ATP Protocol",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "docs/atp/vision",
+              "docs/atp/overview",
+              "docs/atp/installation"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "docs/atp/middleware",
+              "docs/atp/facilitator",
+              "docs/atp/client"
             ]
           }
         ]

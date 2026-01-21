@@ -1,0 +1,402 @@
+---
+title: 'ATP Overview'
+description: 'Learn about the Agent Trade Protocol (ATP), a payment settlement system that enables automatic payment processing for AI agent services on the Solana blockchain'
+---
+
+
+The ATP (Agent Trade Protocol) is a payment settlement system that enables automatic payment processing for AI agent services on the Solana blockchain. It provides a middleware layer that automatically deducts payments from user wallets based on token usage, ensuring secure and transparent transactions.
+
+> **Learn more about ATP's vision and purpose**: See [ATP Vision](vision.mdx) for details on why ATP exists and our goal to make it the standard for agentic trade.
+
+## How It Works
+
+The ATP Protocol operates through three main components:
+
+1. **Settlement Service (Facilitator)**: A centralized service that handles all settlement logic, including usage parsing, payment calculation, and blockchain transaction execution. See [Facilitator Reference](facilitator.mdx) for complete API documentation.
+
+2. **Middleware**: A FastAPI middleware that intercepts API responses, extracts usage data, encrypts responses, executes payments, and decrypts responses only after payment confirmation. See [Middleware Reference](middleware.mdx) for configuration and usage.
+
+3. **Client**: A user-facing client that simplifies making requests to ATP-protected endpoints and interacting with the settlement service. See [Client Reference](client.mdx) for API documentation.
+
+### Request Flow
+
+1. **Client Request**: User sends a request to an ATP-protected endpoint with their wallet private key in the header.
+
+2. **Endpoint Processing**: The endpoint processes the request and returns a response with usage data (token counts).
+
+3. **Middleware Interception**: The middleware intercepts the response and:
+   - Parses usage data via the settlement service
+   - Encrypts the agent response to prevent unauthorized access
+   - Sends payment request to settlement service
+
+4. **Payment Execution**: The settlement service:
+   - Calculates payment amount based on token usage and pricing
+   - Creates a split payment transaction (treasury fee + recipient payment)
+   - Signs and sends the transaction to Solana blockchain
+   - Waits for transaction confirmation
+
+5. **Response Decryption**: Only after payment is confirmed on-chain, the middleware decrypts the response and returns it to the client.
+
+### Security Features
+
+- **Response Encryption**: Agent responses are encrypted before payment verification, ensuring users cannot see output until payment is confirmed.
+
+- **Payment Verification**: Responses are only decrypted after successful blockchain transaction confirmation (status="paid" with valid transaction signature).
+
+- **Error Handling**: Failed payments result in encrypted responses with error details, preventing unauthorized access to agent output.
+
+### Payment Splitting
+
+Payments are automatically split between:
+- **Treasury**: Receives the processing fee (configured on settlement service, default 5%)
+- **Recipient**: Receives the remainder (95% by default). This is the endpoint host's wallet specified via `recipient_pubkey`.
+
+## Server Example
+
+Here's a complete example of setting up an ATP-protected FastAPI server:
+
+```python
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+from atp.middleware import ATPSettlementMiddleware
+from atp.schemas import PaymentToken
+
+# Create FastAPI app
+app = FastAPI(title="ATP-Protected API")
+
+# Add ATP Settlement Middleware
+app.add_middleware(
+    ATPSettlementMiddleware,
+    allowed_endpoints=[
+        "/v1/chat",
+        "/v1/completions",
+    ],
+    input_cost_per_million_usd=10.0,  # $10 per million input tokens
+    output_cost_per_million_usd=30.0,  # $30 per million output tokens
+    recipient_pubkey="YourSolanaWalletPublicKeyHere",  # Your wallet receives 95% of payments
+    payment_token=PaymentToken.SOL,  # Use SOL for payments
+    wallet_private_key_header="x-wallet-private-key",  # Header for client wallet key
+    require_wallet=True,  # Require wallet key for payment
+    settlement_service_url="https://facilitator.swarms.world",  # Settlement service URL
+    settlement_timeout=300.0,  # 5 minutes timeout
+    fail_on_settlement_error=False,  # Return error instead of raising exception
+)
+
+@app.post("/v1/chat")
+async def chat(request: dict):
+    """
+    Chat endpoint with automatic payment processing.
+    
+    The middleware automatically:
+    - Extracts usage data from the response
+    - Encrypts the response
+    - Executes payment on Solana
+    - Decrypts response only after payment confirmation
+    """
+    message = request.get("message", "")
+    
+    # Your agent logic here
+    # For example, call an LLM API
+    response_text = "Agent response here"
+    
+    # Return response with usage data
+    # The middleware supports multiple formats (OpenAI, Anthropic, Google, etc.)
+    return JSONResponse(content={
+        "response": response_text,
+        "usage": {
+            "input_tokens": 100,  # Count of input tokens
+            "output_tokens": 50,   # Count of output tokens
+            "total_tokens": 150   # Total tokens
+        }
+    })
+
+@app.get("/v1/health")
+async def health_check():
+    """
+    Health check endpoint (not protected by ATP middleware).
+    """
+    return {"status": "healthy"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+### Response Format
+
+The middleware automatically adds the following fields to responses:
+
+- `atp_usage`: Normalized usage data (input_tokens, output_tokens, total_tokens)
+- `atp_settlement`: Settlement details including transaction signature and payment breakdown
+- `atp_settlement_status`: Status of settlement ("paid", "failed", etc.)
+- `atp_message`: Informational message about response encryption status
+
+Example response after successful payment:
+
+```json
+{
+  "response": "Agent output here",
+  "usage": {
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "total_tokens": 150
+  },
+  "atp_usage": {
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "total_tokens": 150
+  },
+  "atp_settlement": {
+    "status": "paid",
+    "transaction_signature": "5j7s8K9...",
+    "pricing": {
+      "usd_cost": 0.025,
+      "input_tokens": 100,
+      "output_tokens": 50
+    },
+    "payment": {
+      "total_amount_sol": 0.00125,
+      "treasury": {
+        "amount_sol": 0.0000625
+      },
+      "recipient": {
+        "amount_sol": 0.0011875
+      }
+    }
+  },
+  "atp_settlement_status": "paid"
+}
+```
+
+## Client Example
+
+Here's how to use the ATP client to make requests to ATP-protected endpoints:
+
+### Using the ATP Client
+
+```python
+from atp.client import ATPClient
+from atp.schemas import PaymentToken
+
+# Initialize client with wallet
+client = ATPClient(
+    wallet_private_key="[1,2,3,...]",  # Your wallet private key (JSON array or base58)
+    settlement_service_url="https://facilitator.swarms.world",
+    settlement_timeout=300.0,
+    verbose=True  # Enable detailed logging
+)
+
+# Make a request to an ATP-protected endpoint
+# The client automatically:
+# - Adds wallet authentication header
+# - Handles encrypted responses
+# - Decrypts response after payment confirmation
+response = await client.post(
+    url="https://api.example.com/v1/chat",
+    json={"message": "Hello!"}
+)
+
+print(response["response"])  # Agent output
+print(response["atp_settlement"])  # Payment details
+```
+
+### Using Direct HTTP Requests
+
+You can also make direct HTTP requests without the client:
+
+```python
+import httpx
+
+headers = {
+    "Content-Type": "application/json",
+    "x-wallet-private-key": "[1,2,3,...]",  # Your wallet private key
+}
+
+response = httpx.post(
+    "https://api.example.com/v1/chat",
+    headers=headers,
+    json={"message": "Hello!"},
+    timeout=300.0
+)
+
+data = response.json()
+print(data["response"])  # Agent output (decrypted after payment)
+print(data["atp_settlement"])  # Payment details
+```
+
+### Interacting with Settlement Service Directly
+
+The client also provides methods to interact with the settlement service directly:
+
+```python
+from atp.client import ATPClient
+
+client = ATPClient(
+    wallet_private_key="[1,2,3,...]",
+    settlement_service_url="https://facilitator.swarms.world"
+)
+
+# Parse usage from any format
+usage = await client.parse_usage({
+    "prompt_tokens": 100,
+    "completion_tokens": 50,
+    "total_tokens": 150
+})
+# Returns: {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+
+# Calculate payment without executing
+payment_calc = await client.calculate_payment(
+    usage=usage,
+    input_cost_per_million_usd=10.0,
+    output_cost_per_million_usd=30.0,
+    payment_token=PaymentToken.SOL
+)
+
+# Execute settlement
+result = await client.settle(
+    usage=usage,
+    input_cost_per_million_usd=10.0,
+    output_cost_per_million_usd=30.0,
+    recipient_pubkey="RecipientPublicKeyHere",
+    payment_token=PaymentToken.SOL,
+    commitment="confirmed"
+)
+
+# Health check
+health = await client.health_check()
+```
+
+## Usage Data Formats
+
+The middleware supports multiple usage data formats automatically:
+
+### OpenAI Format
+```json
+{
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 50,
+    "total_tokens": 150
+  }
+}
+```
+
+### Anthropic Format
+```json
+{
+  "usage": {
+    "input_tokens": 100,
+    "output_tokens": 50
+  }
+}
+```
+
+### Google/Gemini Format
+```json
+{
+  "usageMetadata": {
+    "promptTokenCount": 100,
+    "candidatesTokenCount": 50,
+    "totalTokenCount": 150
+  }
+}
+```
+
+### Nested Formats
+```json
+{
+  "response": "...",
+  "meta": {
+    "usage": {
+      "input_tokens": 100,
+      "output_tokens": 50
+    }
+  }
+}
+```
+
+The settlement service automatically detects and parses these formats, so you can use any format your agent API returns.
+
+## Error Handling
+
+### Missing Wallet Key
+
+If the wallet private key is missing and `require_wallet=True`:
+
+```json
+{
+  "detail": "Missing wallet private key in header: x-wallet-private-key"
+}
+```
+
+Status: 401 Unauthorized
+
+### Payment Failure
+
+If payment fails and `fail_on_settlement_error=False` (default):
+
+```json
+{
+  "response": "encrypted_data_here",
+  "response_encrypted": true,
+  "atp_usage": {
+    "input_tokens": 100,
+    "output_tokens": 50
+  },
+  "atp_settlement": {
+    "error": "Settlement failed",
+    "detail": "Insufficient funds",
+    "status_code": 400
+  },
+  "atp_settlement_status": "failed",
+  "atp_message": "Agent response is encrypted. Payment required to decrypt."
+}
+```
+
+The response remains encrypted until payment succeeds.
+
+### Timeout Errors
+
+Settlement operations may take time due to blockchain confirmation. If a timeout occurs, the payment may have been sent successfully. Check the blockchain for transaction confirmation.
+
+## Configuration
+
+### Environment Variables
+
+- `ATP_SETTLEMENT_URL`: Base URL of the settlement service (default: `https://facilitator.swarms.world/`)
+- `ATP_SETTLEMENT_TIMEOUT`: Timeout for settlement operations in seconds (default: `300.0`)
+- `ATP_ENCRYPTION_KEY`: Base64-encoded Fernet key for response encryption (optional, generates new key if not set)
+
+### Middleware Configuration
+
+See the [Middleware Reference](middleware.mdx) for complete configuration options.
+
+### Client Configuration
+
+See the [Client Reference](client.mdx) for complete client options.
+
+## Best Practices
+
+1. **Wallet Security**: Never log or persist wallet private keys. They should only be used in-memory for transaction signing.
+
+2. **Error Handling**: Use `fail_on_settlement_error=False` for graceful degradation. Check `atp_settlement_status` in responses to handle payment failures.
+
+3. **Timeout Configuration**: Increase `settlement_timeout` if you experience timeout errors even when payments succeed. Blockchain confirmation can take time.
+
+4. **Usage Data**: Always include accurate token counts in your responses. The middleware will skip settlement if usage data cannot be parsed.
+
+5. **Testing**: Use testnet wallets and small amounts for testing. Verify payment transactions on Solana explorer.
+
+6. **Monitoring**: Monitor `atp_settlement_status` in responses to track payment success rates and identify issues.
+
+## Architecture Benefits
+
+- **Centralized Settlement**: All settlement logic is handled by the immutable settlement service, ensuring consistency across all services.
+
+- **Format Flexibility**: Supports multiple usage data formats automatically, so you can use any agent API format.
+
+- **Security**: Response encryption ensures users cannot access agent output until payment is confirmed on-chain.
+
+- **Transparency**: All payments are executed on Solana blockchain with full transaction visibility.
+
+- **Automatic Splitting**: Payments are automatically split between treasury and recipient, simplifying revenue distribution.

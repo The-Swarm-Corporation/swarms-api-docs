@@ -1,0 +1,695 @@
+---
+title: 'ATP Client'
+description: 'Complete reference for the ATP Client, a user-facing client library for making requests to ATP-protected endpoints and interacting with the settlement service'
+---
+
+
+The `ATPClient` is a user-facing client for the ATP Protocol that provides a simple, high-level interface for calling the facilitator (settlement service) directly and making requests to services protected by ATP middleware.
+
+## Overview
+
+The ATP client simplifies:
+- Calling the facilitator (settlement service) for payment operations
+- Making requests to ATP-protected endpoints with automatic wallet handling
+- Parsing usage data and calculating payments
+- Handling encrypted responses from ATP middleware
+
+## Installation
+
+```python
+from atp.client import ATPClient
+from atp.schemas import PaymentToken
+```
+
+## Basic Usage
+
+```python
+from atp.client import ATPClient
+
+# Initialize client with wallet
+client = ATPClient(
+    wallet_private_key="[1,2,3,...]",  # Your wallet private key
+    settlement_service_url="https://facilitator.swarms.world",
+    settlement_timeout=300.0,
+    verbose=True  # Enable detailed logging
+)
+
+# Make a request to an ATP-protected endpoint
+response = await client.post(
+    url="https://api.example.com/v1/chat",
+    json={"message": "Hello!"}
+)
+
+print(response["response"])  # Agent output (automatically decrypted)
+print(response["atp_settlement"])  # Payment details
+```
+
+## Initialization
+
+### Constructor
+
+```python
+ATPClient(
+    wallet_private_key: Optional[str] = None,
+    settlement_service_url: Optional[str] = None,
+    settlement_timeout: Optional[float] = None,
+    wallet_private_key_header: str = "x-wallet-private-key",
+    verbose: bool = False,
+)
+```
+
+### Parameters
+
+#### `wallet_private_key`
+- **Type**: `Optional[str]`
+- **Default**: `None`
+- **Description**: Wallet private key for authentication and payments. Can be in JSON array format (e.g., `"[1,2,3,...]"`) or base58 string format. If not provided, must be passed per-request.
+
+#### `settlement_service_url`
+- **Type**: `Optional[str]`
+- **Default**: `None` (uses `ATP_SETTLEMENT_URL` environment variable or `"https://facilitator.swarms.world"`)
+- **Description**: Base URL of the settlement service.
+
+#### `settlement_timeout`
+- **Type**: `Optional[float]`
+- **Default**: `None` (uses `ATP_SETTLEMENT_TIMEOUT` environment variable or `300.0`)
+- **Description**: Timeout for settlement operations in seconds. Settlement operations may take longer due to blockchain confirmation times.
+
+#### `wallet_private_key_header`
+- **Type**: `str`
+- **Default**: `"x-wallet-private-key"`
+- **Description**: HTTP header name for wallet private key. Should match the middleware configuration.
+
+#### `verbose`
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: If `True`, enables detailed logging with tracebacks for debugging.
+
+## Methods
+
+### `parse_usage(usage_data: Dict[str, Any]) -> Dict[str, Optional[int]]`
+
+Parse usage tokens from various API formats.
+
+This method uses the facilitator to parse usage data from any supported format (OpenAI, Anthropic, Google, etc.) and normalize it to a standard format.
+
+#### Parameters
+
+- **`usage_data`**: Usage data in any supported format. Can be the entire response body or just the usage portion.
+
+#### Returns
+
+Dict with normalized keys:
+- `input_tokens` (Optional[int]): Number of input/prompt tokens
+- `output_tokens` (Optional[int]): Number of output/completion tokens
+- `total_tokens` (Optional[int]): Total number of tokens
+
+#### Raises
+
+- `SettlementServiceError`: If the facilitator returns an error.
+
+#### Example
+
+```python
+# OpenAI format
+usage = await client.parse_usage({
+    "prompt_tokens": 100,
+    "completion_tokens": 50,
+    "total_tokens": 150
+})
+# Returns: {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+
+# Nested format
+usage = await client.parse_usage({
+    "response": "...",
+    "usage": {
+        "input_tokens": 100,
+        "output_tokens": 50
+    }
+})
+# Returns: {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+```
+
+### `calculate_payment(usage, input_cost_per_million_usd, output_cost_per_million_usd, payment_token) -> Dict[str, Any]`
+
+Calculate payment amounts from usage data.
+
+This method uses the facilitator to calculate payment amounts based on token usage and pricing rates. It does not execute any payment.
+
+#### Parameters
+
+- **`usage`**: Usage data containing token counts. Supports same formats as `parse_usage` method.
+- **`input_cost_per_million_usd`**: Cost per million input tokens in USD.
+- **`output_cost_per_million_usd`**: Cost per million output tokens in USD.
+- **`payment_token`**: Token to use for payment. Must be `"SOL"` or `"USDC"`. Can be `PaymentToken.SOL` enum or string. Default: `PaymentToken.SOL`.
+
+#### Returns
+
+Dict with payment calculation details:
+- `status` (str): `"calculated"` or `"skipped"` (if zero cost)
+- `pricing` (dict): Pricing information with token counts and costs
+- `payment_amounts` (dict, optional): Payment amounts in token units
+- `token_price_usd` (float, optional): Current token price in USD
+
+#### Raises
+
+- `SettlementServiceError`: If the facilitator returns an error.
+
+#### Example
+
+```python
+result = await client.calculate_payment(
+    usage={"input_tokens": 1000, "output_tokens": 500},
+    input_cost_per_million_usd=10.0,
+    output_cost_per_million_usd=30.0,
+    payment_token=PaymentToken.SOL
+)
+
+# Returns:
+# {
+#     "status": "calculated",
+#     "pricing": {
+#         "usd_cost": 0.025,  # $0.01 input + $0.015 output
+#         "input_tokens": 1000,
+#         "output_tokens": 500,
+#         ...
+#     },
+#     "payment_amounts": {
+#         "total_amount_token": 0.00125,  # SOL amount
+#         "fee_amount_token": 0.0000625,  # Treasury fee
+#         "agent_amount_token": 0.0011875,  # Agent payment
+#         ...
+#     },
+#     "token_price_usd": 20.0  # SOL price
+# }
+```
+
+### `settle(usage, input_cost_per_million_usd, output_cost_per_million_usd, recipient_pubkey, payment_token, skip_preflight, commitment, wallet_private_key) -> Dict[str, Any]`
+
+Execute a settlement payment on Solana blockchain.
+
+This method uses the facilitator to execute a complete settlement: parse usage, calculate payment, fetch token prices, create and sign transaction, send to Solana, and wait for confirmation.
+
+#### Parameters
+
+- **`usage`**: Usage data containing token counts. Supports same formats as `parse_usage` method.
+- **`input_cost_per_million_usd`**: Cost per million input tokens in USD.
+- **`output_cost_per_million_usd`**: Cost per million output tokens in USD.
+- **`recipient_pubkey`**: Solana public key of the recipient wallet (base58 encoded). This wallet receives the net payment after fees.
+- **`payment_token`**: Token to use for payment. Currently only `"SOL"` is supported for automatic settlement. Can be `PaymentToken.SOL` enum or string. Default: `PaymentToken.SOL`.
+- **`skip_preflight`**: Whether to skip preflight simulation. Default: `False`.
+- **`commitment`**: Solana commitment level for transaction confirmation:
+  - `"processed"`: Fastest, but may be rolled back
+  - `"confirmed"`: Recommended default, confirmed by cluster
+  - `"finalized"`: Slowest, but cannot be rolled back
+  Default: `"confirmed"`.
+- **`wallet_private_key`**: Wallet private key to use for payment. If not provided, uses the client's default `wallet_private_key`.
+
+#### Returns
+
+Dict with payment details:
+- `status` (str): `"paid"` if successful, `"skipped"` if zero cost
+- `transaction_signature` (str, optional): Solana transaction signature
+- `pricing` (dict): Complete cost breakdown
+- `payment` (dict, optional): Payment details including amounts and splits
+
+#### Raises
+
+- `SettlementServiceError`: If the facilitator returns an error.
+- `ValueError`: If `wallet_private_key` is not provided.
+
+#### Example
+
+```python
+result = await client.settle(
+    usage={"input_tokens": 1000, "output_tokens": 500},
+    input_cost_per_million_usd=10.0,
+    output_cost_per_million_usd=30.0,
+    recipient_pubkey="RecipientPublicKeyHere",
+    payment_token=PaymentToken.SOL,
+    commitment="confirmed"
+)
+
+# Returns:
+# {
+#     "status": "paid",
+#     "transaction_signature": "5j7s8K9...",
+#     "pricing": {...},
+#     "payment": {
+#         "total_amount_sol": 0.00125,
+#         "treasury": {"amount_sol": 0.0000625, ...},
+#         "recipient": {"amount_sol": 0.0011875, ...}
+#     }
+# }
+```
+
+### `health_check() -> Dict[str, Any]`
+
+Check if the facilitator (settlement service) is healthy.
+
+#### Returns
+
+Dict with health status information, typically including:
+- `status` (str): Service status (e.g., `"healthy"`)
+- `service` (str): Service name
+- `version` (str): Service version
+
+#### Raises
+
+- `SettlementServiceError`: If the facilitator is unreachable or returns an error.
+
+#### Example
+
+```python
+health = await client.health_check()
+print(f"Service status: {health['status']}")
+# Output: Service status: healthy
+```
+
+### `request(method, url, wallet_private_key, auto_decrypt, **kwargs) -> Dict[str, Any]`
+
+Make an HTTP request to an ATP-protected endpoint.
+
+This method automatically:
+- Adds wallet authentication headers
+- Handles encrypted responses from ATP middleware
+- Decrypts response data if encrypted
+
+#### Parameters
+
+- **`method`**: HTTP method (GET, POST, PUT, DELETE, etc.).
+- **`url`**: Full URL of the endpoint.
+- **`wallet_private_key`**: Wallet private key to use. If not provided, uses the client's default `wallet_private_key`.
+- **`auto_decrypt`**: Whether to automatically decrypt encrypted responses. Default: `True`.
+- **`**kwargs`**: Additional arguments to pass to httpx (e.g., `json`, `data`, `params`, `headers`, etc.).
+
+#### Returns
+
+Dict containing the response data. If the response was encrypted, it will be automatically decrypted if `auto_decrypt=True`.
+
+#### Raises
+
+- `httpx.HTTPError`: If the HTTP request fails.
+- `ValueError`: If `wallet_private_key` is required but not provided.
+
+#### Example
+
+```python
+# Make a POST request to an ATP-protected endpoint
+response = await client.request(
+    method="POST",
+    url="https://api.example.com/v1/chat",
+    json={"message": "Hello!"}
+)
+
+# Response is automatically decrypted if encrypted
+print(response["response"])  # Agent output
+print(response["atp_settlement"])  # Payment details
+```
+
+### `post(url, wallet_private_key, auto_decrypt, **kwargs) -> Dict[str, Any]`
+
+Make a POST request to an ATP-protected endpoint.
+
+Convenience method for POST requests. See `request` method for details.
+
+#### Parameters
+
+- **`url`**: Full URL of the endpoint.
+- **`wallet_private_key`**: Wallet private key to use. If not provided, uses the client's default `wallet_private_key`.
+- **`auto_decrypt`**: Whether to automatically decrypt encrypted responses. Default: `True`.
+- **`**kwargs`**: Additional arguments to pass to httpx (e.g., `json`, `data`, `params`, `headers`, etc.).
+
+#### Returns
+
+Dict containing the response data.
+
+#### Example
+
+```python
+response = await client.post(
+    url="https://api.example.com/v1/chat",
+    json={"message": "Hello!"}
+)
+```
+
+### `get(url, wallet_private_key, auto_decrypt, **kwargs) -> Dict[str, Any]`
+
+Make a GET request to an ATP-protected endpoint.
+
+Convenience method for GET requests. See `request` method for details.
+
+#### Parameters
+
+- **`url`**: Full URL of the endpoint.
+- **`wallet_private_key`**: Wallet private key to use. If not provided, uses the client's default `wallet_private_key`.
+- **`auto_decrypt`**: Whether to automatically decrypt encrypted responses. Default: `True`.
+- **`**kwargs`**: Additional arguments to pass to httpx (e.g., `params`, `headers`, etc.).
+
+#### Returns
+
+Dict containing the response data.
+
+#### Example
+
+```python
+response = await client.get(
+    url="https://api.example.com/v1/status",
+    params={"id": "123"}
+)
+```
+
+## Usage Examples
+
+### Basic Client Setup
+
+```python
+from atp.client import ATPClient
+from atp.schemas import PaymentToken
+
+# Initialize client
+client = ATPClient(
+    wallet_private_key="[1,2,3,...]",
+    settlement_service_url="https://facilitator.swarms.world",
+    verbose=True
+)
+```
+
+### Making Requests to ATP-Protected Endpoints
+
+```python
+# Simple POST request
+response = await client.post(
+    url="https://api.example.com/v1/chat",
+    json={"message": "Hello!"}
+)
+
+# Check payment status
+if response.get("atp_settlement_status") == "paid":
+    print("Payment successful!")
+    print(response["response"])  # Decrypted agent output
+else:
+    print("Payment failed:", response.get("atp_settlement", {}).get("detail"))
+```
+
+### Parsing Usage Data
+
+```python
+# Parse usage from OpenAI format
+usage = await client.parse_usage({
+    "prompt_tokens": 100,
+    "completion_tokens": 50,
+    "total_tokens": 150
+})
+
+# Parse usage from nested format
+usage = await client.parse_usage({
+    "response": "...",
+    "meta": {
+        "usage": {
+            "input_tokens": 100,
+            "output_tokens": 50
+        }
+    }
+})
+```
+
+### Calculating Payments
+
+```python
+# Calculate payment without executing
+payment_calc = await client.calculate_payment(
+    usage={"input_tokens": 1000, "output_tokens": 500},
+    input_cost_per_million_usd=10.0,
+    output_cost_per_million_usd=30.0,
+    payment_token=PaymentToken.SOL
+)
+
+print(f"USD Cost: ${payment_calc['pricing']['usd_cost']}")
+print(f"SOL Amount: {payment_calc['payment_amounts']['total_amount_token']}")
+```
+
+### Executing Settlements
+
+```python
+# Execute settlement
+result = await client.settle(
+    usage={"input_tokens": 1000, "output_tokens": 500},
+    input_cost_per_million_usd=10.0,
+    output_cost_per_million_usd=30.0,
+    recipient_pubkey="RecipientPublicKeyHere",
+    payment_token=PaymentToken.SOL,
+    commitment="confirmed"
+)
+
+if result["status"] == "paid":
+    print(f"Payment successful! TX: {result['transaction_signature']}")
+```
+
+### Per-Request Wallet Key
+
+```python
+# Use different wallet for specific request
+client = ATPClient()  # No default wallet
+
+response = await client.post(
+    url="https://api.example.com/v1/chat",
+    wallet_private_key="[1,2,3,...]",  # Pass per-request
+    json={"message": "Hello!"}
+)
+```
+
+### Custom Headers
+
+```python
+# Add custom headers
+response = await client.post(
+    url="https://api.example.com/v1/chat",
+    json={"message": "Hello!"},
+    headers={"X-Custom-Header": "value"}
+)
+```
+
+### Disabling Auto-Decryption
+
+```python
+# Get encrypted response without auto-decryption
+response = await client.post(
+    url="https://api.example.com/v1/chat",
+    json={"message": "Hello!"},
+    auto_decrypt=False
+)
+
+# Manually decrypt later if needed
+if response.get("response_encrypted"):
+    decrypted = client.encryptor.decrypt_response_data(response)
+    print(decrypted["response"])
+```
+
+### Error Handling
+
+```python
+from atp.settlement_client import SettlementServiceError
+
+try:
+    response = await client.post(
+        url="https://api.example.com/v1/chat",
+        json={"message": "Hello!"}
+    )
+except SettlementServiceError as e:
+    print(f"Settlement error: {e.error_type}")
+    print(f"Status code: {e.status_code}")
+    print(f"Detail: {e.error_detail}")
+except ValueError as e:
+    print(f"Configuration error: {e}")
+except httpx.HTTPError as e:
+    print(f"HTTP error: {e}")
+```
+
+## Response Handling
+
+### Successful Payment Response
+
+```json
+{
+  "response": "Agent output here",
+  "usage": {
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "total_tokens": 150
+  },
+  "atp_usage": {
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "total_tokens": 150
+  },
+  "atp_settlement": {
+    "status": "paid",
+    "transaction_signature": "5j7s8K9...",
+    "pricing": {
+      "usd_cost": 0.025,
+      "input_tokens": 100,
+      "output_tokens": 50
+    },
+    "payment": {
+      "total_amount_sol": 0.00125,
+      "treasury": {
+        "amount_sol": 0.0000625
+      },
+      "recipient": {
+        "amount_sol": 0.0011875
+      }
+    }
+  },
+  "atp_settlement_status": "paid"
+}
+```
+
+### Failed Payment Response
+
+```json
+{
+  "response": "encrypted_data_here",
+  "response_encrypted": true,
+  "atp_usage": {
+    "input_tokens": 100,
+    "output_tokens": 50
+  },
+  "atp_settlement": {
+    "error": "Settlement failed",
+    "detail": "Insufficient funds",
+    "status_code": 400
+  },
+  "atp_settlement_status": "failed",
+  "atp_message": "Agent response is encrypted. Payment required to decrypt."
+}
+```
+
+## Error Types
+
+### `SettlementServiceError`
+
+Exception raised when settlement service returns an error.
+
+**Attributes**:
+- `status_code` (Optional[int]): HTTP status code from the settlement service response
+- `error_detail` (Optional[str]): Detailed error message from the service
+- `error_type` (Optional[str]): Type/category of the error
+- `response_body` (Optional[Dict[str, Any]]): Full response body if available
+
+**Methods**:
+- `to_dict() -> Dict[str, Any]`: Convert error to dictionary for API responses
+
+**Example**:
+```python
+try:
+    result = await client.settle(...)
+except SettlementServiceError as e:
+    print(f"Error type: {e.error_type}")
+    print(f"Status code: {e.status_code}")
+    print(f"Detail: {e.error_detail}")
+    error_dict = e.to_dict()
+```
+
+### `ValueError`
+
+Raised when required parameters are missing (e.g., `wallet_private_key` not provided).
+
+### `httpx.HTTPError`
+
+Raised when HTTP requests fail (network errors, timeouts, etc.).
+
+## Best Practices
+
+1. **Wallet Security**: Never log or persist wallet private keys. They should only be used in-memory for transaction signing.
+
+2. **Error Handling**: Always handle `SettlementServiceError` exceptions. Check `atp_settlement_status` in responses to handle payment failures.
+
+3. **Timeout Configuration**: Increase `settlement_timeout` if you experience timeout errors even when payments succeed. Blockchain confirmation can take 30-60 seconds or more.
+
+4. **Verbose Logging**: Enable `verbose=True` during development for detailed debugging information.
+
+5. **Response Validation**: Always check `atp_settlement_status` before accessing agent output. Failed payments result in encrypted responses.
+
+6. **Per-Request Keys**: Use per-request `wallet_private_key` parameter for multi-user applications instead of storing keys in client instances.
+
+7. **Health Checks**: Use `health_check()` to verify settlement service availability before making requests.
+
+## Troubleshooting
+
+### Missing Wallet Key Error
+
+**Problem**: `ValueError: wallet_private_key must be provided`
+
+**Solution**: Provide wallet private key in client initialization or per-request:
+
+```python
+# Option 1: In client initialization
+client = ATPClient(wallet_private_key="[1,2,3,...]")
+
+# Option 2: Per-request
+response = await client.post(
+    url="...",
+    wallet_private_key="[1,2,3,...]"
+)
+```
+
+### Encrypted Response Not Decrypting
+
+**Problem**: Response remains encrypted even after successful payment.
+
+**Solution**: Check `atp_settlement_status`. If status is not `"paid"`, payment may have failed. Check `atp_settlement` for error details.
+
+### Timeout Errors
+
+**Problem**: Requests timeout even when payments succeed.
+
+**Solution**: Increase `settlement_timeout`:
+
+```python
+client = ATPClient(
+    wallet_private_key="[1,2,3,...]",
+    settlement_timeout=600.0  # 10 minutes
+)
+```
+
+### Connection Errors
+
+**Problem**: Cannot connect to settlement service.
+
+**Solution**: 
+- Verify `settlement_service_url` is correct
+- Check network connectivity
+- Use `health_check()` to verify service availability
+
+## API Reference
+
+### Class: `ATPClient`
+
+```python
+class ATPClient:
+    def __init__(
+        self,
+        wallet_private_key: Optional[str] = None,
+        settlement_service_url: Optional[str] = None,
+        settlement_timeout: Optional[float] = None,
+        wallet_private_key_header: str = "x-wallet-private-key",
+        verbose: bool = False,
+    ):
+        ...
+```
+
+### Attributes
+
+- `wallet_private_key`: Wallet private key for authentication and payments
+- `settlement_service_url`: Base URL of the settlement service
+- `settlement_timeout`: Timeout for settlement operations in seconds
+- `wallet_private_key_header`: HTTP header name for wallet key
+- `settlement_client`: Internal `SettlementServiceClient` instance
+- `encryptor`: Internal `ResponseEncryptor` instance
+
+## See Also
+
+- [ATP Protocol Overview](overview.mdx)
+- [ATP Middleware Reference](middleware.mdx)
+- [Facilitator Reference](facilitator.mdx)

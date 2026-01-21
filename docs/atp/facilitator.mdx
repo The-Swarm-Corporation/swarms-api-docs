@@ -1,0 +1,703 @@
+---
+title: 'ATP Settlement Service (Facilitator)'
+description: 'Complete API reference for the ATP Facilitator, the centralized settlement service that handles usage parsing, payment calculation, and Solana payment execution'
+---
+
+
+The Facilitator is the centralized settlement service for the ATP Protocol. It handles usage token parsing, payment calculation, and Solana payment execution for all ATP-protected services.
+
+## What is the Facilitator?
+
+The Facilitator is a service that:
+
+- Parses usage tokens from various API formats (OpenAI, Anthropic, Google, etc.)
+- Calculates payment amounts based on token usage and pricing
+- Executes Solana blockchain transactions for payments
+- Automatically splits payments between treasury and recipients
+
+## Base URLs
+
+- **Production**: `https://facilitator.swarms.world`
+
+## Endpoints
+
+### Health Check
+
+Check if the Facilitator service is available and healthy.
+
+#### `GET /health`
+
+**Request**
+
+No parameters required.
+
+**Response**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | Service status (e.g., "healthy") |
+| `service` | string | Service name |
+| `version` | string | API version |
+
+**Example Response**
+
+```json
+{
+  "status": "healthy",
+  "service": "ATP Settlement Service",
+  "version": "1.0.0"
+}
+```
+
+**Code Example**
+
+```python
+import httpx
+
+# Check service health
+response = httpx.get("https://facilitator.swarms.world/health")
+health = response.json()
+
+if health["status"] == "healthy":
+    print(f"Service is operational (version {health['version']})")
+else:
+    print("Service may be experiencing issues")
+```
+
+### Parse Usage Tokens
+
+Convert usage data from any API format into a standardized format.
+
+#### `POST /v1/settlement/parse-usage`
+
+Automatically detects and parses usage data from multiple formats, including nested structures.
+
+**Supported Formats**
+
+| Format | Token Fields |
+|--------|--------------|
+| OpenAI | `prompt_tokens`, `completion_tokens`, `total_tokens` |
+| Anthropic | `input_tokens`, `output_tokens`, `total_tokens` |
+| Google/Gemini | `promptTokenCount`, `candidatesTokenCount`, `totalTokenCount` |
+| Cohere | `tokens`, `input_tokens`, `output_tokens` |
+| Nested | `usage.usage`, `meta.usage`, `statistics` |
+
+**Request Parameters**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `usage_data` | object | Yes | Usage data in any supported format. Can be the entire response body or just the usage portion. |
+
+**Response Fields**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input_tokens` | integer \| null | Number of input/prompt tokens |
+| `output_tokens` | integer \| null | Number of output/completion tokens |
+| `total_tokens` | integer \| null | Total number of tokens |
+
+**Example: OpenAI Format**
+
+```python
+import httpx
+
+# Parse OpenAI format usage data
+response = httpx.post(
+    "https://facilitator.swarms.world/v1/settlement/parse-usage",
+    json={
+        "usage_data": {
+            "prompt_tokens": 100,
+            "completion_tokens": 50,
+            "total_tokens": 150
+        }
+    }
+)
+
+parsed = response.json()
+print(f"Input: {parsed['input_tokens']}, Output: {parsed['output_tokens']}")
+# Output: Input: 100, Output: 50
+```
+
+**Example: Anthropic Format**
+
+```python
+# Parse Anthropic format usage data
+response = httpx.post(
+    "https://facilitator.swarms.world/v1/settlement/parse-usage",
+    json={
+        "usage_data": {
+            "input_tokens": 100,
+            "output_tokens": 50
+        }
+    }
+)
+
+parsed = response.json()
+print(f"Total tokens: {parsed['total_tokens']}")
+# Output: Total tokens: 150
+```
+
+**Example: Nested Format**
+
+```python
+# Parse nested usage data
+response = httpx.post(
+    "https://facilitator.swarms.world/v1/settlement/parse-usage",
+    json={
+        "usage_data": {
+            "response": "Agent output here",
+            "meta": {
+                "usage": {
+                    "input_tokens": 100,
+                    "output_tokens": 50
+                }
+            }
+        }
+    }
+)
+
+parsed = response.json()
+print(parsed)
+# Output: {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+```
+
+**Example: Using with ATP Client**
+
+```python
+from atp.client import ATPClient
+
+client = ATPClient()
+
+# Parse usage from any format
+usage = await client.parse_usage({
+    "prompt_tokens": 100,
+    "completion_tokens": 50
+})
+
+print(f"Parsed usage: {usage}")
+```
+
+### Calculate Payment
+
+Calculate payment amounts without executing any transaction. Useful for previewing costs before payment.
+
+#### `POST /v1/settlement/calculate-payment`
+
+**Request Parameters**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `usage` | object | Yes | Usage data containing token counts. Supports same formats as parse-usage endpoint. |
+| `input_cost_per_million_usd` | number | Yes | Cost per million input tokens in USD |
+| `output_cost_per_million_usd` | number | Yes | Cost per million output tokens in USD |
+| `payment_token` | string | No | Token to use for payment. Must be `"SOL"` or `"USDC"`. Default: `"SOL"` |
+
+**Response Fields**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | Status: `"calculated"` or `"skipped"` (if zero cost) |
+| `pricing` | object | Pricing breakdown (see Pricing Object below) |
+| `payment_amounts` | object \| null | Payment amounts in token units (null if zero cost) |
+| `token_price_usd` | number \| null | Current token price in USD |
+| `reason` | string \| null | Reason if calculation was skipped |
+
+**Pricing Object**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `usd_cost` | number | Total USD cost |
+| `source` | string | Source of pricing rates |
+| `input_cost_per_million_usd` | number | Input cost rate |
+| `output_cost_per_million_usd` | number | Output cost rate |
+| `input_cost_usd` | number | Calculated input cost in USD |
+| `output_cost_usd` | number | Calculated output cost in USD |
+| `input_tokens` | integer \| null | Number of input tokens |
+| `output_tokens` | integer \| null | Number of output tokens |
+| `total_tokens` | integer \| null | Total tokens |
+
+**Payment Amounts Object**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `total_amount_units` | integer | Total payment in smallest token units (lamports for SOL) |
+| `total_amount_token` | number | Total payment in token units (SOL) |
+| `fee_amount_units` | integer | Treasury fee in smallest token units |
+| `fee_amount_token` | number | Treasury fee in token units |
+| `agent_amount_units` | integer | Agent payment in smallest token units |
+| `agent_amount_token` | number | Agent payment in token units |
+
+**Example: Calculate Payment**
+
+```python
+import httpx
+
+# Calculate payment for 1000 input tokens and 500 output tokens
+response = httpx.post(
+    "https://facilitator.swarms.world/v1/settlement/calculate-payment",
+    json={
+        "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 500,
+            "total_tokens": 1500
+        },
+        "input_cost_per_million_usd": 2.5,
+        "output_cost_per_million_usd": 10.0,
+        "payment_token": "SOL"
+    }
+)
+
+result = response.json()
+
+print(f"USD Cost: ${result['pricing']['usd_cost']:.4f}")
+print(f"SOL Amount: {result['payment_amounts']['total_amount_token']:.6f} SOL")
+print(f"Treasury Fee: {result['payment_amounts']['fee_amount_token']:.6f} SOL")
+print(f"Agent Payment: {result['payment_amounts']['agent_amount_token']:.6f} SOL")
+print(f"Token Price: ${result['token_price_usd']:.2f}")
+
+# Output:
+# USD Cost: $0.0075
+# SOL Amount: 0.001250 SOL
+# Treasury Fee: 0.000063 SOL
+# Agent Payment: 0.001188 SOL
+# Token Price: $20.00
+```
+
+**Example: Using with ATP Client**
+
+```python
+from atp.client import ATPClient
+from atp.schemas import PaymentToken
+
+client = ATPClient()
+
+# Calculate payment
+payment = await client.calculate_payment(
+    usage={"input_tokens": 1000, "output_tokens": 500},
+    input_cost_per_million_usd=2.5,
+    output_cost_per_million_usd=10.0,
+    payment_token=PaymentToken.SOL
+)
+
+print(f"Total cost: ${payment['pricing']['usd_cost']:.4f}")
+```
+
+**Example: Check if Payment is Zero**
+
+```python
+response = httpx.post(
+    "https://facilitator.swarms.world/v1/settlement/calculate-payment",
+    json={
+        "usage": {"input_tokens": 0, "output_tokens": 0},
+        "input_cost_per_million_usd": 2.5,
+        "output_cost_per_million_usd": 10.0
+    }
+)
+
+result = response.json()
+
+if result["status"] == "skipped":
+    print(f"Payment skipped: {result.get('reason', 'Zero cost')}")
+else:
+    print(f"Payment required: {result['payment_amounts']['total_amount_token']} SOL")
+```
+
+### Execute Settlement
+
+Execute a payment transaction on the Solana blockchain. This endpoint calculates the payment and sends it to both the treasury (fee) and recipient (agent payment).
+
+#### `POST /v1/settlement/settle`
+
+**WARNING**: This endpoint requires your wallet private key. The private key is used in-memory only and never stored or logged.
+
+**Request Parameters**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `private_key` | string | Yes | Solana wallet private key. JSON array format (e.g., `"[1,2,3,...]"`) or base58 string |
+| `usage` | object | Yes | Usage data containing token counts. Supports same formats as parse-usage endpoint |
+| `input_cost_per_million_usd` | number | Yes | Cost per million input tokens in USD |
+| `output_cost_per_million_usd` | number | Yes | Cost per million output tokens in USD |
+| `recipient_pubkey` | string | Yes | Solana public key of the recipient wallet (base58). Receives net payment after fees |
+| `payment_token` | string | No | Token to use. Must be `"SOL"` or `"USDC"`. Default: `"SOL"` |
+| `skip_preflight` | boolean | No | Skip preflight simulation. Faster but may fail. Default: `false` |
+| `commitment` | string | No | Solana commitment level. Options: `"processed"`, `"confirmed"`, `"finalized"`. Default: `"confirmed"` |
+
+**Commitment Levels**
+
+| Level | Speed | Security | Description |
+|-------|-------|----------|-------------|
+| `processed` | Fastest (~1-2s) | Low | May be rolled back |
+| `confirmed` | Medium (~30-60s) | Medium | Confirmed by cluster (recommended) |
+| `finalized` | Slowest (~1-2min) | High | Cannot be rolled back |
+
+**Response Fields**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | Status: `"paid"` if successful, `"skipped"` if zero cost |
+| `transaction_signature` | string \| null | Solana transaction signature if payment executed |
+| `pricing` | object | Complete cost breakdown (same as calculate-payment) |
+| `payment` | object \| null | Payment details with splits (null if skipped) |
+
+**Payment Object**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `total_amount_lamports` | integer | Total payment in lamports |
+| `total_amount_sol` | number | Total payment in SOL |
+| `total_amount_usd` | number | Total payment in USD |
+| `treasury` | object | Treasury payment details |
+| `recipient` | object | Recipient payment details |
+
+**Treasury/Recipient Objects**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pubkey` | string | Wallet public key |
+| `amount_lamports` | integer | Payment in lamports |
+| `amount_sol` | number | Payment in SOL |
+| `amount_usd` | number | Payment in USD |
+
+**Example: Execute Settlement**
+
+```python
+import httpx
+
+# Execute payment settlement
+response = httpx.post(
+    "https://facilitator.swarms.world/v1/settlement/settle",
+    json={
+        "private_key": "[1,2,3,...64 bytes...]",  # Your wallet private key
+        "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 500,
+            "total_tokens": 1500
+        },
+        "input_cost_per_million_usd": 2.5,
+        "output_cost_per_million_usd": 10.0,
+        "recipient_pubkey": "RecipientWalletAddressHere",
+        "payment_token": "SOL",
+        "commitment": "confirmed"
+    },
+    timeout=300.0  # 5 minutes for blockchain confirmation
+)
+
+result = response.json()
+
+if result["status"] == "paid":
+    print(f"Payment successful!")
+    print(f"Transaction: {result['transaction_signature']}")
+    print(f"Total: {result['payment']['total_amount_sol']:.6f} SOL")
+    print(f"Treasury: {result['payment']['treasury']['amount_sol']:.6f} SOL")
+    print(f"Recipient: {result['payment']['recipient']['amount_sol']:.6f} SOL")
+    
+    # Verify transaction on Solana explorer
+    print(f"View on explorer: https://solscan.io/tx/{result['transaction_signature']}")
+else:
+    print(f"Payment skipped: {result.get('reason', 'Zero cost')}")
+```
+
+**Example: Using with ATP Client**
+
+```python
+from atp.client import ATPClient
+from atp.schemas import PaymentToken
+
+client = ATPClient(
+    wallet_private_key="[1,2,3,...]",
+    settlement_service_url="https://facilitator.swarms.world"
+)
+
+# Execute settlement
+result = await client.settle(
+    usage={"input_tokens": 1000, "output_tokens": 500},
+    input_cost_per_million_usd=2.5,
+    output_cost_per_million_usd=10.0,
+    recipient_pubkey="RecipientPublicKeyHere",
+    payment_token=PaymentToken.SOL,
+    commitment="confirmed"
+)
+
+if result["status"] == "paid":
+    print(f"Payment successful! TX: {result['transaction_signature']}")
+```
+
+**Example: Complete Flow**
+
+```python
+import httpx
+from atp.client import ATPClient
+
+# Initialize client
+client = ATPClient(
+    wallet_private_key="[1,2,3,...]",
+    settlement_service_url="https://facilitator.swarms.world"
+)
+
+# Step 1: Parse usage from OpenAI response
+openai_response = {
+    "choices": [{"message": {"content": "Hello!"}}],
+    "usage": {
+        "prompt_tokens": 100,
+        "completion_tokens": 50,
+        "total_tokens": 150
+    }
+}
+
+usage = await client.parse_usage(openai_response["usage"])
+print(f"Parsed usage: {usage}")
+
+# Step 2: Calculate payment (optional - preview cost)
+payment_calc = await client.calculate_payment(
+    usage=usage,
+    input_cost_per_million_usd=2.5,
+    output_cost_per_million_usd=10.0,
+    payment_token=PaymentToken.SOL
+)
+
+print(f"Estimated cost: ${payment_calc['pricing']['usd_cost']:.4f}")
+print(f"SOL amount: {payment_calc['payment_amounts']['total_amount_token']:.6f}")
+
+# Step 3: Execute settlement
+result = await client.settle(
+    usage=usage,
+    input_cost_per_million_usd=2.5,
+    output_cost_per_million_usd=10.0,
+    recipient_pubkey="RecipientPublicKeyHere",
+    payment_token=PaymentToken.SOL
+)
+
+if result["status"] == "paid":
+    print(f"Payment completed! Transaction: {result['transaction_signature']}")
+```
+
+## Payment Splitting
+
+Payments are automatically split between:
+
+- **Treasury**: Receives processing fee (default 5%)
+- **Recipient**: Receives net payment (default 95%)
+
+The treasury public key is configured on the service and cannot be changed by clients.
+
+**Example Payment Split**
+
+For a payment of 0.00125 SOL:
+- Treasury fee: 0.0000625 SOL (5%)
+- Recipient payment: 0.0011875 SOL (95%)
+
+## Error Handling
+
+### Error Response Format
+
+All errors return a consistent format:
+
+```json
+{
+  "detail": "Error message describing what went wrong"
+}
+```
+
+### Common Error Codes
+
+| Code | Description | Common Causes |
+|------|-------------|---------------|
+| 400 | Bad Request | Invalid private key format, invalid pubkey, missing required fields |
+| 402 | Payment Required | Insufficient wallet balance |
+| 500 | Internal Server Error | Network errors, RPC issues, service errors |
+
+### Error Handling Example
+
+```python
+import httpx
+
+try:
+    response = httpx.post(
+        "https://facilitator.swarms.world/v1/settlement/settle",
+        json={
+            "private_key": "[1,2,3,...]",
+            "usage": {"input_tokens": 1000, "output_tokens": 500},
+            "input_cost_per_million_usd": 2.5,
+            "output_cost_per_million_usd": 10.0,
+            "recipient_pubkey": "RecipientPublicKeyHere"
+        },
+        timeout=300.0
+    )
+    response.raise_for_status()
+    result = response.json()
+    
+except httpx.HTTPStatusError as e:
+    if e.response.status_code == 400:
+        error_detail = e.response.json().get("detail", "Invalid request")
+        print(f"Bad request: {error_detail}")
+    elif e.response.status_code == 402:
+        print("Insufficient wallet balance. Please add funds.")
+    elif e.response.status_code == 500:
+        print("Service error. Please try again later.")
+    else:
+        print(f"HTTP error {e.response.status_code}: {e.response.text}")
+        
+except httpx.TimeoutException:
+    print("Request timed out. Payment may have succeeded - check blockchain.")
+    
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+## Security Best Practices
+
+1. **Use Dedicated Wallets**: Use separate wallets for ATP payments, not your main wallet
+2. **Monitor Balances**: Keep sufficient balance for payments and transaction fees
+3. **Verify Transactions**: Always verify transaction signatures on [Solana Explorer](https://solscan.io)
+4. **Test First**: Use testnet or small amounts for testing
+5. **Never Log Keys**: Never log or store private keys in your code
+
+## Timeout Recommendations
+
+Settlement operations involve blockchain transactions which take time to confirm:
+
+| Commitment | Typical Time | Recommendation |
+|------------|--------------|----------------|
+| `processed` | 1-2 seconds | Fast but may be rolled back |
+| `confirmed` | 30-60 seconds | Recommended for most use cases |
+| `finalized` | 1-2 minutes | Most secure, cannot be rolled back |
+
+**Recommendation**: Use a timeout of at least 300 seconds (5 minutes) for settlement operations.
+
+## Common Use Cases
+
+### Use Case 1: Preview Payment Before Execution
+
+```python
+from atp.client import ATPClient
+
+client = ATPClient()
+
+# First, calculate payment to show user
+usage = {"input_tokens": 1000, "output_tokens": 500}
+payment_calc = await client.calculate_payment(
+    usage=usage,
+    input_cost_per_million_usd=2.5,
+    output_cost_per_million_usd=10.0
+)
+
+print(f"This will cost ${payment_calc['pricing']['usd_cost']:.4f}")
+print(f"SOL amount: {payment_calc['payment_amounts']['total_amount_token']:.6f}")
+
+# User confirms, then execute
+user_confirmed = True  # In real app, get from user
+if user_confirmed:
+    result = await client.settle(
+        usage=usage,
+        input_cost_per_million_usd=2.5,
+        output_cost_per_million_usd=10.0,
+        recipient_pubkey="RecipientPublicKeyHere",
+        wallet_private_key="[1,2,3,...]"
+    )
+```
+
+### Use Case 2: Handle Different Usage Formats
+
+```python
+from atp.client import ATPClient
+
+client = ATPClient()
+
+# Handle OpenAI format
+openai_usage = await client.parse_usage({
+    "prompt_tokens": 100,
+    "completion_tokens": 50
+})
+
+# Handle Anthropic format
+anthropic_usage = await client.parse_usage({
+    "input_tokens": 100,
+    "output_tokens": 50
+})
+
+# Both return the same normalized format
+print(openai_usage)  # {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+print(anthropic_usage)  # {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+```
+
+### Use Case 3: Monitor Service Health
+
+```python
+import httpx
+import time
+
+def check_facilitator_health():
+    """Check if Facilitator is healthy"""
+    try:
+        response = httpx.get(
+            "https://facilitator.swarms.world/health",
+            timeout=5.0
+        )
+        if response.status_code == 200:
+            health = response.json()
+            return health["status"] == "healthy"
+        return False
+    except Exception:
+        return False
+
+# Monitor health every 60 seconds
+while True:
+    if check_facilitator_health():
+        print("Facilitator is healthy")
+    else:
+        print("WARNING: Facilitator may be down")
+    time.sleep(60)
+```
+
+## Troubleshooting
+
+### Problem: Cannot Connect to Facilitator
+
+**Solutions:**
+- Verify the base URL is correct: `https://facilitator.swarms.world`
+- Check your network connectivity
+- Verify SSL certificates are valid
+- Check if service is experiencing downtime
+
+### Problem: Transaction Failures
+
+**Solutions:**
+- Verify wallet has sufficient balance (including transaction fees)
+- Check recipient pubkey is valid Solana address
+- Verify private key format is correct (JSON array or base58)
+- Check Solana network status
+- Try increasing timeout or using `commitment="processed"` for faster confirmation
+
+### Problem: Parsing Failures
+
+**Solutions:**
+- Verify usage data format matches supported formats
+- Check for nested structures (service handles these automatically)
+- Ensure token count fields are present
+- Review error message for specific format issues
+
+### Problem: Timeout Errors
+
+**Solutions:**
+- Increase request timeout (recommended: 300+ seconds)
+- Use `commitment="processed"` for faster confirmation (less secure)
+- Check blockchain network congestion
+- Verify transaction on Solana explorer after timeout - payment may have succeeded
+
+## API Reference Summary
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Check service health |
+| `/v1/settlement/parse-usage` | POST | Parse usage tokens from various formats |
+| `/v1/settlement/calculate-payment` | POST | Calculate payment amounts without executing |
+| `/v1/settlement/settle` | POST | Execute settlement payment on Solana |
+
+## Additional Resources
+
+- **OpenAPI Specification**: https://facilitator.swarms.world/openapi.json
+- **Solana Explorer**: https://solscan.io
+- [ATP Protocol Overview](overview.mdx)
+- [ATP Middleware Reference](middleware.mdx)
+- [ATP Client Reference](client.mdx)

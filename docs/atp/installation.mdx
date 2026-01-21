@@ -1,0 +1,105 @@
+---
+title: 'Installation'
+description: 'Install the ATP Protocol library using pip or uv to enable automatic payment processing for AI agent services on Solana'
+---
+
+# Installation
+
+Install the ATP Protocol library to enable automatic payment processing for AI agent services on the Solana blockchain.
+
+## Prerequisites
+
+- Python 3.8 or higher
+- pip or uv package manager
+
+## Installation Methods
+
+### Using pip
+
+Install the latest version of the ATP Protocol using pip:
+
+```bash
+pip3 install -U atp-protocol
+```
+
+Or using pip directly:
+
+```bash
+pip install -U atp-protocol
+```
+
+### Using uv
+
+If you're using `uv` as your package manager:
+
+```bash
+uv pip install -U atp-protocol
+```
+
+Or add it to your project dependencies:
+
+```bash
+uv pip install atp-protocol
+```
+
+## Verify Installation
+
+After installation, verify that the package is installed correctly:
+
+```bash
+python3 -c "import atp; print(atp.__version__)"
+```
+
+Or check the installed packages:
+
+```bash
+pip3 show atp-protocol
+```
+
+## Quick Start
+
+Once installed, you can start using the ATP Protocol:
+
+```python
+from atp.client import ATPClient
+from atp.middleware import ATPSettlementMiddleware
+from atp.schemas import PaymentToken
+
+# Your ATP code here
+```
+
+## Troubleshooting
+
+### Installation Issues
+
+If you encounter permission errors during installation:
+
+```bash
+pip3 install -U --user atp-protocol
+```
+
+Or use a virtual environment:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip3 install -U atp-protocol
+```
+
+### Version Conflicts
+
+If you experience version conflicts, try installing in a fresh virtual environment or check for conflicting dependencies.
+
+### uv Installation Issues
+
+If `uv` is not installed, you can install it first:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Or using pip:
+
+```bash
+pip install uv
+```
