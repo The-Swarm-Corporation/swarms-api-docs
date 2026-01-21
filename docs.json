@@ -215,6 +215,7 @@
   "api": {
     "openapi": "https://api.swarms.world/openapi.json",
     "baseUrl": "https://api.swarms.world",
+    "server": "https://api.swarms.world",
     "playground": {
       "proxy": true
     },
