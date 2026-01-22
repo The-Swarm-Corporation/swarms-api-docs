@@ -54,7 +54,7 @@ Fetch a list of your previously created agent configurations.
     require('dotenv').config();
 
     // const BASE_URL = "http://localhost:8080";
-    // const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+    // const BASE_URL = "https://api.swarms.world";
     const BASE_URL = "https://api.swarms.world";
     const API_KEY = process.env.SWARMS_API_KEY;
 
@@ -83,7 +83,7 @@ Fetch a list of your previously created agent configurations.
     #!/usr/bin/env bash
 
     # const BASE_URL="http://localhost:8080"
-    # const BASE_URL="https://swarms-api-285321057562.us-east1.run.app"
+    # const BASE_URL="https://api.swarms.world"
     BASE_URL="https://api.swarms.world"
 
     curl -X GET "${BASE_URL}/v1/agents/list" \

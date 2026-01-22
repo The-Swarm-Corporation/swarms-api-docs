@@ -21,7 +21,7 @@ MCP integration enables agents to access external databases, APIs, and tools thr
     import os
 
     API_KEY = os.getenv("SWARMS_API_KEY")
-    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+    BASE_URL = "https://api.swarms.world"
 
     headers = {
         "x-api-key": API_KEY,
@@ -54,7 +54,7 @@ MCP integration enables agents to access external databases, APIs, and tools thr
   <Tab title="JavaScript">
     ```javascript
     const API_KEY = process.env.SWARMS_API_KEY;
-    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+    const BASE_URL = "https://api.swarms.world";
 
     const headers = {
         "x-api-key": API_KEY,
@@ -89,7 +89,7 @@ MCP integration enables agents to access external databases, APIs, and tools thr
   </Tab>
   <Tab title="cURL">
     ```bash
-    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/agent/completions" \
+    curl -X POST "https://api.swarms.world/v1/agent/completions" \
       -H "x-api-key: your-api-key" \
       -H "Content-Type: application/json" \
       -d '{

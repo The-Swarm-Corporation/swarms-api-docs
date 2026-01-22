@@ -27,7 +27,7 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
     load_dotenv()
 
     API_KEY = os.getenv("SWARMS_API_KEY")
-    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+    BASE_URL = "https://api.swarms.world"
 
     headers = {
         "x-api-key": API_KEY,
@@ -60,7 +60,7 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
     require('dotenv').config();
 
     const API_KEY = process.env.SWARMS_API_KEY;
-    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+    const BASE_URL = "https://api.swarms.world";
 
     const headers = {
         "x-api-key": API_KEY,
@@ -88,7 +88,7 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
   </Tab>
   <Tab title="cURL">
     ```bash
-    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/agent/completions" \
+    curl -X POST "https://api.swarms.world/v1/agent/completions" \
       -H "x-api-key: your-api-key" \
       -H "Content-Type: application/json" \
       -H "Connection: keep-alive" \
@@ -297,7 +297,7 @@ Here's how to parse streaming responses in different languages:
         """Complete example of streaming agent request"""
         
         API_KEY = os.getenv("SWARMS_API_KEY")
-        BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+        BASE_URL = "https://api.swarms.world"
         
         headers = {
             "x-api-key": API_KEY,
@@ -346,7 +346,7 @@ Here's how to parse streaming responses in different languages:
 
     async function runStreamingAgent() {
         const API_KEY = process.env.SWARMS_API_KEY;
-        const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+        const BASE_URL = "https://api.swarms.world";
         
         const headers = {
             "x-api-key": API_KEY,
@@ -397,7 +397,7 @@ Here's how to parse streaming responses in different languages:
     #!/bin/bash
 
     API_KEY="your-api-key-here"
-    BASE_URL="https://swarms-api-285321057562.us-east1.run.app"
+    BASE_URL="https://api.swarms.world"
 
     echo "🚀 Starting streaming request..."
 

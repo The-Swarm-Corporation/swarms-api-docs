@@ -25,7 +25,7 @@ The `/v1/models/available` endpoint returns all models currently supported by th
     load_dotenv()
 
     API_KEY = os.getenv("SWARMS_API_KEY")
-    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+    BASE_URL = "https://api.swarms.world"
 
     headers = {
         "x-api-key": API_KEY,
@@ -55,7 +55,7 @@ The `/v1/models/available` endpoint returns all models currently supported by th
   <Tab title="JavaScript">
     ```javascript
     const API_KEY = process.env.SWARMS_API_KEY;
-    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+    const BASE_URL = "https://api.swarms.world";
 
     const headers = {
         "x-api-key": API_KEY,
@@ -90,7 +90,7 @@ The `/v1/models/available` endpoint returns all models currently supported by th
   <Tab title="cURL">
     ```bash
     # Get available models
-    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/models/available" \
+    curl -X GET "https://api.swarms.world/v1/models/available" \
       -H "x-api-key: your-api-key" \
       -H "Content-Type: application/json"
 

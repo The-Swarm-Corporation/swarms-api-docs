@@ -90,7 +90,7 @@ The `mint.json` file contains the configuration for:
 
 - [Mintlify Documentation](https://mintlify.com/docs)
 - [Mintlify CLI Reference](https://mintlify.com/docs/cli)
-- [Swarms API](https://swarms-api-285321057562.us-east1.run.app/)
+- [Swarms API](https://api.swarms.world/)
 
 # Todo
 

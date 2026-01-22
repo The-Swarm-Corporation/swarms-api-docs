@@ -25,7 +25,7 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
     load_dotenv()
 
     API_KEY = os.getenv("SWARMS_API_KEY")
-    BASE_URL = "https://swarms-api-285321057562.us-east1.run.app"
+    BASE_URL = "https://api.swarms.world"
 
     headers = {
         "x-api-key": API_KEY,
@@ -56,7 +56,7 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
   <Tab title="JavaScript">
     ```javascript
     const API_KEY = process.env.SWARMS_API_KEY;
-    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+    const BASE_URL = "https://api.swarms.world";
 
     const headers = {
         "x-api-key": API_KEY,
@@ -92,7 +92,7 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
   <Tab title="cURL">
     ```bash
     # Get API request logs
-    curl -X GET "https://swarms-api-285321057562.us-east1.run.app/v1/swarm/logs" \
+    curl -X GET "https://api.swarms.world/v1/swarm/logs" \
       -H "x-api-key: your-api-key" \
       -H "Content-Type": "application/json"
 
@@ -793,7 +793,7 @@ The logs endpoint returns structured information about your API usage:
 **Empty Logs Response**
 ```bash
 # Check if API key is correct
-curl -I "https://swarms-api-285321057562.us-east1.run.app/v1/swarm/logs" \
+curl -I "https://api.swarms.world/v1/swarm/logs" \
   -H "x-api-key: your-api-key"
 ```
 

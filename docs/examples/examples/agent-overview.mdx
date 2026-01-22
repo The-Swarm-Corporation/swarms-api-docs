@@ -64,7 +64,7 @@ print(json.dumps(result, indent=4))
   <Tab title="JavaScript">
     ```javascript
     const API_KEY = process.env.SWARMS_API_KEY;
-    const BASE_URL = "https://swarms-api-285321057562.us-east1.run.app";
+    const BASE_URL = "https://api.swarms.world";
 
     const headers = {
         "x-api-key": API_KEY,
@@ -98,7 +98,7 @@ print(json.dumps(result, indent=4))
   </Tab>
   <Tab title="cURL">
     ```bash
-    curl -X POST "https://swarms-api-285321057562.us-east1.run.app/v1/agent/completions" \
+    curl -X POST "https://api.swarms.world/v1/agent/completions" \
       -H "x-api-key: your-api-key" \
       -H "Content-Type: application/json" \
       -d '{
