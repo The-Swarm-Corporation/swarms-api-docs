@@ -6,17 +6,17 @@ description: 'Learn about the Agent Trade Protocol (ATP), a payment settlement s
 
 The ATP (Agent Trade Protocol) is a payment settlement system that enables automatic payment processing for AI agent services on the Solana blockchain. It provides a middleware layer that automatically deducts payments from user wallets based on token usage, ensuring secure and transparent transactions.
 
-> **Learn more about ATP's vision and purpose**: See [ATP Vision](vision.mdx) for details on why ATP exists and our goal to make it the standard for agentic trade.
+> **Learn more about ATP's vision and purpose**: See [ATP Vision](/docs/atp/vision) for details on why ATP exists and our goal to make it the standard for agentic trade.
 
 ## How It Works
 
 The ATP Protocol operates through three main components:
 
-1. **Settlement Service (Facilitator)**: A centralized service that handles all settlement logic, including usage parsing, payment calculation, and blockchain transaction execution. See [Facilitator Reference](facilitator.mdx) for complete API documentation.
+1. **Settlement Service (Facilitator)**: A centralized service that handles all settlement logic, including usage parsing, payment calculation, and blockchain transaction execution. See [Facilitator Reference](/docs/atp/facilitator) for complete API documentation.
 
-2. **Middleware**: A FastAPI middleware that intercepts API responses, extracts usage data, encrypts responses, executes payments, and decrypts responses only after payment confirmation. See [Middleware Reference](middleware.mdx) for configuration and usage.
+2. **Middleware**: A FastAPI middleware that intercepts API responses, extracts usage data, encrypts responses, executes payments, and decrypts responses only after payment confirmation. See [Middleware Reference](/docs/atp/middleware) for configuration and usage.
 
-3. **Client**: A user-facing client that simplifies making requests to ATP-protected endpoints and interacting with the settlement service. See [Client Reference](client.mdx) for API documentation.
+3. **Client**: A user-facing client that simplifies making requests to ATP-protected endpoints and interacting with the settlement service. See [Client Reference](/docs/atp/client) for API documentation.
 
 ### Request Flow
 
@@ -369,11 +369,11 @@ Settlement operations may take time due to blockchain confirmation. If a timeout
 
 ### Middleware Configuration
 
-See the [Middleware Reference](middleware.mdx) for complete configuration options.
+See the [Middleware Reference](/docs/atp/middleware) for complete configuration options.
 
 ### Client Configuration
 
-See the [Client Reference](client.mdx) for complete client options.
+See the [Client Reference](/docs/atp/client) for complete client options.
 
 ## Best Practices
 
