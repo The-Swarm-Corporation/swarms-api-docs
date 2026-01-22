@@ -19,7 +19,21 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Documentation",
+        "tab": "Introduction",
+        "groups": [
+          {
+            "group": "Welcome",
+            "pages": [
+              "docs/introduction/index",
+              "docs/introduction/our-mission",
+              "docs/introduction/our-products",
+              "docs/introduction/links-and-resources"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Swarms API",
         "groups": [
           {
             "group": "Getting Started",
@@ -78,6 +92,7 @@
             "pages": [
               "docs/documentation/resources/ratelimits",
               "docs/documentation/resources/pricing",
+              "docs/documentation/resources/security",
               "docs/documentation/resources/response-compression",
               "docs/documentation/resources/premium-endpoints",
               "docs/documentation/resources/priority-processing",
@@ -104,7 +119,13 @@
           {
             "group": "Platform",
             "pages": [
-              "docs/marketplace/agents-vs-prompts",
+              "docs/marketplace/overview",
+              "docs/marketplace/agents-vs-prompts"
+            ]
+          },
+          {
+            "group": "Launchpad",
+            "pages": [
               "docs/marketplace/tokenization",
               "docs/marketplace/tokenization_details",
               "docs/marketplace/creator-fees"
