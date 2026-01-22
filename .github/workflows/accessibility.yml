@@ -1,0 +1,92 @@
+# Check Documentation Accessibility
+# Tests color contrast ratios and checks for missing alt text
+
+name: Accessibility Check
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'docs/**'
+      - 'docs.json'
+      - '.github/workflows/accessibility.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'docs/**'
+      - 'docs.json'
+      - '.github/workflows/accessibility.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  accessibility:
+    name: Check Accessibility
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Mintlify CLI
+        run: npm install -g mint
+
+      - name: Run full accessibility check
+        id: a11y-full
+        run: |
+          echo "## Full Accessibility Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if mint a11y 2>&1 | tee a11y-output.txt; then
+            echo "✅ All accessibility checks passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Accessibility issues found. See details below." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat a11y-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      - name: Check alt text only
+        id: a11y-alt
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Alt Text Check" >> $GITHUB_STEP_SUMMARY
+          if mint a11y --skip-contrast 2>&1 | tee alt-text-output.txt; then
+            echo "✅ All images have alt text!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Missing alt text detected." >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      - name: Check color contrast only
+        id: a11y-contrast
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Color Contrast Check" >> $GITHUB_STEP_SUMMARY
+          if mint a11y --skip-alt-text 2>&1 | tee contrast-output.txt; then
+            echo "✅ Color contrast ratios are acceptable!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Color contrast issues detected." >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      - name: Upload accessibility reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-reports
+          path: |
+            a11y-output.txt
+            alt-text-output.txt
+            contrast-output.txt
+          retention-days: 30

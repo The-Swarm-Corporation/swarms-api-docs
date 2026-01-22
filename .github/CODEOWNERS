@@ -1,0 +1,17 @@
+# Code Owners for Documentation
+# These users will be automatically requested for review
+
+# Default owners for everything
+* @swarms-team
+
+# Documentation files
+/docs/ @docs-team @swarms-team
+*.mdx @docs-team @swarms-team
+*.md @docs-team @swarms-team
+
+# Configuration files
+docs.json @swarms-team
+.github/ @swarms-team
+
+# Workflows require admin review
+.github/workflows/ @admin-team @swarms-team

@@ -1,0 +1,83 @@
+# Typos spell checker configuration
+# https://github.com/crate-ci/typos
+
+[default]
+extend-ignore-re = [
+    # Ignore code blocks
+    "```[\\s\\S]*?```",
+    # Ignore inline code
+    "`[^`]+`",
+    # Ignore URLs
+    "https?://[^\\s]+",
+    # Ignore email addresses
+    "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+    # Ignore hex colors
+    "#[0-9a-fA-F]{6}",
+    "#[0-9a-fA-F]{3}",
+    # Ignore base64 strings
+    "[A-Za-z0-9+/]{40,}={0,2}",
+    # Ignore UUIDs
+    "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+]
+
+[default.extend-words]
+# Technical terms that are valid
+swarms = "swarms"
+Swarms = "Swarms"
+SWARMS = "SWARMS"
+openapi = "openapi"
+mdx = "mdx"
+MDX = "MDX"
+llms = "llms"
+LLMs = "LLMs"
+LLM = "LLM"
+llm = "llm"
+mcp = "mcp"
+MCP = "MCP"
+ai = "ai"
+AI = "AI"
+api = "api"
+API = "API"
+apis = "apis"
+APIs = "APIs"
+sdk = "sdk"
+SDK = "SDK"
+cli = "cli"
+CLI = "CLI"
+json = "json"
+JSON = "JSON"
+yaml = "yaml"
+YAML = "YAML"
+npm = "npm"
+npx = "npx"
+pnpm = "pnpm"
+env = "env"
+ENV = "ENV"
+Groq = "Groq"
+groq = "groq"
+async = "async"
+stdout = "stdout"
+stderr = "stderr"
+
+[default.extend-identifiers]
+# Common identifiers to ignore
+# Add project-specific terms here
+
+[files]
+extend-exclude = [
+    "*.lock",
+    "*.svg",
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.gif",
+    "*.ico",
+    "node_modules/**",
+    ".git/**",
+    "*.min.js",
+    "*.min.css",
+]
+
+[type.mdx]
+extend-glob = ["*.mdx"]
+check-file = true

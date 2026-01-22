@@ -1,0 +1,108 @@
+# PR Documentation Preview
+# Builds documentation preview and posts link to PR
+
+name: PR Preview
+
+on:
+  pull_request:
+    branches: [main, master]
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'docs/**'
+      - 'docs.json'
+      - 'logo/**'
+
+jobs:
+  preview-check:
+    name: Build Preview Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Mintlify CLI
+        run: npm install -g mint
+
+      - name: Build documentation (dry run)
+        id: build
+        run: |
+          echo "## 🏗️ Documentation Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run validation as a build check
+          if mint validate --disable-openapi 2>&1 | tee build-output.txt; then
+            echo "✅ Documentation builds successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "build_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Documentation build failed:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat build-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "build_status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Check for breaking changes
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Changes Detected" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Count changed files
+          MDX_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'docs/**/*.mdx' | wc -l | tr -d ' ')
+          JSON_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'docs.json' | wc -l | tr -d ' ')
+          
+          echo "- **MDX files changed:** $MDX_CHANGED" >> $GITHUB_STEP_SUMMARY
+          echo "- **Config changed:** $JSON_CHANGED" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const buildStatus = '${{ steps.build.outputs.build_status }}';
+            
+            let body = '## 📚 Documentation Preview\n\n';
+            
+            if (buildStatus === 'success') {
+              body += '✅ **Build Status:** Passed\n\n';
+              body += 'Your documentation changes build successfully!\n\n';
+              body += '> **Tip:** Once merged, changes will be automatically deployed to your Mintlify docs site.\n';
+            } else {
+              body += '❌ **Build Status:** Failed\n\n';
+              body += 'Please check the workflow logs for details on the build failure.\n';
+            }
+            
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            
+            const botComment = comments.data.find(c => 
+              c.user.type === 'Bot' && 
+              c.body.includes('Documentation Preview')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }

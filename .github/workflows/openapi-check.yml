@@ -1,0 +1,125 @@
+# Validate OpenAPI Specification
+# Checks the OpenAPI spec for errors and inconsistencies
+
+name: OpenAPI Validation
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'docs.json'
+      - '*.yaml'
+      - '*.yml'
+      - '*.json'
+      - '.github/workflows/openapi-check.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'docs.json'
+      - '*.yaml'
+      - '*.yml'
+      - '*.json'
+      - '.github/workflows/openapi-check.yml'
+  # Run weekly to catch any API spec changes
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 6am
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-openapi:
+    name: Validate OpenAPI Spec
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Mintlify CLI
+        run: npm install -g mint
+
+      - name: Extract OpenAPI URL from docs.json
+        id: extract-openapi
+        run: |
+          OPENAPI_URL=$(cat docs.json | jq -r '.api.openapi // empty')
+          if [ -z "$OPENAPI_URL" ]; then
+            echo "No OpenAPI URL found in docs.json"
+            echo "has_openapi=false" >> $GITHUB_OUTPUT
+          else
+            echo "Found OpenAPI URL: $OPENAPI_URL"
+            echo "openapi_url=$OPENAPI_URL" >> $GITHUB_OUTPUT
+            echo "has_openapi=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate remote OpenAPI spec
+        if: steps.extract-openapi.outputs.has_openapi == 'true'
+        run: |
+          echo "## OpenAPI Validation Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Validating: ${{ steps.extract-openapi.outputs.openapi_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if mint openapi-check "${{ steps.extract-openapi.outputs.openapi_url }}" 2>&1 | tee openapi-output.txt; then
+            echo "✅ OpenAPI specification is valid!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ OpenAPI validation errors found:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat openapi-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Check for local OpenAPI files
+        id: check-local
+        run: |
+          LOCAL_FILES=$(find . -maxdepth 2 -name "openapi*.yaml" -o -name "openapi*.yml" -o -name "openapi*.json" 2>/dev/null | head -5)
+          if [ -n "$LOCAL_FILES" ]; then
+            echo "Found local OpenAPI files:"
+            echo "$LOCAL_FILES"
+            echo "local_files<<EOF" >> $GITHUB_OUTPUT
+            echo "$LOCAL_FILES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "has_local=true" >> $GITHUB_OUTPUT
+          else
+            echo "No local OpenAPI files found"
+            echo "has_local=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate local OpenAPI files
+        if: steps.check-local.outputs.has_local == 'true'
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Local OpenAPI Files" >> $GITHUB_STEP_SUMMARY
+          
+          while IFS= read -r file; do
+            if [ -n "$file" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**$file**" >> $GITHUB_STEP_SUMMARY
+              if mint openapi-check "$file" 2>&1 | tee -a openapi-local-output.txt; then
+                echo "✅ Valid" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "❌ Invalid" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done <<< "${{ steps.check-local.outputs.local_files }}"
+        continue-on-error: true
+
+      - name: Upload OpenAPI check results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-validation-results
+          path: |
+            openapi-output.txt
+            openapi-local-output.txt
+          retention-days: 30
+          if-no-files-found: ignore

@@ -1,0 +1,53 @@
+# Validate Mintlify Documentation Build
+# Runs in strict mode - exits with error if there are any warnings or errors
+
+name: Validate Documentation
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'docs/**'
+      - 'docs.json'
+      - '.github/workflows/docs-validate.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'docs/**'
+      - 'docs.json'
+      - '.github/workflows/docs-validate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Docs Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Mintlify CLI
+        run: npm install -g mint
+
+      - name: Validate documentation
+        run: mint validate
+
+      - name: Upload validation logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-logs
+          path: |
+            ~/.mintlify/
+          retention-days: 7

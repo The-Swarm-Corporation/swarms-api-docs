@@ -1,0 +1,156 @@
+# Scheduled Deep Link Check
+# Comprehensive link checking that runs weekly to catch link rot
+
+name: Scheduled Link Check
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Every Sunday at 2am UTC
+  workflow_dispatch:
+    inputs:
+      fail_on_errors:
+        description: 'Fail workflow on link errors'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  deep-link-check:
+    name: Deep Link Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Mintlify CLI
+        run: npm install -g mint
+
+      - name: Check internal links (Mintlify)
+        id: internal
+        run: |
+          echo "## 🔗 Internal Links Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if mint broken-links 2>&1 | tee internal-links.txt; then
+            echo "✅ All internal links are valid!" >> $GITHUB_STEP_SUMMARY
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Broken internal links found:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat internal-links.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comprehensive external link check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --verbose
+            --no-progress
+            --accept 200,204,206,301,302,307,308
+            --exclude-mail
+            --exclude '^https://localhost'
+            --exclude '^http://localhost'
+            --exclude '^https://127\.0\.0\.1'
+            --exclude '^http://127\.0\.0\.1'
+            --exclude 'github\.com.*edit'
+            --exclude 'github\.com.*new'
+            --exclude 'github\.com.*delete'
+            --exclude 'mintcdn\.com'
+            --exclude 'cal\.com'
+            --exclude 'dashboard\.mintlify\.com'
+            --timeout 60
+            --retry-wait-time 10
+            --max-retries 5
+            --max-concurrency 5
+            './docs/**/*.mdx'
+            './docs/**/*.md'
+            './README.md'
+            './docs.json'
+          fail: ${{ github.event.inputs.fail_on_errors == 'true' }}
+          output: ./lychee-report.md
+
+      - name: Process external link results
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🌐 External Links Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f ./lychee-report.md ]; then
+            cat ./lychee-report.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No external link issues found." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload all reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-link-report-${{ github.run_number }}
+          path: |
+            internal-links.txt
+            lychee-report.md
+          retention-days: 90
+
+      - name: Create issue for broken links
+        if: failure() || steps.internal.outputs.status == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let body = '## 🔗 Weekly Link Check Report\n\n';
+            body += 'The scheduled link check found issues that need attention.\n\n';
+            body += `**Run:** [#${context.runNumber}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n\n`;
+            
+            // Read internal links report
+            if (fs.existsSync('internal-links.txt')) {
+              const internal = fs.readFileSync('internal-links.txt', 'utf8');
+              if (internal.trim()) {
+                body += '### Internal Links\n\n```\n' + internal + '\n```\n\n';
+              }
+            }
+            
+            // Read external links report
+            if (fs.existsSync('lychee-report.md')) {
+              const external = fs.readFileSync('lychee-report.md', 'utf8');
+              if (external.includes('🔴') || external.includes('Errors:')) {
+                body += '### External Links\n\n' + external + '\n';
+              }
+            }
+            
+            body += '\n---\n*This issue was automatically created by the weekly link check workflow.*';
+            
+            // Check for existing open issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'broken-links',
+              state: 'open'
+            });
+            
+            if (issues.data.length > 0) {
+              // Update existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: body
+              });
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '🔗 Broken Links Detected in Documentation',
+                body: body,
+                labels: ['broken-links', 'documentation', 'automated']
+              });
+            }
+        continue-on-error: true
