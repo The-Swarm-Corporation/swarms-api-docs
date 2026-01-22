@@ -1,0 +1,517 @@
+---
+title: "Building Agents with Exa Web Search"
+description: "Create intelligent agents with real-time web search capabilities using Exa integration"
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+This guide covers how to build AI agents with powerful web search capabilities using Exa integration. Exa provides semantic search that understands the meaning of queries, enabling agents to find highly relevant, up-to-date information from across the web.
+
+<Info>
+Exa-powered agents can search the web semantically, find current information, and cite sources—making them ideal for research, fact-checking, and knowledge-intensive tasks.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import os
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Research Agent",
+            "description": "AI research assistant with web search capabilities",
+            "system_prompt": """You are an expert research assistant with access to web search.
+            When answering questions:
+            1. Search for relevant, current information
+            2. Synthesize findings from multiple sources
+            3. Cite your sources clearly
+            4. Distinguish between facts and analysis""",
+            "model_name": "gpt-4o",
+            "max_tokens": 4096,
+            "temperature": 0.3
+        },
+        "task": "What are the latest breakthroughs in nuclear fusion energy in 2024?",
+        "search_enabled": True,
+        "exa_search_num_results": 5,
+        "exa_search_max_characters": 500
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload
+    )
+
+    result = response.json()
+    print(result['outputs'])
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://api.swarms.world";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    const payload = {
+        agent_config: {
+            agent_name: "Research Agent",
+            description: "AI research assistant with web search capabilities",
+            system_prompt: `You are an expert research assistant with access to web search.
+            When answering questions:
+            1. Search for relevant, current information
+            2. Synthesize findings from multiple sources
+            3. Cite your sources clearly
+            4. Distinguish between facts and analysis`,
+            model_name: "gpt-4o",
+            max_tokens: 4096,
+            temperature: 0.3
+        },
+        task: "What are the latest breakthroughs in nuclear fusion energy in 2024?",
+        search_enabled: true,
+        exa_search_num_results: 5,
+        exa_search_max_characters: 500
+    };
+
+    fetch(`${BASE_URL}/v1/agent/completions`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Research Results:", data.outputs);
+    })
+    .catch(error => console.error('Error:', error));
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://api.swarms.world/v1/agent/completions" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "agent_config": {
+          "agent_name": "Research Agent",
+          "description": "AI research assistant with web search capabilities",
+          "system_prompt": "You are an expert research assistant with access to web search. Search for relevant information, synthesize findings, and cite sources.",
+          "model_name": "gpt-4o",
+          "max_tokens": 4096,
+          "temperature": 0.3
+        },
+        "task": "What are the latest breakthroughs in nuclear fusion energy in 2024?",
+        "search_enabled": true,
+        "exa_search_num_results": 5,
+        "exa_search_max_characters": 500
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+## Exa Search Configuration
+
+Exa provides semantic search capabilities that go beyond keyword matching. Configure these parameters to optimize search results for your use case.
+
+### Configuration Options
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `search_enabled` | boolean | false | Enable web search capabilities |
+| `exa_search_num_results` | integer | 2 | Number of search results to retrieve (1-10) |
+| `exa_search_max_characters` | integer | 100 | Maximum characters per search result snippet |
+
+### Recommended Configurations
+
+**Quick Fact Check** - Fast lookups with minimal context:
+```python
+{
+    "search_enabled": True,
+    "exa_search_num_results": 2,
+    "exa_search_max_characters": 100
+}
+```
+
+**Standard Research** - Balanced depth and speed:
+```python
+{
+    "search_enabled": True,
+    "exa_search_num_results": 5,
+    "exa_search_max_characters": 300
+}
+```
+
+**Deep Research** - Comprehensive analysis with extensive context:
+```python
+{
+    "search_enabled": True,
+    "exa_search_num_results": 10,
+    "exa_search_max_characters": 500
+}
+```
+
+## Use Cases
+
+### Market Research Agent
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Market Research Analyst",
+        "description": "Analyzes market trends and competitive landscape",
+        "system_prompt": """You are a senior market research analyst.
+        Research current market conditions, identify trends, and provide
+        data-driven insights. Always cite sources and distinguish between
+        confirmed data and market speculation.""",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096,
+        "temperature": 0.2
+    },
+    "task": "Analyze the current state of the electric vehicle market in Europe, including major players, market share, and growth projections.",
+    "search_enabled": True,
+    "exa_search_num_results": 8,
+    "exa_search_max_characters": 400
+}
+```
+
+### Technical Documentation Research
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Technical Researcher",
+        "description": "Researches technical topics and documentation",
+        "system_prompt": """You are a technical research specialist.
+        Find accurate, up-to-date technical information from official
+        documentation, reputable tech publications, and authoritative sources.
+        Provide code examples when relevant.""",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096,
+        "temperature": 0.1
+    },
+    "task": "What are the new features in Python 3.12 and how do they improve performance?",
+    "search_enabled": True,
+    "exa_search_num_results": 5,
+    "exa_search_max_characters": 500
+}
+```
+
+### News and Current Events
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "News Analyst",
+        "description": "Analyzes current events and news",
+        "system_prompt": """You are a news analyst who provides balanced,
+        factual summaries of current events. Cross-reference multiple sources,
+        note any conflicting reports, and clearly separate facts from opinions.""",
+        "model_name": "gpt-4o",
+        "max_tokens": 3000,
+        "temperature": 0.3
+    },
+    "task": "What are the latest developments in AI regulation globally?",
+    "search_enabled": True,
+    "exa_search_num_results": 6,
+    "exa_search_max_characters": 350
+}
+```
+
+### Academic Research Assistant
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Academic Research Assistant",
+        "description": "Assists with academic research and literature review",
+        "system_prompt": """You are an academic research assistant.
+        Find peer-reviewed sources, academic papers, and scholarly articles.
+        Summarize key findings, note methodologies, and identify research gaps.
+        Always provide proper citations.""",
+        "model_name": "gpt-4o",
+        "max_tokens": 5000,
+        "temperature": 0.2
+    },
+    "task": "What does recent research say about the effectiveness of spaced repetition for language learning?",
+    "search_enabled": True,
+    "exa_search_num_results": 8,
+    "exa_search_max_characters": 500
+}
+```
+
+## Using Exa with Multi-Agent Systems
+
+Combine Exa search with multi-agent architectures for sophisticated research workflows.
+
+### Research Team with Specialized Agents
+
+```python
+from swarms_client import SwarmsClient
+import os
+
+client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+
+research_team = client.swarms.run(
+    name="Comprehensive Research Team",
+    description="Multi-agent research system with web search",
+    swarm_type="SequentialWorkflow",
+    task="Analyze the potential impact of quantum computing on cybersecurity over the next decade.",
+    search_enabled=True,
+    exa_search_num_results=5,
+    exa_search_max_characters=400,
+    agents=[
+        {
+            "agent_name": "Technical Researcher",
+            "description": "Researches technical aspects and current state",
+            "system_prompt": """Research the current state of quantum computing,
+            focusing on technical capabilities, limitations, and timeline projections.
+            Use web search to find the latest developments.""",
+            "model_name": "gpt-4o",
+            "role": "researcher",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.2
+        },
+        {
+            "agent_name": "Security Analyst",
+            "description": "Analyzes cybersecurity implications",
+            "system_prompt": """Analyze cybersecurity implications based on the
+            technical research provided. Identify vulnerabilities, potential threats,
+            and required adaptations in security protocols.""",
+            "model_name": "gpt-4o",
+            "role": "analyst",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3
+        },
+        {
+            "agent_name": "Strategic Advisor",
+            "description": "Synthesizes findings into recommendations",
+            "system_prompt": """Synthesize the technical research and security analysis
+            into actionable strategic recommendations. Provide a timeline for action
+            and prioritize recommendations by urgency and impact.""",
+            "model_name": "gpt-4o",
+            "role": "advisor",
+            "max_loops": 1,
+            "max_tokens": 5000,
+            "temperature": 0.4
+        }
+    ]
+)
+
+print(research_team)
+```
+
+### Advanced Research with Director-Worker Architecture
+
+For comprehensive research tasks, use the Advanced Research endpoint which provides a director-worker architecture optimized for Exa search.
+
+```python
+payload = {
+    "config": {
+        "name": "Climate Tech Investment Analysis",
+        "description": "Research climate technology investment opportunities",
+        "worker_model_name": "gpt-4o-mini",
+        "director_model_name": "gpt-4o",
+        "max_loops": 2,
+        "exa_search_num_results": 5,
+        "exa_search_max_characters": 400
+    },
+    "task": "Identify the most promising climate technology sectors for investment in 2024, including key companies, funding trends, and market potential."
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/advanced-research/completions",
+    headers=headers,
+    json=payload
+)
+```
+
+## Best Practices
+
+### 1. Craft Effective Search-Oriented Prompts
+
+Structure your system prompts to leverage search capabilities:
+
+```python
+system_prompt = """You are a research assistant with web search capabilities.
+
+When responding to queries:
+1. SEARCH: First search for relevant, current information
+2. VERIFY: Cross-reference findings across multiple sources
+3. SYNTHESIZE: Combine information into a coherent response
+4. CITE: Always mention your sources
+5. QUALIFY: Note any uncertainties or conflicting information
+
+Prioritize recent sources (within the last year) for time-sensitive topics."""
+```
+
+### 2. Match Search Depth to Task Complexity
+
+| Task Type | Recommended Results | Max Characters |
+|-----------|---------------------|----------------|
+| Quick fact lookup | 2-3 | 100-200 |
+| News summary | 4-6 | 300-400 |
+| Market research | 6-8 | 400-500 |
+| Academic research | 8-10 | 500 |
+| Comprehensive analysis | 10 | 500 |
+
+### 3. Use Appropriate Temperature Settings
+
+- **Factual research** (0.1-0.2): When accuracy is critical
+- **Balanced analysis** (0.3-0.4): For synthesis and interpretation
+- **Creative exploration** (0.5-0.7): For brainstorming and ideation
+
+### 4. Handle Time-Sensitive Information
+
+For topics where recency matters, include temporal context in your task:
+
+```python
+"task": "What are the latest AI safety developments from the past 3 months?"
+```
+
+### 5. Request Source Citations
+
+Include citation requirements in your system prompt:
+
+```python
+system_prompt = """...
+Always cite sources in your response using this format:
+- [Source Name](URL) - Key finding from this source
+
+End your response with a 'Sources' section listing all references."""
+```
+
+## Error Handling
+
+```python
+import requests
+import time
+
+def search_with_retry(payload, headers, max_retries=3):
+    """Execute search request with exponential backoff retry."""
+    base_url = "https://api.swarms.world"
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                f"{base_url}/v1/agent/completions",
+                headers=headers,
+                json=payload,
+                timeout=120  # Longer timeout for search operations
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                return {
+                    "success": True,
+                    "outputs": result.get("outputs"),
+                    "usage": result.get("usage")
+                }
+
+            elif response.status_code == 429:
+                # Rate limited - wait and retry
+                wait_time = 2 ** attempt
+                print(f"Rate limited. Waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
+                continue
+
+            elif response.status_code == 503:
+                # Service temporarily unavailable
+                wait_time = 5 * (attempt + 1)
+                print(f"Service unavailable. Waiting {wait_time}s...")
+                time.sleep(wait_time)
+                continue
+
+            else:
+                return {
+                    "success": False,
+                    "error": f"HTTP {response.status_code}: {response.text}"
+                }
+
+        except requests.exceptions.Timeout:
+            print(f"Request timed out. Attempt {attempt + 1}/{max_retries}")
+            continue
+
+        except requests.exceptions.ConnectionError:
+            print(f"Connection error. Attempt {attempt + 1}/{max_retries}")
+            time.sleep(2 ** attempt)
+            continue
+
+    return {
+        "success": False,
+        "error": "Max retries exceeded"
+    }
+
+# Usage
+result = search_with_retry(payload, headers)
+if result["success"]:
+    print(result["outputs"])
+else:
+    print(f"Error: {result['error']}")
+```
+
+## Response Format
+
+Search-enabled agents return responses with the following structure:
+
+```json
+{
+  "outputs": "Your comprehensive research response with synthesized information...",
+  "search_results": [
+    {
+      "title": "Source Article Title",
+      "url": "https://example.com/article",
+      "snippet": "Relevant excerpt from the source...",
+      "published_date": "2024-01-15"
+    }
+  ],
+  "usage": {
+    "input_tokens": 500,
+    "output_tokens": 1200,
+    "search_queries": 3,
+    "total_cost": 0.025
+  }
+}
+```
+
+## Cost Optimization
+
+Search operations add additional costs. Optimize usage with these strategies:
+
+1. **Start with fewer results**: Begin with `exa_search_num_results: 3` and increase only if needed
+2. **Limit snippet length**: Use `exa_search_max_characters: 200` for simple queries
+3. **Cache research results**: Store responses for repeated similar queries
+4. **Use appropriate models**: Use `gpt-4o-mini` for simpler research tasks
+
+```python
+# Cost-efficient configuration for simple queries
+efficient_config = {
+    "agent_config": {
+        "model_name": "gpt-4o-mini",  # Lower cost model
+        "max_tokens": 2000            # Limit output length
+    },
+    "search_enabled": True,
+    "exa_search_num_results": 3,      # Fewer results
+    "exa_search_max_characters": 200  # Shorter snippets
+}
+```
+
+## Related Resources
+
+- [Search-Enabled Agents](/docs/examples/examples/search-enabled) - Basic search configuration
+- [Advanced Research](/docs/examples/examples/advanced-research) - Director-worker research architecture
+- [Multi-Agent Workflows](/docs/documentation/multi-agent/swarm_types) - Combining search with swarms
