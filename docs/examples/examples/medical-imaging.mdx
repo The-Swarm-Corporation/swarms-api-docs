@@ -1,17 +1,26 @@
 ---
-title: "Medical Image Analysis Agent"
-description: "Build a healthcare agent that analyzes medical images using base64 encoding in 3 simple steps."
+title: "Agents with Vision"
+description: "Build AI agents that analyze images using vision-capable models. Learn to encode images, configure vision agents, and process visual data through the API."
 ---
 
-## What This Example Shows
+## Overview
 
-- Encoding medical images to base64 for API transmission
-- Creating a specialized medical imaging analysis agent
-- Analyzing X-rays, skin conditions, and other medical visuals
+Vision-enabled agents can process and analyze images alongside text, unlocking use cases like document analysis, medical imaging, quality inspection, and visual content understanding.
 
-<Warning>
-**Disclaimer**: This example is for educational purposes only. AI-assisted medical image analysis should always be reviewed by qualified healthcare professionals.
-</Warning>
+**Key concepts covered:**
+- Encoding images to base64 for API transmission
+- Configuring agents with vision-capable models
+- Sending images via the `img` parameter
+
+## Vision-Capable Models
+
+Use models that support image input:
+
+| Model | Provider | Best For |
+|-------|----------|----------|
+| `gpt-4o` | OpenAI | General vision tasks, detailed analysis |
+| `gpt-4o-mini` | OpenAI | Fast, cost-effective vision |
+| `claude-3-5-sonnet-20241022` | Anthropic | Complex reasoning about images |
 
 ## Prerequisites
 
@@ -23,11 +32,19 @@ Get your API key from [https://swarms.world/platform/api-keys](https://swarms.wo
 
 ---
 
-## 3-Step Tutorial
+## Tutorial: Medical Image Analysis
+
+This tutorial demonstrates vision capabilities by building a medical imaging analysis agent.
+
+<Warning>
+**Disclaimer**: This example is for educational purposes only. AI-assisted medical image analysis should always be reviewed by qualified healthcare professionals.
+</Warning>
+
+---
 
 ### Step 1: Encode Your Image to Base64
 
-Convert your medical image to base64 format with the proper data URI prefix.
+Convert your image to base64 format with the proper data URI prefix.
 
 ```python
 import base64
@@ -69,13 +86,13 @@ def encode_image_to_base64(image_path: str) -> str:
 
 ---
 
-### Step 2: Configure the Healthcare Agent
+### Step 2: Configure the Vision Agent
 
-Create a medical imaging agent with a vision-capable model (`gpt-4o`).
+Create an agent with a vision-capable model (`gpt-4o`).
 
 ```python
-def create_medical_imaging_agent() -> dict:
-    """Create agent configuration for medical image analysis."""
+def create_vision_agent() -> dict:
+    """Create agent configuration for image analysis."""
 
     return {
         "agent_name": "Medical Imaging Analyst",
@@ -103,15 +120,15 @@ When analyzing medical images, provide:
 Always use standard medical terminology and recommend professional review.""",
         "model_name": "gpt-4o",  # Vision-capable model required
         "max_tokens": 4096,
-        "temperature": 0.3  # Lower temperature for medical accuracy
+        "temperature": 0.3  # Lower temperature for accuracy
     }
 ```
 
 ---
 
-### Step 3: Analyze the Image
+### Step 3: Send the Image to the API
 
-Send the base64-encoded image to the API using the `img` parameter.
+Pass the base64-encoded image using the `img` parameter.
 
 ```python
 import requests
@@ -126,13 +143,13 @@ headers = {
 }
 
 
-def analyze_medical_image(image_path: str, clinical_context: str = "") -> dict:
+def analyze_image(image_path: str, task: str = "") -> dict:
     """
-    Analyze a medical image using the healthcare agent.
+    Analyze an image using the vision agent.
 
     Args:
-        image_path: Path to the medical image
-        clinical_context: Patient history or clinical question (optional)
+        image_path: Path to the image
+        task: Description of what to analyze (optional)
 
     Returns:
         API response with analysis
@@ -142,13 +159,9 @@ def analyze_medical_image(image_path: str, clinical_context: str = "") -> dict:
 
     # Build the request
     payload = {
-        "agent_config": create_medical_imaging_agent(),
-        "task": f"""Analyze this medical image and provide a comprehensive interpretation.
-
-Clinical Context: {clinical_context if clinical_context else "Not provided"}
-
-Provide systematic findings and recommendations.""",
-        "img": image_base64  # Single image parameter
+        "agent_config": create_vision_agent(),
+        "task": task or "Analyze this image and provide a comprehensive interpretation.",
+        "img": image_base64  # Image parameter
     }
 
     # Send to API
@@ -173,13 +186,13 @@ Here's everything together in one runnable script:
 
 ```python
 """
-Medical Image Analysis Agent
-============================
-Analyze medical images using the Swarms API in 3 steps.
+Vision Agent - Image Analysis
+=============================
+Analyze images using the Swarms API with vision-capable models.
 
 Usage:
     export SWARMS_API_KEY=your_api_key
-    python medical_imaging.py
+    python vision_agent.py
 """
 
 import base64
@@ -210,7 +223,7 @@ def encode_image_to_base64(image_path: str) -> str:
 
 
 # Step 2: Create agent configuration
-def create_medical_imaging_agent() -> dict:
+def create_vision_agent() -> dict:
     return {
         "agent_name": "Medical Imaging Analyst",
         "description": "Expert radiologist AI for medical image interpretation",
@@ -230,12 +243,12 @@ Use standard medical terminology. Always recommend professional review.""",
 
 
 # Step 3: Analyze the image
-def analyze_medical_image(image_path: str, clinical_context: str = "") -> dict:
+def analyze_image(image_path: str, context: str = "") -> dict:
     payload = {
-        "agent_config": create_medical_imaging_agent(),
+        "agent_config": create_vision_agent(),
         "task": f"""Analyze this medical image.
 
-Clinical Context: {clinical_context or "Not provided"}
+Clinical Context: {context or "Not provided"}
 
 Provide findings, assessment, and recommendations.""",
         "img": encode_image_to_base64(image_path)
@@ -253,9 +266,9 @@ Provide findings, assessment, and recommendations.""",
 
 # Run example
 if __name__ == "__main__":
-    result = analyze_medical_image(
+    result = analyze_image(
         image_path="chest_xray.png",
-        clinical_context="58-year-old male with persistent cough and fever"
+        context="58-year-old male with persistent cough and fever"
     )
 
     if result:
@@ -297,26 +310,25 @@ Cost: $0.0298
 
 ---
 
-## Use Cases
+## Other Vision Use Cases
 
-| Specialty | Image Types | Example Analysis |
-|-----------|-------------|-----------------|
-| Radiology | X-ray, CT exports | Lung nodules, fractures, pneumonia |
-| Dermatology | Skin photos | Lesion assessment, ABCDE criteria |
-| Ophthalmology | Fundus photos | Diabetic retinopathy, macular changes |
-| Pathology | Histology images | Tissue architecture, cellular atypia |
+| Use Case | Image Types | Example Analysis |
+|----------|-------------|------------------|
+| **Medical** | X-rays, CT scans, skin photos | Diagnoses, findings, recommendations |
+| **Documents** | Invoices, receipts, forms | Data extraction, field parsing |
+| **Quality Control** | Product photos, assembly images | Defect detection, verification |
+| **Content** | Photos, charts, diagrams | Descriptions, alt text, analysis |
 
 ---
 
 ## Best Practices
 
-1. **Provide clinical context** - Patient history improves analysis accuracy
-2. **Use quality images** - Clear, properly exposed images yield better results
-3. **Use vision-capable models** - `gpt-4o` is required for image analysis
-4. **Always get professional review** - AI analysis supplements, not replaces, clinical judgment
+1. **Use vision-capable models** - `gpt-4o` or Claude 3.5 Sonnet required for image analysis
+2. **Optimize image size** - Keep images under 20MB; resize large images for faster processing
+3. **Provide context** - Describe what the agent should focus on in your task prompt
+4. **Use appropriate temperature** - Lower (0.2-0.4) for factual analysis, higher for creative descriptions
 
 ## Next Steps
 
 - [Hospital Team Swarm](/docs/examples/examples/hospital-team) - Multi-agent medical workflows
-- [ICD Code Analysis](/docs/examples/examples/icd-analysis) - Diagnostic coding
 - [Agent Completions Reference](/docs/documentation/capabilities/agent) - Full API documentation
