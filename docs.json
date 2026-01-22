@@ -1,32 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "redirects": [
-    {
-      "source": "/docs/introduction",
-      "destination": "/docs/introduction/index"
-    },
-    {
-      "source": "/docs/documentation",
-      "destination": "/docs/documentation/index"
-    },
-    {
-      "source": "/docs/marketplace",
-      "destination": "/docs/marketplace/overview"
-    },
-    {
-      "source": "/docs/atp",
-      "destination": "/docs/atp/vision"
-    },
-    {
-      "source": "/docs/examples",
-      "destination": "/docs/examples/examples/client-setup"
-    },
-    {
-      "source": "/docs/guides",
-      "destination": "/docs/guides/guides/first"
-    }
-  ],
   "name": "Swarms API Documentation",
   "description": "Build intelligent AI agents and multi-agent swarms with the Swarms API. Create single agents, reasoning systems, and enterprise-scale swarms for automation, research, and complex problem-solving.",
   "keywords": ["AI agents", "multi-agent systems", "swarm intelligence", "AI automation", "machine learning", "API", "artificial intelligence", "agent orchestration", "workflow automation", "AI tools"],
@@ -50,7 +24,7 @@
           {
             "group": "Welcome",
             "pages": [
-              "docs/introduction/index",
+              "docs/introduction/overview",
               "docs/introduction/our-mission",
               "docs/introduction/our-products",
               "docs/introduction/links-and-resources"
