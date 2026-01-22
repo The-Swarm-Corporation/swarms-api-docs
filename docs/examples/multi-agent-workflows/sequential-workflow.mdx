@@ -1,0 +1,140 @@
+---
+title: "Sequential Workflow Example"
+description: "Build a legal document review pipeline with SequentialWorkflow"
+---
+
+## Legal Document Review Pipeline
+
+This example demonstrates how to build a document review system where each agent processes the output of the previous one - perfect for multi-stage processing workflows.
+
+### Step 1: Setup
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 2: Define Your Sequential Pipeline
+
+Create a 4-stage document review pipeline where each agent builds on the previous agent's work:
+
+```python
+def review_legal_document(document_text: str) -> dict:
+    """Process a legal document through sequential review stages."""
+
+    swarm_config = {
+        "name": "Legal Document Review Pipeline",
+        "description": "Sequential legal document review",
+        "swarm_type": "SequentialWorkflow",
+        "task": f"Review this legal document:\n\n{document_text}",
+        "agents": [
+            {
+                "agent_name": "Document Parser",
+                "description": "Extracts key information from legal documents",
+                "system_prompt": "You are a legal document parser. Extract: document type, parties involved, key dates, financial terms, and obligations for each party.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Risk Analyst",
+                "description": "Identifies potential legal risks",
+                "system_prompt": "You are a legal risk analyst. Based on the parsed document, identify HIGH, MEDIUM, and LOW risk items. Explain each risk and suggest mitigations.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Compliance Checker",
+                "description": "Verifies regulatory compliance",
+                "system_prompt": "You are a compliance specialist. Review the document and risk analysis to check regulatory compliance (GDPR, industry regulations). Provide a compliance score (1-10).",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Summary Generator",
+                "description": "Creates executive summary",
+                "system_prompt": "You are an executive assistant. Create a 2-minute read summary with: document overview, key terms, top 3 risks, compliance status, and recommendation (Sign/Negotiate/Reject).",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.4
+            }
+        ],
+        "max_loops": 1
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=120
+    )
+
+    return response.json()
+```
+
+### Step 3: Run the Pipeline
+
+```python
+# Sample contract
+contract = """
+SERVICE AGREEMENT
+
+This Agreement is entered into as of January 15, 2025 by and between:
+Provider: TechCorp Solutions Inc., a Delaware corporation
+Client: Acme Industries LLC, a California LLC
+
+1. SERVICES: Provider agrees to deliver cloud infrastructure management services.
+
+2. TERM: 36 months, auto-renewing for 12-month periods unless terminated with 30 days notice.
+
+3. FEES: $15,000/month, due within 30 days. Late payments incur 2% monthly interest.
+
+4. LIMITATION OF LIABILITY: Provider's total liability shall not exceed fees paid in preceding 3 months.
+
+5. TERMINATION: Provider may terminate immediately for breach. Client may terminate with 90 days notice and payment of remaining term fees.
+"""
+
+# Run review
+result = review_legal_document(contract)
+
+# Display results
+for output in result.get("output", []):
+    print(f"\n--- {output['role']} ---")
+    print(output['content'][:500] + "...")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+```
+
+**Expected Output:**
+```
+--- Document Parser ---
+Document Type: Service Agreement
+Parties: TechCorp Solutions Inc. (Provider), Acme Industries LLC (Client)
+Key Dates: Effective Jan 15, 2025, 36-month term...
+
+--- Risk Analyst ---
+HIGH RISK: Asymmetric termination rights - Client must pay remaining fees to exit...
+
+--- Compliance Checker ---
+Compliance Score: 7/10
+Missing: Data processing terms, GDPR provisions...
+
+--- Summary Generator ---
+RECOMMENDATION: NEGOTIATE - Address termination clause before signing...
+
+Total cost: $0.0891
+```
+
+<Note>
+Each agent in SequentialWorkflow receives the previous agent's output. Design your prompts so each stage builds on prior work.
+</Note>
