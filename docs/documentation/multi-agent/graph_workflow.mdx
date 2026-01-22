@@ -38,7 +38,7 @@ headers = {
 | `end_points` | `List[string]` | No | `null` | List of node IDs (agent names) that serve as ending points |
 | `max_loops` | `integer` | No | `1` | Maximum number of execution loops for the workflow |
 | `task` | `string` | No | `null` | The task to be executed by the workflow |
-| `img` | `string` | No | `null` | Optional image path/URL for vision-enabled agents |
+| `img` | `string` | No | `null` | Optional base64 encoded image for vision-enabled agents |
 | `auto_compile` | `boolean` | No | `true` | Whether to automatically compile the workflow for optimization |
 | `verbose` | `boolean` | No | `false` | Whether to enable detailed logging |
 
@@ -776,7 +776,7 @@ async def run_vision_workflow():
         "end_points": ["QualityReviewer"],
         "max_loops": 1,
         "task": "Analyze this image and generate engaging social media content about it",
-        "img": "https://example.com/image.jpg",  # Image URL or path
+        "img": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",  # Base64 encoded image
         "auto_compile": True,
         "verbose": False,
     }
