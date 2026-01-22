@@ -1,0 +1,322 @@
+---
+title: "Medical Image Analysis Agent"
+description: "Build a healthcare agent that analyzes medical images using base64 encoding in 3 simple steps."
+---
+
+## What This Example Shows
+
+- Encoding medical images to base64 for API transmission
+- Creating a specialized medical imaging analysis agent
+- Analyzing X-rays, skin conditions, and other medical visuals
+
+<Warning>
+**Disclaimer**: This example is for educational purposes only. AI-assisted medical image analysis should always be reviewed by qualified healthcare professionals.
+</Warning>
+
+## Prerequisites
+
+```bash
+pip install requests python-dotenv
+```
+
+Get your API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+
+---
+
+## 3-Step Tutorial
+
+### Step 1: Encode Your Image to Base64
+
+Convert your medical image to base64 format with the proper data URI prefix.
+
+```python
+import base64
+from pathlib import Path
+
+
+def encode_image_to_base64(image_path: str) -> str:
+    """
+    Encode an image file to base64 string with data URI prefix.
+
+    Args:
+        image_path: Path to the image file (PNG, JPEG, etc.)
+
+    Returns:
+        Base64 encoded string with data URI prefix
+    """
+    # Determine MIME type from file extension
+    extension = Path(image_path).suffix.lower()
+    mime_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+    }
+    mime_type = mime_types.get(extension, "image/png")
+
+    # Read and encode the image
+    with open(image_path, "rb") as image_file:
+        encoded = base64.b64encode(image_file.read()).decode("utf-8")
+
+    # Return with data URI prefix (required by the API)
+    return f"data:{mime_type};base64,{encoded}"
+```
+
+<Tip>
+**Supported formats**: PNG, JPEG, GIF, and WebP. Keep images under 20MB for optimal performance.
+</Tip>
+
+---
+
+### Step 2: Configure the Healthcare Agent
+
+Create a medical imaging agent with a vision-capable model (`gpt-4o`).
+
+```python
+def create_medical_imaging_agent() -> dict:
+    """Create agent configuration for medical image analysis."""
+
+    return {
+        "agent_name": "Medical Imaging Analyst",
+        "description": "Expert radiologist AI for medical image interpretation",
+        "system_prompt": """You are an expert medical imaging analyst.
+
+When analyzing medical images, provide:
+
+1. **IMAGE QUALITY**
+   - Technical adequacy and any limitations
+
+2. **FINDINGS**
+   - Systematic description of all visible structures
+   - Normal findings stated explicitly
+   - Abnormalities with precise location and characteristics
+
+3. **ASSESSMENT**
+   - Most likely diagnosis with supporting features
+   - Alternative considerations
+
+4. **RECOMMENDATIONS**
+   - Suggested follow-up or additional imaging
+   - Clinical correlation needs
+
+Always use standard medical terminology and recommend professional review.""",
+        "model_name": "gpt-4o",  # Vision-capable model required
+        "max_tokens": 4096,
+        "temperature": 0.3  # Lower temperature for medical accuracy
+    }
+```
+
+---
+
+### Step 3: Analyze the Image
+
+Send the base64-encoded image to the API using the `img` parameter.
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+
+def analyze_medical_image(image_path: str, clinical_context: str = "") -> dict:
+    """
+    Analyze a medical image using the healthcare agent.
+
+    Args:
+        image_path: Path to the medical image
+        clinical_context: Patient history or clinical question (optional)
+
+    Returns:
+        API response with analysis
+    """
+    # Encode the image
+    image_base64 = encode_image_to_base64(image_path)
+
+    # Build the request
+    payload = {
+        "agent_config": create_medical_imaging_agent(),
+        "task": f"""Analyze this medical image and provide a comprehensive interpretation.
+
+Clinical Context: {clinical_context if clinical_context else "Not provided"}
+
+Provide systematic findings and recommendations.""",
+        "img": image_base64  # Single image parameter
+    }
+
+    # Send to API
+    response = requests.post(
+        f"{API_BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=120
+    )
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"API Error: {response.status_code} - {response.text}")
+```
+
+---
+
+## Complete Example
+
+Here's everything together in one runnable script:
+
+```python
+"""
+Medical Image Analysis Agent
+============================
+Analyze medical images using the Swarms API in 3 steps.
+
+Usage:
+    export SWARMS_API_KEY=your_api_key
+    python medical_imaging.py
+"""
+
+import base64
+import os
+import requests
+from pathlib import Path
+
+# Configuration
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+
+# Step 1: Encode image to base64
+def encode_image_to_base64(image_path: str) -> str:
+    extension = Path(image_path).suffix.lower()
+    mime_types = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+    mime_type = mime_types.get(extension, "image/png")
+
+    with open(image_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode("utf-8")
+
+    return f"data:{mime_type};base64,{encoded}"
+
+
+# Step 2: Create agent configuration
+def create_medical_imaging_agent() -> dict:
+    return {
+        "agent_name": "Medical Imaging Analyst",
+        "description": "Expert radiologist AI for medical image interpretation",
+        "system_prompt": """You are an expert medical imaging analyst.
+
+Analyze medical images systematically:
+1. IMAGE QUALITY - Technical adequacy and limitations
+2. FINDINGS - All normal and abnormal observations
+3. ASSESSMENT - Most likely diagnosis with reasoning
+4. RECOMMENDATIONS - Follow-up imaging or clinical correlation
+
+Use standard medical terminology. Always recommend professional review.""",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096,
+        "temperature": 0.3
+    }
+
+
+# Step 3: Analyze the image
+def analyze_medical_image(image_path: str, clinical_context: str = "") -> dict:
+    payload = {
+        "agent_config": create_medical_imaging_agent(),
+        "task": f"""Analyze this medical image.
+
+Clinical Context: {clinical_context or "Not provided"}
+
+Provide findings, assessment, and recommendations.""",
+        "img": encode_image_to_base64(image_path)
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=120
+    )
+
+    return response.json() if response.status_code == 200 else None
+
+
+# Run example
+if __name__ == "__main__":
+    result = analyze_medical_image(
+        image_path="chest_xray.png",
+        clinical_context="58-year-old male with persistent cough and fever"
+    )
+
+    if result:
+        print("Analysis:")
+        print(result.get("outputs", "No output"))
+        print(f"\nCost: ${result.get('usage', {}).get('total_cost', 0):.4f}")
+```
+
+---
+
+## Expected Output
+
+```
+Analysis:
+
+**IMAGE QUALITY**
+Technically adequate PA chest radiograph. Good inspiration, no rotation.
+
+**FINDINGS**
+- Lungs: Clear bilateral lung fields, no focal consolidation
+- Heart: Normal cardiothoracic ratio, normal cardiac silhouette
+- Mediastinum: No widening, normal aortic contour
+- Pleura: No effusion or pneumothorax
+- Bones: No acute osseous abnormality
+
+**ASSESSMENT**
+No acute cardiopulmonary disease identified on this examination.
+Given the clinical history of persistent cough and fever, consider:
+- Early pneumonia (may not yet be radiographically apparent)
+- Viral upper respiratory infection
+
+**RECOMMENDATIONS**
+- Clinical correlation with physical exam findings
+- Consider repeat imaging in 24-48 hours if symptoms persist
+- CT chest if high clinical suspicion for pathology
+
+Cost: $0.0298
+```
+
+---
+
+## Use Cases
+
+| Specialty | Image Types | Example Analysis |
+|-----------|-------------|-----------------|
+| Radiology | X-ray, CT exports | Lung nodules, fractures, pneumonia |
+| Dermatology | Skin photos | Lesion assessment, ABCDE criteria |
+| Ophthalmology | Fundus photos | Diabetic retinopathy, macular changes |
+| Pathology | Histology images | Tissue architecture, cellular atypia |
+
+---
+
+## Best Practices
+
+1. **Provide clinical context** - Patient history improves analysis accuracy
+2. **Use quality images** - Clear, properly exposed images yield better results
+3. **Use vision-capable models** - `gpt-4o` is required for image analysis
+4. **Always get professional review** - AI analysis supplements, not replaces, clinical judgment
+
+## Next Steps
+
+- [Hospital Team Swarm](/docs/examples/examples/hospital-team) - Multi-agent medical workflows
+- [ICD Code Analysis](/docs/examples/examples/icd-analysis) - Diagnostic coding
+- [Agent Completions Reference](/docs/documentation/capabilities/agent) - Full API documentation

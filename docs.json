@@ -179,6 +179,7 @@
               "docs/examples/examples/hospital-team",
               "docs/examples/examples/legal-team",
               "docs/examples/examples/icd-analysis",
+              "docs/examples/examples/medical-imaging",
               "docs/examples/api_examples/legal_team"
             ]
           },
