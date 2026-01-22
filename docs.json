@@ -179,12 +179,7 @@
               "docs/examples/examples/hospital-team",
               "docs/examples/examples/legal-team",
               "docs/examples/examples/icd-analysis",
-              "docs/examples/api_examples/legal_team"
-            ]
-          },
-          {
-            "group": "Agents with Vision",
-            "pages": [
+              "docs/examples/api_examples/legal_team",
               "docs/examples/examples/medical-imaging"
             ]
           },
