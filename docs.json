@@ -27,7 +27,9 @@
               "docs/introduction/overview",
               "docs/introduction/our-mission",
               "docs/introduction/our-products",
-              "docs/introduction/links-and-resources"
+              "docs/introduction/links-and-resources",
+              "docs/introduction/design-philosophy",
+              "docs/introduction/hiring"
             ]
           }
         ]
@@ -90,6 +92,7 @@
           {
             "group": "Resources",
             "pages": [
+              "docs/documentation/resources/resources-overview",
               "docs/documentation/resources/ratelimits",
               "docs/documentation/resources/pricing",
               "docs/documentation/resources/security",
@@ -101,14 +104,6 @@
               "docs/documentation/resources/technical-support",
               "docs/documentation/resources/referral",
               "docs/documentation/resources/contributors"
-            ]
-          },
-          {
-            "group": "About Us",
-            "pages": [
-              "docs/documentation/about/mission",
-              "docs/documentation/about/design-philosophy",
-              "docs/documentation/about/hiring"
             ]
           }
         ]
