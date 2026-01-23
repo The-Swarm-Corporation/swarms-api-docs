@@ -123,7 +123,8 @@
             "pages": [
               "docs/marketplace/tokenization",
               "docs/marketplace/tokenization_details",
-              "docs/marketplace/creator-fees"
+              "docs/marketplace/creator-fees",
+              "docs/marketplace/revenue-fees"
             ]
           },
           {

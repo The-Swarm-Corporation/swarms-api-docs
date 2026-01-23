@@ -1,0 +1,250 @@
+---
+title: "Revenue & Fees"
+description: "Understand Swarms' dynamic fee structure for marketplace transactions"
+---
+
+The Swarms Marketplace uses a transparent, dynamic fee structure that adapts to each product's monetization model. Fees are optional and only apply based on how products are configured. This page outlines all possible fees and when they apply.
+
+---
+
+## Overview
+
+Fees on the Swarms Marketplace are **dynamic and optional**, meaning they only apply based on your product's monetization model. Products can be:
+
+- **Free**: No fees for creators or users
+- **Paid Only**: Fixed price with commission fees
+- **Tokenized Only**: Tradeable tokens with volume transaction fees
+- **Both Paid and Tokenized**: Combines fixed pricing with tokenization
+
+<Info>
+The fees you pay depend entirely on the monetization model you choose for your product. Free products have no fees, while paid and tokenized products have different fee structures.
+</Info>
+
+---
+
+## Fee Structure Table
+
+| Fee Type | Amount | When Applied | Frequency |
+|----------|--------|--------------|-----------|
+| Tokenization Cost | 0.04 SOL | Only when creating a tokenized product | One-time (creator pays) |
+| Volume Transaction Fee | 0.5% | Only on tokenized product buy/sell transactions | Per transaction |
+| Paid Product Commission | 10% | Only on paid product transactions (SOL amount) | Per transaction |
+
+<Note>
+**Free products have no fees.** Fees only apply when you choose paid or tokenized monetization models.
+</Note>
+
+---
+
+## Fee Structure 1: Tokenization Cost
+
+### Description
+
+Creating a tokenized product on the Swarms Marketplace requires a one-time fee of **0.04 SOL** to cover blockchain transaction costs for minting your token on the Solana blockchain.
+
+<Warning>
+Once your token is created, you must purchase it quickly to attain ownership. You are not automatically granted tokens upon creation.
+</Warning>
+
+This fee **only applies** if you choose to tokenize your product. Free and paid-only products do not incur this fee.
+
+### Additional Requirements
+
+Tokenized products can also be paid products. If your tokenized product requires paid access, you must pay both:
+1. The tokenization cost (0.04 SOL)
+2. The product's access fee (if set by the creator)
+
+### Example: Tokenized Only Product
+
+Creating a tokenized agent (no paid access):
+
+1. **Tokenization Fee**: 0.04 SOL (one-time, paid during creation)
+2. **Product Access Fee**: $0 USD (free access)
+3. **Total Initial Cost**: 0.04 SOL
+
+### Example: Tokenized + Paid Product
+
+Creating a tokenized agent with paid access:
+
+1. **Tokenization Fee**: 0.04 SOL (one-time, paid during creation)
+2. **Product Access Fee**: $10 USD (or price set by creator)
+3. **Total Initial Cost**: 0.04 SOL + $10 USD
+
+<Info>
+The 0.04 SOL fee is a blockchain transaction cost and is separate from any product pricing. This fee goes directly to covering Solana network fees for token creation.
+</Info>
+
+---
+
+## Fee Structure 2: Volume Transaction Fee
+
+### Description
+
+Swarms takes **0.5%** (half a percent) on all volume from buy and sell transactions for **tokenized products only**. This fee applies to the total transaction volume when tokenized products are bought or sold.
+
+<Warning>
+This fee **only applies to tokenized products**. Free and paid-only (non-tokenized) products do not incur this fee.
+</Warning>
+
+This fee supports platform infrastructure, security, and ongoing development of the marketplace ecosystem.
+
+### Example
+
+If a tokenized product has a transaction volume of $1,000:
+
+- **Transaction Volume**: $1,000
+- **Swarms Fee (0.5%)**: $1,000 × 0.005 = **$5.00**
+- **Remaining Amount**: $995.00
+
+This fee is automatically deducted from each transaction and applies to both:
+- **Buy transactions**: When users purchase tokenized products
+- **Sell transactions**: When tokenized products are resold on the secondary market
+
+<Note>
+The 0.5% fee is calculated on the total transaction volume for tokenized products, ensuring the platform can maintain and improve marketplace services for all users.
+</Note>
+
+---
+
+## Fee Structure 3: Paid Product Commission
+
+### Description
+
+For paid products (agents, prompts, or tools), Swarms takes a **10% commission** on the SOL amount being sent in the transaction. This commission applies to all paid product purchases and is calculated based on the SOL value of the transaction.
+
+<Warning>
+This 10% commission applies only to **paid products** and is calculated on the SOL amount being sent, not the USD equivalent. Free products have no commission.
+</Warning>
+
+### Example: Paid Only Product
+
+If a paid prompt costs 1 SOL:
+
+- **Transaction Amount**: 1 SOL
+- **Swarms Commission (10%)**: 1 SOL × 0.10 = **0.1 SOL**
+- **Creator Receives**: 0.9 SOL
+
+### Example: Paid + Tokenized Product
+
+If a paid and tokenized product costs 2 SOL:
+
+- **Transaction Amount**: 2 SOL
+- **Swarms Commission (10%)**: 2 SOL × 0.10 = **0.2 SOL**
+- **Volume Transaction Fee (0.5%)**: 2 SOL × 0.005 = **0.01 SOL**
+- **Total Fees**: 0.21 SOL
+- **Creator Receives**: 1.79 SOL
+
+<Info>
+When a product is both paid and tokenized, both the 10% commission and 0.5% volume fee apply to the transaction.
+</Info>
+
+---
+
+## Understanding Total Costs
+
+Fees vary based on the product's monetization model. Here are examples for different scenarios:
+
+### Scenario 1: Free Product
+
+- **Product Price**: $0 USD
+- **Fees**: None
+- **Total Cost**: Free
+
+### Scenario 2: Paid Only Product
+
+- **Product Price**: 2 SOL
+- **Swarms Commission (10%)**: 2 SOL × 0.10 = 0.2 SOL
+- **Total Cost to Buyer**: 2 SOL
+- **Creator Receives**: 1.8 SOL
+
+### Scenario 3: Tokenized Only Product
+
+**For Creator (one-time):**
+- **Tokenization Fee**: 0.04 SOL (paid during creation)
+
+**For Buyers:**
+- **Product Price**: Market price (determined by trading)
+- **Volume Transaction Fee (0.5%)**: Applied to each buy/sell transaction
+- **No access fee** (product is free to use)
+
+### Scenario 4: Paid + Tokenized Product
+
+**For Creator (one-time):**
+- **Tokenization Fee**: 0.04 SOL (paid during creation)
+
+**For Buyers:**
+- **Product Price**: 2 SOL (paid access fee)
+- **Swarms Commission (10%)**: 2 SOL × 0.10 = 0.2 SOL
+- **Volume Transaction Fee (0.5%)**: 2 SOL × 0.005 = 0.01 SOL
+- **Total Cost to Buyer**: 2 SOL
+- **Creator Receives**: 1.79 SOL
+
+<Note>
+The tokenization cost (0.04 SOL) is a one-time fee paid by the creator when launching a tokenized product. Buyers only pay the product price and applicable transaction fees.
+</Note>
+
+---
+
+## Product Monetization Combinations
+
+Products on the Swarms Marketplace can use different monetization models:
+
+<Tabs>
+  <Tab title="Free">
+    **No fees** for creators or users.
+    
+    - No tokenization cost
+    - No transaction fees
+    - No commissions
+    - Best for: Open source, community contributions, building reputation
+  </Tab>
+  <Tab title="Paid Only">
+    Fixed price with **10% commission** on SOL amount.
+    
+    - No tokenization cost
+    - 10% commission on purchases
+    - No volume transaction fees
+    - Best for: Premium content, one-time purchases, direct monetization
+  </Tab>
+  <Tab title="Tokenized Only">
+    Tradeable tokens with **0.5% volume fee** on transactions.
+    
+    - 0.04 SOL tokenization cost (creator pays once)
+    - 0.5% fee on all buy/sell transactions
+    - No paid access fee
+    - Best for: Tradeable assets, building token ecosystems, secondary markets
+  </Tab>
+  <Tab title="Paid + Tokenized">
+    Combines fixed pricing with tokenization. **Both fees apply**.
+    
+    - 0.04 SOL tokenization cost (creator pays once)
+    - 10% commission on paid access purchases
+    - 0.5% fee on token buy/sell transactions
+    - Best for: Premium tradeable assets, maximum monetization
+  </Tab>
+</Tabs>
+
+---
+
+## Fee Transparency
+
+All fees are:
+
+- **Dynamic**: Only apply based on your product's monetization model
+- **Optional**: Free products have no fees
+- **Automatically Calculated**: Fees are computed and applied automatically during transactions
+- **Clearly Displayed**: Fee breakdowns are shown before completing transactions
+- **Transparent**: No hidden fees or unexpected charges
+
+<Info>
+You can view fee information and transaction history directly on your product listing pages and account dashboard. Fees are only charged when applicable to your chosen monetization model.
+</Info>
+
+---
+
+## Support
+
+For questions about fees or revenue:
+
+- **Discord**: [Join our community](https://discord.gg/EamjgSaEQf)
+- **Technical Support**: [Schedule a call](https://cal.com/swarms/swarms-technical-support?overlayCalendar=true)
