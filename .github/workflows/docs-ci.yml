@@ -22,8 +22,8 @@ jobs:
     name: 🔍 Validate Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
       - run: npm install -g mint
@@ -34,8 +34,8 @@ jobs:
     name: 🔗 Internal Links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
       - run: npm install -g mint
@@ -46,8 +46,8 @@ jobs:
     name: ♿ Accessibility
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
       - run: npm install -g mint
@@ -59,10 +59,10 @@ jobs:
     name: 📝 Markdown Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Lint Markdown/MDX files
-        uses: DavidAnson/markdownlint-cli2-action@v19
+        uses: DavidAnson/markdownlint-cli2-action@v22
         with:
           globs: |
             docs/**/*.md
@@ -84,7 +84,7 @@ jobs:
     name: 📖 Spell Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Check spelling
         uses: crate-ci/typos@master
@@ -97,7 +97,7 @@ jobs:
     name: 🌐 External Links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Check external links
         uses: lycheeverse/lychee-action@v2
@@ -117,7 +117,7 @@ jobs:
           output: ./lychee-report.md
 
       - name: Upload link report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: link-check-report
           path: ./lychee-report.md
