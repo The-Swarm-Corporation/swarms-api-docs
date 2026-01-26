@@ -21,10 +21,10 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -90,7 +90,7 @@ jobs:
           fi
 
       - name: Upload all reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: weekly-link-report-${{ github.run_number }}
           path: |
@@ -100,7 +100,7 @@ jobs:
 
       - name: Create issue for broken links
         if: failure() || steps.internal.outputs.status == 'failure'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
