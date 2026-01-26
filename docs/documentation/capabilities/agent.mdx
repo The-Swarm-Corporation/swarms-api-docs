@@ -21,8 +21,8 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `agent_config` | `AgentSpec` | Yes | Configuration object for the agent |
 | `task` | `string` | Yes | The task or instruction for the agent to execute |
 | `history` | `Union[Dict, List[Dict]]` | No | Conversation history or context for the agent |
-| `img` | `string` | No | Single image URL for vision-enabled models |
-| `imgs` | `List[string]` | No | Multiple image URLs for vision-enabled models |
+| `img` | `string` | No | Base64 encoded image for vision-enabled models |
+| `imgs` | `List[string]` | No | Multiple base64 encoded images for vision-enabled models |
 | `stream` | `boolean` | No | Enable streaming output (default: false) |
 | `search_enabled` | `boolean` | No | Enable search capabilities (default: false) |
 

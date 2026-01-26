@@ -1,0 +1,334 @@
+---
+title: "Agents with Vision"
+description: "Build AI agents that analyze images using vision-capable models. Learn to encode images, configure vision agents, and process visual data through the API."
+---
+
+## Overview
+
+Vision-enabled agents can process and analyze images alongside text, unlocking use cases like document analysis, medical imaging, quality inspection, and visual content understanding.
+
+**Key concepts covered:**
+- Encoding images to base64 for API transmission
+- Configuring agents with vision-capable models
+- Sending images via the `img` parameter
+
+## Vision-Capable Models
+
+Use models that support image input:
+
+| Model | Provider | Best For |
+|-------|----------|----------|
+| `gpt-4o` | OpenAI | General vision tasks, detailed analysis |
+| `gpt-4o-mini` | OpenAI | Fast, cost-effective vision |
+| `claude-3-5-sonnet-20241022` | Anthropic | Complex reasoning about images |
+
+## Prerequisites
+
+```bash
+pip install requests python-dotenv
+```
+
+Get your API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+
+---
+
+## Tutorial: Medical Image Analysis
+
+This tutorial demonstrates vision capabilities by building a medical imaging analysis agent.
+
+<Warning>
+**Disclaimer**: This example is for educational purposes only. AI-assisted medical image analysis should always be reviewed by qualified healthcare professionals.
+</Warning>
+
+---
+
+### Step 1: Encode Your Image to Base64
+
+Convert your image to base64 format with the proper data URI prefix.
+
+```python
+import base64
+from pathlib import Path
+
+
+def encode_image_to_base64(image_path: str) -> str:
+    """
+    Encode an image file to base64 string with data URI prefix.
+
+    Args:
+        image_path: Path to the image file (PNG, JPEG, etc.)
+
+    Returns:
+        Base64 encoded string with data URI prefix
+    """
+    # Determine MIME type from file extension
+    extension = Path(image_path).suffix.lower()
+    mime_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+    }
+    mime_type = mime_types.get(extension, "image/png")
+
+    # Read and encode the image
+    with open(image_path, "rb") as image_file:
+        encoded = base64.b64encode(image_file.read()).decode("utf-8")
+
+    # Return with data URI prefix (required by the API)
+    return f"data:{mime_type};base64,{encoded}"
+```
+
+<Tip>
+**Supported formats**: PNG, JPEG, GIF, and WebP. Keep images under 20MB for optimal performance.
+</Tip>
+
+---
+
+### Step 2: Configure the Vision Agent
+
+Create an agent with a vision-capable model (`gpt-4o`).
+
+```python
+def create_vision_agent() -> dict:
+    """Create agent configuration for image analysis."""
+
+    return {
+        "agent_name": "Medical Imaging Analyst",
+        "description": "Expert radiologist AI for medical image interpretation",
+        "system_prompt": """You are an expert medical imaging analyst.
+
+When analyzing medical images, provide:
+
+1. **IMAGE QUALITY**
+   - Technical adequacy and any limitations
+
+2. **FINDINGS**
+   - Systematic description of all visible structures
+   - Normal findings stated explicitly
+   - Abnormalities with precise location and characteristics
+
+3. **ASSESSMENT**
+   - Most likely diagnosis with supporting features
+   - Alternative considerations
+
+4. **RECOMMENDATIONS**
+   - Suggested follow-up or additional imaging
+   - Clinical correlation needs
+
+Always use standard medical terminology and recommend professional review.""",
+        "model_name": "gpt-4o",  # Vision-capable model required
+        "max_tokens": 4096,
+        "temperature": 0.3  # Lower temperature for accuracy
+    }
+```
+
+---
+
+### Step 3: Send the Image to the API
+
+Pass the base64-encoded image using the `img` parameter.
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+
+def analyze_image(image_path: str, task: str = "") -> dict:
+    """
+    Analyze an image using the vision agent.
+
+    Args:
+        image_path: Path to the image
+        task: Description of what to analyze (optional)
+
+    Returns:
+        API response with analysis
+    """
+    # Encode the image
+    image_base64 = encode_image_to_base64(image_path)
+
+    # Build the request
+    payload = {
+        "agent_config": create_vision_agent(),
+        "task": task or "Analyze this image and provide a comprehensive interpretation.",
+        "img": image_base64  # Image parameter
+    }
+
+    # Send to API
+    response = requests.post(
+        f"{API_BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=120
+    )
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"API Error: {response.status_code} - {response.text}")
+```
+
+---
+
+## Complete Example
+
+Here's everything together in one runnable script:
+
+```python
+"""
+Vision Agent - Image Analysis
+=============================
+Analyze images using the Swarms API with vision-capable models.
+
+Usage:
+    export SWARMS_API_KEY=your_api_key
+    python vision_agent.py
+"""
+
+import base64
+import os
+import requests
+from pathlib import Path
+
+# Configuration
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+
+# Step 1: Encode image to base64
+def encode_image_to_base64(image_path: str) -> str:
+    extension = Path(image_path).suffix.lower()
+    mime_types = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+    mime_type = mime_types.get(extension, "image/png")
+
+    with open(image_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode("utf-8")
+
+    return f"data:{mime_type};base64,{encoded}"
+
+
+# Step 2: Create agent configuration
+def create_vision_agent() -> dict:
+    return {
+        "agent_name": "Medical Imaging Analyst",
+        "description": "Expert radiologist AI for medical image interpretation",
+        "system_prompt": """You are an expert medical imaging analyst.
+
+Analyze medical images systematically:
+1. IMAGE QUALITY - Technical adequacy and limitations
+2. FINDINGS - All normal and abnormal observations
+3. ASSESSMENT - Most likely diagnosis with reasoning
+4. RECOMMENDATIONS - Follow-up imaging or clinical correlation
+
+Use standard medical terminology. Always recommend professional review.""",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096,
+        "temperature": 0.3
+    }
+
+
+# Step 3: Analyze the image
+def analyze_image(image_path: str, context: str = "") -> dict:
+    payload = {
+        "agent_config": create_vision_agent(),
+        "task": f"""Analyze this medical image.
+
+Clinical Context: {context or "Not provided"}
+
+Provide findings, assessment, and recommendations.""",
+        "img": encode_image_to_base64(image_path)
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=120
+    )
+
+    return response.json() if response.status_code == 200 else None
+
+
+# Run example
+if __name__ == "__main__":
+    result = analyze_image(
+        image_path="chest_xray.png",
+        context="58-year-old male with persistent cough and fever"
+    )
+
+    if result:
+        print("Analysis:")
+        print(result.get("outputs", "No output"))
+        print(f"\nCost: ${result.get('usage', {}).get('total_cost', 0):.4f}")
+```
+
+---
+
+## Expected Output
+
+```
+Analysis:
+
+**IMAGE QUALITY**
+Technically adequate PA chest radiograph. Good inspiration, no rotation.
+
+**FINDINGS**
+- Lungs: Clear bilateral lung fields, no focal consolidation
+- Heart: Normal cardiothoracic ratio, normal cardiac silhouette
+- Mediastinum: No widening, normal aortic contour
+- Pleura: No effusion or pneumothorax
+- Bones: No acute osseous abnormality
+
+**ASSESSMENT**
+No acute cardiopulmonary disease identified on this examination.
+Given the clinical history of persistent cough and fever, consider:
+- Early pneumonia (may not yet be radiographically apparent)
+- Viral upper respiratory infection
+
+**RECOMMENDATIONS**
+- Clinical correlation with physical exam findings
+- Consider repeat imaging in 24-48 hours if symptoms persist
+- CT chest if high clinical suspicion for pathology
+
+Cost: $0.0298
+```
+
+---
+
+## Other Vision Use Cases
+
+| Use Case | Image Types | Example Analysis |
+|----------|-------------|------------------|
+| **Medical** | X-rays, CT scans, skin photos | Diagnoses, findings, recommendations |
+| **Documents** | Invoices, receipts, forms | Data extraction, field parsing |
+| **Quality Control** | Product photos, assembly images | Defect detection, verification |
+| **Content** | Photos, charts, diagrams | Descriptions, alt text, analysis |
+
+---
+
+## Best Practices
+
+1. **Use vision-capable models** - `gpt-4o` or Claude 3.5 Sonnet required for image analysis
+2. **Optimize image size** - Keep images under 20MB; resize large images for faster processing
+3. **Provide context** - Describe what the agent should focus on in your task prompt
+4. **Use appropriate temperature** - Lower (0.2-0.4) for factual analysis, higher for creative descriptions
+
+## Next Steps
+
+- [Hospital Team Swarm](/docs/examples/examples/hospital-team) - Multi-agent medical workflows
+- [Agent Completions Reference](/docs/documentation/capabilities/agent) - Full API documentation
