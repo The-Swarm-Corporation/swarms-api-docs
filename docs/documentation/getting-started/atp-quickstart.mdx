@@ -1,0 +1,157 @@
+---
+title: 'Quickstart'
+description: 'Get up and running with the Agent Trade Protocol (ATP) in a few minutes using FastAPI and the ATP middleware.'
+---
+
+The Agent Trade Protocol (ATP) lets you automatically charge for AI agent usage on Solana, with payments enforced at the middleware layer.
+
+This quickstart walks you through the **minimum steps** to:
+
+- Install the ATP library
+- Protect a single FastAPI endpoint with ATP
+- Send a paid request from a client
+
+> For deeper details, see the full [ATP Overview](/docs/atp/overview), [Middleware](/docs/atp/middleware), and [Client](/docs/atp/client) pages.
+
+### 1. Install ATP
+
+Make sure you have **Python 3.8+** installed, then install the ATP library:
+
+```bash
+pip install -U swarms atp-protocol fastapi uvicorn
+```
+
+Or with `uv`:
+
+```bash
+uv pip install -U atp-protocol
+```
+
+### 2. Configure environment variables
+
+Create a `.env` file (or export these in your environment) so secrets never live in code:
+
+```bash
+OPENAI_API_KEY="your-openai-api-key"
+RECIPIENT_PUBKEY="your-solana-wallet-public-key"
+ATP_SETTLEMENT_URL="https://facilitator.swarms.world"
+```
+
+### 3. Set up a Swarms + ATP FastAPI server
+
+Use the Swarms integration example (simplified from `swarms/server.py`) as your starting point:
+
+```python
+import os
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+from loguru import logger
+from swarms import Agent, count_tokens
+from atp.middleware import ATPSettlementMiddleware
+from atp.schemas import PaymentToken
+
+AGENT_MODEL = "gpt-4o-mini"
+
+app = FastAPI(
+    title="ATP Protocol + Swarms Integration",
+    description="Example API showing ATP payment processing with Swarms agents",
+)
+
+# Read config from env
+RECIPIENT_PUBKEY = os.getenv("RECIPIENT_PUBKEY", "YourSolanaWalletHere")
+ATP_SETTLEMENT_URL = os.getenv("ATP_SETTLEMENT_URL", "https://facilitator.swarms.world")
+
+agent = Agent(
+    model_name=AGENT_MODEL,
+    max_loops=1,
+    interactive=False,
+)
+
+app.add_middleware(
+    ATPSettlementMiddleware,
+    allowed_endpoints=["/v1/agent/execute"],
+    input_cost_per_million_usd=10.0,
+    output_cost_per_million_usd=30.0,
+    recipient_pubkey=RECIPIENT_PUBKEY,
+    payment_token=PaymentToken.SOL,
+    wallet_private_key_header="x-wallet-private-key",
+    require_wallet=True,
+    settlement_service_url=ATP_SETTLEMENT_URL,
+)
+
+
+@app.post("/v1/agent/execute")
+async def execute_agent(request: dict):
+    task = request.get("task", "")
+    if not task:
+        raise HTTPException(status_code=400, detail="Task is required")
+
+    input_tokens = count_tokens(task, model=AGENT_MODEL)
+    logger.info(f"Executing agent task: {task[:100]}...")
+    result = agent.run(task)
+    output_tokens = count_tokens(str(result), model=AGENT_MODEL)
+
+    return JSONResponse(
+        content={
+            "output": result,
+            "task": task,
+            "usage": {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+            },
+        }
+    )
+```
+
+Then run the server:
+
+```bash
+uvicorn server:app --host 0.0.0.0 --port 8000
+```
+
+### 4. Make a paid request with the ATP client
+
+Use the ATP client to call your ATP‑protected endpoint. The client:
+
+- Adds the wallet header
+- Waits for settlement
+- Returns the **decrypted** response plus payment details
+
+```python
+import asyncio
+from atp.client import ATPClient
+
+
+async def main():
+    client = ATPClient(
+        wallet_private_key="[1,2,3,...]",  # Your Solana wallet private key
+        settlement_service_url="https://facilitator.swarms.world",
+        settlement_timeout=300.0,
+    )
+
+    response = await client.post(
+        url="http://localhost:8000/v1/agent/execute",
+        json={"task": "Write a short product description for ATP."},
+    )
+
+    print("Agent output:", response["output"])
+    print("Settlement status:", response.get("atp_settlement_status"))
+    print("Payment details:", response.get("atp_settlement"))
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### 5. What to look for
+
+On a successful call, the JSON response will include:
+
+- **`output`**: your agent’s output (decrypted)
+- **`atp_usage`**: normalized token counts
+- **`atp_settlement`**: payment breakdown and transaction signature
+- **`atp_settlement_status`**: should be `"paid"` when settlement succeeds
+
+If payment fails (for example, insufficient funds or missing wallet key), the response remains encrypted and `atp_settlement_status` will be `"failed"`. See [ATP Overview](/docs/atp/overview) for full error examples and troubleshooting tips.
+

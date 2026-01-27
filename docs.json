@@ -152,7 +152,8 @@
             "pages": [
               "docs/atp/vision",
               "docs/atp/overview",
-              "docs/atp/installation"
+              "docs/atp/installation",
+              "docs/documentation/getting-started/atp-quickstart"
             ]
           },
           {
