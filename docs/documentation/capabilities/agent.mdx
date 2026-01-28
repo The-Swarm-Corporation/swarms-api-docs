@@ -599,7 +599,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Agent with Marketplace Prompt
 
-Use pre-built prompts from the Swarms marketplace by specifying the `marketplace_prompt_id`. The system will automatically retrieve and use the prompt from the marketplace, allowing you to leverage community-created and tested prompts without writing your own system prompts.
+Use pre-built prompts from the Swarms marketplace by specifying the `marketplace_prompt_id`. When using a marketplace prompt, you don't need to provide `agent_name`, `description`, or `system_prompt` - the system will automatically retrieve and use the prompt configuration from the marketplace, including the agent's name, description, and system prompt.
 
 <Tabs>
 <Tab title="Python">
@@ -607,11 +607,8 @@ Use pre-built prompts from the Swarms marketplace by specifying the `marketplace
 ```python
 payload = {
     "agent_config": {
-        "agent_name": "marketplace-agent",
-        "description": "Agent using a marketplace prompt",
+        "marketplace_prompt_id": "1191250b-9fb3-42e0-b0e9-25ec83260ab2",
         "model_name": "gpt-4o-mini",
-        "marketplace_prompt_id": "92a11cf5-ac78-41b7-a4a6-005a92670462",
-        "max_loops": 1,
         "max_tokens": 8192
     },
     "task": "Your task here"
@@ -630,11 +627,8 @@ response = requests.post(
 ```typescript
 const payload = {
     agent_config: {
-        agent_name: "marketplace-agent",
-        description: "Agent using a marketplace prompt",
+        marketplace_prompt_id: "1191250b-9fb3-42e0-b0e9-25ec83260ab2",
         model_name: "gpt-4o-mini",
-        marketplace_prompt_id: "92a11cf5-ac78-41b7-a4a6-005a92670462",
-        max_loops: 1,
         max_tokens: 8192
     },
     task: "Your task here"
@@ -665,11 +659,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let payload = json!({
         "agent_config": {
-            "agent_name": "marketplace-agent",
-            "description": "Agent using a marketplace prompt",
+            "marketplace_prompt_id": "1191250b-9fb3-42e0-b0e9-25ec83260ab2",
             "model_name": "gpt-4o-mini",
-            "marketplace_prompt_id": "92a11cf5-ac78-41b7-a4a6-005a92670462",
-            "max_loops": 1,
             "max_tokens": 8192
         },
         "task": "Your task here"
@@ -692,7 +683,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 </Tab>
 </Tabs>
 
-**Note**: When `marketplace_prompt_id` is provided, it takes precedence over the `system_prompt` field. You can find marketplace prompts using the [Query Prompts API](/marketplace/prompts-api#query-prompts).
+**Note**: When `marketplace_prompt_id` is provided, the system automatically fetches the agent's name, description, and system prompt from the marketplace. You can find marketplace prompts using the [Query Prompts API](/marketplace/prompts-api#query-prompts).
 
 ## Batch Processing
 
