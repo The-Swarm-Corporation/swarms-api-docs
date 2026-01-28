@@ -1,15 +1,46 @@
 ---
-title: 'List Your Agents'
+title: 'Fetch Previously Created Agents'
 description: 'Retrieve all agents you have created via the API'
 ---
 
 import { Tabs, Tab } from 'mintlify'
 
-Fetch a list of your previously created agent configurations.
+The List Agents endpoint (`/v1/agents/list`) allows you to retrieve all agent configurations you have previously created through the Swarms API. This endpoint provides a comprehensive view of your agent inventory, including their names, descriptions, system prompts, model configurations, and other settings.
 
-- Endpoint: `GET /v1/agents/list`
-- Auth: `x-api-key` header
-- Returns your agents and a `count` of total agents
+When you create agents using the Swarms API (via the `/v1/agent/completions` endpoint or other agent creation methods), each agent configuration is stored in your account. The List Agents endpoint enables you to:
+
+- **View all your agents**: Retrieve a complete list of all agent configurations associated with your API key
+- **Manage your agent library**: Keep track of different agent configurations you've created for various use cases
+- **Reuse agent configurations**: Access previously created agent settings to reuse them in new tasks or workflows
+- **Audit and organize**: Review your agent inventory to understand what agents you have available and their configurations
+
+## Endpoint Information
+
+- **URL**: `/v1/agents/list`
+- **Method**: `GET`
+- **Authentication**: Required (`x-api-key` header)
+- **Rate Limiting**: Subject to tier-based rate limits
+
+## Response Format
+
+The endpoint returns a JSON object containing:
+
+- **`count`**: An integer representing the total number of unique agent configurations in your account
+- **`agents`**: An array of agent definition objects, each containing the complete configuration details of agents you've previously created, including:
+  - Agent name and description
+  - System prompts
+  - Model configurations (model name, temperature, max_tokens, etc.)
+  - Tool configurations
+  - MCP integrations
+  - Other agent-specific settings
+
+## Use Cases
+
+- **Agent Discovery**: Quickly see what agents you have available without needing to remember specific configuration details
+- **Configuration Reuse**: Retrieve agent configurations to reuse in new API calls or workflows
+- **Inventory Management**: Keep track of your agent library and identify agents that may need updates or cleanup
+- **Multi-Agent Workflows**: List available agents to select and combine them in complex multi-agent architectures
+- **Development and Testing**: Review agent configurations during development to ensure consistency across different environments
 
 <Tabs>
   <Tab title="Python">
