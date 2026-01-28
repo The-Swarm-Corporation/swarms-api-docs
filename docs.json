@@ -178,7 +178,6 @@
             "pages": [
               "docs/examples/examples/client-setup",
               "docs/examples/examples/agent-overview",
-              "docs/examples/examples/batch-processing",
               "docs/examples/api_examples/client_example"
             ]
           },

@@ -1,6 +1,6 @@
 ---
-title: "Batch Swarm Completions (REST)"
-description: "Execute multiple swarm completions in parallel using the /v1/swarm/batch/completions endpoint."
+title: "Batch Swarm Completions (Multi-Agent)"
+description: "Execute multiple multi-agent swarm workflows in parallel using the /v1/swarm/batch/completions endpoint."
 ---
 
 import { Tabs, Tab } from 'mintlify'
@@ -8,6 +8,10 @@ import { Tabs, Tab } from 'mintlify'
 <Warning>
 **Premium Tier Required**: The <code>/v1/swarm/batch/completions</code> endpoint is restricted to Pro, Ultra, and Premium plan subscribers. Free tier users will receive a 403 error. <a href="/docs/documentation/resources/premium-endpoints">See Premium Endpoints</a>.
 </Warning>
+
+<Info>
+**Multi-Agent vs Single Agent**: This example covers batch processing for **multi-agent swarms** (`/v1/swarm/batch/completions`). For batching **single agent tasks**, see [Batch Agent Completions (Single Agent)](/docs/examples/examples/batch-processing).
+</Info>
 
 Run many swarm jobs in a **single API call** using `/v1/swarm/batch/completions`.  
 This is ideal for:

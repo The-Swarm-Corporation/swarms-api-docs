@@ -1,6 +1,6 @@
 ---
-title: "Batch Processing"
-description: "Learn how to process multiple tasks efficiently using batch processing with the Swarms API."
+title: "Batch Agent Completions (Single Agent)"
+description: "Process multiple single-agent tasks efficiently in parallel using the /v1/agent/batch/completions endpoint."
 ---
 
 import { Tabs, Tab } from 'mintlify'
@@ -8,6 +8,10 @@ import { Tabs, Tab } from 'mintlify'
 <Warning>
 **Premium Tier Required**: The `/v1/agent/batch/completions` endpoint is restricted to Pro, Ultra, and Premium plan subscribers. Free tier users will receive a 403 error. [Upgrade your account](https://swarms.world/platform/account) to access batch processing capabilities.
 </Warning>
+
+<Info>
+**Single Agent vs Multi-Agent**: This example covers batch processing for **single agents** (`/v1/agent/batch/completions`). For batching **multi-agent swarms**, see [Batch Swarm Completions (Multi-Agent)](/docs/examples/examples/batch-swarm-completions).
+</Info>
 
 ## What This Example Shows
 
