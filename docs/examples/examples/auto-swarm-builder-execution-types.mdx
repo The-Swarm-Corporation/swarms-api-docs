@@ -1,0 +1,360 @@
+---
+title: 'Auto Swarm Builder Execution Types'
+description: 'Discover available execution types and return formats for the Auto Swarm Builder endpoint'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+Retrieve all available execution types and return formats for the Auto Swarm Builder endpoint. The `/v1/auto-swarm-builder/execution-types` endpoint helps you discover which execution types are supported and understand the different output formats available.
+
+<Info>
+Different execution types return different formats. Use this endpoint to discover available options before configuring your Auto Swarm Builder requests.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    def get_execution_types() -> list[str] | None:
+        """Fetch available execution types for Auto Swarm Builder."""
+        resp = requests.get(
+            f"{BASE_URL}/v1/auto-swarm-builder/execution-types",
+            headers=headers
+        )
+
+        if resp.status_code == 200:
+            return resp.json()
+
+        print(f"Error: {resp.status_code} - {resp.text}")
+        return None
+
+    if __name__ == "__main__":
+        execution_types = get_execution_types()
+        if execution_types:
+            print("✅ Execution types retrieved successfully!")
+            print("Available execution types:")
+            for exec_type in execution_types:
+                print(f"  - {exec_type}")
+            print(json.dumps(execution_types, indent=2))
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://api.swarms.world";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    async function getExecutionTypes() {
+        try {
+            const response = await fetch(
+                `${BASE_URL}/v1/auto-swarm-builder/execution-types`,
+                {
+                    method: 'GET',
+                    headers: headers
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const executionTypes = await response.json();
+            console.log("✅ Execution types retrieved successfully!");
+            console.log("Available execution types:");
+            executionTypes.forEach(type => {
+                console.log(`  - ${type}`);
+            });
+            
+            return executionTypes;
+        } catch (error) {
+            console.error("Error fetching execution types:", error);
+            return null;
+        }
+    }
+
+    getExecutionTypes();
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+
+    async function getExecutionTypes(): Promise<string[] | null> {
+      const res = await fetch(`${BASE_URL}/v1/auto-swarm-builder/execution-types`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+
+      const executionTypes = (await res.json()) as string[]
+      console.log('✅ Execution types retrieved successfully!')
+      console.log('Available execution types:')
+      executionTypes.forEach(type => {
+        console.log(`  - ${type}`)
+      })
+      
+      return executionTypes
+    }
+
+    void getExecutionTypes().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+    use reqwest::blocking::Client;
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key = env::var("SWARMS_API_KEY")
+            .expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let response = client
+            .get("https://api.swarms.world/v1/auto-swarm-builder/execution-types")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .send()?;
+
+        let execution_types: Vec<String> = response.json()?;
+
+        println!("✅ Execution types retrieved successfully!");
+        println!("Available execution types:");
+        for exec_type in &execution_types {
+            println!("  - {}", exec_type);
+        }
+
+        Ok(())
+    }
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "encoding/json"
+        "fmt"
+        "io"
+        "net/http"
+        "os"
+    )
+
+    func main() {
+        apiKey := os.Getenv("SWARMS_API_KEY")
+        if apiKey == "" {
+            panic("SWARMS_API_KEY environment variable is required")
+        }
+
+        req, err := http.NewRequest("GET", "https://api.swarms.world/v1/auto-swarm-builder/execution-types", nil)
+        if err != nil {
+            panic(err)
+        }
+
+        req.Header.Set("x-api-key", apiKey)
+        req.Header.Set("Content-Type", "application/json")
+
+        client := &http.Client{}
+        resp, err := client.Do(req)
+        if err != nil {
+            panic(err)
+        }
+        defer resp.Body.Close()
+
+        body, err := io.ReadAll(resp.Body)
+        if err != nil {
+            panic(err)
+        }
+
+        var executionTypes []string
+        if err := json.Unmarshal(body, &executionTypes); err != nil {
+            panic(err)
+        }
+
+        fmt.Println("✅ Execution types retrieved successfully!")
+        fmt.Println("Available execution types:")
+        for _, execType := range executionTypes {
+            fmt.Printf("  - %s\n", execType)
+        }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Response Format
+
+The endpoint returns an array of strings representing available execution types:
+
+```json
+[
+  "return-agents",
+  "return-swarm-router-config",
+  "return-agents-objects"
+]
+```
+
+## Execution Types
+
+### `return-agents`
+
+**Description**: Returns the generated agent configurations as a list of agent objects. This is the default execution type and is ideal for most use cases where you want to use the generated agents directly.
+
+**Use Case**: When you want to immediately use the generated agents in your application or pass them to other endpoints.
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "outputs": {
+    "agents": [
+      {
+        "agent_name": "Researcher",
+        "description": "Conducts research on specified topics",
+        "system_prompt": "...",
+        "model_name": "gpt-4.1"
+      },
+      {
+        "agent_name": "Analyzer",
+        "description": "Analyzes research findings",
+        "system_prompt": "...",
+        "model_name": "gpt-4.1"
+      }
+    ]
+  }
+}
+```
+
+### `return-swarm-router-config`
+
+**Description**: Returns a swarm router configuration that can be used with the MultiAgentRouter swarm type. This format is optimized for routing tasks to different agents based on their capabilities.
+
+**Use Case**: When you want to create a routing system that intelligently distributes tasks to the most appropriate agents.
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "outputs": {
+    "swarm_type": "MultiAgentRouter",
+    "router_config": {
+      "routing_strategy": "capability-based",
+      "agents": [...]
+    }
+  }
+}
+```
+
+### `return-agents-objects`
+
+**Description**: Returns agent configurations as structured objects with additional metadata and configuration options. This format provides more detailed information about each agent.
+
+**Use Case**: When you need comprehensive agent information including metadata, capabilities, and extended configuration options.
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "outputs": {
+    "agent_objects": [
+      {
+        "agent_name": "Researcher",
+        "description": "...",
+        "system_prompt": "...",
+        "model_name": "gpt-4.1",
+        "metadata": {
+          "capabilities": ["research", "analysis"],
+          "estimated_cost": 0.05
+        }
+      }
+    ]
+  }
+}
+```
+
+## Using Execution Types
+
+### Dynamic Execution Type Selection
+
+```python
+def get_optimal_execution_type(use_case: str) -> str:
+    """Select execution type based on use case."""
+    execution_types = get_execution_types()
+    
+    if not execution_types:
+        return "return-agents"  # Default fallback
+    
+    if use_case == "routing":
+        return "return-swarm-router-config"
+    elif use_case == "detailed":
+        return "return-agents-objects"
+    else:
+        return "return-agents"
+```
+
+### Validate Execution Type
+
+```python
+def validate_execution_type(execution_type: str) -> bool:
+    """Validate that an execution type is supported."""
+    execution_types = get_execution_types()
+    
+    if not execution_types:
+        return False
+    
+    return execution_type in execution_types
+
+# Usage
+if validate_execution_type("return-agents"):
+    # Proceed with request
+    pass
+else:
+    print("Invalid execution type")
+```
+
+## Best Practices
+
+1. **Discover Types First**: Always fetch available execution types before hardcoding a specific type
+2. **Handle Changes**: Execution types may change over time, so use this endpoint in your initialization code
+3. **Default Fallback**: Use `"return-agents"` as a safe default if the endpoint is unavailable
+4. **Type Validation**: Validate execution types before sending requests to avoid errors
+
+## Related Documentation
+
+- [Advanced Research](/docs/examples/examples/advanced-research) - See Auto Swarm Builder in action
+- [Multi-Agent Router](/docs/documentation/multi-agent/multi_agent_router) - Learn about router configurations
+- [Premium Endpoints](/docs/documentation/resources/premium-endpoints) - Auto Swarm Builder is a premium feature

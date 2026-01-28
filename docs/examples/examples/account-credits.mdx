@@ -1,0 +1,322 @@
+---
+title: 'Get Credit Balance'
+description: 'Retrieve your current API credit balance including regular, free, and referral credits'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+Retrieve your current API credit balance from the `/v1/account/credits` endpoint. This endpoint provides detailed information about all credit types associated with your account, including regular credits, free credits, referral credits, and the total available balance.
+
+<Info>
+Credits are automatically deducted after each API request completes. Free credits are used first, followed by regular credits. Check your balance regularly to ensure you have sufficient credits for your operations.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    def get_credit_balance() -> dict | None:
+        """Fetch current credit balance for the authenticated user."""
+        resp = requests.get(f"{BASE_URL}/v1/account/credits", headers=headers)
+
+        if resp.status_code == 200:
+            return resp.json()
+
+        print(f"Error: {resp.status_code} - {resp.text}")
+        return None
+
+    if __name__ == "__main__":
+        data = get_credit_balance()
+        if data:
+            print("✅ Credit balance retrieved successfully!")
+            print(f"Total Credits: ${data.get('total_credits', 0):.2f}")
+            print(f"Regular Credits: ${data.get('credit', 0):.2f}")
+            print(f"Free Credits: ${data.get('free_credit', 0):.2f}")
+            print(f"Referral Credits: ${data.get('referral_credits', 0):.2f}")
+            print(json.dumps(data, indent=2))
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://api.swarms.world";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    async function getCreditBalance() {
+        try {
+            const response = await fetch(`${BASE_URL}/v1/account/credits`, {
+                method: 'GET',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("✅ Credit balance retrieved successfully!");
+            console.log(`Total Credits: $${data.total_credits?.toFixed(2) || 0}`);
+            console.log(`Regular Credits: $${data.credit?.toFixed(2) || 0}`);
+            console.log(`Free Credits: $${data.free_credit?.toFixed(2) || 0}`);
+            console.log(`Referral Credits: $${data.referral_credits?.toFixed(2) || 0}`);
+            console.log(JSON.stringify(data, null, 2));
+            
+            return data;
+        } catch (error) {
+            console.error("Error fetching credit balance:", error);
+            return null;
+        }
+    }
+
+    getCreditBalance();
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+
+    interface CreditBalance {
+      credit: number
+      free_credit: number
+      referral_credits: number
+      total_credits: number
+    }
+
+    async function getCreditBalance(): Promise<CreditBalance | null> {
+      const res = await fetch(`${BASE_URL}/v1/account/credits`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+
+      const data = (await res.json()) as CreditBalance
+      console.log('✅ Credit balance retrieved successfully!')
+      console.log(`Total Credits: $${data.total_credits.toFixed(2)}`)
+      console.log(`Regular Credits: $${data.credit.toFixed(2)}`)
+      console.log(`Free Credits: $${data.free_credit.toFixed(2)}`)
+      console.log(`Referral Credits: $${data.referral_credits.toFixed(2)}`)
+      
+      return data
+    }
+
+    void getCreditBalance().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+    use reqwest::blocking::Client;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct CreditBalance {
+        credit: f64,
+        free_credit: f64,
+        referral_credits: f64,
+        total_credits: f64,
+    }
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key = env::var("SWARMS_API_KEY")
+            .expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let response = client
+            .get("https://api.swarms.world/v1/account/credits")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .send()?;
+
+        let balance: CreditBalance = response.json()?;
+
+        println!("✅ Credit balance retrieved successfully!");
+        println!("Total Credits: ${:.2}", balance.total_credits);
+        println!("Regular Credits: ${:.2}", balance.credit);
+        println!("Free Credits: ${:.2}", balance.free_credit);
+        println!("Referral Credits: ${:.2}", balance.referral_credits);
+
+        Ok(())
+    }
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "encoding/json"
+        "fmt"
+        "io"
+        "net/http"
+        "os"
+    )
+
+    type CreditBalance struct {
+        Credit          float64 `json:"credit"`
+        FreeCredit      float64 `json:"free_credit"`
+        ReferralCredits float64 `json:"referral_credits"`
+        TotalCredits    float64 `json:"total_credits"`
+    }
+
+    func main() {
+        apiKey := os.Getenv("SWARMS_API_KEY")
+        if apiKey == "" {
+            panic("SWARMS_API_KEY environment variable is required")
+        }
+
+        req, err := http.NewRequest("GET", "https://api.swarms.world/v1/account/credits", nil)
+        if err != nil {
+            panic(err)
+        }
+
+        req.Header.Set("x-api-key", apiKey)
+        req.Header.Set("Content-Type", "application/json")
+
+        client := &http.Client{}
+        resp, err := client.Do(req)
+        if err != nil {
+            panic(err)
+        }
+        defer resp.Body.Close()
+
+        body, err := io.ReadAll(resp.Body)
+        if err != nil {
+            panic(err)
+        }
+
+        var balance CreditBalance
+        if err := json.Unmarshal(body, &balance); err != nil {
+            panic(err)
+        }
+
+        fmt.Println("✅ Credit balance retrieved successfully!")
+        fmt.Printf("Total Credits: $%.2f\n", balance.TotalCredits)
+        fmt.Printf("Regular Credits: $%.2f\n", balance.Credit)
+        fmt.Printf("Free Credits: $%.2f\n", balance.FreeCredit)
+        fmt.Printf("Referral Credits: $%.2f\n", balance.ReferralCredits)
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Response Schema
+
+### CreditBalanceOutput Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `credit` | `number` | Regular credit balance (purchased credits) |
+| `free_credit` | `number` | Free credit balance (promotional or welcome credits) |
+| `referral_credits` | `number` | Credits earned through the referral program |
+| `total_credits` | `number` | Total available credits (sum of all credit types) |
+
+### Example Response
+
+```json
+{
+  "credit": 50.00,
+  "free_credit": 20.00,
+  "referral_credits": 5.00,
+  "total_credits": 75.00
+}
+```
+
+## Credit Usage Order
+
+Credits are deducted in the following order:
+
+1. **Free Credits** - Used first for all API operations
+2. **Referral Credits** - Used after free credits are exhausted
+3. **Regular Credits** - Used last (purchased credits)
+
+This ensures you maximize the value of promotional and earned credits before using purchased credits.
+
+## Use Cases
+
+### Monitor Credit Balance
+
+Check your credit balance before running large batch operations:
+
+```python
+def check_balance_before_batch():
+    balance = get_credit_balance()
+    if balance and balance['total_credits'] < 10.00:
+        print("⚠️ Low credit balance. Consider adding credits before running batch operations.")
+        return False
+    return True
+
+if check_balance_before_batch():
+    # Run batch operations
+    pass
+```
+
+### Track Credit Consumption
+
+Monitor credit usage over time:
+
+```python
+import time
+from datetime import datetime
+
+def track_credits(duration_minutes=60, interval_seconds=300):
+    """Track credit balance over time."""
+    end_time = time.time() + (duration_minutes * 60)
+    
+    while time.time() < end_time:
+        balance = get_credit_balance()
+        if balance:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[{timestamp}] Total Credits: ${balance['total_credits']:.2f}")
+        
+        time.sleep(interval_seconds)
+```
+
+## Best Practices
+
+1. **Regular Monitoring**: Check your credit balance regularly, especially before large operations
+2. **Low Balance Alerts**: Set up alerts when credits fall below a threshold
+3. **Credit Types**: Understand which credit types you're using to optimize spending
+4. **Referral Program**: Earn additional credits by referring new users
+
+## Related Documentation
+
+- [Pricing Details](/docs/examples/examples/pricing-details-basic) - Understand API costs
+- [Pricing Cost Estimator](/docs/examples/examples/pricing-cost-estimator) - Estimate costs before running jobs
+- [Rate Limits](/docs/examples/api_examples/rate_limits) - Check rate limit status
+- [Account Management](https://swarms.world/platform/account) - Manage your account and add credits

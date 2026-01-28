@@ -926,6 +926,60 @@ The Auto Swarm Builder can **design swarms for you** based on a textual descript
   </Tab>
 </Tabs>
 
+### Execution Types
+
+The Auto Swarm Builder supports multiple execution types that determine the format of the returned output. You can discover available execution types using the [`/v1/auto-swarm-builder/execution-types`](/docs/examples/examples/auto-swarm-builder-execution-types) endpoint.
+
+#### Available Execution Types
+
+| Execution Type | Description | Use Case |
+|----------------|--------------|----------|
+| `return-agents` | Returns generated agent configurations as a list of agent objects (default) | Most common use case - when you want to use generated agents directly |
+| `return-swarm-router-config` | Returns a swarm router configuration for MultiAgentRouter | When you want to create an intelligent routing system |
+| `return-agents-objects` | Returns agent configurations with extended metadata and configuration options | When you need comprehensive agent information |
+
+#### Example: Using Different Execution Types
+
+<Tabs>
+  <Tab title="return-agents (Default)">
+    ```python
+    payload = {
+        "name": "Research Swarm",
+        "task": "Create a research team for market analysis",
+        "execution_type": "return-agents",  # Default
+        "model_name": "gpt-4.1"
+    }
+    # Returns: {"success": true, "outputs": {"agents": [...]}}
+    ```
+  </Tab>
+  <Tab title="return-swarm-router-config">
+    ```python
+    payload = {
+        "name": "Router Swarm",
+        "task": "Create a routing system for customer inquiries",
+        "execution_type": "return-swarm-router-config",
+        "model_name": "gpt-4.1"
+    }
+    # Returns: {"success": true, "outputs": {"swarm_type": "MultiAgentRouter", "router_config": {...}}}
+    ```
+  </Tab>
+  <Tab title="return-agents-objects">
+    ```python
+    payload = {
+        "name": "Detailed Swarm",
+        "task": "Create a detailed agent configuration with metadata",
+        "execution_type": "return-agents-objects",
+        "model_name": "gpt-4.1"
+    }
+    # Returns: {"success": true, "outputs": {"agent_objects": [{"agent_name": "...", "metadata": {...}}]}}
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+To discover all available execution types dynamically, use the [`/v1/auto-swarm-builder/execution-types`](/docs/examples/examples/auto-swarm-builder-execution-types) endpoint. This ensures your code works even if new execution types are added in the future.
+</Info>
+
 ## Reasoning Agent Completions
 
 Run an advanced reasoning agent using `/v1/reasoning-agent/completions`.

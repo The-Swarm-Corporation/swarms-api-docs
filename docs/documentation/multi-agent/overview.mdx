@@ -1,0 +1,256 @@
+---
+name: "Multi-Agent Overview"
+description: "Comprehensive guide to multi-agent systems, swarm types, best practices, and the Swarm Completions API endpoint"
+---
+
+
+The Swarms API provides powerful multi-agent orchestration capabilities, enabling you to build complex systems where multiple AI agents collaborate to solve problems. Each multi-agent architecture type is designed for specific use cases and can be combined to create powerful multi-agent systems.
+
+## Swarm Completions Endpoint
+
+The `/v1/swarm/completions` endpoint is the primary API for executing multi-agent swarm workflows. This endpoint supports both standard and streaming responses, allowing you to orchestrate complex multi-agent systems.
+
+**Endpoint**: `POST /v1/swarm/completions`
+
+**Base URL**: `https://api.swarms.world`
+
+### Authentication
+
+All requests require an API key in the header:
+
+```
+x-api-key: your_api_key_here
+```
+
+### Input Parameters
+
+The request body uses the `SwarmSpec` schema. All parameters are organized in the tables below:
+
+#### Swarm Configuration Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | `string` | No | - | The name of the swarm, which serves as an identifier for the group of agents and their collective task. Maximum length: 100 characters. |
+| `description` | `string` | No | - | A comprehensive description of the swarm's objectives, capabilities, and intended outcomes. |
+| `swarm_type` | `string` | No | - | The classification of the swarm, indicating its operational style and methodology. See Swarm Architectures table below for available values. |
+| `max_loops` | `integer` | No | `1` | The maximum number of execution loops allowed for the swarm, enabling repeated processing if needed. |
+| `task` | `string` | No | - | The specific task or objective that the swarm is designed to accomplish. |
+| `tasks` | `array[string]` | No | - | A list of tasks that the swarm should complete. Used for workflows that handle multiple tasks. |
+| `agents` | `array[AgentSpec]` | No | - | A list of agents or specifications that define the agents participating in the swarm. See Agent Configuration table below. |
+| `rearrange_flow` | `string` | No | - | Instructions on how to rearrange the flow of tasks among agents, if applicable. Used with `AgentRearrange` swarm type. |
+| `rules` | `string` | No | - | Guidelines or constraints that govern the behavior and interactions of the agents within the swarm. |
+| `messages` | `array[object] \| object` | No | - | A list of messages or a message object that the swarm should process. Used for conversational workflows like `GroupChat`. |
+| `img` | `string` | No | - | An optional image URL or base64-encoded image that may be associated with the swarm's task or representation. |
+| `stream` | `boolean` | No | `false` | A flag indicating whether the swarm should stream its output in real-time. |
+| `heavy_swarm_loops_per_agent` | `integer` | No | `1` | The number of loops to run per agent in the heavy swarm. |
+| `heavy_swarm_question_agent_model_name` | `string` | No | `"gpt-4.1"` | The model name to use for the question agent in the heavy swarm. |
+| `heavy_swarm_worker_model_name` | `string` | No | `"claude-sonnet-4-20250514"` | The model name to use for the worker agent in the heavy swarm. |
+
+#### Agent Configuration Parameters (AgentSpec)
+
+Each agent in the `agents` array can be configured with the following parameters:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `agent_name` | `string` | No | - | The unique name assigned to the agent, which identifies its role and functionality within the swarm. |
+| `description` | `string` | No | - | A detailed explanation of the agent's purpose, capabilities, and any specific tasks it is designed to perform. |
+| `system_prompt` | `string` | No | - | The initial instruction or context provided to the agent, guiding its behavior and responses during execution. |
+| `marketplace_prompt_id` | `string` | No | - | The ID of a prompt from the Swarms marketplace to use as the system prompt. If provided, the prompt will be automatically retrieved from the marketplace. |
+| `model_name` | `string` | No | `"gpt-4.1"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. Examples: `gpt-4o`, `gpt-4.1`, `openai/o3-mini`, `claude-sonnet-4-20250514`. |
+| `auto_generate_prompt` | `boolean` | No | `false` | A flag indicating whether the agent should automatically create prompts based on the task requirements. |
+| `max_tokens` | `integer` | No | `8192` | The maximum number of tokens that the agent is allowed to generate in its responses, limiting output length. |
+| `temperature` | `number` | No | `0.5` | A parameter that controls the randomness of the agent's output; lower values result in more deterministic responses. Range: 0.0 to 2.0. |
+| `role` | `string` | No | `"worker"` | The designated role of the agent within the swarm, which influences its behavior and interaction with other agents. |
+| `max_loops` | `integer \| string` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer for a fixed count, or `'auto'` to allow the system to determine the necessary number based on the task's complexity. |
+| `tools_list_dictionary` | `array[object]` | No | - | A dictionary of tools that the agent can use to complete its task. |
+| `mcp_url` | `string` | No | - | The URL of the MCP server that the agent can use to complete its task. |
+| `mcp_config` | `object` | No | - | The MCP connection configuration to use for the agent. See MCP Connection Configuration table below. |
+| `mcp_configs` | `object` | No | - | Multiple MCP connections to use for the agent. This is a list of MCP connections. See Multiple MCP Connections below. |
+| `streaming_on` | `boolean` | No | `false` | A flag indicating whether the agent should stream its output. |
+| `llm_args` | `object` | No | - | Additional arguments to pass to the LLM such as `top_p`, `frequency_penalty`, `presence_penalty`, etc. |
+| `dynamic_temperature_enabled` | `boolean` | No | `true` | A flag indicating whether the agent should dynamically adjust its temperature based on the task. |
+| `tool_call_summary` | `boolean` | No | `true` | A parameter enabling an agent to summarize tool calls. |
+| `reasoning_effort` | `string` | No | - | The effort to put into reasoning. Used with reasoning-enabled models. |
+| `thinking_tokens` | `integer` | No | - | The number of tokens to use for thinking. Used with reasoning-enabled models. |
+| `reasoning_enabled` | `boolean` | No | `false` | A parameter enabling an agent to use reasoning capabilities. |
+| `publish_to_marketplace` | `boolean` | No | `false` | A flag indicating whether to publish this agent to the Swarms marketplace. |
+| `use_cases` | `array[object]` | No | - | A list of use case dictionaries with `title` and `description` keys. Required when `publish_to_marketplace` is `true`. |
+| `tags` | `array[string]` | No | - | A list of searchable tags/keywords for the marketplace (e.g., `['finance', 'analysis']`). |
+| `capabilities` | `array[string]` | No | - | A list of agent capabilities or features (e.g., `['trend-analysis', 'risk-assessment']`). |
+| `category` | `string` | No | - | The marketplace category for the agent (e.g., `'research'`, `'content'`, `'coding'`, `'finance'`, `'healthcare'`, `'education'`, `'legal'`). |
+| `is_free` | `boolean` | No | `true` | A flag indicating whether the agent is free to use in the marketplace. |
+| `price_usd` | `number` | No | - | The price in USD for using this agent in the marketplace (if not free). |
+| `handoffs` | `array[AgentSpec]` | No | - | A list of agent specifications that this agent can hand off tasks to. These agents will be created and passed to the agent's handoffs parameter. |
+
+#### MCP Connection Configuration Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `type` | `string` | No | `"mcp"` | The type of connection, defaults to `'mcp'`. |
+| `url` | `string` | No | `"http://localhost:8000/mcp"` | The URL endpoint for the MCP server. |
+| `tool_configurations` | `object` | No | - | Dictionary containing configuration settings for MCP tools. |
+| `authorization_token` | `string` | No | - | Authentication token for accessing the MCP server. |
+| `transport` | `string` | No | `"streamable_http"` | The transport protocol to use for the MCP server. |
+| `headers` | `object` | No | - | Headers to send to the MCP server. |
+| `timeout` | `integer` | No | `10` | Timeout for the MCP server in seconds. |
+
+#### Multiple MCP Connections
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `connections` | `array[MCPConnection]` | Yes | - | List of MCP connections. Each connection follows the MCP Connection Configuration schema above. |
+
+### Output Parameters
+
+The endpoint returns a `SwarmCompletion` object with the following parameters:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `job_id` | `string` | The unique identifier for the swarm completion. |
+| `status` | `string` | The status of the swarm completion. |
+| `swarm_name` | `string` | The name of the swarm. |
+| `description` | `string` | The description of the swarm. |
+| `swarm_type` | `string` | The type of the swarm. |
+| `output` | `object` | The output of the swarm. |
+| `number_of_agents` | `integer` | The number of agents in the swarm. |
+| `execution_time` | `number` | The execution time of the swarm in seconds. |
+| `usage` | `object` | Usage statistics including token counts and costs. |
+
+## Swarm Architectures
+
+Each multi-agent architecture type is designed for specific use cases and can be combined to create powerful multi-agent systems. Below is a comprehensive table of all available swarm architectures with links to their detailed documentation:
+
+| Swarm Type | Description | Documentation |
+|------------|-------------|--------------|
+| `AgentRearrange` | Dynamically reorganize agents to optimize task performance | [Learn More](/docs/documentation/multi-agent/agent_rearrange) |
+| `MixtureOfAgents` | Combine diverse specialist agents for complex tasks | [Learn More](/docs/documentation/multi-agent/mixture_of_agents) |
+| `SequentialWorkflow` | Executes tasks in a strict, predefined order | [Learn More](/docs/documentation/multi-agent/sequential_workflow) |
+| `ConcurrentWorkflow` | Runs independent tasks in parallel for higher throughput | [Learn More](/docs/documentation/multi-agent/concurrent_workflow) |
+| `MultiAgentRouter` | Intelligent dispatcher that routes tasks based on capabilities/load | [Learn More](/docs/documentation/multi-agent/multi_agent_router) |
+| `HierarchicalSwarm` | Multi-level structures with delegation and escalation | [Learn More](/docs/documentation/multi-agent/hierarchical_swarm) |
+| `MajorityVoting` | Consensus-based decision-making across multiple agents | [Learn More](/docs/documentation/multi-agent/majority_voting) |
+| `BatchedGridWorkflow` | Execute multiple tasks across multiple agents in a grid pattern | [Learn More](/docs/documentation/multi-agent/batched_grid_workflow) |
+| `GraphWorkflow` | Execute a graph workflow with directed agent nodes and edges | [Learn More](/docs/documentation/multi-agent/graph_workflow) |
+| `AdvancedResearch` | Advanced multi-agent research workflows and strategies | [Learn More](/docs/documentation/multi-agent/advanced_research) |
+| `GroupChat` | Collaborative problem-solving through conversation | - |
+| `AutoSwarmBuilder` | Automated swarm generation | - |
+| `MALT` | Multi-agent learning and training | - |
+| `CouncilAsAJudge` | Council-based evaluation system | - |
+| `InteractiveGroupChat` | Interactive collaborative sessions | - |
+| `HeavySwarm` | High-capacity swarm processing | - |
+| `LLMCouncil` | Language model council for decisions | - |
+| `DebateWithJudge` | Structured debate with judgment | - |
+| `RoundRobin` | Round-robin task distribution | - |
+| `auto` | Automatic swarm type selection | - |
+
+## Best Practices
+
+This section outlines production-grade best practices for using the Swarms API effectively. These guidelines will help you choose the right swarm architecture, optimize costs, and implement robust error handling in your multi-agent systems.
+
+### Choosing the Right Swarm Architecture
+
+Selecting the optimal swarm architecture is crucial for achieving your desired outcomes. Start by analyzing your task complexity: simple tasks work well with `AutoSwarmBuilder`, while complex tasks benefit from `HierarchicalSwarm` or `MultiAgentRouter`. For dynamic tasks that require adaptive processing, consider `AgentRearrange`. 
+
+When evaluating workflow patterns, use `SequentialWorkflow` for linear processes where each step depends on the previous one, `ConcurrentWorkflow` for parallel operations that can run independently, and `GroupChat` for collaborative tasks requiring interactive problem-solving. For multi-domain expertise requirements, `MixtureOfAgents` combines diverse specialist agents effectively, while `MajorityVoting` provides consensus-based decision-making for quality assurance needs.
+
+Different applications have specific swarm recommendations. Team automation systems excel with `HierarchicalSwarm`, providing automated team coordination with clear responsibility chains and scalable structures. Research pipelines benefit from `SequentialWorkflow`, ensuring structured processes with quality control at each stage. Trading systems leverage `ConcurrentWorkflow` for multi-market coverage and real-time analysis with risk distribution. Content factories utilize `MixtureOfAgents` for automated content creation with consistent quality and high throughput.
+
+Industry-specific patterns also guide architecture selection. In finance, risk analysis uses `HierarchicalSwarm`, market research employs `MixtureOfAgents`, and trading strategies leverage `ConcurrentWorkflow`. Healthcare applications use `SequentialWorkflow` for patient analysis, `MajorityVoting` for research review, `GroupChat` for treatment planning, and `MultiAgentRouter` for medical records management. Legal workflows apply `SequentialWorkflow` for document review, `MixtureOfAgents` for case analysis, `HierarchicalSwarm` for compliance checks, and `ConcurrentWorkflow` for contract analysis.
+
+### Cost Optimization
+
+Effective cost management is essential for scaling your multi-agent systems. Batch processing, which groups related tasks together, can reduce costs by 20-30%. For Swarm Completions, scheduling non-urgent tasks during off-peak hours (8 PM - 6 AM PT) provides a 50% cost reduction on tokens. Token optimization through precise prompts and focused tasks yields 10-20% savings, while caching reusable results can reduce costs by 30-40%. Agent optimization by using the minimum required agents saves 15-25%, smart routing to specialized agents provides 10-15% savings, and prompt engineering to optimize input tokens delivers 15-20% cost reduction.
+
+When choosing service tiers, the standard tier is ideal for real-time processing, time-sensitive tasks, and critical workflows, offering immediate execution with higher priority and predictable timing, though at a higher cost with a 5-minute timeout. The off-peak tier for Swarm Completions is perfect for batch processing, non-urgent tasks, and cost-sensitive workloads, providing a 50% cost reduction on tokens during the 8 PM - 6 AM PT window, with the limitation that it only applies to Swarm Completions and has time window restrictions.
+
+### Production Best Practices
+
+Implementing robust production practices ensures reliable and efficient multi-agent systems. Always use appropriate swarm types for your specific tasks, implement comprehensive error handling with retry logic, and monitor and log all executions to track performance and identify issues. Cache repeated results to reduce redundant processing, rotate API keys regularly for security, and choose the appropriate service tier based on task urgency. For Swarm Completions, schedule non-urgent tasks during off-peak hours (8 PM - 6 AM PT) to benefit from the night-time discount.
+
+Avoid common anti-patterns that can compromise your system's reliability and security. Never hardcode API keys in your application code, always respect rate limits to prevent service disruptions, and ensure error handling is implemented for all API calls. Avoid using excessive agent counts when fewer agents can accomplish the task, maintain adequate monitoring to track system health, and always implement retry logic for failed requests to handle transient failures gracefully.
+
+### Error Handling
+
+Robust error handling is critical for production systems. For 400 errors (Input Validation), implement pre-request validation with fallback mechanisms to catch issues before they reach the API. Handle 401 errors (Auth Management) through secure key rotation and proper storage of credentials. When encountering 429 errors (Rate Limiting), implement exponential backoff with queuing to manage rate limit constraints. For 500 errors (Resilience), use retry mechanisms with circuit breaking to prevent cascading failures. Handle 503 errors (High Availability) with multi-region redundancy when possible, and manage 504 errors (Timeout Handling) with adaptive timeouts that can return partial results when appropriate.
+
+### Performance Benchmarks
+
+Monitoring performance metrics helps ensure your multi-agent systems meet production standards. Target response times should be under 2 seconds, with warnings when exceeding 5 seconds. Maintain success rates above 99%, with alerts when dropping below 95%. Keep cost per task under $0.05, with warnings when exceeding $0.10. Aim for cache hit rates above 80%, with alerts when dropping below 60%. Error rates should remain under 1%, with warnings when exceeding 5%. Retry rates should stay under 10%, with alerts when exceeding 30%. These benchmarks help maintain optimal system performance and cost efficiency.
+
+## Example Usage
+
+### Basic Swarm Completion
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Research Team",
+    "description": "Multi-agent research swarm",
+    "swarm_type": "MixtureOfAgents",
+    "task": "Analyze the impact of AI on healthcare",
+    "agents": [
+      {
+        "agent_name": "Research Analyst",
+        "description": "Conducts comprehensive research",
+        "system_prompt": "You are a research analyst specializing in healthcare technology.",
+        "model_name": "gpt-4.1",
+        "max_loops": 1,
+        "temperature": 0.3
+      }
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Research Team",
+    "description": "Multi-agent research swarm",
+    "swarm_type": "MixtureOfAgents",
+    "task": "Analyze the impact of AI on healthcare",
+    "agents": [
+        {
+            "agent_name": "Research Analyst",
+            "description": "Conducts comprehensive research",
+            "system_prompt": "You are a research analyst specializing in healthcare technology.",
+            "model_name": "gpt-4.1",
+            "max_loops": 1,
+            "temperature": 0.3
+        }
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+result = response.json()
+print(result)
+```
+</Tab>
+</Tabs>
+
+## Additional Resources
+
+- [API Dashboard](https://swarms.world/platform/api-keys)
+- [API Reference](/docs/api-reference)
+- [Getting Started Guide](/docs/documentation/getting-started/quickstart)
