@@ -1,0 +1,309 @@
+---
+title: "Batch Swarm Completions (REST)"
+description: "Execute multiple swarm completions in parallel using the /v1/swarm/batch/completions endpoint."
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+<Warning>
+**Premium Tier Required**: The <code>/v1/swarm/batch/completions</code> endpoint is restricted to Pro, Ultra, and Premium plan subscribers. Free tier users will receive a 403 error. <a href="/docs/documentation/resources/premium-endpoints">See Premium Endpoints</a>.
+</Warning>
+
+Run many swarm jobs in a **single API call** using `/v1/swarm/batch/completions`.  
+This is ideal for:
+
+- Evaluating the **same swarm configuration** across many tasks
+- Running **different swarm types** side‑by‑side
+- Large‑scale research, content generation, or analysis workloads
+
+All requests share the same **base URL**:
+
+```text
+https://api.swarms.world
+```
+
+## Quick Start: Batch Swarm Completion
+
+Each item in the batch is a full `SwarmSpec` (the same structure used for `/v1/swarm/completions`).
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    # Define a couple of swarms to run in parallel
+    batch_payload = [
+        {
+            "name": "Market Analysis Swarm",
+            "description": "Sequential research swarm for market analysis",
+            "swarm_type": "SequentialWorkflow",
+            "task": "Analyze 2025 AI agent market trends and key players.",
+            "max_loops": 1,
+            "agents": [
+                {
+                    "agent_name": "Research-Analyst",
+                    "description": "Collects and summarizes market information.",
+                    "system_prompt": "You are a senior market research analyst.",
+                    "model_name": "gpt-4.1",
+                    "max_tokens": 1500,
+                    "temperature": 0.4,
+                }
+            ],
+        },
+        {
+            "name": "Technical Review Swarm",
+            "description": "Concurrent workflow for technical deep‑dives",
+            "swarm_type": "ConcurrentWorkflow",
+            "task": "Compare Rust and TypeScript for backend microservices.",
+            "max_loops": 1,
+            "agents": [
+                {
+                    "agent_name": "Rust-Expert",
+                    "description": "Analyzes Rust for backend services.",
+                    "system_prompt": "You are a senior Rust engineer.",
+                    "model_name": "gpt-4.1",
+                    "max_tokens": 1000,
+                },
+                {
+                    "agent_name": "TypeScript-Expert",
+                    "description": "Analyzes TypeScript/Node.js for backend services.",
+                    "system_prompt": "You are a senior TypeScript backend engineer.",
+                    "model_name": "gpt-4.1",
+                    "max_tokens": 1000,
+                },
+            ],
+        },
+    ]
+
+
+    def run_batch_swarm_completions():
+        response = requests.post(
+            f"{BASE_URL}/v1/swarm/batch/completions",
+            headers=headers,
+            json=batch_payload,
+            timeout=600,
+        )
+
+        response.raise_for_status()
+        return response.json()
+
+
+    if __name__ == "__main__":
+        results = run_batch_swarm_completions()
+        print("✅ Batch swarm completions finished")
+        print(json.dumps(results, indent=2))
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+
+    type AgentSpec = {
+      agent_name?: string
+      description?: string
+      system_prompt?: string
+      model_name?: string
+      max_tokens?: number
+      temperature?: number
+      max_loops?: number | string
+    }
+
+    type SwarmSpec = {
+      name?: string
+      description?: string
+      swarm_type?: string
+      task?: string
+      max_loops?: number
+      agents?: AgentSpec[]
+    }
+
+    async function runBatchSwarmCompletions(): Promise<unknown> {
+      const batchPayload: SwarmSpec[] = [
+        {
+          name: 'Market Analysis Swarm',
+          description: 'Sequential research swarm for market analysis',
+          swarm_type: 'SequentialWorkflow',
+          task: 'Analyze 2025 AI agent market trends and key players.',
+          max_loops: 1,
+          agents: [
+            {
+              agent_name: 'Research-Analyst',
+              description: 'Collects and summarizes market information.',
+              system_prompt: 'You are a senior market research analyst.',
+              model_name: 'gpt-4.1',
+              max_tokens: 1500,
+              temperature: 0.4,
+            },
+          ],
+        },
+        {
+          name: 'Technical Review Swarm',
+          description: 'Concurrent workflow for technical deep‑dives',
+          swarm_type: 'ConcurrentWorkflow',
+          task: 'Compare Rust and TypeScript for backend microservices.',
+          max_loops: 1,
+          agents: [
+            {
+              agent_name: 'Rust-Expert',
+              description: 'Analyzes Rust for backend services.',
+              system_prompt: 'You are a senior Rust engineer.',
+              model_name: 'gpt-4.1',
+              max_tokens: 1000,
+            },
+            {
+              agent_name: 'TypeScript-Expert',
+              description: 'Analyzes TypeScript/Node.js for backend services.',
+              system_prompt: 'You are a senior TypeScript backend engineer.',
+              model_name: 'gpt-4.1',
+              max_tokens: 1000,
+            },
+          ],
+        },
+      ]
+
+      const res = await fetch(`${BASE_URL}/v1/swarm/batch/completions`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(batchPayload),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+
+      return (await res.json()) as unknown
+    }
+
+    void runBatchSwarmCompletions()
+      .then((results) => {
+        console.log('✅ Batch swarm completions finished')
+        console.log(JSON.stringify(results, null, 2))
+      })
+      .catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+
+    use reqwest::blocking::Client;
+    use serde_json::json;
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let batch_payload = json!([
+            {
+                "name": "Market Analysis Swarm",
+                "description": "Sequential research swarm for market analysis",
+                "swarm_type": "SequentialWorkflow",
+                "task": "Analyze 2025 AI agent market trends and key players.",
+                "max_loops": 1,
+                "agents": [
+                    {
+                        "agent_name": "Research-Analyst",
+                        "description": "Collects and summarizes market information.",
+                        "system_prompt": "You are a senior market research analyst.",
+                        "model_name": "gpt-4.1",
+                        "max_tokens": 1500,
+                        "temperature": 0.4
+                    }
+                ]
+            },
+            {
+                "name": "Technical Review Swarm",
+                "description": "Concurrent workflow for technical deep-dives",
+                "swarm_type": "ConcurrentWorkflow",
+                "task": "Compare Rust and TypeScript for backend microservices.",
+                "max_loops": 1,
+                "agents": [
+                    {
+                        "agent_name": "Rust-Expert",
+                        "description": "Analyzes Rust for backend services.",
+                        "system_prompt": "You are a senior Rust engineer.",
+                        "model_name": "gpt-4.1",
+                        "max_tokens": 1000
+                    },
+                    {
+                        "agent_name": "TypeScript-Expert",
+                        "description": "Analyzes TypeScript/Node.js for backend services.",
+                        "system_prompt": "You are a senior TypeScript backend engineer.",
+                        "model_name": "gpt-4.1",
+                        "max_tokens": 1000
+                    }
+                ]
+            }
+        ]);
+
+        let res = client
+            .post("https://api.swarms.world/v1/swarm/batch/completions")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .json(&batch_payload)
+            .send()?;
+
+        res.error_for_status_ref()?;
+
+        let body = res.text()?;
+        println!("{body}");
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Interpreting the Response
+
+The endpoint returns an array of swarm completion results, one per item in the batch:
+
+```json
+[
+  {
+    "job_id": "batch-job-1",
+    "status": "completed",
+    "swarm_name": "Market Analysis Swarm",
+    "description": "Sequential research swarm for market analysis",
+    "swarm_type": "SequentialWorkflow",
+    "output": { "summary": "..." },
+    "number_of_agents": 1,
+    "execution_time": 12.3,
+    "usage": {
+      "input_tokens": 8500,
+      "output_tokens": 3200,
+      "total_tokens": 11700,
+      "token_cost": 0.0123
+    }
+  }
+]
+```
+
+Use the `job_id` and `usage` fields for **auditing**, **cost tracking**, and **monitoring** across your batch workloads.
+

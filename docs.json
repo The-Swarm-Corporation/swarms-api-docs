@@ -183,12 +183,21 @@
             ]
           },
           {
-            "group": "Features",
+            "group": "Agent Capabilities",
             "pages": [
               "docs/examples/examples/streaming",
               "docs/examples/examples/search-enabled",
               "docs/examples/examples/mcp-integration",
-              "docs/examples/examples/advanced-research"
+              "docs/examples/api_examples/agent_completion_single_agent",
+              "docs/examples/api_examples/autonomous_agent_tutorial"
+            ]
+          },
+          {
+            "group": "Multi-Agent Architectures",
+            "pages": [
+              "docs/examples/examples/advanced-research",
+              "docs/examples/examples/batch-processing",
+              "docs/examples/examples/batch-swarm-completions"
             ]
           },
           {
@@ -210,7 +219,9 @@
               "docs/examples/examples/reasoning-agent-types",
               "docs/examples/examples/marketplace-agents",
               "docs/examples/examples/list-agents",
-              "docs/examples/api_examples/rate_limits"
+              "docs/examples/api_examples/rate_limits",
+              "docs/examples/examples/pricing-details-basic",
+              "docs/examples/examples/pricing-cost-estimator"
             ]
           },
           {

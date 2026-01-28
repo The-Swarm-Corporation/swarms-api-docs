@@ -1,0 +1,286 @@
+---
+title: 'Get Comprehensive Pricing Details'
+description: 'Fetch and inspect comprehensive pricing details for all Swarms API features'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+Retrieve unified pricing information for all Swarms API usage dimensions from the `/v1/usage/costs` endpoint. This includes token costs, agent costs, search/scrape operations, image pricing, MCP calls, and night-time discount multipliers.
+
+<Info>
+The pricing endpoint is **read-only** and safe to call in automation. Always treat returned values as dynamic and avoid hard-coding pricing in production systems.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    def get_pricing_details() -> dict | None:
+        """Fetch comprehensive pricing details."""
+        resp = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers)
+
+        if resp.status_code == 200:
+            return resp.json()
+
+        print(f"Error: {resp.status_code} - {resp.text}")
+        return None
+
+    if __name__ == "__main__":
+        data = get_pricing_details()
+        if data:
+            print("✅ Pricing details retrieved successfully!")
+            print(json.dumps(data, indent=2))
+
+            usage = data.get("usage_pricing", {})
+            print("\n--- Key fields ---")
+            print("Swarm input /1M:", usage.get("swarm_completions_input_cost_per_1m"))
+            print("Swarm output /1M:", usage.get("swarm_completions_output_cost_per_1m"))
+            print("Agent image cost:", usage.get("agent_completions_img_cost"))
+            print("Night-time discount:", usage.get("night_time_discount"))
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    async function getPricingDetails() {
+      if (!API_KEY) {
+        throw new Error('SWARMS_API_KEY is not set')
+      }
+
+      const res = await fetch(`${BASE_URL}/v1/usage/costs`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(`HTTP ${res.status}: ${body}`)
+      }
+
+      type UsagePricingModel = {
+        swarm_completions_agent_cost: number
+        swarm_completions_input_cost_per_1m: number
+        swarm_completions_output_cost_per_1m: number
+        agent_completions_input_cost_per_1m: number
+        agent_completions_output_cost_per_1m: number
+        agent_completions_img_cost: number
+        agent_completions_mcp_cost: number
+        search_cost: number
+        scrape_cost: number
+        night_time_discount: number
+      }
+
+      type PricingDetailsOutput = {
+        usage_pricing: UsagePricingModel
+        timestamp?: string | null
+      }
+
+      const data = (await res.json()) as PricingDetailsOutput
+      return data
+    }
+
+    async function main() {
+      try {
+        const data = await getPricingDetails()
+        console.log('✅ Pricing details retrieved successfully!')
+        console.dir(data, { depth: null })
+
+        const usage = data.usage_pricing
+        console.log('\n--- Key fields ---')
+        console.log('Swarm completions (input /1M):', usage.swarm_completions_input_cost_per_1m)
+        console.log('Swarm completions (output /1M):', usage.swarm_completions_output_cost_per_1m)
+        console.log('Search cost:', usage.search_cost)
+        console.log('Scrape cost:', usage.scrape_cost)
+      } catch (err) {
+        console.error('Error fetching pricing details:', err)
+      }
+    }
+
+    void main()
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+
+    use reqwest::blocking::Client;
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct UsagePricingModel {
+        swarm_completions_agent_cost: f64,
+        swarm_completions_input_cost_per_1m: f64,
+        swarm_completions_output_cost_per_1m: f64,
+        agent_completions_input_cost_per_1m: f64,
+        agent_completions_output_cost_per_1m: f64,
+        agent_completions_img_cost: f64,
+        agent_completions_mcp_cost: f64,
+        search_cost: f64,
+        scrape_cost: f64,
+        night_time_discount: f64,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct PricingDetailsOutput {
+        usage_pricing: UsagePricingModel,
+        timestamp: Option<String>,
+    }
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+        let res = client
+            .get("https://api.swarms.world/v1/usage/costs")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .send()?;
+
+        if !res.status().is_success() {
+            let body = res.text()?;
+            eprintln!("Error: {} - {}", res.status(), body);
+            return Ok(());
+        }
+
+        let data: PricingDetailsOutput = res.json()?;
+        println!("✅ Pricing details retrieved successfully!");
+        println!("{:#?}", data);
+
+        println!("\n--- Key fields ---");
+        println!(
+            "Swarm completions input /1M: {}",
+            data.usage_pricing.swarm_completions_input_cost_per_1m
+        );
+        println!(
+            "Swarm completions output /1M: {}",
+            data.usage_pricing.swarm_completions_output_cost_per_1m
+        );
+        println!("Search cost: {}", data.usage_pricing.search_cost);
+        println!("Scrape cost: {}", data.usage_pricing.scrape_cost);
+
+        Ok(())
+    }
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "encoding/json"
+        "fmt"
+        "log"
+        "net/http"
+        "os"
+    )
+
+    type UsagePricingModel struct {
+        SwarmCompletionsAgentCost        float64 `json:"swarm_completions_agent_cost"`
+        SwarmCompletionsInputCostPer1M   float64 `json:"swarm_completions_input_cost_per_1m"`
+        SwarmCompletionsOutputCostPer1M  float64 `json:"swarm_completions_output_cost_per_1m"`
+        AgentCompletionsInputCostPer1M   float64 `json:"agent_completions_input_cost_per_1m"`
+        AgentCompletionsOutputCostPer1M  float64 `json:"agent_completions_output_cost_per_1m"`
+        AgentCompletionsImgCost          float64 `json:"agent_completions_img_cost"`
+        AgentCompletionsMcpCost          float64 `json:"agent_completions_mcp_cost"`
+        SearchCost                       float64 `json:"search_cost"`
+        ScrapeCost                       float64 `json:"scrape_cost"`
+        NightTimeDiscount                float64 `json:"night_time_discount"`
+    }
+
+    type PricingDetailsOutput struct {
+        UsagePricing UsagePricingModel `json:"usage_pricing"`
+        Timestamp    *string           `json:"timestamp"`
+    }
+
+    func main() {
+        apiKey := os.Getenv("SWARMS_API_KEY")
+        if apiKey == "" {
+            log.Fatal("SWARMS_API_KEY environment variable is required")
+        }
+
+        req, err := http.NewRequest("GET", "https://api.swarms.world/v1/usage/costs", nil)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        req.Header.Set("x-api-key", apiKey)
+        req.Header.Set("Content-Type", "application/json")
+
+        resp, err := http.DefaultClient.Do(req)
+        if err != nil {
+            log.Fatal(err)
+        }
+        defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK {
+            var bodyBytes []byte
+            bodyBytes, _ = io.ReadAll(resp.Body)
+            log.Fatalf("Error: %d - %s", resp.StatusCode, string(bodyBytes))
+        }
+
+        var data PricingDetailsOutput
+        if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+            log.Fatal(err)
+        }
+
+        fmt.Println("✅ Pricing details retrieved successfully!")
+        encoded, _ := json.MarshalIndent(data, "", "  ")
+        fmt.Println(string(encoded))
+
+        fmt.Println("\n--- Key fields ---")
+        fmt.Println("Swarm completions input /1M:", data.UsagePricing.SwarmCompletionsInputCostPer1M)
+        fmt.Println("Swarm completions output /1M:", data.UsagePricing.SwarmCompletionsOutputCostPer1M)
+        fmt.Println("Search cost:", data.UsagePricing.SearchCost)
+        fmt.Println("Scrape cost:", data.UsagePricing.ScrapeCost)
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Response Shape
+
+The endpoint returns a `usage_pricing` object plus a `timestamp`:
+
+```json
+{
+  "usage_pricing": {
+    "swarm_completions_agent_cost": 0.01,
+    "swarm_completions_input_cost_per_1m": 6.5,
+    "swarm_completions_output_cost_per_1m": 18.5,
+    "agent_completions_input_cost_per_1m": 6.5,
+    "agent_completions_output_cost_per_1m": 18.5,
+    "agent_completions_img_cost": 0.25,
+    "agent_completions_mcp_cost": 0.1,
+    "search_cost": 0.04,
+    "scrape_cost": 0.15,
+    "night_time_discount": 0.5
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+

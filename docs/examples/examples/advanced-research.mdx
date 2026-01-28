@@ -1,10 +1,21 @@
 ---
-title: 'Advanced Research'
-description: 'Multi-agent research system with director-worker architecture and external search'
+title: 'Advanced Research & Workflows'
+description: 'Multi-agent research system, graph workflows, batched grid workflows, auto-swarm-builder, and reasoning agents'
 ---
 
 import { Tabs, Tab } from 'mintlify'
 
+This page covers advanced multi-agent architectures and workflows using raw HTTP requests (no client SDK). All examples use the base URL:
+
+```text
+https://api.swarms.world
+```
+
+<Warning>
+Many of these endpoints are **premium‑only** and require Pro, Ultra, or Premium plans. See <a href="/docs/documentation/resources/premium-endpoints">Premium Endpoints</a>.
+</Warning>
+
+## Advanced Research
 
 The Advanced Research API provides a sophisticated multi-agent research system that combines director and worker agents to conduct comprehensive research tasks. The system leverages external search capabilities and supports both single and batch processing modes.
 
@@ -17,77 +28,148 @@ Premium: These endpoints are available only on Pro and Ultra plans:
 The Advanced Research system uses a director-worker architecture for coordinated, comprehensive research with external search integration.
 </Info>
 
-## Quick Start
+### Quick Start
 
 <Tabs>
   <Tab title="Python">
     ```python
     import requests
     import os
-
+    
     API_KEY = os.getenv("SWARMS_API_KEY")
     BASE_URL = "https://api.swarms.world"
-
+    
     headers = {
         "x-api-key": API_KEY,
         "Content-Type": "application/json"
     }
-
+    
     payload = {
         "config": {
             "name": "AI Ethics Research",
             "description": "Research on AI ethics and responsible AI development",
-            "worker_model_name": "gpt-4o-mini",
-            "director_model_name": "gpt-4o",
+            "worker_model_name": "gpt-4.1",
+            "director_model_name": "gpt-4.1",
             "max_loops": 1,
             "exa_search_num_results": 3
         },
         "task": "What are the key ethical considerations in developing AI systems?"
     }
-
+    
     response = requests.post(
         f"{BASE_URL}/v1/advanced-research/completions",
         headers=headers,
         json=payload
     )
-
+    
+    response.raise_for_status()
     result = response.json()
-    print(result['outputs'])
+    print(result["outputs"])
     ```
   </Tab>
-  <Tab title="JavaScript">
-    ```javascript
-    const API_KEY = process.env.SWARMS_API_KEY;
-    const BASE_URL = "https://api.swarms.world";
-
-    const headers = {
-        "x-api-key": API_KEY,
-        "Content-Type": "application/json"
-    };
-
-    const payload = {
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
+    
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+    
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+    
+    type AdvancedResearchConfig = {
+      name?: string
+      description?: string
+      worker_model_name?: string
+      director_model_name?: string
+      director_max_tokens?: number
+      max_loops?: number
+      director_max_loops?: number
+      exa_search_num_results?: number
+      exa_search_max_characters?: number
+    }
+    
+    type AdvancedResearchInput = {
+      config: AdvancedResearchConfig
+      task?: string
+      img?: string | null
+    }
+    
+    async function runAdvancedResearch(): Promise<void> {
+      const payload: AdvancedResearchInput = {
         config: {
-            name: "AI Ethics Research",
-            description: "Research on AI ethics and responsible AI development",
-            worker_model_name: "gpt-4o-mini",
-            director_model_name: "gpt-4o",
-            max_loops: 2,
-            exa_search_num_results: 3
+          name: 'AI Ethics Research',
+          description: 'Research on AI ethics and responsible AI development',
+          worker_model_name: 'gpt-4.1',
+          director_model_name: 'gpt-4.1',
+          max_loops: 1,
+          exa_search_num_results: 3,
         },
-        task: "What are the key ethical considerations in developing AI systems?"
-    };
-
-    fetch(`${BASE_URL}/v1/advanced-research/completions`, {
+        task: 'What are the key ethical considerations in developing AI systems?',
+      }
+    
+      const res = await fetch(`${BASE_URL}/v1/advanced-research/completions`, {
         method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload)
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Research Results:", data.outputs);
-        console.log("Sources:", data.sources);
-    })
-    .catch(error => console.error('Error:', error));
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+    
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+    
+      const data = (await res.json()) as any
+      console.log('Research Results:', data.outputs)
+      console.log('Sources:', data.sources)
+    }
+    
+    void runAdvancedResearch().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+    
+    use reqwest::blocking::Client;
+    use serde_json::json;
+    
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+    
+        let client = Client::new();
+    
+        let payload = json!({
+            "config": {
+                "name": "AI Ethics Research",
+                "description": "Research on AI ethics and responsible AI development",
+                "worker_model_name": "gpt-4.1",
+                "director_model_name": "gpt-4.1",
+                "max_loops": 1,
+                "exa_search_num_results": 3
+            },
+            "task": "What are the key ethical considerations in developing AI systems?"
+        });
+    
+        let res = client
+            .post("https://api.swarms.world/v1/advanced-research/completions")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()?;
+    
+        res.error_for_status_ref()?;
+    
+        let body = res.text()?;
+        println!("{body}");
+    
+        Ok(())
+    }
     ```
   </Tab>
   <Tab title="cURL">
@@ -99,8 +181,8 @@ The Advanced Research system uses a director-worker architecture for coordinated
         "config": {
           "name": "AI Ethics Research",
           "description": "Research on AI ethics and responsible AI development",
-          "worker_model_name": "gpt-4o-mini",
-          "director_model_name": "gpt-4o",
+          "worker_model_name": "gpt-4.1",
+          "director_model_name": "gpt-4.1",
           "max_loops": 1,
           "exa_search_num_results": 3
         },
@@ -110,24 +192,24 @@ The Advanced Research system uses a director-worker architecture for coordinated
   </Tab>
 </Tabs>
 
-## Key Features
+### Key Features
 
-### Multi-Agent Architecture
+#### Multi-Agent Architecture
 - **Director Agent**: Orchestrates the research process and synthesizes results
 - **Worker Agents**: Execute specific research tasks and gather information
 - **External Search**: Integrates with Exa search for web research capabilities
 
-### Configurable Models
+#### Configurable Models
 - Support for multiple LLM providers (OpenAI, Anthropic, etc.)
 - Separate models for director and worker agents
 - Customizable token limits and loops
 
-### Cost Tracking
+#### Cost Tracking
 - Transparent token usage reporting
 - Real-time cost calculation
 - Credit system integration
 
-## Use Cases
+### Use Cases
 
 - **Academic Research**: Comprehensive literature reviews and analysis
 - **Market Research**: Competitive analysis and trend identification
@@ -135,47 +217,180 @@ The Advanced Research system uses a director-worker architecture for coordinated
 - **Policy Research**: Analysis of regulations and their implications
 - **Innovation Research**: Exploring emerging technologies and their applications
 
-## Batch Processing
+### Batch Processing
 
 Process multiple research tasks in parallel:
 
-```python
-batch_payload = {
-    "input_schemas": [
-        {
-            "config": {
-                "name": "Healthcare AI",
-                "description": "AI in healthcare research",
-                "worker_model_name": "gpt-4o-mini",
-                "director_model_name": "gpt-4o"
-            },
-            "task": "How is AI transforming healthcare?"
-        },
-        {
-            "config": {
-                "name": "Sustainable Energy",
-                "description": "Renewable energy research",
-                "worker_model_name": "gpt-4o-mini",
-                "director_model_name": "gpt-4o"
-            },
-            "task": "What are the latest breakthroughs in sustainable energy?"
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+    
+    load_dotenv()
+    
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+    
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+    
+    def run_batch_research():
+        batch_payload = {
+            "input_schemas": [
+                {
+                    "config": {
+                        "name": "Healthcare AI",
+                        "description": "AI in healthcare research",
+                        "worker_model_name": "gpt-4.1",
+                        "director_model_name": "gpt-4.1"
+                    },
+                    "task": "How is AI transforming healthcare?"
+                },
+                {
+                    "config": {
+                        "name": "Sustainable Energy",
+                        "description": "Renewable energy research",
+                        "worker_model_name": "gpt-4.1",
+                        "director_model_name": "gpt-4.1"
+                    },
+                    "task": "What are the latest breakthroughs in sustainable energy?"
+                }
+            ]
         }
-    ]
-}
+    
+        response = requests.post(
+            f"{BASE_URL}/v1/advanced-research/batch/completions",
+            headers=headers,
+            json=batch_payload,
+            timeout=600.0
+        )
+    
+        response.raise_for_status()
+        return response.json()
+    
+    if __name__ == "__main__":
+        results = run_batch_research()
+        print("✅ Batch research completed")
+        print(json.dumps(results, indent=2))
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
+    
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+    
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+    
+    async function runBatchResearch(): Promise<void> {
+      const batchPayload = {
+        input_schemas: [
+          {
+            config: {
+              name: 'Healthcare AI',
+              description: 'AI in healthcare research',
+              worker_model_name: 'gpt-4.1',
+              director_model_name: 'gpt-4.1',
+            },
+            task: 'How is AI transforming healthcare?',
+          },
+          {
+            config: {
+              name: 'Sustainable Energy',
+              description: 'Renewable energy research',
+              worker_model_name: 'gpt-4.1',
+              director_model_name: 'gpt-4.1',
+            },
+            task: 'What are the latest breakthroughs in sustainable energy?',
+          },
+        ],
+      }
+    
+      const res = await fetch(`${BASE_URL}/v1/advanced-research/batch/completions`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(batchPayload),
+      })
+    
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+    
+      const data = (await res.json()) as any[]
+      console.log('✅ Batch research completed')
+      console.log(JSON.stringify(data, null, 2))
+    }
+    
+    void runBatchResearch().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+    
+    use reqwest::blocking::Client;
+    use serde_json::json;
+    
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+    
+        let client = Client::new();
+    
+        let batch_payload = json!({
+            "input_schemas": [
+                {
+                    "config": {
+                        "name": "Healthcare AI",
+                        "description": "AI in healthcare research",
+                        "worker_model_name": "gpt-4.1",
+                        "director_model_name": "gpt-4.1"
+                    },
+                    "task": "How is AI transforming healthcare?"
+                },
+                {
+                    "config": {
+                        "name": "Sustainable Energy",
+                        "description": "Renewable energy research",
+                        "worker_model_name": "gpt-4.1",
+                        "director_model_name": "gpt-4.1"
+                    },
+                    "task": "What are the latest breakthroughs in sustainable energy?"
+                }
+            ]
+        });
+    
+        let res = client
+            .post("https://api.swarms.world/v1/advanced-research/batch/completions")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .json(&batch_payload)
+            .send()?;
+    
+        res.error_for_status_ref()?;
+    
+        let body = res.text()?;
+        println!("{body}");
+    
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
 
-response = requests.post(
-    f"{BASE_URL}/v1/advanced-research/batch/completions",
-    headers=headers,
-    json=batch_payload
-)
-
-results = response.json()
-for result in results:
-    print(f"Research: {result['name']}")
-    print(f"Results: {result['outputs']}")
-```
-
-## Configuration Options
+### Configuration Options
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -186,10 +401,668 @@ for result in results:
 | `exa_search_num_results` | integer | 2 | Number of search results |
 | `exa_search_max_characters` | integer | 100 | Characters per search result |
 
-## Best Practices
+### Best Practices
 
 1. **Task Specificity**: Provide clear, specific research questions
 2. **Model Selection**: Use more capable models for complex research tasks
 3. **Loop Configuration**: Increase loops for deeper analysis (2-3 loops recommended)
 4. **Search Parameters**: Adjust search results based on research scope
 5. **Cost Monitoring**: Monitor token usage for budget management
+
+## Graph Workflow – Multi-Agent DAG
+
+Execute a directed graph of agents with parallel branches using `/v1/graph-workflow/completions`.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "name": "Product Launch Graph",
+        "description": "Graph workflow for product launch analysis",
+        "agents": [
+            {
+                "agent_name": "Market-Research",
+                "description": "Researches the target market.",
+                "system_prompt": "You are a market research analyst.",
+                "model_name": "gpt-4.1",
+            },
+            {
+                "agent_name": "Tech-Feasibility",
+                "description": "Evaluates technical feasibility.",
+                "system_prompt": "You are a senior software architect.",
+                "model_name": "gpt-4.1",
+            },
+            {
+                "agent_name": "Exec-Summary",
+                "description": "Summarizes findings for executives.",
+                "system_prompt": "You are a VP of Product summarizing key decisions.",
+                "model_name": "gpt-4.1",
+            },
+        ],
+        "edges": [
+            {"source": "Market-Research", "target": "Exec-Summary"},
+            {"source": "Tech-Feasibility", "target": "Exec-Summary"},
+        ],
+        "entry_points": ["Market-Research", "Tech-Feasibility"],
+        "end_points": ["Exec-Summary"],
+        "max_loops": 1,
+        "task": "Evaluate launching a new AI assistant for enterprise documentation.",
+        "auto_compile": True,
+        "verbose": False,
+    }
+
+
+    def run_graph_workflow():
+        resp = requests.post(
+            f"{BASE_URL}/v1/graph-workflow/completions",
+            headers=headers,
+            json=payload,
+            timeout=600,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+    if __name__ == "__main__":
+        result = run_graph_workflow()
+        print(json.dumps(result, indent=2))
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+
+    async function runGraphWorkflow(): Promise<void> {
+      const payload = {
+        name: 'Product Launch Graph',
+        description: 'Graph workflow for product launch analysis',
+        agents: [
+          {
+            agent_name: 'Market-Research',
+            description: 'Researches the target market.',
+            system_prompt: 'You are a market research analyst.',
+            model_name: 'gpt-4.1',
+          },
+          {
+            agent_name: 'Tech-Feasibility',
+            description: 'Evaluates technical feasibility.',
+            system_prompt: 'You are a senior software architect.',
+            model_name: 'gpt-4.1',
+          },
+          {
+            agent_name: 'Exec-Summary',
+            description: 'Summarizes findings for executives.',
+            system_prompt: 'You are a VP of Product summarizing key decisions.',
+            model_name: 'gpt-4.1',
+          },
+        ],
+        edges: [
+          { source: 'Market-Research', target: 'Exec-Summary' },
+          { source: 'Tech-Feasibility', target: 'Exec-Summary' },
+        ],
+        entry_points: ['Market-Research', 'Tech-Feasibility'],
+        end_points: ['Exec-Summary'],
+        max_loops: 1,
+        task: 'Evaluate launching a new AI assistant for enterprise documentation.',
+        auto_compile: true,
+        verbose: false,
+      }
+
+      const res = await fetch(`${BASE_URL}/v1/graph-workflow/completions`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+
+      const data = (await res.json()) as any
+      console.log(JSON.stringify(data, null, 2))
+    }
+
+    void runGraphWorkflow().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+
+    use reqwest::blocking::Client;
+    use serde_json::json;
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let payload = json!({
+            "name": "Product Launch Graph",
+            "description": "Graph workflow for product launch analysis",
+            "agents": [
+                {
+                    "agent_name": "Market-Research",
+                    "description": "Researches the target market.",
+                    "system_prompt": "You are a market research analyst.",
+                    "model_name": "gpt-4.1"
+                },
+                {
+                    "agent_name": "Tech-Feasibility",
+                    "description": "Evaluates technical feasibility.",
+                    "system_prompt": "You are a senior software architect.",
+                    "model_name": "gpt-4.1"
+                },
+                {
+                    "agent_name": "Exec-Summary",
+                    "description": "Summarizes findings for executives.",
+                    "system_prompt": "You are a VP of Product summarizing key decisions.",
+                    "model_name": "gpt-4.1"
+                }
+            ],
+            "edges": [
+                { "source": "Market-Research", "target": "Exec-Summary" },
+                { "source": "Tech-Feasibility", "target": "Exec-Summary" }
+            ],
+            "entry_points": ["Market-Research", "Tech-Feasibility"],
+            "end_points": ["Exec-Summary"],
+            "max_loops": 1,
+            "task": "Evaluate launching a new AI assistant for enterprise documentation.",
+            "auto_compile": true,
+            "verbose": false
+        });
+
+        let res = client
+            .post("https://api.swarms.world/v1/graph-workflow/completions")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()?;
+
+        res.error_for_status_ref()?;
+
+        let body = res.text()?;
+        println!("{body}");
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Batched Grid Workflow – Tasks × Agents Matrix
+
+Use `/v1/batched-grid-workflow/completions` to run a grid of agents over a list of tasks.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "name": "Content Review Grid",
+        "description": "Run multiple reviewers across multiple drafts",
+        "agent_completions": [
+            {
+                "agent_name": "Style-Reviewer",
+                "description": "Reviews writing style and tone.",
+                "system_prompt": "You are an editor focusing on style, tone, and clarity.",
+                "model_name": "gpt-4.1",
+            },
+            {
+                "agent_name": "Fact-Checker",
+                "description": "Checks factual accuracy.",
+                "system_prompt": "You are a fact-checking assistant.",
+                "model_name": "gpt-4.1",
+            },
+        ],
+        "tasks": [
+            "Review this blog post draft about Swarms API for clarity and style.",
+            "Review this changelog entry for accuracy and completeness.",
+        ],
+        "max_loops": 1,
+    }
+
+
+    def run_batched_grid_workflow():
+        resp = requests.post(
+            f"{BASE_URL}/v1/batched-grid-workflow/completions",
+            headers=headers,
+            json=payload,
+            timeout=600,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+    if __name__ == "__main__":
+        result = run_batched_grid_workflow()
+        print(json.dumps(result, indent=2))
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+
+    async function runBatchedGridWorkflow(): Promise<void> {
+      const payload = {
+        name: 'Content Review Grid',
+        description: 'Run multiple reviewers across multiple drafts',
+        agent_completions: [
+          {
+            agent_name: 'Style-Reviewer',
+            description: 'Reviews writing style and tone.',
+            system_prompt: 'You are an editor focusing on style, tone, and clarity.',
+            model_name: 'gpt-4.1',
+          },
+          {
+            agent_name: 'Fact-Checker',
+            description: 'Checks factual accuracy.',
+            system_prompt: 'You are a fact-checking assistant.',
+            model_name: 'gpt-4.1',
+          },
+        ],
+        tasks: [
+          'Review this blog post draft about Swarms API for clarity and style.',
+          'Review this changelog entry for accuracy and completeness.',
+        ],
+        max_loops: 1,
+      }
+
+      const res = await fetch(`${BASE_URL}/v1/batched-grid-workflow/completions`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+
+      const data = (await res.json()) as any
+      console.log(JSON.stringify(data, null, 2))
+    }
+
+    void runBatchedGridWorkflow().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+
+    use reqwest::blocking::Client;
+    use serde_json::json;
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let payload = json!({
+            "name": "Content Review Grid",
+            "description": "Run multiple reviewers across multiple drafts",
+            "agent_completions": [
+                {
+                    "agent_name": "Style-Reviewer",
+                    "description": "Reviews writing style and tone.",
+                    "system_prompt": "You are an editor focusing on style, tone, and clarity.",
+                    "model_name": "gpt-4.1"
+                },
+                {
+                    "agent_name": "Fact-Checker",
+                    "description": "Checks factual accuracy.",
+                    "system_prompt": "You are a fact-checking assistant.",
+                    "model_name": "gpt-4.1"
+                }
+            ],
+            "tasks": [
+                "Review this blog post draft about Swarms API for clarity and style.",
+                "Review this changelog entry for accuracy and completeness."
+            ],
+            "max_loops": 1
+        });
+
+        let res = client
+            .post("https://api.swarms.world/v1/batched-grid-workflow/completions")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()?;
+
+        res.error_for_status_ref()?;
+
+        let body = res.text()?;
+        println!("{body}");
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Auto Swarm Builder – Generate Swarms from a Task
+
+The Auto Swarm Builder can **design swarms for you** based on a textual description.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "name": "Customer Feedback Analysis Swarm",
+        "description": "Automatically design a swarm to cluster and summarize customer feedback.",
+        "model_name": "gpt-4.1",
+        "max_loops": 1,
+        "execution_type": "return-agents",
+        "task": "Design a swarm that ingests customer feedback CSVs and produces prioritized issue summaries.",
+        "max_tokens": 2000,
+    }
+
+
+    def run_auto_swarm_builder():
+        resp = requests.post(
+            f"{BASE_URL}/v1/auto-swarm-builder/completions",
+            headers=headers,
+            json=payload,
+            timeout=600,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+    if __name__ == "__main__":
+        result = run_auto_swarm_builder()
+        print(json.dumps(result, indent=2))
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+
+    async function runAutoSwarmBuilder(): Promise<void> {
+      const payload = {
+        name: 'Customer Feedback Analysis Swarm',
+        description: 'Automatically design a swarm to cluster and summarize customer feedback.',
+        model_name: 'gpt-4.1',
+        max_loops: 1,
+        execution_type: 'return-agents' as const,
+        task:
+          'Design a swarm that ingests customer feedback CSVs and produces prioritized issue summaries.',
+        max_tokens: 2000,
+      }
+
+      const res = await fetch(`${BASE_URL}/v1/auto-swarm-builder/completions`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+
+      const data = (await res.json()) as any
+      console.log(JSON.stringify(data, null, 2))
+    }
+
+    void runAutoSwarmBuilder().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+
+    use reqwest::blocking::Client;
+    use serde_json::json;
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let payload = json!({
+            "name": "Customer Feedback Analysis Swarm",
+            "description": "Automatically design a swarm to cluster and summarize customer feedback.",
+            "model_name": "gpt-4.1",
+            "max_loops": 1,
+            "execution_type": "return-agents",
+            "task": "Design a swarm that ingests customer feedback CSVs and produces prioritized issue summaries.",
+            "max_tokens": 2000
+        });
+
+        let res = client
+            .post("https://api.swarms.world/v1/auto-swarm-builder/completions")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()?;
+
+        res.error_for_status_ref()?;
+
+        let body = res.text()?;
+        println!("{body}");
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Reasoning Agent Completions
+
+Run an advanced reasoning agent using `/v1/reasoning-agent/completions`.
+
+<Warning>
+Reasoning agents are **premium‑only**. Free tier keys will receive 403 responses.
+</Warning>
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "agent_name": "Investment-Reasoner",
+        "description": "Multi-step financial reasoning agent.",
+        "model_name": "claude-sonnet-4-20250514",
+        "swarm_type": "self-consistency",
+        "num_samples": 3,
+        "output_type": "dict-final",
+        "max_loops": 1,
+        "task": "Given recent macroeconomic trends, reason about risks and opportunities for a diversified tech portfolio.",
+    }
+
+
+    def run_reasoning_agent():
+        resp = requests.post(
+            f"{BASE_URL}/v1/reasoning-agent/completions",
+            headers=headers,
+            json=payload,
+            timeout=600,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+    if __name__ == "__main__":
+        result = run_reasoning_agent()
+        print(json.dumps(result, indent=2))
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+
+    async function runReasoningAgent(): Promise<void> {
+      const payload = {
+        agent_name: 'Investment-Reasoner',
+        description: 'Multi-step financial reasoning agent.',
+        model_name: 'claude-sonnet-4-20250514',
+        swarm_type: 'self-consistency',
+        num_samples: 3,
+        output_type: 'dict-final',
+        max_loops: 1,
+        task:
+          'Given recent macroeconomic trends, reason about risks and opportunities for a diversified tech portfolio.',
+      }
+
+      const res = await fetch(`${BASE_URL}/v1/reasoning-agent/completions`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+
+      const data = (await res.json()) as any
+      console.log(JSON.stringify(data, null, 2))
+    }
+
+    void runReasoningAgent().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+
+    use reqwest::blocking::Client;
+    use serde_json::json;
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let payload = json!({
+            "agent_name": "Investment-Reasoner",
+            "description": "Multi-step financial reasoning agent.",
+            "model_name": "claude-sonnet-4-20250514",
+            "swarm_type": "self-consistency",
+            "num_samples": 3,
+            "output_type": "dict-final",
+            "max_loops": 1,
+            "task": "Given recent macroeconomic trends, reason about risks and opportunities for a diversified tech portfolio."
+        });
+
+        let res = client
+            .post("https://api.swarms.world/v1/reasoning-agent/completions")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()?;
+
+        res.error_for_status_ref()?;
+
+        let body = res.text()?;
+        println!("{body}");
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>

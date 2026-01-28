@@ -1,0 +1,210 @@
+---
+title: "Single Agent Completion (REST)"
+description: "Python example using the Agent Completions endpoint to run a single research agent with the new AgentCompletion format."
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+## Overview
+
+Use the **Agent Completions** endpoint (`/v1/agent/completions`) to run a single, well‑configured agent for a specific task.  
+This example shows a **Research Analyst** agent that uses the new `agent_config` shape and returns a structured JSON response.
+
+<Info>
+This example is a companion to the main reference at `/docs/documentation/capabilities/agent`.  
+It focuses on a minimal, production‑ready Python script using plain `requests`.
+</Info>
+
+## Prerequisites
+
+- **Python 3.9+**
+- A valid **Swarms API key**
+
+Create a `.env` file in your project root:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+Install dependencies:
+
+```bash
+pip install python-dotenv requests
+```
+
+## Run a Single Agent Completion
+
+<Tabs>
+  <Tab title="Python (requests)">
+    ```python
+    import os
+    import requests
+    from dotenv import load_dotenv
+    import json
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+
+    def run_single_agent():
+        """Run a single agent with the Agent Completions format"""
+        payload = {
+            "agent_config": {
+                "agent_name": "Research Analyst",
+                "description": "An expert in analyzing and synthesizing research data",
+                "system_prompt": (
+                    "You are a Research Analyst with expertise in data analysis and synthesis. "
+                    "Your role is to analyze provided information, identify key insights, "
+                    "and present findings in a clear, structured format. "
+                    "Focus on accuracy, clarity, and actionable recommendations."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                # For simple, single-shot tasks you can keep max_loops at 1.
+                # Use 'auto' for autonomous multi-step behavior (see autonomous tutorial).
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.7,
+                "auto_generate_prompt": False,
+                "dynamic_temperature_enabled": True,
+            },
+            "task": "What are the best ways to find samples of diabetes from blood samples?",
+        }
+
+        response = requests.post(
+            f"{BASE_URL}/v1/agent/completions",
+            headers=headers,
+            json=payload,
+            timeout=60,
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+    if __name__ == "__main__":
+        result = run_single_agent()
+        print(json.dumps(result, indent=4))
+    ```
+  </Tab>
+  <Tab title="TypeScript (fetch)">
+    ```ts
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+
+    async function runSingleAgent() {
+      const payload = {
+        agent_config: {
+          agent_name: 'Research Analyst',
+          description: 'An expert in analyzing and synthesizing research data',
+          system_prompt:
+            'You are a Research Analyst with expertise in data analysis and synthesis. ' +
+            'Your role is to analyze provided information, identify key insights, ' +
+            'and present findings in a clear, structured format. ' +
+            'Focus on accuracy, clarity, and actionable recommendations.',
+          model_name: 'gpt-4.1',
+          role: 'worker',
+          max_loops: 1,
+          max_tokens: 8192,
+          temperature: 0.7,
+          auto_generate_prompt: false,
+          dynamic_temperature_enabled: true,
+        },
+        task: 'What are the best ways to find samples of diabetes from blood samples?',
+      }
+
+      const res = await fetch(`${BASE_URL}/v1/agent/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+
+      const json = await res.json()
+      console.log(JSON.stringify(json, null, 2))
+    }
+
+    void runSingleAgent().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust (reqwest)">
+    ```rust
+    use std::env;
+
+    use reqwest::blocking::Client;
+    use serde_json::json;
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let payload = json!({
+            "agent_config": {
+                "agent_name": "Research Analyst",
+                "description": "An expert in analyzing and synthesizing research data",
+                "system_prompt": "You are a Research Analyst with expertise in data analysis and synthesis. \
+                    Your role is to analyze provided information, identify key insights, \
+                    and present findings in a clear, structured format. \
+                    Focus on accuracy, clarity, and actionable recommendations.",
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.7,
+                "auto_generate_prompt": false,
+                "dynamic_temperature_enabled": true
+            },
+            "task": "What are the best ways to find samples of diabetes from blood samples?"
+        });
+
+        let res = client
+            .post("https://api.swarms.world/v1/agent/completions")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()?;
+
+        res.error_for_status_ref()?;
+
+        let body = res.text()?;
+        println!("{body}");
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### What This Example Shows
+
+- **New `agent_config` format** matching the Agent Completions reference
+- A **single, stateless request** to `/v1/agent/completions`
+- How to **inspect the full JSON response**, including `outputs` and `usage`
+
+### Next Steps
+
+- Add `history` or `search_enabled` for more advanced behaviors
+- Use `max_loops="auto"` with the higher‑level `Agent` class for fully autonomous workflows  
+  → See **“Autonomous Agents with `max_loops="auto"`”** in the examples section.
+

@@ -22,108 +22,210 @@ import { Tabs, Tab } from 'mintlify'
   <Tab title="Python">
     ```python
     import os
-    from swarms_client import SwarmsClient
-    from dotenv import load_dotenv
     import json
+    import requests
+    from dotenv import load_dotenv
 
-    # Load environment variables
     load_dotenv()
 
-    # Initialize the client
-    client = SwarmsClient(
-        api_key=os.getenv("SWARMS_API_KEY"),
-    )
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
 
-# Define multiple batch requests
-batch_requests = [
-    {
-        "agent_config": {
-            "agent_name": "Bloodwork Diagnosis Expert",
-            "description": "Expert in blood work interpretation.",
-            "system_prompt": (
-                "You are a doctor who interprets blood work. Give concise, clear explanations and possible diagnoses."
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    # Define multiple batch requests (array of AgentCompletion)
+    batch_requests = [
+        {
+            "agent_config": {
+                "agent_name": "Bloodwork Diagnosis Expert",
+                "description": "Expert in blood work interpretation.",
+                "system_prompt": (
+                    "You are a doctor who interprets blood work. Give concise, clear explanations and possible diagnoses."
+                ),
+                "model_name": "gpt-4.1",
+                "max_loops": 1,
+                "max_tokens": 1000,
+                "temperature": 0.5,
+            },
+            "task": (
+                "Blood work: Hemoglobin 10.2 (low), WBC 13,000 (high), Platelets 180,000 (normal), "
+                "ALT 65 (high), AST 70 (high). Interpret and suggest diagnoses."
             ),
-            "model_name": "claude-sonnet-4-20250514",
-            "max_loops": 1,
-            "max_tokens": 1000,
-            "temperature": 0.5,
         },
-        "task": (
-            "Blood work: Hemoglobin 10.2 (low), WBC 13,000 (high), Platelets 180,000 (normal), "
-            "ALT 65 (high), AST 70 (high). Interpret and suggest diagnoses."
-        ),
-    },
-    {
-        "agent_config": {
-            "agent_name": "Radiology Report Summarizer",
-            "description": "Expert in summarizing radiology reports.",
-            "system_prompt": (
-                "You are a radiologist. Summarize the findings of radiology reports in clear, patient-friendly language."
+        {
+            "agent_config": {
+                "agent_name": "Radiology Report Summarizer",
+                "description": "Expert in summarizing radiology reports.",
+                "system_prompt": (
+                    "You are a radiologist. Summarize the findings of radiology reports in clear, patient-friendly language."
+                ),
+                "model_name": "gpt-4.1",
+                "max_loops": 1,
+                "max_tokens": 1000,
+                "temperature": 0.5,
+            },
+            "task": (
+                "Radiology report: Chest X-ray shows mild cardiomegaly, no infiltrates, no effusion. Summarize the findings."
             ),
-            "model_name": "claude-sonnet-4-20250514",
-            "max_loops": 1,
-            "max_tokens": 1000,
-            "temperature": 0.5,
         },
-        "task": (
-            "Radiology report: Chest X-ray shows mild cardiomegaly, no infiltrates, no effusion. Summarize the findings."
-        ),
-    },
-]
+    ]
 
-# Execute batch processing
-result = client.agent.batch.run(body=batch_requests)
 
-print(json.dumps(result, indent=4))
+    def run_agent_batch_completions():
+        response = requests.post(
+            f"{BASE_URL}/v1/agent/batch/completions",
+            headers=headers,
+            json=batch_requests,
+            timeout=600,
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+    if __name__ == "__main__":
+        result = run_agent_batch_completions()
+        print(json.dumps(result, indent=4))
     ```
   </Tab>
-  <Tab title="JavaScript">
-    ```javascript
-    const API_KEY = process.env.SWARMS_API_KEY;
-    const BASE_URL = "https://api.swarms.world";
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
 
-    const headers = {
-        "x-api-key": API_KEY,
-        "Content-Type": "application/json"
-    };
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
 
-    const batchPayload = [
+    if (!API_KEY) {
+      throw new Error('SWARMS_API_KEY is not set')
+    }
+
+    type AgentSpec = {
+      agent_name?: string
+      description?: string
+      system_prompt?: string
+      model_name?: string
+      max_loops?: number | string
+      max_tokens?: number
+      temperature?: number
+    }
+
+    type AgentCompletion = {
+      agent_config: AgentSpec
+      task?: string
+    }
+
+    async function runAgentBatchCompletions(): Promise<unknown> {
+      const batchPayload: AgentCompletion[] = [
         {
-            agent_config: {
-                agent_name: "Bloodwork Diagnosis Expert",
-                description: "Expert in blood work interpretation.",
-                system_prompt: "You are a doctor who interprets blood work. Give concise, clear explanations and possible diagnoses.",
-                model_name: "gpt-4o",
-                max_loops: 1,
-                max_tokens: 1000,
-                temperature: 0.5
-            },
-            task: "Blood work: Hemoglobin 10.2 (low), WBC 13,000 (high), Platelets 180,000 (normal), ALT 65 (high), AST 70 (high). Interpret and suggest diagnoses."
+          agent_config: {
+            agent_name: 'Bloodwork Diagnosis Expert',
+            description: 'Expert in blood work interpretation.',
+            system_prompt:
+              'You are a doctor who interprets blood work. Give concise, clear explanations and possible diagnoses.',
+            model_name: 'gpt-4.1',
+            max_loops: 1,
+            max_tokens: 1000,
+            temperature: 0.5,
+          },
+          task:
+            'Blood work: Hemoglobin 10.2 (low), WBC 13,000 (high), Platelets 180,000 (normal), ALT 65 (high), AST 70 (high). Interpret and suggest diagnoses.',
         },
         {
-            agent_config: {
-                agent_name: "Radiology Report Summarizer",
-                description: "Expert in summarizing radiology reports.",
-                system_prompt: "You are a radiologist. Summarize the findings of radiology reports in clear, patient-friendly language.",
-                model_name: "gpt-4o",
-                max_loops: 1,
-                max_tokens: 1000,
-                temperature: 0.5
-            },
-            task: "Radiology report: Chest X-ray shows mild cardiomegaly, no infiltrates, no effusion. Summarize the findings."
-        }
-    ];
+          agent_config: {
+            agent_name: 'Radiology Report Summarizer',
+            description: 'Expert in summarizing radiology reports.',
+            system_prompt:
+              'You are a radiologist. Summarize the findings of radiology reports in clear, patient-friendly language.',
+            model_name: 'gpt-4.1',
+            max_loops: 1,
+            max_tokens: 1000,
+            temperature: 0.5,
+          },
+          task:
+            'Radiology report: Chest X-ray shows mild cardiomegaly, no infiltrates, no effusion. Summarize the findings.',
+        },
+      ]
 
-    fetch(`${BASE_URL}/v1/agent/batch/completions`, {
+      const res = await fetch(`${BASE_URL}/v1/agent/batch/completions`, {
         method: 'POST',
-        headers: headers,
-        body: JSON.stringify(batchPayload)
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Batch Results:", JSON.stringify(data, null, 2));
-    })
-    .catch(error => console.error('Error:', error));
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(batchPayload),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+
+      return (await res.json()) as unknown
+    }
+
+    void runAgentBatchCompletions()
+      .then((result) => {
+        console.log('Batch Results:', JSON.stringify(result, null, 2))
+      })
+      .catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+
+    use reqwest::blocking::Client;
+    use serde_json::json;
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let batch_payload = json!([
+            {
+                "agent_config": {
+                    "agent_name": "Bloodwork Diagnosis Expert",
+                    "description": "Expert in blood work interpretation.",
+                    "system_prompt": "You are a doctor who interprets blood work. Give concise, clear explanations and possible diagnoses.",
+                    "model_name": "gpt-4.1",
+                    "max_loops": 1,
+                    "max_tokens": 1000,
+                    "temperature": 0.5
+                },
+                "task": "Blood work: Hemoglobin 10.2 (low), WBC 13,000 (high), Platelets 180,000 (normal), ALT 65 (high), AST 70 (high). Interpret and suggest diagnoses."
+            },
+            {
+                "agent_config": {
+                    "agent_name": "Radiology Report Summarizer",
+                    "description": "Expert in summarizing radiology reports.",
+                    "system_prompt": "You are a radiologist. Summarize the findings of radiology reports in clear, patient-friendly language.",
+                    "model_name": "gpt-4.1",
+                    "max_loops": 1,
+                    "max_tokens": 1000,
+                    "temperature": 0.5
+                },
+                "task": "Radiology report: Chest X-ray shows mild cardiomegaly, no infiltrates, no effusion. Summarize the findings."
+            }
+        ]);
+
+        let res = client
+            .post("https://api.swarms.world/v1/agent/batch/completions")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .json(&batch_payload)
+            .send()?;
+
+        res.error_for_status_ref()?;
+
+        let body = res.text()?;
+        println!("{body}");
+
+        Ok(())
+    }
     ```
   </Tab>
   <Tab title="cURL">

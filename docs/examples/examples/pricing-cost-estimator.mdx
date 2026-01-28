@@ -1,0 +1,405 @@
+---
+title: 'Estimate Costs from Pricing Details'
+description: 'Use comprehensive pricing details to estimate end-to-end workload costs'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+Leverage the `/v1/usage/costs` endpoint to **estimate end-to-end workload costs** before running large jobs. This example shows how to turn the unified pricing model into a simple cost calculator.
+
+<Info>
+All cost values are returned in **USD**. Always re-fetch pricing in long‑lived services to reflect updates in real time.
+</Info>
+
+## Example: Cost Estimation Workflow
+
+The following examples:
+
+- **Fetch** pricing details from `/v1/usage/costs`
+- **Estimate** costs for:
+  - Swarm completions (input/output tokens + per‑agent fee)
+  - Agent completions (input/output tokens)
+  - Images, MCP calls, search, and scrape operations
+  - Optional **night-time discount** multiplier
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    def get_pricing():
+        resp = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers)
+        resp.raise_for_status()
+        return resp.json()["usage_pricing"]
+
+    def estimate_cost(usage_pricing: dict, *, swarm_input_tokens: int = 0,
+                      swarm_output_tokens: int = 0, swarm_agents: int = 0,
+                      agent_input_tokens: int = 0, agent_output_tokens: int = 0,
+                      images: int = 0, mcp_calls: int = 0,
+                      searches: int = 0, scrapes: int = 0,
+                      night_time: bool = False) -> float:
+        up = usage_pricing
+
+        def tokens_to_m(tokens: int) -> float:
+            return tokens / 1_000_000.0
+
+        cost = 0.0
+
+        # Swarm completions
+        cost += tokens_to_m(swarm_input_tokens) * up["swarm_completions_input_cost_per_1m"]
+        cost += tokens_to_m(swarm_output_tokens) * up["swarm_completions_output_cost_per_1m"]
+        cost += swarm_agents * up["swarm_completions_agent_cost"]
+
+        # Agent completions
+        cost += tokens_to_m(agent_input_tokens) * up["agent_completions_input_cost_per_1m"]
+        cost += tokens_to_m(agent_output_tokens) * up["agent_completions_output_cost_per_1m"]
+
+        # Images, MCP, search, scrape
+        cost += images * up["agent_completions_img_cost"]
+        cost += mcp_calls * up["agent_completions_mcp_cost"]
+        cost += searches * up["search_cost"]
+        cost += scrapes * up["scrape_cost"]
+
+        if night_time:
+            cost *= up["night_time_discount"]
+
+        return round(cost, 6)
+
+    if __name__ == "__main__":
+        pricing = get_pricing()
+
+        est = estimate_cost(
+            pricing,
+            swarm_input_tokens=800_000,
+            swarm_output_tokens=400_000,
+            swarm_agents=3,
+            agent_input_tokens=500_000,
+            agent_output_tokens=250_000,
+            images=4,
+            mcp_calls=10,
+            searches=20,
+            scrapes=5,
+            night_time=True,
+        )
+
+        print(f"💰 Estimated workload cost: ${est}")
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    import 'dotenv/config'
+
+    const API_KEY = process.env.SWARMS_API_KEY
+    const BASE_URL = 'https://api.swarms.world'
+
+    type UsagePricingModel = {
+      swarm_completions_agent_cost: number
+      swarm_completions_input_cost_per_1m: number
+      swarm_completions_output_cost_per_1m: number
+      agent_completions_input_cost_per_1m: number
+      agent_completions_output_cost_per_1m: number
+      agent_completions_img_cost: number
+      agent_completions_mcp_cost: number
+      search_cost: number
+      scrape_cost: number
+      night_time_discount: number
+    }
+
+    async function getPricing(): Promise<UsagePricingModel> {
+      if (!API_KEY) throw new Error('SWARMS_API_KEY is not set')
+
+      const res = await fetch(`${BASE_URL}/v1/usage/costs`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(`HTTP ${res.status}: ${body}`)
+      }
+
+      const json = (await res.json()) as { usage_pricing: UsagePricingModel }
+      return json.usage_pricing
+    }
+
+    function tokensToM(tokens: number): number {
+      return tokens / 1_000_000
+    }
+
+    function estimateCost(
+      up: UsagePricingModel,
+      opts: {
+        swarmInputTokens?: number
+        swarmOutputTokens?: number
+        swarmAgents?: number
+        agentInputTokens?: number
+        agentOutputTokens?: number
+        images?: number
+        mcpCalls?: number
+        searches?: number
+        scrapes?: number
+        nightTime?: boolean
+      },
+    ): number {
+      const {
+        swarmInputTokens = 0,
+        swarmOutputTokens = 0,
+        swarmAgents = 0,
+        agentInputTokens = 0,
+        agentOutputTokens = 0,
+        images = 0,
+        mcpCalls = 0,
+        searches = 0,
+        scrapes = 0,
+        nightTime = false,
+      } = opts
+
+      let cost = 0
+
+      cost += tokensToM(swarmInputTokens) * up.swarm_completions_input_cost_per_1m
+      cost += tokensToM(swarmOutputTokens) * up.swarm_completions_output_cost_per_1m
+      cost += swarmAgents * up.swarm_completions_agent_cost
+
+      cost += tokensToM(agentInputTokens) * up.agent_completions_input_cost_per_1m
+      cost += tokensToM(agentOutputTokens) * up.agent_completions_output_cost_per_1m
+
+      cost += images * up.agent_completions_img_cost
+      cost += mcpCalls * up.agent_completions_mcp_cost
+      cost += searches * up.search_cost
+      cost += scrapes * up.scrape_cost
+
+      if (nightTime) cost *= up.night_time_discount
+
+      return Number(cost.toFixed(6))
+    }
+
+    async function main() {
+      const pricing = await getPricing()
+
+      const estimate = estimateCost(pricing, {
+        swarmInputTokens: 1_000_000,
+        swarmOutputTokens: 500_000,
+        swarmAgents: 5,
+        agentInputTokens: 300_000,
+        agentOutputTokens: 150_000,
+        images: 2,
+        mcpCalls: 5,
+        searches: 10,
+        scrapes: 3,
+        nightTime: false,
+      })
+
+      console.log(`💰 Estimated workload cost: $${estimate}`)
+    }
+
+    void main().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+
+    use reqwest::blocking::Client;
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct UsagePricingModel {
+        swarm_completions_agent_cost: f64,
+        swarm_completions_input_cost_per_1m: f64,
+        swarm_completions_output_cost_per_1m: f64,
+        agent_completions_input_cost_per_1m: f64,
+        agent_completions_output_cost_per_1m: f64,
+        agent_completions_img_cost: f64,
+        agent_completions_mcp_cost: f64,
+        search_cost: f64,
+        scrape_cost: f64,
+        night_time_discount: f64,
+    }
+
+    fn tokens_to_m(tokens: u64) -> f64 {
+        tokens as f64 / 1_000_000.0
+    }
+
+    fn estimate_cost(up: &UsagePricingModel) -> f64 {
+        // Example workload; in a real app, pass these as parameters
+        let swarm_input_tokens = 900_000u64;
+        let swarm_output_tokens = 450_000u64;
+        let swarm_agents = 4u64;
+        let agent_input_tokens = 250_000u64;
+        let agent_output_tokens = 125_000u64;
+        let images = 3u64;
+        let mcp_calls = 8u64;
+        let searches = 12u64;
+        let scrapes = 4u64;
+        let night_time = true;
+
+        let mut cost = 0.0;
+
+        // Swarm completions
+        cost += tokens_to_m(swarm_input_tokens) * up.swarm_completions_input_cost_per_1m;
+        cost += tokens_to_m(swarm_output_tokens) * up.swarm_completions_output_cost_per_1m;
+        cost += swarm_agents as f64 * up.swarm_completions_agent_cost;
+
+        // Agent completions
+        cost += tokens_to_m(agent_input_tokens) * up.agent_completions_input_cost_per_1m;
+        cost += tokens_to_m(agent_output_tokens) * up.agent_completions_output_cost_per_1m;
+
+        // Images, MCP, search, scrape
+        cost += images as f64 * up.agent_completions_img_cost;
+        cost += mcp_calls as f64 * up.agent_completions_mcp_cost;
+        cost += searches as f64 * up.search_cost;
+        cost += scrapes as f64 * up.scrape_cost;
+
+        if night_time {
+            cost *= up.night_time_discount;
+        }
+
+        (cost * 1_000_000.0).round() / 1_000_000.0
+    }
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key =
+            env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+        let res = client
+            .get("https://api.swarms.world/v1/usage/costs")
+            .header("x-api-key", api_key)
+            .header("Content-Type", "application/json")
+            .send()?;
+
+        res.error_for_status_ref()?;
+
+        let json: serde_json::Value = res.json()?;
+        let up: UsagePricingModel = serde_json::from_value(json["usage_pricing"].clone())?;
+
+        let estimate = estimate_cost(&up);
+        println!("💰 Estimated workload cost: ${:.6}", estimate);
+
+        Ok(())
+    }
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "encoding/json"
+        "fmt"
+        "log"
+        "net/http"
+        "os"
+    )
+
+    type UsagePricingModel struct {
+        SwarmCompletionsAgentCost       float64 `json:"swarm_completions_agent_cost"`
+        SwarmCompletionsInputCostPer1M  float64 `json:"swarm_completions_input_cost_per_1m"`
+        SwarmCompletionsOutputCostPer1M float64 `json:"swarm_completions_output_cost_per_1m"`
+        AgentCompletionsInputCostPer1M  float64 `json:"agent_completions_input_cost_per_1m"`
+        AgentCompletionsOutputCostPer1M float64 `json:"agent_completions_output_cost_per_1m"`
+        AgentCompletionsImgCost         float64 `json:"agent_completions_img_cost"`
+        AgentCompletionsMcpCost         float64 `json:"agent_completions_mcp_cost"`
+        SearchCost                      float64 `json:"search_cost"`
+        ScrapeCost                      float64 `json:"scrape_cost"`
+        NightTimeDiscount               float64 `json:"night_time_discount"`
+    }
+
+    func tokensToM(tokens int64) float64 {
+        return float64(tokens) / 1_000_000.0
+    }
+
+    func estimateCost(up UsagePricingModel) float64 {
+        // Example workload; pass inputs in your own code
+        swarmInputTokens := int64(750000)
+        swarmOutputTokens := int64(350000)
+        swarmAgents := int64(3)
+        agentInputTokens := int64(200000)
+        agentOutputTokens := int64(100000)
+        images := int64(2)
+        mcpCalls := int64(6)
+        searches := int64(8)
+        scrapes := int64(2)
+        nightTime := false
+
+        cost := 0.0
+
+        cost += tokensToM(swarmInputTokens) * up.SwarmCompletionsInputCostPer1M
+        cost += tokensToM(swarmOutputTokens) * up.SwarmCompletionsOutputCostPer1M
+        cost += float64(swarmAgents) * up.SwarmCompletionsAgentCost
+
+        cost += tokensToM(agentInputTokens) * up.AgentCompletionsInputCostPer1M
+        cost += tokensToM(agentOutputTokens) * up.AgentCompletionsOutputCostPer1M
+
+        cost += float64(images) * up.AgentCompletionsImgCost
+        cost += float64(mcpCalls) * up.AgentCompletionsMcpCost
+        cost += float64(searches) * up.SearchCost
+        cost += float64(scrapes) * up.ScrapeCost
+
+        if nightTime {
+            cost *= up.NightTimeDiscount
+        }
+
+        return float64(int64(cost*1_000_000)) / 1_000_000.0
+    }
+
+    func main() {
+        apiKey := os.Getenv("SWARMS_API_KEY")
+        if apiKey == "" {
+            log.Fatal("SWARMS_API_KEY environment variable is required")
+        }
+
+        req, err := http.NewRequest("GET", "https://api.swarms.world/v1/usage/costs", nil)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        req.Header.Set("x-api-key", apiKey)
+        req.Header.Set("Content-Type", "application/json")
+
+        resp, err := http.DefaultClient.Do(req)
+        if err != nil {
+            log.Fatal(err)
+        }
+        defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK {
+            log.Fatalf("unexpected status: %d", resp.StatusCode)
+        }
+
+        var wrapper struct {
+            UsagePricing UsagePricingModel `json:"usage_pricing"`
+        }
+        if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+            log.Fatal(err)
+        }
+
+        estimate := estimateCost(wrapper.UsagePricing)
+        fmt.Printf("💰 Estimated workload cost: $%.6f\n", estimate)
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## When to Use This Pattern
+
+- **Pre-flight cost estimation** before running large batch jobs or swarms
+- **Dashboards and billing UIs** that surface live pricing alongside your own usage metrics
+- **Guardrails** that block workloads projected to exceed a configured budget
+

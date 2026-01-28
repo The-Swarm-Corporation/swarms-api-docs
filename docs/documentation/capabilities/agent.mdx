@@ -18,36 +18,46 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `agent_config` | `AgentSpec` | Yes | Configuration object for the agent |
-| `task` | `string` | Yes | The task or instruction for the agent to execute |
-| `history` | `Union[Dict, List[Dict]]` | No | Conversation history or context for the agent |
-| `img` | `string` | No | Single image URL for vision-enabled models |
-| `imgs` | `List[string]` | No | Multiple image URLs for vision-enabled models |
-| `stream` | `boolean` | No | Enable streaming output (default: false) |
-| `search_enabled` | `boolean` | No | Enable search capabilities (default: false) |
+| `agent_config` | `AgentSpec` | Yes | The configuration of the agent to be completed |
+| `task` | `string` | No | The task to be completed by the agent |
+| `history` | `Union[Dict, List[Dict]]` | No | The history of the agent's previous tasks and responses. Can be either a dictionary or a list of message objects |
+| `img` | `string` | No | A base64 encoded image for the agent to process. Encode your image file to base64 and pass it here |
+| `imgs` | `List[string]` | No | A list of base64 encoded images for the agent to process. Encode your image files to base64 and pass them here |
+| `tools_enabled` | `List[string]` | No | A list of tools that the agent should use to complete its task |
 
 ### AgentSpec Object
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `agent_name` | `string` | Yes | - | Unique identifier for the agent |
-| `description` | `string` | No | - | Detailed explanation of agent's purpose |
-| `system_prompt` | `string` | No | - | Initial instructions guiding agent behavior |
-| `marketplace_prompt_id` | `string` | No | - | UUID of a marketplace prompt to use as the system prompt |
-| `model_name` | `string` | No | `"gpt-4.1"` | AI model to use (e.g., gpt-4o, gpt-4o-mini, claude-sonnet-4-20250514) |
-| `auto_generate_prompt` | `boolean` | No | `false` | Auto-generate prompts based on task requirements |
-| `max_tokens` | `integer` | No | `8192` | Maximum tokens for agent responses |
-| `temperature` | `float` | No | `0.5` | Controls response randomness (0.0-2.0) |
-| `role` | `string` | No | `"worker"` | Agent's role within a system |
-| `max_loops` | `integer` | No | `1` | Maximum execution iterations |
-| `tools_list_dictionary` | `List[Dict]` | No | - | Custom tools for the agent |
-| `mcp_url` | `string` | No | - | MCP server URL for additional capabilities |
-| `streaming_on` | `boolean` | No | `false` | Enable streaming output |
-| `llm_args` | `Dict` | No | - | Additional LLM parameters (top_p, frequency_penalty, etc.) |
-| `dynamic_temperature_enabled` | `boolean` | No | `true` | Dynamic temperature adjustment |
-| `mcp_config` | `MCPConnection` | No | - | Single MCP connection configuration |
-| `mcp_configs` | `MultipleMCPConnections` | No | - | Multiple MCP connections |
-| `tool_call_summary` | `boolean` | No | `true` | Enable tool call summarization |
+| `agent_name` | `string` | No | - | The unique name assigned to the agent, which identifies its role and functionality within the swarm |
+| `description` | `string` | No | - | A detailed explanation of the agent's purpose, capabilities, and any specific tasks it is designed to perform |
+| `system_prompt` | `string` | No | - | The initial instruction or context provided to the agent, guiding its behavior and responses during execution |
+| `marketplace_prompt_id` | `string` | No | - | The ID of a prompt from the Swarms marketplace to use as the system prompt. If provided, the prompt will be automatically retrieved from the marketplace |
+| `model_name` | `string` | No | `"gpt-4.1"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. For example: gpt-4o, gpt-4.1, openai/o3-mini |
+| `auto_generate_prompt` | `boolean` | No | `false` | A flag indicating whether the agent should automatically create prompts based on the task requirements |
+| `max_tokens` | `integer` | No | `8192` | The maximum number of tokens that the agent is allowed to generate in its responses, limiting output length |
+| `temperature` | `float` | No | `0.5` | A parameter that controls the randomness of the agent's output; lower values result in more deterministic responses |
+| `role` | `string` | No | `"worker"` | The designated role of the agent within the swarm, which influences its behavior and interaction with other agents |
+| `max_loops` | `Union[int, string]` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer for a fixed count, or 'auto' to allow the system to determine the necessary number based on the task's complexity |
+| `tools_list_dictionary` | `List[Dict]` | No | - | A dictionary of tools that the agent can use to complete its task |
+| `mcp_url` | `string` | No | - | The URL of the MCP server that the agent can use to complete its task |
+| `streaming_on` | `boolean` | No | `false` | A flag indicating whether the agent should stream its output |
+| `llm_args` | `Dict` | No | - | Additional arguments to pass to the LLM such as top_p, frequency_penalty, presence_penalty, etc. |
+| `dynamic_temperature_enabled` | `boolean` | No | `true` | A flag indicating whether the agent should dynamically adjust its temperature based on the task |
+| `mcp_config` | `MCPConnection` | No | - | The MCP connection to use for the agent |
+| `mcp_configs` | `MultipleMCPConnections` | No | - | The MCP connections to use for the agent. This is a list of MCP connections. Includes multiple MCP connections |
+| `tool_call_summary` | `boolean` | No | `true` | A parameter enabling an agent to summarize tool calls |
+| `reasoning_effort` | `string` | No | - | The effort to put into reasoning |
+| `thinking_tokens` | `integer` | No | - | The number of tokens to use for thinking |
+| `reasoning_enabled` | `boolean` | No | `false` | A parameter enabling an agent to use reasoning |
+| `publish_to_marketplace` | `boolean` | No | `false` | A flag indicating whether to publish this agent to the Swarms marketplace |
+| `use_cases` | `List[Dict[str, str]]` | No | - | A list of use case dictionaries with 'title' and 'description' keys. Required when publish_to_marketplace is True |
+| `tags` | `List[string]` | No | - | A list of searchable tags/keywords for the marketplace (e.g., ['finance', 'analysis']) |
+| `capabilities` | `List[string]` | No | - | A list of agent capabilities or features (e.g., ['trend-analysis', 'risk-assessment']) |
+| `category` | `string` | No | - | The marketplace category for the agent (e.g., 'research', 'content', 'coding', 'finance', 'healthcare', 'education', 'legal') |
+| `is_free` | `boolean` | No | `true` | A flag indicating whether the agent is free to use in the marketplace |
+| `price_usd` | `float` | No | - | The price in USD for using this agent in the marketplace (if not free) |
+| `handoffs` | `List[AgentSpec]` | No | - | A list of agent specifications that this agent can hand off tasks to. These agents will be created and passed to the agent's handoffs parameter |
 
 ## Response Schema
 
@@ -99,9 +109,9 @@ The response includes detailed usage metrics:
 - Automatic history formatting and token counting
 
 ### 4. Tool Integration
-- Built-in search capabilities via `search_enabled`
+- Enable specific tools via `tools_enabled` parameter
 - MCP (Model Context Protocol) server integration
-- Custom tool dictionaries
+- Custom tool dictionaries via `tools_list_dictionary`
 - Tool call summarization
 
 ### 5. Advanced Configuration
@@ -113,6 +123,11 @@ The response includes detailed usage metrics:
 ## Examples
 
 ### Basic Agent Execution
+
+A simple example demonstrating how to execute a single agent with basic configuration. This example shows the minimum required fields to run an agent completion.
+
+<Tabs>
+<Tab title="Python">
 
 ```python
 import requests
@@ -136,7 +151,80 @@ response = requests.post(
 )
 ```
 
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const payload = {
+    agent_config: {
+        agent_name: "Research Analyst",
+        description: "Expert in analyzing and synthesizing research data",
+        system_prompt: "You are a Research Analyst with expertise in data analysis and synthesis.",
+        model_name: "gpt-4o-mini",
+        max_tokens: 8192,
+        temperature: 0.7
+    },
+    task: "Analyze the impact of artificial intelligence on healthcare"
+};
+
+const response = await fetch('https://api.swarms.world/v1/agent/completions', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'your-api-key'
+    },
+    body: JSON.stringify(payload)
+});
+
+const result = await response.json();
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use reqwest;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    
+    let payload = json!({
+        "agent_config": {
+            "agent_name": "Research Analyst",
+            "description": "Expert in analyzing and synthesizing research data",
+            "system_prompt": "You are a Research Analyst with expertise in data analysis and synthesis.",
+            "model_name": "gpt-4o-mini",
+            "max_tokens": 8192,
+            "temperature": 0.7
+        },
+        "task": "Analyze the impact of artificial intelligence on healthcare"
+    });
+
+    let response = client
+        .post("https://api.swarms.world/v1/agent/completions")
+        .header("x-api-key", "your-api-key")
+        .json(&payload)
+        .send()
+        .await?;
+
+    let result: serde_json::Value = response.json().await?;
+    println!("{:?}", result);
+    
+    Ok(())
+}
+```
+
+</Tab>
+</Tabs>
+
 ### Agent with Conversation History
+
+This example demonstrates how to provide conversation history to maintain context across multiple interactions. The history can be provided as a dictionary or list format.
+
+<Tabs>
+<Tab title="Python">
 
 ```python
 payload = {
@@ -160,8 +248,68 @@ payload = {
 }
 ```
 
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const payload = {
+    agent_config: {
+        agent_name: "Medical Assistant",
+        system_prompt: "You are a medical information assistant.",
+        model_name: "gpt-4o-mini",
+        max_tokens: 4096
+    },
+    task: "What are the symptoms of diabetes?",
+    history: {
+        message1: {
+            role: "user",
+            content: "Tell me about diabetes"
+        },
+        message2: {
+            role: "assistant",
+            content: "Diabetes is a chronic condition affecting blood sugar levels."
+        }
+    }
+};
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use serde_json::json;
+
+let payload = json!({
+    "agent_config": {
+        "agent_name": "Medical Assistant",
+        "system_prompt": "You are a medical information assistant.",
+        "model_name": "gpt-4o-mini",
+        "max_tokens": 4096
+    },
+    "task": "What are the symptoms of diabetes?",
+    "history": {
+        "message1": {
+            "role": "user",
+            "content": "Tell me about diabetes"
+        },
+        "message2": {
+            "role": "assistant",
+            "content": "Diabetes is a chronic condition affecting blood sugar levels."
+        }
+    }
+});
+```
+
+</Tab>
+</Tabs>
+
 
 ### Agent with Search Capabilities
+
+Enable web search functionality for your agent by including search tools in the `tools_enabled` parameter. This allows the agent to search the web for real-time information to complete tasks.
+
+<Tabs>
+<Tab title="Python">
 
 ```python
 payload = {
@@ -173,11 +321,55 @@ payload = {
         "max_tokens": 8192
     },
     "task": "Find the latest developments in quantum computing",
-    "search_enabled": True
+    "tools_enabled": ["search"]
 }
 ```
 
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const payload = {
+    agent_config: {
+        agent_name: "Research Assistant",
+        description: "Research assistant with web search capabilities",
+        system_prompt: "You are a research assistant that can search the web.",
+        model_name: "gpt-4o-mini",
+        max_tokens: 8192
+    },
+    task: "Find the latest developments in quantum computing",
+    tools_enabled: ["search"]
+};
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use serde_json::json;
+
+let payload = json!({
+    "agent_config": {
+        "agent_name": "Research Assistant",
+        "description": "Research assistant with web search capabilities",
+        "system_prompt": "You are a research assistant that can search the web.",
+        "model_name": "gpt-4o-mini",
+        "max_tokens": 8192
+    },
+    "task": "Find the latest developments in quantum computing",
+    "tools_enabled": ["search"]
+});
+```
+
+</Tab>
+</Tabs>
+
 ### Agent with MCP Integration
+
+Integrate Model Context Protocol (MCP) servers to extend your agent's capabilities. This example shows how to connect an agent to an MCP server for additional tools and resources.
+
+<Tabs>
+<Tab title="Python">
 
 ```python
 payload = {
@@ -193,7 +385,51 @@ payload = {
 }
 ```
 
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const payload = {
+    agent_config: {
+        agent_name: "Data Analyst",
+        description: "Data analyst with database access",
+        system_prompt: "You are a data analyst with access to databases.",
+        model_name: "gpt-4o-mini",
+        max_tokens: 8192,
+        mcp_url: "http://github.com/mcp"
+    },
+    task: "Query the customer database for recent orders"
+};
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use serde_json::json;
+
+let payload = json!({
+    "agent_config": {
+        "agent_name": "Data Analyst",
+        "description": "Data analyst with database access",
+        "system_prompt": "You are a data analyst with access to databases.",
+        "model_name": "gpt-4o-mini",
+        "max_tokens": 8192,
+        "mcp_url": "http://github.com/mcp"
+    },
+    "task": "Query the customer database for recent orders"
+});
+```
+
+</Tab>
+</Tabs>
+
 ### Agent with Custom LLM Arguments
+
+Customize advanced LLM parameters such as `top_p`, `frequency_penalty`, and `presence_penalty` to fine-tune the model's behavior. This is useful for controlling creativity, repetition, and topic diversity.
+
+<Tabs>
+<Tab title="Python">
 
 ```python
 payload = {
@@ -214,9 +450,159 @@ payload = {
 }
 ```
 
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const payload = {
+    agent_config: {
+        agent_name: "Creative Writer",
+        description: "Creative writing specialist",
+        system_prompt: "You are a creative writing expert.",
+        model_name: "gpt-4o",
+        max_tokens: 2048,
+        temperature: 0.9,
+        llm_args: {
+            top_p: 0.9,
+            frequency_penalty: 0.1,
+            presence_penalty: 0.1
+        }
+    },
+    task: "Write a creative story about time travel"
+};
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use serde_json::json;
+
+let payload = json!({
+    "agent_config": {
+        "agent_name": "Creative Writer",
+        "description": "Creative writing specialist",
+        "system_prompt": "You are a creative writing expert.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048,
+        "temperature": 0.9,
+        "llm_args": {
+            "top_p": 0.9,
+            "frequency_penalty": 0.1,
+            "presence_penalty": 0.1
+        }
+    },
+    "task": "Write a creative story about time travel"
+});
+```
+
+</Tab>
+</Tabs>
+
+### Agent with Max Loops
+
+Control the number of execution iterations your agent performs using the `max_loops` parameter. This is useful for tasks that require multiple reasoning steps or iterative problem-solving. Set `max_loops` to a higher value (e.g., 3-5) for complex tasks that need multiple passes, or use `"auto"` for fully autonomous agents that decide when to stop.
+
+<Tabs>
+<Tab title="Python">
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Problem Solver",
+        "description": "Agent that performs iterative problem-solving",
+        "system_prompt": "You are a problem-solving agent that breaks down complex tasks into steps and iteratively refines solutions.",
+        "model_name": "gpt-4o",
+        "max_loops": 3,
+        "max_tokens": 4096,
+        "temperature": 0.7
+    },
+    "task": "Solve this multi-step problem: First, research the current state of renewable energy. Then, identify the top 3 challenges. Finally, propose solutions for each challenge."
+}
+
+response = requests.post(
+    "https://api.swarms.world/v1/agent/completions",
+    headers={"x-api-key": "your-api-key"},
+    json=payload
+)
+```
+
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const payload = {
+    agent_config: {
+        agent_name: "Problem Solver",
+        description: "Agent that performs iterative problem-solving",
+        system_prompt: "You are a problem-solving agent that breaks down complex tasks into steps and iteratively refines solutions.",
+        model_name: "gpt-4o",
+        max_loops: 3,
+        max_tokens: 4096,
+        temperature: 0.7
+    },
+    task: "Solve this multi-step problem: First, research the current state of renewable energy. Then, identify the top 3 challenges. Finally, propose solutions for each challenge."
+};
+
+const response = await fetch('https://api.swarms.world/v1/agent/completions', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'your-api-key'
+    },
+    body: JSON.stringify(payload)
+});
+
+const result = await response.json();
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use reqwest;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    
+    let payload = json!({
+        "agent_config": {
+            "agent_name": "Problem Solver",
+            "description": "Agent that performs iterative problem-solving",
+            "system_prompt": "You are a problem-solving agent that breaks down complex tasks into steps and iteratively refines solutions.",
+            "model_name": "gpt-4o",
+            "max_loops": 3,
+            "max_tokens": 4096,
+            "temperature": 0.7
+        },
+        "task": "Solve this multi-step problem: First, research the current state of renewable energy. Then, identify the top 3 challenges. Finally, propose solutions for each challenge."
+    });
+
+    let response = client
+        .post("https://api.swarms.world/v1/agent/completions")
+        .header("x-api-key", "your-api-key")
+        .json(&payload)
+        .send()
+        .await?;
+
+    let result: serde_json::Value = response.json().await?;
+    println!("{:?}", result);
+    
+    Ok(())
+}
+```
+
+</Tab>
+</Tabs>
+
 ### Agent with Marketplace Prompt
 
-You can use prompts from the Swarms marketplace by specifying the `marketplace_prompt_id`. The system will automatically retrieve and use the prompt from the marketplace.
+Use pre-built prompts from the Swarms marketplace by specifying the `marketplace_prompt_id`. The system will automatically retrieve and use the prompt from the marketplace, allowing you to leverage community-created and tested prompts without writing your own system prompts.
+
+<Tabs>
+<Tab title="Python">
 
 ```python
 payload = {
@@ -238,9 +624,79 @@ response = requests.post(
 )
 ```
 
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const payload = {
+    agent_config: {
+        agent_name: "marketplace-agent",
+        description: "Agent using a marketplace prompt",
+        model_name: "gpt-4o-mini",
+        marketplace_prompt_id: "92a11cf5-ac78-41b7-a4a6-005a92670462",
+        max_loops: 1,
+        max_tokens: 8192
+    },
+    task: "Your task here"
+};
+
+const response = await fetch('https://api.swarms.world/v1/agent/completions', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'your-api-key'
+    },
+    body: JSON.stringify(payload)
+});
+
+const result = await response.json();
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use reqwest;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    
+    let payload = json!({
+        "agent_config": {
+            "agent_name": "marketplace-agent",
+            "description": "Agent using a marketplace prompt",
+            "model_name": "gpt-4o-mini",
+            "marketplace_prompt_id": "92a11cf5-ac78-41b7-a4a6-005a92670462",
+            "max_loops": 1,
+            "max_tokens": 8192
+        },
+        "task": "Your task here"
+    });
+
+    let response = client
+        .post("https://api.swarms.world/v1/agent/completions")
+        .header("x-api-key", "your-api-key")
+        .json(&payload)
+        .send()
+        .await?;
+
+    let result: serde_json::Value = response.json().await?;
+    println!("{:?}", result);
+    
+    Ok(())
+}
+```
+
+</Tab>
+</Tabs>
+
 **Note**: When `marketplace_prompt_id` is provided, it takes precedence over the `system_prompt` field. You can find marketplace prompts using the [Query Prompts API](/marketplace/prompts-api#query-prompts).
 
 ## Batch Processing
+
+Process multiple agent completions simultaneously using the batch endpoint. This is useful for parallel processing of multiple tasks or running the same task with different configurations.
 
 <Note>
 **Premium Tier Required**: The `/v1/agent/batch/completions` endpoint is available only on Pro, Ultra, and Premium plans. [Upgrade your account](https://swarms.world/platform/account) to access batch processing capabilities.
@@ -251,6 +707,9 @@ For processing multiple agents simultaneously, use the batch endpoint:
 **Endpoint**: `/v1/agent/batch/completions`
 
 **Request**: Array of `AgentCompletion` objects (max 10 per batch)
+
+<Tabs>
+<Tab title="Python">
 
 ```python
 payloads = [
@@ -278,6 +737,88 @@ response = requests.post(
     json=payloads
 )
 ```
+
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const payloads = [
+    {
+        agent_config: {
+            agent_name: "Analyst 1",
+            system_prompt: "You are a financial analyst.",
+            model_name: "gpt-4o-mini"
+        },
+        task: "Analyze Q1 financial results"
+    },
+    {
+        agent_config: {
+            agent_name: "Analyst 2",
+            system_prompt: "You are a market analyst.",
+            model_name: "gpt-4o-mini"
+        },
+        task: "Evaluate market trends"
+    }
+];
+
+const response = await fetch('https://api.swarms.world/v1/agent/batch/completions', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'your-api-key'
+    },
+    body: JSON.stringify(payloads)
+});
+
+const result = await response.json();
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use reqwest;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    
+    let payloads = json!([
+        {
+            "agent_config": {
+                "agent_name": "Analyst 1",
+                "system_prompt": "You are a financial analyst.",
+                "model_name": "gpt-4o-mini"
+            },
+            "task": "Analyze Q1 financial results"
+        },
+        {
+            "agent_config": {
+                "agent_name": "Analyst 2",
+                "system_prompt": "You are a market analyst.",
+                "model_name": "gpt-4o-mini"
+            },
+            "task": "Evaluate market trends"
+        }
+    ]);
+
+    let response = client
+        .post("https://api.swarms.world/v1/agent/batch/completions")
+        .header("x-api-key", "your-api-key")
+        .json(&payloads)
+        .send()
+        .await?;
+
+    let result: serde_json::Value = response.json().await?;
+    println!("{:?}", result);
+    
+    Ok(())
+}
+```
+
+</Tab>
+</Tabs>
 
 ## Error Handling
 
@@ -312,6 +853,8 @@ For detailed pricing information, see the <a href="/docs/documentation/resources
 ## Integration Examples
 
 ### Python SDK Usage
+
+Use the official Python SDK for a more convenient way to interact with the Swarms API. The SDK handles authentication, request formatting, and response parsing automatically.
 
 - pip3 install -U swarms-client
 - Put your `SWARMS_API_KEY`
@@ -358,7 +901,12 @@ print(json.dumps(result, indent=4))
 
 ### JavaScript/Node.js Integration
 
-```javascript
+Integrate the Swarms API into your JavaScript or Node.js applications using native `fetch` or any HTTP client library. This example demonstrates a basic implementation using the Fetch API.
+
+<Tabs>
+<Tab title="TypeScript">
+
+```typescript
 const response = await fetch('https://api.swarms.world/v1/agent/completions', {
     method: 'POST',
     headers: {
@@ -367,19 +915,65 @@ const response = await fetch('https://api.swarms.world/v1/agent/completions', {
     },
     body: JSON.stringify({
         agent_config: {
-            agent_name: "JavaScript Agent",
+            agent_name: "TypeScript Agent",
             system_prompt: "You are a helpful assistant.",
             model_name: "gpt-4o-mini"
         },
-        task: "Explain JavaScript promises"
+        task: "Explain TypeScript promises"
     })
 });
 
 const result = await response.json();
 ```
 
+</Tab>
+<Tab title="Rust">
+
+```rust
+use reqwest;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    
+    let payload = json!({
+        "agent_config": {
+            "agent_name": "Rust Agent",
+            "system_prompt": "You are a helpful assistant.",
+            "model_name": "gpt-4o-mini"
+        },
+        "task": "Explain Rust async/await"
+    });
+
+    let response = client
+        .post("https://api.swarms.world/v1/agent/completions")
+        .header("x-api-key", "your-api-key")
+        .json(&payload)
+        .send()
+        .await?;
+
+    let result: serde_json::Value = response.json().await?;
+    println!("{:?}", result);
+    
+    Ok(())
+}
+```
+
+</Tab>
+</Tabs>
+
 ## Support and Resources
 
 - **API Keys**: [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
 - **Technical Support**: [https://cal.com/swarms/swarms-technical-support](https://cal.com/swarms/swarms-technical-support)
 - **Community**: [Discord](https://discord.gg/EamjgSaEQf)
+
+## Further Examples
+
+For end‑to‑end, copy‑pasteable examples built on top of this endpoint:
+
+- **Single Agent Completion (REST)** – minimal `requests` example using the new `agent_config` format:  
+  `/docs/examples/api_examples/agent_completion_single_agent`
+- **Autonomous Agents with `max_loops="auto"`** – tutorial for fully autonomous, tool‑using agents:  
+  `/docs/examples/api_examples/autonomous_agent_tutorial`
