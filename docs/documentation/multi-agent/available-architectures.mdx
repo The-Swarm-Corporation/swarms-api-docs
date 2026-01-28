@@ -1,0 +1,55 @@
+---
+name: "Available Multi-Agent Architectures"
+description: "Comprehensive reference of all available multi-agent swarm architectures in the Swarms API"
+---
+
+## Overview
+
+The Swarms API provides a diverse range of multi-agent architectures, each designed to solve specific types of problems and workflows. These architectures enable you to orchestrate multiple AI agents in various patterns, from simple sequential workflows to complex hierarchical systems. Understanding the available architectures helps you select the optimal pattern for your use case, whether you need parallel processing, consensus-based decision making, or dynamic task routing.
+
+Multi-agent architectures can be combined and nested to create sophisticated systems that leverage the strengths of different patterns. Each architecture type has unique characteristics that make it suitable for specific scenarios, such as linear processing pipelines, collaborative problem-solving, or high-throughput batch operations. The flexibility of these architectures allows you to build custom solutions that match your exact requirements.
+
+## Available Architectures
+
+The following table provides a comprehensive list of all available multi-agent architectures in the Swarms API:
+
+| Swarm Type | Description | Documentation |
+|------------|-------------|--------------|
+| `AgentRearrange` | Dynamically reorganize agents to optimize task performance | [Learn More](/docs/documentation/multi-agent/agent_rearrange) |
+| `MixtureOfAgents` | Combine diverse specialist agents for complex tasks | [Learn More](/docs/documentation/multi-agent/mixture_of_agents) |
+| `SequentialWorkflow` | Executes tasks in a strict, predefined order | [Learn More](/docs/documentation/multi-agent/sequential_workflow) |
+| `ConcurrentWorkflow` | Runs independent tasks in parallel for higher throughput | [Learn More](/docs/documentation/multi-agent/concurrent_workflow) |
+| `MultiAgentRouter` | Intelligent dispatcher that routes tasks based on capabilities/load | [Learn More](/docs/documentation/multi-agent/multi_agent_router) |
+| `HierarchicalSwarm` | Multi-level structures with delegation and escalation | [Learn More](/docs/documentation/multi-agent/hierarchical_swarm) |
+| `MajorityVoting` | Consensus-based decision-making across multiple agents | [Learn More](/docs/documentation/multi-agent/majority_voting) |
+| `BatchedGridWorkflow` | Execute multiple tasks across multiple agents in a grid pattern | [Learn More](/docs/documentation/multi-agent/batched_grid_workflow) |
+| `GraphWorkflow` | Execute a graph workflow with directed agent nodes and edges | [Learn More](/docs/documentation/multi-agent/graph_workflow) |
+| `AdvancedResearch` | Advanced multi-agent research workflows and strategies | [Learn More](/docs/documentation/multi-agent/advanced_research) |
+| `GroupChat` | Collaborative problem-solving through conversation | - |
+| `AutoSwarmBuilder` | Automated swarm generation | - |
+| `MALT` | Multi-agent learning and training | - |
+| `CouncilAsAJudge` | Council-based evaluation system | - |
+| `InteractiveGroupChat` | Interactive collaborative sessions | - |
+| `HeavySwarm` | High-capacity swarm processing | - |
+| `LLMCouncil` | Language model council for decisions | - |
+| `DebateWithJudge` | Structured debate with judgment | - |
+| `RoundRobin` | Round-robin task distribution | - |
+| `auto` | Automatic swarm type selection | - |
+
+## Architecture Categories
+
+The available architectures can be broadly categorized into several groups:
+
+**Workflow Patterns**: `SequentialWorkflow`, `ConcurrentWorkflow`, `GraphWorkflow`, and `BatchedGridWorkflow` provide different execution patterns for organizing agent tasks.
+
+**Collaboration Patterns**: `GroupChat`, `MixtureOfAgents`, `InteractiveGroupChat`, and `MajorityVoting` enable agents to work together collaboratively.
+
+**Routing & Organization**: `MultiAgentRouter`, `HierarchicalSwarm`, `AgentRearrange`, and `RoundRobin` help organize and distribute work among agents.
+
+**Specialized Systems**: `AdvancedResearch`, `HeavySwarm`, `AutoSwarmBuilder`, and `MALT` provide specialized capabilities for specific use cases.
+
+**Decision & Evaluation**: `MajorityVoting`, `CouncilAsAJudge`, `DebateWithJudge`, and `LLMCouncil` focus on decision-making and evaluation processes.
+
+## Getting Started
+
+To use any of these architectures, make a request to the `/v1/swarm/completions` endpoint with the `swarm_type` parameter set to your desired architecture. For detailed information about each architecture, including usage examples and best practices, follow the links in the table above or refer to the [Multi-Agent Overview](/docs/documentation/multi-agent/overview) page.
