@@ -315,7 +315,6 @@ When the API key is missing or invalid, the response is normalized so you always
 6. **Error handling**  
    Some errors are normalized for a better client experience:
    - **401 (missing or invalid API key):** The response body is always `error: "Authentication failed"`, `message: "Invalid or missing API key. Please check your API key and try again."`, and `how_to_get_key: "https://swarms.world/platform/api-keys"` (canonical link; never localhost or another host).
-   - **Errors that mention internal systems (e.g. database):** The response is sanitized to a generic "check your API key" message and `how_to_get_key`, so internal details are not exposed.
    - Other errors (validation, tokenization, rate limit) are forwarded with the same status code and body shape.
 
 ---
