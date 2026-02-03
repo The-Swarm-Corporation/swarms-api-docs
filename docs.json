@@ -227,6 +227,15 @@
             ]
           },
           {
+            "group": "Multi-Agent Workflows",
+            "pages": [
+              "docs/examples/multi-agent-workflows/sequential-workflow",
+              "docs/examples/multi-agent-workflows/concurrent-workflow",
+              "docs/examples/multi-agent-workflows/multi-agent-router",
+              "docs/examples/multi-agent-workflows/mixture-of-agents"
+            ]
+          },
+          {
             "group": "Guides",
             "pages": [
               "docs/guides/guides/first",

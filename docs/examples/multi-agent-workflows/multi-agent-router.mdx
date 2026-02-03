@@ -1,0 +1,154 @@
+---
+title: "Multi-Agent Router Example"
+description: "Build an IT helpdesk with intelligent ticket routing using MultiAgentRouter"
+---
+
+## AI-Powered IT Helpdesk
+
+This example demonstrates how to build an intelligent ticket routing system that automatically dispatches requests to the right specialist using MultiAgentRouter.
+
+### Step 1: Setup
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 2: Define Specialist Agents
+
+Create specialized agents - the router will match tickets to the best-suited agent:
+
+```python
+def route_support_ticket(ticket_subject: str, ticket_description: str) -> dict:
+    """Route a support ticket to the appropriate specialist."""
+
+    swarm_config = {
+        "name": "IT Support Router",
+        "description": "Intelligent IT support ticket routing",
+        "swarm_type": "MultiAgentRouter",
+        "task": f"""Process this IT support ticket:
+
+Subject: {ticket_subject}
+Description: {ticket_description}
+
+Provide diagnosis, step-by-step resolution, and estimated time to fix.""",
+        "agents": [
+            {
+                "agent_name": "Network Specialist",
+                "description": "Handles VPN, WiFi, connectivity, and network issues",
+                "system_prompt": "You are a Network Support Specialist. Handle connectivity, VPN, WiFi, DNS, and firewall issues. Provide diagnostic commands and step-by-step troubleshooting.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Security Analyst",
+                "description": "Addresses security incidents, phishing, and access issues",
+                "system_prompt": "You are an IT Security Analyst. Handle phishing reports, security incidents, and suspicious activity. For active threats, provide immediate containment steps.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Software Support",
+                "description": "Resolves application issues and software installations",
+                "system_prompt": "You are a Software Support Specialist. Handle application crashes, installation issues, and configuration problems. Provide clear numbered steps for resolution.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Hardware Technician",
+                "description": "Manages device problems and equipment requests",
+                "system_prompt": "You are a Hardware Support Technician. Handle computer, laptop, printer, and peripheral issues. Assess if on-site visit is needed and check warranty status.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Account Administrator",
+                "description": "Handles password resets, permissions, and account access",
+                "system_prompt": "You are an Account Administrator. Handle password resets, permission requests, and account lockouts. Never send passwords in tickets - use secure reset links.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            }
+        ],
+        "max_loops": 1
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=60
+    )
+
+    return response.json()
+```
+
+### Step 3: Route Support Tickets
+
+```python
+# Sample tickets
+tickets = [
+    ("Cannot connect to VPN", "Getting 'Connection timed out' error when connecting to company VPN from home. Windows 11, Cisco AnyConnect."),
+    ("Suspicious email received", "Got an email claiming to be from IT asking to verify my password. Sender: it-support@company-secure.com"),
+    ("Excel keeps crashing", "Excel crashes when opening a large file with 50 tabs. Other files work fine. Office 365, Windows 10."),
+    ("Password reset needed", "Locked out of my account. Self-service reset says security questions are wrong."),
+]
+
+# Route each ticket
+for subject, description in tickets:
+    result = route_support_ticket(subject, description)
+
+    output = result.get("output", [{}])[0]
+    routed_to = output.get("role", "Unknown")
+    response_preview = output.get("content", "")[:200]
+
+    print(f"\nTicket: {subject}")
+    print(f"Routed to: {routed_to}")
+    print(f"Response: {response_preview}...")
+    print(f"Cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+```
+
+**Expected Output:**
+```
+Ticket: Cannot connect to VPN
+Routed to: Network Specialist
+Response: I'll help you troubleshoot this VPN connection issue. Let's diagnose systematically:
+
+1. First, verify your internet connection:
+   - Open Command Prompt and run: `ping 8.8.8.8`...
+Cost: $0.0234
+
+Ticket: Suspicious email received
+Routed to: Security Analyst
+Response: Thank you for reporting this - you did the right thing by not clicking any links.
+
+This appears to be a PHISHING attempt. Key red flags:
+- Domain "company-secure.com" is not our official domain...
+Cost: $0.0198
+
+Ticket: Excel keeps crashing
+Routed to: Software Support
+Response: I'll help you resolve this Excel crashing issue. Since other files work fine, the problem is likely with this specific file...
+Cost: $0.0215
+
+Ticket: Password reset needed
+Routed to: Account Administrator
+Response: I understand you're locked out and need access urgently. Let me help you regain access securely...
+Cost: $0.0187
+```
+
+<Note>
+The `description` field for each agent is critical - it helps the router decide which agent to send each task to. Be specific about each agent's domain.
+</Note>

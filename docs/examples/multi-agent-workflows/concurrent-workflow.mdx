@@ -1,0 +1,131 @@
+---
+title: "Concurrent Workflow Example"
+description: "Build a competitive intelligence dashboard with ConcurrentWorkflow"
+---
+
+## Competitive Intelligence Dashboard
+
+This example demonstrates how to analyze multiple competitors simultaneously using ConcurrentWorkflow - perfect for parallel, independent tasks.
+
+### Step 1: Setup
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 2: Define Parallel Competitor Analysis
+
+Create one analyst agent per competitor - all run simultaneously:
+
+```python
+def analyze_competitors(competitors: list[str], industry: str) -> dict:
+    """Analyze multiple competitors in parallel."""
+
+    # Create one agent per competitor
+    agents = []
+    for competitor in competitors:
+        agents.append({
+            "agent_name": f"{competitor} Analyst",
+            "description": f"Analyzes {competitor}'s market position",
+            "system_prompt": f"""You are a competitive intelligence analyst for {competitor}.
+
+Analyze across these dimensions:
+1. COMPANY OVERVIEW - Founded, size, funding, leadership
+2. PRODUCTS - Core offerings, recent launches, unique features
+3. MARKET POSITION - Target segments, market share, partnerships
+4. PRICING - Model, price points, enterprise approach
+5. STRENGTHS & WEAKNESSES - Top 3 of each
+
+Be specific with facts and numbers.""",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        })
+
+    swarm_config = {
+        "name": f"Competitive Intelligence: {industry}",
+        "description": "Parallel competitor analysis",
+        "swarm_type": "ConcurrentWorkflow",
+        "task": f"Analyze market position in the {industry} industry for: {', '.join(competitors)}",
+        "agents": agents,
+        "max_loops": 1
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=180
+    )
+
+    return response.json()
+```
+
+### Step 3: Run Parallel Analysis
+
+```python
+# Define competitors to analyze
+competitors = ["OpenAI", "Anthropic", "Google DeepMind", "Cohere", "Mistral AI"]
+
+# Run parallel analysis
+result = analyze_competitors(competitors, "AI/LLM Providers")
+
+# Display results
+execution_time = result.get("execution_time", 0)
+num_competitors = len(result.get("output", []))
+
+print(f"Analyzed {num_competitors} competitors in {execution_time:.1f}s")
+print(f"Sequential would take ~{execution_time * num_competitors:.1f}s ({num_competitors}x slower)")
+
+for output in result.get("output", []):
+    competitor = output["role"].replace(" Analyst", "")
+    content = output["content"]
+
+    print(f"\n{'='*50}")
+    print(f"{competitor.upper()}")
+    print(f"{'='*50}")
+    print(content[:600] + "...")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+```
+
+**Expected Output:**
+```
+Analyzed 5 competitors in 28.4s
+Sequential would take ~142.0s (5x slower)
+
+==================================================
+OPENAI
+==================================================
+COMPANY OVERVIEW
+- Founded: 2015, San Francisco
+- Employees: ~1,500+
+- Valuation: $80B+ (2024)
+- Leadership: Sam Altman (CEO)
+
+PRODUCTS
+- Core: GPT-4, ChatGPT, DALL-E, Whisper
+- Recent: GPT-4 Turbo, Custom GPTs, GPT Store...
+
+==================================================
+ANTHROPIC
+==================================================
+COMPANY OVERVIEW
+- Founded: 2021, San Francisco
+- Employees: ~500...
+
+Total cost: $0.2156
+```
+
+<Note>
+ConcurrentWorkflow runs all agents in parallel. Use it when tasks are independent and don't need each other's output. You pay the same tokens whether sequential or concurrent, but finish faster.
+</Note>

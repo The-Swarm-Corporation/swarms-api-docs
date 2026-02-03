@@ -1,0 +1,221 @@
+---
+title: "Mixture of Agents Example"
+description: "Build an investment due diligence system with MixtureOfAgents"
+---
+
+## Startup Due Diligence System
+
+This example demonstrates how to get multiple expert perspectives on the same topic using MixtureOfAgents - perfect for comprehensive analysis requiring diverse viewpoints.
+
+### Step 1: Setup
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 2: Define Expert Panel
+
+Create multiple experts who will all analyze the same startup from different perspectives:
+
+```python
+def run_due_diligence(startup_info: str) -> dict:
+    """Run multi-expert due diligence on a startup."""
+
+    swarm_config = {
+        "name": "Startup Due Diligence",
+        "description": "Multi-expert investment analysis",
+        "swarm_type": "MixtureOfAgents",
+        "task": f"""Conduct due diligence analysis for investment consideration:
+
+{startup_info}
+
+Provide your specialized analysis and a score from 1-10.""",
+        "agents": [
+            {
+                "agent_name": "Technical Expert",
+                "description": "Evaluates technology and engineering",
+                "system_prompt": """You are a Technical Due Diligence Expert. Analyze:
+1. Tech stack (scalability, modernity)
+2. Engineering team strength
+3. IP and technical moat
+4. Technical risks
+
+Provide a TECHNICAL SCORE (1-10) with justification.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Financial Analyst",
+                "description": "Assesses financials and valuation",
+                "system_prompt": """You are a Financial Due Diligence Expert. Analyze:
+1. Revenue and growth trajectory
+2. Unit economics (CAC, LTV, margins)
+3. Burn rate and runway
+4. Valuation reasonableness
+
+Provide a FINANCIAL SCORE (1-10) with justification.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Market Strategist",
+                "description": "Evaluates market opportunity",
+                "system_prompt": """You are a Market Strategy Expert. Analyze:
+1. TAM/SAM and market growth
+2. Competitive landscape
+3. Competitive moat
+4. Go-to-market strategy
+
+Provide a MARKET SCORE (1-10) with justification.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            },
+            {
+                "agent_name": "Legal Advisor",
+                "description": "Reviews legal and compliance",
+                "system_prompt": """You are a Legal Due Diligence Expert. Analyze:
+1. Corporate structure
+2. Regulatory compliance
+3. IP ownership
+4. Legal risks
+
+Provide a LEGAL SCORE (1-10) with justification.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            }
+        ],
+        "max_loops": 1
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=180
+    )
+
+    return response.json()
+```
+
+### Step 3: Run Due Diligence Analysis
+
+```python
+import re
+
+# Startup to analyze
+startup = """
+COMPANY: DataFlow AI
+INDUSTRY: Enterprise SaaS / AI
+DESCRIPTION: AI-powered data integration platform that automates ETL pipelines using natural language.
+
+DETAILS:
+- Founded: 2023
+- Stage: Seed
+- Funding Sought: $4M
+- Team Size: 12
+- Revenue: $180K ARR, growing 25% MoM
+- Tech Stack: Python, Kubernetes, PostgreSQL, GPT-4 API
+- Metrics: 45 paying customers, 92% retention, $4K ACV
+- Competitors: Fivetran, Airbyte, dbt, Matillion
+"""
+
+# Run analysis
+result = run_due_diligence(startup)
+
+# Extract scores and display
+def extract_score(content):
+    match = re.search(r'score[:\s]+(\d+)/10', content.lower())
+    return int(match.group(1)) if match else None
+
+scores = {}
+for output in result.get("output", []):
+    expert = output["role"]
+    content = output["content"]
+    score = extract_score(content)
+    scores[expert] = score
+
+    print(f"\n{'='*50}")
+    print(f"{expert.upper()}" + (f" - Score: {score}/10" if score else ""))
+    print(f"{'='*50}")
+    print(content[:600] + "...")
+
+# Aggregate
+if scores:
+    valid_scores = [s for s in scores.values() if s]
+    avg = sum(valid_scores) / len(valid_scores)
+
+    print(f"\n{'='*50}")
+    print("AGGREGATE ASSESSMENT")
+    print(f"{'='*50}")
+    for expert, score in scores.items():
+        bar = "#" * (score or 0) + "-" * (10 - (score or 0))
+        print(f"{expert:20} [{bar}] {score}/10")
+
+    print(f"\nOVERALL SCORE: {avg:.1f}/10")
+
+    if avg >= 7:
+        print("RECOMMENDATION: Proceed with investment")
+    elif avg >= 5:
+        print("RECOMMENDATION: Address concerns before proceeding")
+    else:
+        print("RECOMMENDATION: Pass")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+```
+
+**Expected Output:**
+```
+==================================================
+TECHNICAL EXPERT - Score: 7/10
+==================================================
+TECHNICAL ANALYSIS
+
+Tech Stack Assessment:
+- Python + Kubernetes is a solid, scalable foundation
+- PostgreSQL appropriate for structured data
+- GPT-4 API dependency is a risk factor
+
+Strengths:
+- Modern cloud-native architecture
+- AI-first approach differentiates from legacy ETL tools
+
+Concerns:
+- Heavy reliance on OpenAI API (vendor lock-in, cost)...
+
+==================================================
+FINANCIAL ANALYST - Score: 8/10
+==================================================
+FINANCIAL ANALYSIS
+
+Revenue: $180K ARR with 25% MoM growth is strong for seed stage...
+
+==================================================
+AGGREGATE ASSESSMENT
+==================================================
+Technical Expert      [#######---] 7/10
+Financial Analyst     [########--] 8/10
+Market Strategist     [#######---] 7/10
+Legal Advisor         [######----] 6/10
+
+OVERALL SCORE: 7.0/10
+RECOMMENDATION: Proceed with investment
+
+Total cost: $0.1523
+```
+
+<Note>
+MixtureOfAgents gives you multiple expert perspectives on the same input. Each expert sees identical information but analyzes through their specialized lens, revealing insights a single analyst might miss.
+</Note>
