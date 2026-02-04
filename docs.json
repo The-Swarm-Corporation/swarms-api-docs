@@ -133,6 +133,7 @@
               "docs/marketplace/agents-api",
               "docs/marketplace/prompts-api",
               "docs/marketplace/token-launch-api",
+              "docs/marketplace/claim-fees-api",
               "docs/marketplace/examples"
             ]
           },

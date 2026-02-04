@@ -1,0 +1,906 @@
+---
+title: "Claim Fees API"
+description: "Claim accumulated fees for a token on Solana"
+---
+
+**POST** `https://swarms.world/api/product/claimfees`
+
+Claims accumulated fees for a token on Solana. You provide the token mint (contract address) and your wallet's private key; the endpoint builds the claim transaction, signs it with your key, submits it on-chain, and returns the transaction signature **and how much SOL was claimed**. The private key is used only in memory to sign the transaction and is never stored or logged.
+
+---
+
+## Request
+
+### Headers
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `Content-Type` | string | Yes | Must be `application/json`. |
+
+### Body Parameters (JSON)
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `ca` | string | Yes | Token mint / contract address of the coin (Solana address). Must be 32–44 characters. |
+| `privateKey` | string | Yes | Base58-encoded wallet private key. Used only to sign the claim transaction; must be the fee-owner wallet. |
+
+---
+
+## Response
+
+### Success (HTTP 200)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Always `true` on success. |
+| `signature` | string \| null | Solana transaction signature from the claim. May be `null` if the upstream response did not include a signature. |
+| `amountClaimedSol` | number \| null | SOL amount that was claimed in this request (pre-claim unclaimed amount). `null` if fee info could not be fetched. |
+| `fees` | object \| null | Fee breakdown (same as entity Creator Fees). `null` if fee info could not be fetched. |
+| `fees.unclaimedSol` | number | Unclaimed SOL before this claim (same as `amountClaimedSol` on success). |
+| `fees.claimedSol` | number | Total SOL already claimed (historical). |
+| `fees.totalSol` | number | Total fees earned (unclaimed + claimed). |
+
+**Example success response:**
+
+```json
+{
+  "success": true,
+  "signature": "5V7x...signature...",
+  "amountClaimedSol": 0.42,
+  "fees": {
+    "unclaimedSol": 0.42,
+    "claimedSol": 1.08,
+    "totalSol": 1.5
+  }
+}
+```
+
+If fee info could not be fetched, `amountClaimedSol` and `fees` will be `null`; `signature` is still returned on success.
+
+### HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success; fees claimed and transaction submitted. |
+| `400` | Bad request: missing `ca` or `privateKey`, invalid token mint format, or invalid base58 private key. |
+| `405` | Method not allowed; only POST is accepted. |
+| `500` | Internal server error, or claim transaction failed. |
+
+---
+
+## Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://swarms.world/api/product/claimfees \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ca": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    "privateKey": "YOUR_BASE58_PRIVATE_KEY"
+  }'
+```
+
+```python Python
+import requests
+
+BASE_URL = "https://swarms.world"
+
+payload = {
+    "ca": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    "privateKey": "YOUR_BASE58_PRIVATE_KEY",
+}
+
+response = requests.post(
+    f"{BASE_URL}/api/product/claimfees",
+    headers={"Content-Type": "application/json"},
+    json=payload,
+)
+
+data = response.json()
+if response.ok:
+    print("Signature:", data.get("signature"))
+    if data.get("amountClaimedSol") is not None:
+        print("Amount claimed (SOL):", data["amountClaimedSol"])
+    if data.get("fees"):
+        print("Fee breakdown:")
+        print("  Unclaimed:", data["fees"]["unclaimedSol"], "SOL")
+        print("  Claimed:", data["fees"]["claimedSol"], "SOL")
+        print("  Total:", data["fees"]["totalSol"], "SOL")
+else:
+    print("Error:", data.get("error", response.text))
+```
+
+```typescript TypeScript
+interface ClaimFeesResponse {
+  success: boolean;
+  signature: string | null;
+  amountClaimedSol: number | null;
+  fees: {
+    unclaimedSol: number;
+    claimedSol: number;
+    totalSol: number;
+  } | null;
+}
+
+interface ClaimFeesError {
+  error: string;
+}
+
+async function claimFees(
+  ca: string,
+  privateKey: string
+): Promise<ClaimFeesResponse> {
+  const response = await fetch("https://swarms.world/api/product/claimfees", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ca, privateKey }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error((data as ClaimFeesError).error || "Unknown error");
+  }
+
+  return data as ClaimFeesResponse;
+}
+
+// Usage
+async function main() {
+  try {
+    const result = await claimFees(
+      "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+      "YOUR_BASE58_PRIVATE_KEY"
+    );
+
+    console.log("Signature:", result.signature);
+
+    if (result.amountClaimedSol !== null) {
+      console.log("Amount claimed (SOL):", result.amountClaimedSol);
+    }
+
+    if (result.fees) {
+      console.log("Fee breakdown:");
+      console.log("  Unclaimed:", result.fees.unclaimedSol, "SOL");
+      console.log("  Claimed:", result.fees.claimedSol, "SOL");
+      console.log("  Total:", result.fees.totalSol, "SOL");
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+main();
+```
+
+```go Go
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+)
+
+const baseURL = "https://swarms.world"
+
+type ClaimFeesRequest struct {
+	CA         string `json:"ca"`
+	PrivateKey string `json:"privateKey"`
+}
+
+type Fees struct {
+	UnclaimedSol float64 `json:"unclaimedSol"`
+	ClaimedSol   float64 `json:"claimedSol"`
+	TotalSol     float64 `json:"totalSol"`
+}
+
+type ClaimFeesResponse struct {
+	Success          bool    `json:"success"`
+	Signature        *string `json:"signature"`
+	AmountClaimedSol *float64 `json:"amountClaimedSol"`
+	Fees             *Fees   `json:"fees"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+func claimFees(ca, privateKey string) (*ClaimFeesResponse, error) {
+	payload := ClaimFeesRequest{
+		CA:         ca,
+		PrivateKey: privateKey,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", baseURL+"/api/product/claimfees", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(respBody, &errResp); err != nil {
+			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
+		}
+		return nil, fmt.Errorf("request failed: %s", errResp.Error)
+	}
+
+	var result ClaimFeesResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &result, nil
+}
+
+func main() {
+	result, err := claimFees(
+		"7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+		"YOUR_BASE58_PRIVATE_KEY",
+	)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	if result.Signature != nil {
+		fmt.Println("Signature:", *result.Signature)
+	}
+
+	if result.AmountClaimedSol != nil {
+		fmt.Printf("Amount claimed (SOL): %.4f\n", *result.AmountClaimedSol)
+	}
+
+	if result.Fees != nil {
+		fmt.Println("Fee breakdown:")
+		fmt.Printf("  Unclaimed: %.4f SOL\n", result.Fees.UnclaimedSol)
+		fmt.Printf("  Claimed: %.4f SOL\n", result.Fees.ClaimedSol)
+		fmt.Printf("  Total: %.4f SOL\n", result.Fees.TotalSol)
+	}
+}
+```
+
+```rust Rust
+use reqwest::blocking::Client;
+use serde::{Deserialize, Serialize};
+
+const BASE_URL: &str = "https://swarms.world";
+
+#[derive(Serialize)]
+struct ClaimFeesRequest {
+    ca: String,
+    #[serde(rename = "privateKey")]
+    private_key: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct Fees {
+    #[serde(rename = "unclaimedSol")]
+    unclaimed_sol: f64,
+    #[serde(rename = "claimedSol")]
+    claimed_sol: f64,
+    #[serde(rename = "totalSol")]
+    total_sol: f64,
+}
+
+#[derive(Deserialize, Debug)]
+struct ClaimFeesResponse {
+    success: bool,
+    signature: Option<String>,
+    #[serde(rename = "amountClaimedSol")]
+    amount_claimed_sol: Option<f64>,
+    fees: Option<Fees>,
+}
+
+#[derive(Deserialize, Debug)]
+struct ErrorResponse {
+    error: String,
+}
+
+fn claim_fees(ca: &str, private_key: &str) -> Result<ClaimFeesResponse, Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let payload = ClaimFeesRequest {
+        ca: ca.to_string(),
+        private_key: private_key.to_string(),
+    };
+
+    let response = client
+        .post(format!("{}/api/product/claimfees", BASE_URL))
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()?;
+
+    if !response.status().is_success() {
+        let error_response: ErrorResponse = response.json()?;
+        return Err(error_response.error.into());
+    }
+
+    let result: ClaimFeesResponse = response.json()?;
+    Ok(result)
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let result = claim_fees(
+        "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+        "YOUR_BASE58_PRIVATE_KEY",
+    )?;
+
+    if let Some(signature) = &result.signature {
+        println!("Signature: {}", signature);
+    }
+
+    if let Some(amount) = result.amount_claimed_sol {
+        println!("Amount claimed (SOL): {:.4}", amount);
+    }
+
+    if let Some(fees) = &result.fees {
+        println!("Fee breakdown:");
+        println!("  Unclaimed: {:.4} SOL", fees.unclaimed_sol);
+        println!("  Claimed: {:.4} SOL", fees.claimed_sol);
+        println!("  Total: {:.4} SOL", fees.total_sol);
+    }
+
+    Ok(())
+}
+```
+
+</CodeGroup>
+
+---
+
+## Error Responses
+
+### Error response body (4xx / 5xx)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `error` | string | Short error message describing the failure. |
+
+### Example error responses
+
+**Missing parameters (400):**
+
+```json
+{
+  "error": "ca (token mint) and privateKey are required in request body"
+}
+```
+
+**Invalid token mint (400):**
+
+```json
+{
+  "error": "Invalid ca (token mint) format"
+}
+```
+
+**Invalid private key (400):**
+
+```json
+{
+  "error": "Invalid privateKey: could not decode base58 secret key"
+}
+```
+
+**Claim / submit failed (500):**
+
+Returned when the claim transaction fails (e.g. no fees to claim, network error).
+
+```json
+{
+  "error": "Claim transaction failed"
+}
+```
+
+---
+
+## Advanced Examples
+
+These examples include additional features like retry logic, async support, context/timeout handling, and custom error types.
+
+<CodeGroup>
+
+```typescript TypeScript (Retry Logic)
+import { setTimeout } from "timers/promises";
+
+interface ClaimFeesResponse {
+  success: boolean;
+  signature: string | null;
+  amountClaimedSol: number | null;
+  fees: {
+    unclaimedSol: number;
+    claimedSol: number;
+    totalSol: number;
+  } | null;
+}
+
+class ClaimFeesClient {
+  private baseUrl = "https://swarms.world";
+  private maxRetries: number;
+  private retryDelayMs: number;
+
+  constructor(options?: { maxRetries?: number; retryDelayMs?: number }) {
+    this.maxRetries = options?.maxRetries ?? 3;
+    this.retryDelayMs = options?.retryDelayMs ?? 1000;
+  }
+
+  async claimFees(
+    ca: string,
+    privateKey: string
+  ): Promise<ClaimFeesResponse> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await fetch(
+          `${this.baseUrl}/api/product/claimfees`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ca, privateKey }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          // Don't retry client errors (4xx)
+          if (response.status >= 400 && response.status < 500) {
+            throw new Error(data.error || `Client error: ${response.status}`);
+          }
+          throw new Error(data.error || `Server error: ${response.status}`);
+        }
+
+        return data as ClaimFeesResponse;
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`Attempt ${attempt} failed:`, lastError.message);
+
+        if (attempt < this.maxRetries) {
+          const delay = this.retryDelayMs * Math.pow(2, attempt - 1);
+          console.log(`Retrying in ${delay}ms...`);
+          await setTimeout(delay);
+        }
+      }
+    }
+
+    throw lastError ?? new Error("Failed to claim fees");
+  }
+}
+
+// Usage
+async function main() {
+  const client = new ClaimFeesClient({ maxRetries: 3, retryDelayMs: 1000 });
+
+  try {
+    const result = await client.claimFees(
+      "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+      "YOUR_BASE58_PRIVATE_KEY"
+    );
+
+    console.log("Claim successful!");
+    console.log("Transaction signature:", result.signature);
+
+    if (result.amountClaimedSol !== null) {
+      console.log(`Claimed ${result.amountClaimedSol} SOL`);
+    }
+  } catch (error) {
+    console.error("Failed to claim fees:", error);
+    process.exit(1);
+  }
+}
+
+main();
+```
+
+```python Python (Async)
+import asyncio
+import aiohttp
+from typing import Optional
+from dataclasses import dataclass
+
+
+@dataclass
+class Fees:
+    unclaimed_sol: float
+    claimed_sol: float
+    total_sol: float
+
+
+@dataclass
+class ClaimFeesResult:
+    success: bool
+    signature: Optional[str]
+    amount_claimed_sol: Optional[float]
+    fees: Optional[Fees]
+
+
+class ClaimFeesClient:
+    def __init__(self, base_url: str = "https://swarms.world"):
+        self.base_url = base_url
+
+    async def claim_fees(
+        self,
+        ca: str,
+        private_key: str,
+        session: Optional[aiohttp.ClientSession] = None
+    ) -> ClaimFeesResult:
+        close_session = session is None
+        if session is None:
+            session = aiohttp.ClientSession()
+
+        try:
+            async with session.post(
+                f"{self.base_url}/api/product/claimfees",
+                json={"ca": ca, "privateKey": private_key},
+                headers={"Content-Type": "application/json"},
+            ) as response:
+                data = await response.json()
+
+                if not response.ok:
+                    raise Exception(data.get("error", f"Request failed: {response.status}"))
+
+                fees = None
+                if data.get("fees"):
+                    fees = Fees(
+                        unclaimed_sol=data["fees"]["unclaimedSol"],
+                        claimed_sol=data["fees"]["claimedSol"],
+                        total_sol=data["fees"]["totalSol"],
+                    )
+
+                return ClaimFeesResult(
+                    success=data["success"],
+                    signature=data.get("signature"),
+                    amount_claimed_sol=data.get("amountClaimedSol"),
+                    fees=fees,
+                )
+        finally:
+            if close_session:
+                await session.close()
+
+
+async def main():
+    client = ClaimFeesClient()
+
+    try:
+        result = await client.claim_fees(
+            ca="7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+            private_key="YOUR_BASE58_PRIVATE_KEY",
+        )
+
+        print(f"Claim successful!")
+        print(f"Transaction signature: {result.signature}")
+
+        if result.amount_claimed_sol is not None:
+            print(f"Claimed {result.amount_claimed_sol} SOL")
+
+        if result.fees:
+            print(f"Fee breakdown:")
+            print(f"  Unclaimed: {result.fees.unclaimed_sol} SOL")
+            print(f"  Claimed: {result.fees.claimed_sol} SOL")
+            print(f"  Total: {result.fees.total_sol} SOL")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+```go Go (Context & Timeout)
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+)
+
+const baseURL = "https://swarms.world"
+
+type ClaimFeesRequest struct {
+	CA         string `json:"ca"`
+	PrivateKey string `json:"privateKey"`
+}
+
+type Fees struct {
+	UnclaimedSol float64 `json:"unclaimedSol"`
+	ClaimedSol   float64 `json:"claimedSol"`
+	TotalSol     float64 `json:"totalSol"`
+}
+
+type ClaimFeesResponse struct {
+	Success          bool     `json:"success"`
+	Signature        *string  `json:"signature"`
+	AmountClaimedSol *float64 `json:"amountClaimedSol"`
+	Fees             *Fees    `json:"fees"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+type ClaimFeesClient struct {
+	httpClient *http.Client
+	baseURL    string
+}
+
+func NewClaimFeesClient(timeout time.Duration) *ClaimFeesClient {
+	return &ClaimFeesClient{
+		httpClient: &http.Client{Timeout: timeout},
+		baseURL:    baseURL,
+	}
+}
+
+func (c *ClaimFeesClient) ClaimFees(ctx context.Context, ca, privateKey string) (*ClaimFeesResponse, error) {
+	payload := ClaimFeesRequest{
+		CA:         ca,
+		PrivateKey: privateKey,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/product/claimfees", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(respBody, &errResp); err != nil {
+			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
+		}
+		return nil, fmt.Errorf("request failed: %s", errResp.Error)
+	}
+
+	var result ClaimFeesResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &result, nil
+}
+
+func main() {
+	client := NewClaimFeesClient(30 * time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	result, err := client.ClaimFees(
+		ctx,
+		"7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+		"YOUR_BASE58_PRIVATE_KEY",
+	)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	fmt.Println("Claim successful!")
+	if result.Signature != nil {
+		fmt.Println("Transaction signature:", *result.Signature)
+	}
+
+	if result.AmountClaimedSol != nil {
+		fmt.Printf("Claimed %.4f SOL\n", *result.AmountClaimedSol)
+	}
+
+	if result.Fees != nil {
+		fmt.Println("Fee breakdown:")
+		fmt.Printf("  Unclaimed: %.4f SOL\n", result.Fees.UnclaimedSol)
+		fmt.Printf("  Claimed: %.4f SOL\n", result.Fees.ClaimedSol)
+		fmt.Printf("  Total: %.4f SOL\n", result.Fees.TotalSol)
+	}
+}
+```
+
+```rust Rust (Async & Custom Errors)
+// Add to Cargo.toml:
+// reqwest = { version = "0.11", features = ["json"] }
+// serde = { version = "1.0", features = ["derive"] }
+// serde_json = "1.0"
+// thiserror = "1.0"
+// tokio = { version = "1", features = ["full"] }
+
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+const BASE_URL: &str = "https://swarms.world";
+
+#[derive(Error, Debug)]
+pub enum ClaimFeesError {
+    #[error("HTTP request failed: {0}")]
+    RequestFailed(#[from] reqwest::Error),
+    #[error("API error: {0}")]
+    ApiError(String),
+    #[error("Invalid response: {0}")]
+    InvalidResponse(String),
+}
+
+#[derive(Serialize)]
+struct ClaimFeesRequest {
+    ca: String,
+    #[serde(rename = "privateKey")]
+    private_key: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Fees {
+    #[serde(rename = "unclaimedSol")]
+    pub unclaimed_sol: f64,
+    #[serde(rename = "claimedSol")]
+    pub claimed_sol: f64,
+    #[serde(rename = "totalSol")]
+    pub total_sol: f64,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ClaimFeesResponse {
+    pub success: bool,
+    pub signature: Option<String>,
+    #[serde(rename = "amountClaimedSol")]
+    pub amount_claimed_sol: Option<f64>,
+    pub fees: Option<Fees>,
+}
+
+#[derive(Deserialize, Debug)]
+struct ErrorResponse {
+    error: String,
+}
+
+pub struct ClaimFeesClient {
+    client: Client,
+    base_url: String,
+}
+
+impl ClaimFeesClient {
+    pub fn new() -> Self {
+        Self {
+            client: Client::new(),
+            base_url: BASE_URL.to_string(),
+        }
+    }
+
+    pub fn with_base_url(base_url: &str) -> Self {
+        Self {
+            client: Client::new(),
+            base_url: base_url.to_string(),
+        }
+    }
+
+    pub async fn claim_fees(
+        &self,
+        ca: &str,
+        private_key: &str,
+    ) -> Result<ClaimFeesResponse, ClaimFeesError> {
+        let payload = ClaimFeesRequest {
+            ca: ca.to_string(),
+            private_key: private_key.to_string(),
+        };
+
+        let response = self
+            .client
+            .post(format!("{}/api/product/claimfees", self.base_url))
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_response: ErrorResponse = response
+                .json()
+                .await
+                .map_err(|e| ClaimFeesError::InvalidResponse(e.to_string()))?;
+            return Err(ClaimFeesError::ApiError(error_response.error));
+        }
+
+        let result: ClaimFeesResponse = response
+            .json()
+            .await
+            .map_err(|e| ClaimFeesError::InvalidResponse(e.to_string()))?;
+
+        Ok(result)
+    }
+}
+
+impl Default for ClaimFeesClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = ClaimFeesClient::new();
+
+    let result = client
+        .claim_fees(
+            "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+            "YOUR_BASE58_PRIVATE_KEY",
+        )
+        .await?;
+
+    println!("Claim successful!");
+
+    if let Some(signature) = &result.signature {
+        println!("Transaction signature: {}", signature);
+    }
+
+    if let Some(amount) = result.amount_claimed_sol {
+        println!("Claimed {:.4} SOL", amount);
+    }
+
+    if let Some(fees) = &result.fees {
+        println!("Fee breakdown:");
+        println!("  Unclaimed: {:.4} SOL", fees.unclaimed_sol);
+        println!("  Claimed: {:.4} SOL", fees.claimed_sol);
+        println!("  Total: {:.4} SOL", fees.total_sol);
+    }
+
+    Ok(())
+}
+```
+
+</CodeGroup>
+
+---
+
+## Security Notes
+
+<Warning>
+**Private Key Security**: The `privateKey` is used only in memory to sign the claim transaction and is not stored or logged. However, sending a private key in any API request is inherently risky.
+</Warning>
+
+- **Use HTTPS**: Always use HTTPS in production to encrypt the private key in transit.
+- **Consider Client-Side Signing**: For production applications where security is paramount, consider implementing client-side signing using a wallet adapter. This avoids sending the private key to the server entirely.
+- **Key Rotation**: If you suspect your private key has been compromised, immediately transfer funds to a new wallet.
+- **Environment Variables**: Never hardcode private keys in your source code. Use environment variables or secure secret management systems.
+
+---
+
+## See Also
+
+- [Token Launch API](/docs/marketplace/token-launch-api) – Create and tokenize an agent in a single request.
+- [Creator Fees](/docs/marketplace/creator-fees) – Learn about fee structures for creators.
+- [Tokenization](/docs/marketplace/tokenization) – Overview of the tokenization process.
