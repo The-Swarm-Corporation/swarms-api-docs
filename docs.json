@@ -196,6 +196,10 @@
           {
             "group": "Multi-Agent Architectures",
             "pages": [
+              "docs/examples/examples/sequential-workflow",
+              "docs/examples/examples/concurrent-workflow",
+              "docs/examples/examples/multi-agent-router",
+              "docs/examples/examples/mixture-of-agents",
               "docs/examples/examples/advanced-research",
               "docs/examples/examples/batch-processing",
               "docs/examples/examples/batch-swarm-completions"
@@ -225,15 +229,6 @@
               "docs/examples/examples/pricing-cost-estimator",
               "docs/examples/examples/account-credits",
               "docs/examples/examples/auto-swarm-builder-execution-types"
-            ]
-          },
-          {
-            "group": "Multi-Agent Workflows",
-            "pages": [
-              "docs/examples/multi-agent-workflows/sequential-workflow",
-              "docs/examples/multi-agent-workflows/concurrent-workflow",
-              "docs/examples/multi-agent-workflows/multi-agent-router",
-              "docs/examples/multi-agent-workflows/mixture-of-agents"
             ]
           },
           {
