@@ -1,0 +1,176 @@
+---
+title: "Overview"
+description: "Quick reference for all Swarms Marketplace APIs - endpoints, methods, and authentication requirements"
+---
+
+The Swarms Marketplace provides a comprehensive set of APIs for managing agents, prompts, token launches, and fee claims. This page provides a quick reference to help you find the right endpoint for your needs.
+
+## Base URLs
+
+| Service | Base URL |
+|---------|----------|
+| Marketplace API | `https://swarms.world` |
+| Swarms API | `https://api.swarms.world` |
+
+---
+
+## Marketplace API Endpoints at a Glance
+
+| API | Endpoint | Method | Auth Required | Description |
+|-----|----------|--------|---------------|-------------|
+| **Agents** | `/api/add-agent` | POST | Yes | Create a new agent listing |
+| **Agents** | `/api/edit-agent` | POST | Yes | Update an existing agent |
+| **Agents** | `/api/query-agents` | POST | No | Search and filter agents |
+| **Prompts** | `/api/add-prompt` | POST | Yes | Create a new prompt |
+| **Prompts** | `/api/edit-prompt` | POST | Yes | Update an existing prompt |
+| **Prompts** | `/api/query-prompts` | POST | No | Search and filter prompts |
+| **Token Launch** | `/api/token/launch` | POST | Yes | Create agent and launch token on Solana |
+| **Claim Fees** | `/api/product/claimfees` | POST | No | Claim accumulated creator fees |
+
+---
+
+## Authentication
+
+Most endpoints require authentication via API key in the `Authorization` header as `Bearer YOUR_API_KEY`.
+
+Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+---
+
+## Marketplace API Categories
+
+### Agents API
+
+Manage AI agents in the marketplace - create, update, and discover agents programmatically.
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/api/add-agent` | POST | Required | Create a new agent with code, description, pricing, and metadata |
+| `/api/edit-agent` | POST | Required | Update agent details (requires agent `id`) |
+| `/api/query-agents` | POST | Optional | Search agents by keyword, category, price, and more |
+
+**Key Features:**
+- Support for free and paid agents
+- Automatic content validation and quality assessment
+- Blockchain tokenization support
+- Rate limit: 500 agents/day per user
+
+<Card title="Full Documentation" icon="book" href="/docs/marketplace/agents-api">
+View complete Agents API reference with examples
+</Card>
+
+---
+
+### Prompts API
+
+Manage AI prompts in the marketplace - create reusable prompt templates and discover existing prompts.
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/api/add-prompt` | POST | Required | Create a new prompt with use cases and metadata |
+| `/api/edit-prompt` | POST | Required | Update prompt details (requires prompt `id`) |
+| `/api/query-prompts` | POST | Optional | Search prompts by keyword, category, price, and more |
+
+**Key Features:**
+- Use prompts directly with agents via `marketplace_prompt_id`
+- Automatic USD to SOL price conversion
+- Content safety and quality validation
+- Rate limit: 500 prompts/day per user
+
+<Card title="Full Documentation" icon="book" href="/docs/marketplace/prompts-api">
+View complete Prompts API reference with examples
+</Card>
+
+---
+
+### Token Launch API
+
+Create a minimal agent listing and launch an associated token on Solana in a single request.
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/api/token/launch` | POST | Required | Create agent + launch Solana token (~0.04 SOL cost) |
+
+**Key Features:**
+- Single request for agent creation and tokenization
+- Supports JSON and multipart/form-data (for image upload)
+- Multiple private key formats (JSON array, base64, base58)
+- Returns token address and pool address
+
+<Card title="Full Documentation" icon="book" href="/docs/marketplace/token-launch-api">
+View complete Token Launch API reference with examples
+</Card>
+
+---
+
+### Claim Fees API
+
+Claim accumulated creator fees for tokenized agents on Solana.
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/api/product/claimfees` | POST | No* | Claim fees (requires wallet private key) |
+
+*Authentication is done via wallet private key, not API key.
+
+**Key Features:**
+- Claim accumulated SOL fees
+- Returns transaction signature and amount claimed
+- Detailed fee breakdown (unclaimed, claimed, total)
+- Private key used only in memory, never stored
+
+<Card title="Full Documentation" icon="book" href="/docs/marketplace/claim-fees-api">
+View complete Claim Fees API reference with examples
+</Card>
+
+---
+
+## HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success |
+| `400` | Bad Request - validation errors or invalid parameters |
+| `401` | Unauthorized - missing or invalid API key |
+| `403` | Forbidden - content validation failed |
+| `404` | Not Found |
+| `405` | Method Not Allowed |
+| `429` | Too Many Requests - rate limit exceeded |
+| `500` | Internal Server Error |
+
+---
+
+## Rate Limits
+
+| Resource | Limit | Reset |
+|----------|-------|-------|
+| Paid Agents | 500/day | Midnight UTC |
+| Paid Prompts | 500/day | Midnight UTC |
+| Free Content | 500/day | Midnight UTC |
+
+When rate limited, you'll receive a `429` response with details about current usage, limits, and reset time.
+
+---
+
+## Related Resources
+
+<CardGroup cols={2}>
+<Card title="Agents API" icon="robot" href="/docs/marketplace/agents-api">
+Complete reference for agent management
+</Card>
+<Card title="Prompts API" icon="file-lines" href="/docs/marketplace/prompts-api">
+Complete reference for prompt management
+</Card>
+<Card title="Token Launch API" icon="rocket" href="/docs/marketplace/token-launch-api">
+Launch tokenized agents on Solana
+</Card>
+<Card title="Claim Fees API" icon="coins" href="/docs/marketplace/claim-fees-api">
+Claim your creator fees
+</Card>
+<Card title="Examples" icon="code" href="/docs/marketplace/examples">
+Real-world integration examples
+</Card>
+<Card title="Creator Fees" icon="percent" href="/docs/marketplace/creator-fees">
+Understand the fee structure
+</Card>
+</CardGroup>
