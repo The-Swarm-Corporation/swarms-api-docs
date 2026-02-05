@@ -31,7 +31,30 @@ Create a new prompt in the marketplace.
 POST /api/add-prompt
 ```
 
-### Request Body
+### Input schema (Add Prompt)
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Display name (min 2 characters) |
+| `prompt` | string | Yes | Prompt content (min 5 characters) |
+| `description` | string | No | Optional description |
+| `useCases` | array | Yes | At least one use case; each `{ "title": string, "description": string }` |
+| `tags` | string | Yes | Comma-separated tags (min 2 characters) |
+| `is_free` | boolean | No | Default `true` |
+| `price_usd` | number | If paid | Required when `is_free` is false; must be &gt; 0 |
+| `category` | string | No | Optional category |
+| `status` | string | No | `'pending'` \| `'approved'` \| `'rejected'`; default `'pending'` |
+| `tokenized_on` | boolean | No | Enable tokenization on Solana |
+| `ticker` | string | If tokenized | Required when `tokenized_on` is true; uppercase alphanumeric; max 10 characters |
+| `image_url` | string | No | Public image URL (valid URL or empty string) |
+| `file_path` | string | No | Storage path for image (alternative to `image_url`) |
+| `image_base64` | string | No | Base64-encoded image (alternative to `image_url`; may include `data:image/...;base64,` prefix) |
+| `links` | array | No | Array of strings or `{ "name": string, "url": string }` |
+| `seller_wallet_address` | string | No | Seller wallet address |
+| `creator_wallet` | string | If tokenized | Creator wallet public key; required when `tokenized_on` is true |
+| `private_key` | string | If tokenized | Private key for signing (JSON array or base64); required when `tokenized_on` is true |
+
+### Request Body (detailed)
 
 <ParamField body="name" type="string" required>
   The name of the prompt (minimum 2 characters)
@@ -133,12 +156,42 @@ POST /api/add-prompt
 
 When tokenization is used, `tokenized` is `true` and `token_address` and `pool_address` are set.
 
+### Output schema (Add Prompt — success)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | `true` on success |
+| `id` | string | UUID of the created prompt |
+| `listing_url` | string | URL to the prompt listing (e.g. `https://swarms.world/prompt/{id}`) |
+| `tokenized` | boolean | Whether the prompt was tokenized |
+| `token_address` | string \| null | Solana token address (when tokenized) |
+| `pool_address` | string \| null | Liquidity pool address (when tokenized) |
+
 ### Error responses (Add Prompt)
 
 - **400** – Validation: `error`, `message`, `details`, `errors`, `status_code`. Content validation: also `trustworthiness`, `contentQuality`. Duplicate: `existingId`. Tokenization failed: standard 400 shape.
 - **401** – `error`, `message`, `details`, `how_to_get_key`, `status_code` (e.g. API key missing, invalid/expired, user not found).
 - **429** – `error`, `message`, `details`, `currentUsage`, `limits`, `resetTime`, `status_code`.
 - **500** – Server/database/tokenization error: `error`, `message`, `details`, `status_code` (may include `hint`, `code` for DB errors).
+
+### Error output schema (common fields)
+
+| HTTP | Field | Type | Description |
+|------|-------|------|-------------|
+| All | `error` | string | Short error message |
+| All | `message` | string | Detailed description |
+| All | `code` | string | Error code (e.g. `VALIDATION_ERROR`) |
+| All | `details` | string | Optional extra context |
+| All | `status_code` | number | HTTP status code |
+| 400 | `errors` | object | Validation errors by field |
+| 400 | `existingId` | string | Existing prompt ID (duplicate) |
+| 400 | `trustworthiness` | number | Content trust score (content validation) |
+| 400 | `contentQuality` | number | Content quality score (content validation) |
+| 401 | `how_to_get_key` | string | Instructions to obtain API key |
+| 429 | `currentUsage` | object | Current usage counts |
+| 429 | `limits` | object | Rate limit values |
+| 429 | `resetTime` | string | ISO timestamp when limit resets |
+| 500 | `hint` | string | Optional DB/system hint (DB errors may also include a `code` field) |
 
 ### Example Request
 
