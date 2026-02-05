@@ -6,23 +6,107 @@ description: 'Enable agents to process and analyze images for visual understandi
 import { Tabs, Tab } from 'mintlify'
 
 
-The Swarms API supports vision-enabled agents that can analyze and understand images. Agents can process single or multiple images to extract information, identify objects, read text, and provide visual insights.
+The Swarms API supports vision-enabled agents that can analyze and understand images. This guide shows you how to send a base64-encoded image to an agent and ask it to identify the location.
 
 <Info>
-Enable vision by passing image URLs through the `img` parameter for single images or `imgs` parameter for multiple images.
+In this example, we'll send an image of Hong Kong to an agent and ask "What city is this?"
 </Info>
 
-## Quick Start
+## Step 1: Get Your API Key
+
+Before you can use the Swarms API, you need to obtain an API key.
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Sign in or create an account
+3. Generate a new API key
+4. Copy and save your API key securely
+
+<Note>
+Keep your API key secure and never commit it to version control. Use environment variables to store it.
+</Note>
+
+## Step 2: Prepare Your Image (Base64 Encoding)
+
+The Swarms API accepts images as base64-encoded strings. Here's how to convert an image to base64:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import base64
+    import requests
+
+    # Method 1: From a URL
+    hong_kong_url = "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+    response = requests.get(hong_kong_url)
+    base64_image = base64.b64encode(response.content).decode('utf-8')
+
+    print(f"Base64 string length: {len(base64_image)}")
+    print(f"First 100 characters: {base64_image[:100]}...")
+
+    # Method 2: From a local file
+    with open("path/to/image.jpg", "rb") as image_file:
+        base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    // Method 1: From a URL (Node.js)
+    async function encodeImageFromUrl(imageUrl) {
+        const response = await fetch(imageUrl);
+        const buffer = await response.arrayBuffer();
+        return Buffer.from(buffer).toString('base64');
+    }
+
+    // Method 2: From a local file (Node.js)
+    const fs = require('fs');
+    function encodeImageFromFile(imagePath) {
+        const imageBuffer = fs.readFileSync(imagePath);
+        return imageBuffer.toString('base64');
+    }
+
+    // Example: Encode Hong Kong image
+    const hongKongUrl = "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto";
+
+    const base64Image = await encodeImageFromUrl(hongKongUrl);
+    console.log(`Base64 string length: ${base64Image.length}`);
+    console.log(`First 100 characters: ${base64Image.substring(0, 100)}...`);
+    ```
+  </Tab>
+  <Tab title="Bash/cURL">
+    ```bash
+    # From a URL
+    curl -s "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto" | base64 > hongkong_base64.txt
+
+    # From a local file
+    base64 -i /path/to/image.jpg > image_base64.txt
+
+    # View first 100 characters
+    head -c 100 hongkong_base64.txt
+    ```
+  </Tab>
+</Tabs>
+
+## Step 3: Send the Image to the Agent
+
+Now that you have your API key and base64-encoded image, you can send it to the Swarms API.
 
 <Tabs>
   <Tab title="Python">
     ```python
     import requests
+    import base64
     import os
 
+    # Step 1: Set your API key
     API_KEY = os.getenv("SWARMS_API_KEY")
     BASE_URL = "https://api.swarms.world"
 
+    # Step 2: Encode the Hong Kong image to base64
+    hong_kong_url = "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+    img_response = requests.get(hong_kong_url)
+    base64_image = base64.b64encode(img_response.content).decode('utf-8')
+
+    # Step 3: Prepare the API request
     headers = {
         "x-api-key": API_KEY,
         "Content-Type": "application/json"
@@ -38,18 +122,17 @@ Enable vision by passing image URLs through the `img` parameter for single image
             "temperature": 0.5
         },
         "task": "What city is this?",
-        "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+        "img": base64_image
     }
 
-    response = requests.post(
-        f"{BASE_URL}/v1/agent/completions",
-        headers=headers,
-        json=payload
-    )
-
+    # Make the API request
+    response = requests.post(f"{BASE_URL}/v1/agent/completions", headers=headers, json=payload)
     result = response.json()
-    print(result['outputs'])
-    # Output: "This is Hong Kong. The image shows the distinctive skyline..."
+
+    # Display the result
+    print("Agent Response:")
+    print(result['outputs'][0]['content'])
+    # Output: "This city is Hong Kong."
     ```
   </Tab>
   <Tab title="JavaScript">
@@ -62,197 +145,171 @@ Enable vision by passing image URLs through the `img` parameter for single image
         "Content-Type": "application/json"
     };
 
-    const payload = {
-        agent_config: {
-            agent_name: "Image Identifier",
-            description: "Identifies locations and landmarks in images",
-            system_prompt: "You are an expert at identifying cities, landmarks, and locations from images.",
-            model_name: "gpt-4o",
-            max_tokens: 2048,
-            temperature: 0.5
-        },
-        task: "What city is this?",
-        img: "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
-    };
+    // Encode the Hong Kong image from Step 2
+    const hongKongUrl = "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto";
 
-    fetch(`${BASE_URL}/v1/agent/completions`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload)
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Image Analysis:", data.outputs);
-    })
-    .catch(error => console.error('Error:', error));
+    async function analyzeImage() {
+        // Fetch and encode the image
+        const imageResponse = await fetch(hongKongUrl);
+        const arrayBuffer = await imageResponse.arrayBuffer();
+        const base64Image = Buffer.from(arrayBuffer).toString('base64');
+
+        // Prepare the payload
+        const payload = {
+            agent_config: {
+                agent_name: "Vision Analyst",
+                description: "AI agent with image analysis capabilities",
+                system_prompt: "You are a vision analyst that can identify and describe images accurately.",
+                model_name: "gpt-4o",
+                max_tokens: 2048,
+                temperature: 0.5
+            },
+            task: "What city is this?",
+            img: base64Image
+        };
+
+        // Make the API request
+        const response = await fetch(`${BASE_URL}/v1/agent/completions`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        console.log("Agent Response:");
+        console.log(result.outputs[0].content);
+
+        // Expected output: "This image is of Hong Kong. The skyline, Victoria Harbour..."
+    }
+
+    analyzeImage();
     ```
   </Tab>
   <Tab title="cURL">
     ```bash
+    # First, encode the image to base64
+    BASE64_IMAGE=$(curl -s "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto" | base64)
+
+    # Make the API request
     curl -X POST "https://api.swarms.world/v1/agent/completions" \
-      -H "x-api-key: your-api-key" \
+      -H "x-api-key: your-api-key-here" \
       -H "Content-Type: application/json" \
-      -d '{
-        "agent_config": {
-          "agent_name": "Vision Analyst",
-          "model_name": "gpt-4o",
-          "max_tokens": 2048,
-          "temperature": 0.5
+      -d "{
+        \"agent_config\": {
+          \"agent_name\": \"Vision Analyst\",
+          \"description\": \"AI agent with image analysis capabilities\",
+          \"system_prompt\": \"You are a vision analyst that can identify and describe images accurately.\",
+          \"model_name\": \"gpt-4o\",
+          \"max_tokens\": 2048,
+          \"temperature\": 0.5
         },
-        "task": "What city is this?",
-        "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
-      }'
+        \"task\": \"What city is this?\",
+        \"img\": \"${BASE64_IMAGE}\"
+      }"
     ```
   </Tab>
 </Tabs>
 
-## Single vs Multiple Images
+## Expected Response
 
-### Single Image Analysis
-
-Use the `img` parameter for analyzing a single image:
-
-```python
-payload = {
-    "agent_config": {
-        "agent_name": "Single Image Analyst",
-        "description": "Analyzes individual images",
-        "system_prompt": "You analyze images and provide detailed descriptions.",
-        "model_name": "gpt-4o",
-        "max_tokens": 2048
-    },
-    "task": "Describe this image in detail.",
-    "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+```json
+{
+  "job_id": "agent-09a9c0f9ba19419abf64f5538b4b7d59",
+  "success": true,
+  "name": "Vision Analyst",
+  "description": "AI agent with image analysis capabilities",
+  "temperature": 0.5,
+  "outputs": [
+    {
+      "role": "Vision Analyst",
+      "content": "This image is of Hong Kong. The skyline, Victoria Harbour, and the distinctive tall buildings such as the International Finance Centre (IFC) and International Commerce Centre (ICC) are prominent features of Hong Kong.",
+      "timestamp": "2026-02-05T00:58:15.121915",
+      "message_id": "85b70f9d-e281-4a98-b9ad-5a2d39f8ffcb"
+    }
+  ],
+  "usage": {
+    "input_tokens": 57,
+    "output_tokens": 101,
+    "total_tokens": 158,
+    "img_cost": 0.25,
+    "total_cost": 0.252239
+  },
+  "timestamp": "2026-02-05T00:58:15.252392+00:00"
 }
 ```
 
-### Multiple Image Analysis
+## Complete Working Example
 
-Use the `imgs` parameter (as a list) to analyze multiple images:
-
-```python
-payload = {
-    "agent_config": {
-        "agent_name": "Multi-Image Analyst",
-        "description": "Compares and analyzes multiple images",
-        "system_prompt": "You can compare multiple images and identify patterns or differences.",
-        "model_name": "gpt-4o",
-        "max_tokens": 4096
-    },
-    "task": "Compare these images and describe what you see.",
-    "imgs": [
-        "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Hong_Kong_Night_Skyline.jpg/1280px-Hong_Kong_Night_Skyline.jpg"
-    ]
-}
-```
-
-## Use Cases
-
-### Location Identification
+Here's a complete Python script you can run:
 
 ```python
+import requests
+import base64
+import os
+
+# Step 1: Set your API key
+API_KEY = os.getenv("SWARMS_API_KEY")
+
+if not API_KEY:
+    print("Error: Please set SWARMS_API_KEY environment variable")
+    print("Get your API key at: https://swarms.world/platform/api-keys")
+    exit(1)
+
+# Step 2: Encode the Hong Kong image to base64
+print("Encoding image...")
+hong_kong_url = "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+img_response = requests.get(hong_kong_url)
+base64_image = base64.b64encode(img_response.content).decode('utf-8')
+print(f"✓ Image encoded (length: {len(base64_image)} characters)")
+
+# Step 3: Send to Swarms API
+print("\nAnalyzing image with AI agent...")
+
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
 payload = {
     "agent_config": {
-        "agent_name": "Location Identifier",
-        "description": "Identifies locations from images",
-        "system_prompt": "You are an expert at identifying cities, landmarks, and geographical locations.",
+        "agent_name": "Vision Analyst",
+        "description": "AI agent with image analysis capabilities",
+        "system_prompt": "You are a vision analyst that can identify and describe images accurately.",
         "model_name": "gpt-4o",
-        "max_tokens": 1024
+        "max_tokens": 2048,
+        "temperature": 0.5
     },
-    "task": "What city is shown in this image?",
-    "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+    "task": "What city is this?",
+    "img": base64_image
 }
-```
 
-### Object Detection
+response = requests.post(f"{BASE_URL}/v1/agent/completions", headers=headers, json=payload)
+result = response.json()
 
-```python
-payload = {
-    "agent_config": {
-        "agent_name": "Object Detector",
-        "description": "Identifies and counts objects in images",
-        "system_prompt": "You identify and count objects in images accurately.",
-        "model_name": "gpt-4o",
-        "max_tokens": 2048
-    },
-    "task": "List all the buildings and structures you can identify in this skyline.",
-    "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
-}
-```
-
-### Document Analysis
-
-```python
-payload = {
-    "agent_config": {
-        "agent_name": "Document Reader",
-        "description": "Extracts text and information from documents",
-        "system_prompt": "You extract and analyze text from document images.",
-        "model_name": "gpt-4o",
-        "max_tokens": 4096
-    },
-    "task": "Extract all the text from this document and organize it into a structured format.",
-    "img": "https://example.com/invoice.jpg"  # Replace with your document image URL
-}
-```
-
-### Image Comparison
-
-```python
-payload = {
-    "agent_config": {
-        "agent_name": "Image Comparator",
-        "description": "Compares multiple images for differences",
-        "system_prompt": "You compare images and identify similarities and differences.",
-        "model_name": "gpt-4o",
-        "max_tokens": 3072
-    },
-    "task": "Compare these two Hong Kong skyline images taken at different times.",
-    "imgs": [
-        "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Hong_Kong_Night_Skyline.jpg/1280px-Hong_Kong_Night_Skyline.jpg"
-    ]
-}
-```
-
-### Visual Quality Control
-
-```python
-payload = {
-    "agent_config": {
-        "agent_name": "Quality Inspector",
-        "description": "Inspects images for defects or issues",
-        "system_prompt": "You inspect products and identify defects, damage, or quality issues.",
-        "model_name": "gpt-4o",
-        "max_tokens": 2048
-    },
-    "task": "Inspect this product image and identify any defects or quality issues.",
-    "img": "https://example.com/product-inspection.jpg"  # Replace with your product image URL
-}
+# Display results
+print("\n" + "="*60)
+print("AGENT RESPONSE:")
+print("="*60)
+print(result['outputs'][0]['content'])
+print("\n" + "="*60)
+print("USAGE STATS:")
+print("="*60)
+print(f"Total tokens: {result['usage']['total_tokens']}")
+print(f"Image cost: ${result['usage']['img_cost']}")
+print(f"Total cost: ${result['usage']['total_cost']}")
 ```
 
 ## Image Format Support
 
 The API supports common image formats:
-
 - **JPEG/JPG**: Standard photo format
 - **PNG**: Images with transparency
-- **GIF**: Animated and static GIFs
+- **GIF**: Static GIFs (first frame)
 - **WebP**: Modern web image format
 
-Images can be provided via:
-- **Public URLs**: Direct links to hosted images
-- **Base64 encoding**: Embedded image data (for smaller images)
-
-## Best Practices
-
-1. **Image Quality**: Use clear, well-lit images for better accuracy
-2. **Image Size**: Optimize image size for faster processing (recommended max: 4096x4096)
-3. **Model Selection**: Use vision-capable models (gpt-4o, gpt-4o-mini, claude-sonnet-4)
-4. **Specific Prompts**: Be specific in your task description for better results
-5. **Context**: Provide relevant context in the system prompt for specialized analysis
-6. **Token Management**: Vision tasks consume more tokens; adjust max_tokens accordingly
+All images must be base64-encoded strings. The API automatically detects the image format.
 
 ## Vision-Capable Models
 
@@ -262,20 +319,41 @@ Not all models support vision. Use these models for image analysis:
 - **gpt-4o-mini**: Cost-effective for basic vision tasks
 - **claude-sonnet-4-20250514**: High-quality vision understanding
 
+## Best Practices
+
+1. **Image Size**: Optimize images before encoding (recommended max: 4096x4096 pixels)
+2. **Compression**: Use JPEG for photos, PNG for screenshots/graphics
+3. **Quality**: Balance image quality with file size for faster processing
+4. **Specific Questions**: Ask clear, specific questions for better results
+5. **Token Usage**: Larger/higher resolution images consume more tokens
+
 ## Cost Considerations
 
-Vision tasks consume additional tokens based on:
+Vision tasks consume additional tokens based on image resolution:
 
-- **Image Resolution**: Higher resolution = more tokens
-- **Number of Images**: Multiple images increase token usage
-- **Task Complexity**: Detailed analysis requires more tokens
+| Image Size | Approximate Tokens |
+|------------|-------------------|
+| 512x512 | ~85 tokens |
+| 1024x1024 | ~170 tokens |
+| 2048x2048 | ~340 tokens |
 
-Example token usage:
-- Small image (512x512): ~85 tokens
-- Medium image (1024x1024): ~170 tokens
-- Large image (2048x2048): ~340 tokens
+## Troubleshooting
 
-## Error Handling
+### Common Issues
+
+**Issue**: "Invalid image format"
+- **Solution**: Ensure your image is properly base64-encoded using `base64.b64encode()`
+
+**Issue**: "Image too large"
+- **Solution**: Resize the image to under 4096x4096 pixels or reduce quality
+
+**Issue**: "Model doesn't support vision"
+- **Solution**: Use gpt-4o, gpt-4o-mini, or claude-sonnet-4-20250514
+
+**Issue**: "High token usage"
+- **Solution**: Reduce image resolution or use gpt-4o-mini for basic tasks
+
+### Error Handling
 
 ```python
 try:
@@ -288,104 +366,22 @@ try:
 
     if response.status_code == 200:
         result = response.json()
-        print("Vision Analysis:", result['outputs'])
-
-        # Check token usage for cost tracking
-        if 'usage' in result:
-            print(f"Tokens used: {result['usage']['total_tokens']}")
-            print(f"Cost: ${result['usage']['total_cost']}")
-
+        print("Success:", result['outputs'][0]['content'])
     elif response.status_code == 400:
-        print("Invalid image URL or format")
+        print("Error: Invalid image format or base64 encoding")
     elif response.status_code == 413:
-        print("Image too large - please reduce image size")
+        print("Error: Image too large - please reduce size")
     else:
-        print(f"Vision error: {response.status_code} - {response.text}")
+        print(f"Error {response.status_code}: {response.text}")
 
 except requests.exceptions.Timeout:
-    print("Vision request timed out - image may be too large")
-except requests.exceptions.ConnectionError:
-    print("Failed to connect to vision service")
+    print("Request timed out - image may be too large")
 except Exception as e:
-    print(f"Vision processing error: {e}")
+    print(f"Error: {e}")
 ```
 
-## Advanced Configuration
+## Next Steps
 
-### Combining Vision with Other Features
-
-```python
-# Vision + Search
-payload = {
-    "agent_config": {
-        "agent_name": "Visual Researcher",
-        "description": "Combines image analysis with web search",
-        "system_prompt": "You analyze images and research related information.",
-        "model_name": "gpt-4o",
-        "max_tokens": 4096
-    },
-    "task": "Identify the buildings in this Hong Kong skyline and provide information about them.",
-    "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto",
-    "search_enabled": True
-}
-```
-
-```python
-# Vision + Conversation History
-payload = {
-    "agent_config": {
-        "agent_name": "Visual Conversationalist",
-        "description": "Maintains context across multiple image analyses",
-        "system_prompt": "You analyze images while maintaining conversation context.",
-        "model_name": "gpt-4o",
-        "max_tokens": 4096
-    },
-    "task": "How does this night view compare to the daytime image we just discussed?",
-    "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Hong_Kong_Night_Skyline.jpg/1280px-Hong_Kong_Night_Skyline.jpg",
-    "history": {
-        "previous_analysis": {
-            "role": "assistant",
-            "content": "In the first image, I identified Hong Kong's skyline during daytime..."
-        }
-    }
-}
-```
-
-## Response Format
-
-Vision-enabled responses include:
-
-```json
-{
-  "outputs": "This is Hong Kong. The image shows the distinctive skyline of Hong Kong Island with Victoria Harbour in the foreground. Key landmarks visible include...",
-  "usage": {
-    "input_tokens": 1250,
-    "output_tokens": 180,
-    "image_tokens": 850,
-    "total_tokens": 2280,
-    "total_cost": 0.0156
-  },
-  "metadata": {
-    "agent_name": "Vision Analyst",
-    "model_name": "gpt-4o",
-    "processing_time": 3.2
-  }
-}
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Model doesn't support vision**: Ensure you're using gpt-4o, gpt-4o-mini, or claude-sonnet-4
-2. **Image URL not accessible**: Verify the image URL is publicly accessible
-3. **Image too large**: Resize images to under 4096x4096 pixels
-4. **Poor analysis quality**: Use higher resolution images or more specific prompts
-5. **High costs**: Reduce image resolution or use gpt-4o-mini for basic tasks
-
-### Image URL Requirements
-
-- Must be publicly accessible (no authentication required)
-- Must return appropriate Content-Type headers
-- Should be served over HTTPS
-- Should not exceed 20MB in file size
+- Try analyzing your own images by replacing the image URL
+- Experiment with different questions and prompts
+- Check out the [API Reference](/docs/documentation/capabilities/agent) for more details
