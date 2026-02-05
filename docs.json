@@ -208,6 +208,12 @@
             ]
           },
           {
+            "group": "Multi-Agent Architectures",
+            "pages": [
+              "docs/examples/examples/hierarchical-workflow"
+            ]
+          },
+          {
             "group": "Applications",
             "pages": [
               "docs/examples/examples/hospital-team",
