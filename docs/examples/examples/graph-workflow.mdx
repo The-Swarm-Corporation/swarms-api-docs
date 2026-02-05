@@ -162,16 +162,25 @@ for stage_num, stage_agents in enumerate(stages, 1):
         if agent_name in result['outputs']:
             output = result['outputs'][agent_name]
 
-            # Handle content as string or list
-            content = output.get('content', '')
-            if isinstance(content, list):
-                content = ' '.join(str(item) for item in content)
+            # Handle output as string or list
+            if isinstance(output, list):
+                output = ' '.join(str(item) for item in output)
 
             print(f"\n[{agent_name}]")
-            print(str(content)[:300] + "...\n")
+            print(str(output)[:300] + "...\n")
 
-print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
-print(f"Execution time: {result.get('execution_time', 'N/A')}s")
+# Display cost and timing info
+usage = result.get('usage', {})
+if 'billing_info' in usage:
+    print(f"\nTotal cost: ${usage['billing_info']['total_cost']:.4f}")
+elif 'total_cost' in usage:
+    print(f"\nTotal cost: ${usage['total_cost']:.4f}")
+else:
+    print(f"\nTotal cost: Not available")
+
+execution_time = result.get('execution_time')
+if execution_time:
+    print(f"Execution time: {execution_time}s")
 ```
 
 **Expected Output:**

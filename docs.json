@@ -200,7 +200,6 @@
             "pages": [
               "docs/examples/examples/sequential-workflow",
               "docs/examples/examples/concurrent-workflow",
-              "docs/examples/examples/hierarchical-workflow",
               "docs/examples/examples/multi-agent-router",
               "docs/examples/examples/mixture-of-agents",
               "docs/examples/examples/graph-workflow",
