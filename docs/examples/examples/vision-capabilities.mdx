@@ -1,0 +1,391 @@
+---
+title: 'Vision Capabilities'
+description: 'Enable agents to process and analyze images for visual understanding'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+The Swarms API supports vision-enabled agents that can analyze and understand images. Agents can process single or multiple images to extract information, identify objects, read text, and provide visual insights.
+
+<Info>
+Enable vision by passing image URLs through the `img` parameter for single images or `imgs` parameter for multiple images.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import requests
+    import os
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Vision Analyst",
+            "description": "AI agent with image analysis capabilities",
+            "system_prompt": "You are a vision analyst that can identify and describe images accurately.",
+            "model_name": "gpt-4o",
+            "max_tokens": 2048,
+            "temperature": 0.5
+        },
+        "task": "What city is this?",
+        "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload
+    )
+
+    result = response.json()
+    print(result['outputs'])
+    # Output: "This is Hong Kong. The image shows the distinctive skyline..."
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://api.swarms.world";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    const payload = {
+        agent_config: {
+            agent_name: "Image Identifier",
+            description: "Identifies locations and landmarks in images",
+            system_prompt: "You are an expert at identifying cities, landmarks, and locations from images.",
+            model_name: "gpt-4o",
+            max_tokens: 2048,
+            temperature: 0.5
+        },
+        task: "What city is this?",
+        img: "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+    };
+
+    fetch(`${BASE_URL}/v1/agent/completions`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Image Analysis:", data.outputs);
+    })
+    .catch(error => console.error('Error:', error));
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://api.swarms.world/v1/agent/completions" \
+      -H "x-api-key: your-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "agent_config": {
+          "agent_name": "Vision Analyst",
+          "model_name": "gpt-4o",
+          "max_tokens": 2048,
+          "temperature": 0.5
+        },
+        "task": "What city is this?",
+        "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+## Single vs Multiple Images
+
+### Single Image Analysis
+
+Use the `img` parameter for analyzing a single image:
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Single Image Analyst",
+        "description": "Analyzes individual images",
+        "system_prompt": "You analyze images and provide detailed descriptions.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048
+    },
+    "task": "Describe this image in detail.",
+    "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+}
+```
+
+### Multiple Image Analysis
+
+Use the `imgs` parameter (as a list) to analyze multiple images:
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Multi-Image Analyst",
+        "description": "Compares and analyzes multiple images",
+        "system_prompt": "You can compare multiple images and identify patterns or differences.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096
+    },
+    "task": "Compare these images and describe what you see.",
+    "imgs": [
+        "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Hong_Kong_Night_Skyline.jpg/1280px-Hong_Kong_Night_Skyline.jpg"
+    ]
+}
+```
+
+## Use Cases
+
+### Location Identification
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Location Identifier",
+        "description": "Identifies locations from images",
+        "system_prompt": "You are an expert at identifying cities, landmarks, and geographical locations.",
+        "model_name": "gpt-4o",
+        "max_tokens": 1024
+    },
+    "task": "What city is shown in this image?",
+    "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+}
+```
+
+### Object Detection
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Object Detector",
+        "description": "Identifies and counts objects in images",
+        "system_prompt": "You identify and count objects in images accurately.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048
+    },
+    "task": "List all the buildings and structures you can identify in this skyline.",
+    "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto"
+}
+```
+
+### Document Analysis
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Document Reader",
+        "description": "Extracts text and information from documents",
+        "system_prompt": "You extract and analyze text from document images.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096
+    },
+    "task": "Extract all the text from this document and organize it into a structured format.",
+    "img": "https://example.com/invoice.jpg"  # Replace with your document image URL
+}
+```
+
+### Image Comparison
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Image Comparator",
+        "description": "Compares multiple images for differences",
+        "system_prompt": "You compare images and identify similarities and differences.",
+        "model_name": "gpt-4o",
+        "max_tokens": 3072
+    },
+    "task": "Compare these two Hong Kong skyline images taken at different times.",
+    "imgs": [
+        "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Hong_Kong_Night_Skyline.jpg/1280px-Hong_Kong_Night_Skyline.jpg"
+    ]
+}
+```
+
+### Visual Quality Control
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Quality Inspector",
+        "description": "Inspects images for defects or issues",
+        "system_prompt": "You inspect products and identify defects, damage, or quality issues.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048
+    },
+    "task": "Inspect this product image and identify any defects or quality issues.",
+    "img": "https://example.com/product-inspection.jpg"  # Replace with your product image URL
+}
+```
+
+## Image Format Support
+
+The API supports common image formats:
+
+- **JPEG/JPG**: Standard photo format
+- **PNG**: Images with transparency
+- **GIF**: Animated and static GIFs
+- **WebP**: Modern web image format
+
+Images can be provided via:
+- **Public URLs**: Direct links to hosted images
+- **Base64 encoding**: Embedded image data (for smaller images)
+
+## Best Practices
+
+1. **Image Quality**: Use clear, well-lit images for better accuracy
+2. **Image Size**: Optimize image size for faster processing (recommended max: 4096x4096)
+3. **Model Selection**: Use vision-capable models (gpt-4o, gpt-4o-mini, claude-sonnet-4)
+4. **Specific Prompts**: Be specific in your task description for better results
+5. **Context**: Provide relevant context in the system prompt for specialized analysis
+6. **Token Management**: Vision tasks consume more tokens; adjust max_tokens accordingly
+
+## Vision-Capable Models
+
+Not all models support vision. Use these models for image analysis:
+
+- **gpt-4o**: Best for complex visual analysis
+- **gpt-4o-mini**: Cost-effective for basic vision tasks
+- **claude-sonnet-4-20250514**: High-quality vision understanding
+
+## Cost Considerations
+
+Vision tasks consume additional tokens based on:
+
+- **Image Resolution**: Higher resolution = more tokens
+- **Number of Images**: Multiple images increase token usage
+- **Task Complexity**: Detailed analysis requires more tokens
+
+Example token usage:
+- Small image (512x512): ~85 tokens
+- Medium image (1024x1024): ~170 tokens
+- Large image (2048x2048): ~340 tokens
+
+## Error Handling
+
+```python
+try:
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=60
+    )
+
+    if response.status_code == 200:
+        result = response.json()
+        print("Vision Analysis:", result['outputs'])
+
+        # Check token usage for cost tracking
+        if 'usage' in result:
+            print(f"Tokens used: {result['usage']['total_tokens']}")
+            print(f"Cost: ${result['usage']['total_cost']}")
+
+    elif response.status_code == 400:
+        print("Invalid image URL or format")
+    elif response.status_code == 413:
+        print("Image too large - please reduce image size")
+    else:
+        print(f"Vision error: {response.status_code} - {response.text}")
+
+except requests.exceptions.Timeout:
+    print("Vision request timed out - image may be too large")
+except requests.exceptions.ConnectionError:
+    print("Failed to connect to vision service")
+except Exception as e:
+    print(f"Vision processing error: {e}")
+```
+
+## Advanced Configuration
+
+### Combining Vision with Other Features
+
+```python
+# Vision + Search
+payload = {
+    "agent_config": {
+        "agent_name": "Visual Researcher",
+        "description": "Combines image analysis with web search",
+        "system_prompt": "You analyze images and research related information.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096
+    },
+    "task": "Identify the buildings in this Hong Kong skyline and provide information about them.",
+    "img": "https://ik.imgkit.net/3vlqs5axxjf/external/ik-seo/http://images.ntmllc.com/v4/destination/Hong-Kong/Hong-Kong-city/112086_SCN_HongKong_iStock466733790_Z8C705/Hong-Kong-Scenery.jpg?tr=w-680%2Ch-404%2Cfo-auto",
+    "search_enabled": True
+}
+```
+
+```python
+# Vision + Conversation History
+payload = {
+    "agent_config": {
+        "agent_name": "Visual Conversationalist",
+        "description": "Maintains context across multiple image analyses",
+        "system_prompt": "You analyze images while maintaining conversation context.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096
+    },
+    "task": "How does this night view compare to the daytime image we just discussed?",
+    "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Hong_Kong_Night_Skyline.jpg/1280px-Hong_Kong_Night_Skyline.jpg",
+    "history": {
+        "previous_analysis": {
+            "role": "assistant",
+            "content": "In the first image, I identified Hong Kong's skyline during daytime..."
+        }
+    }
+}
+```
+
+## Response Format
+
+Vision-enabled responses include:
+
+```json
+{
+  "outputs": "This is Hong Kong. The image shows the distinctive skyline of Hong Kong Island with Victoria Harbour in the foreground. Key landmarks visible include...",
+  "usage": {
+    "input_tokens": 1250,
+    "output_tokens": 180,
+    "image_tokens": 850,
+    "total_tokens": 2280,
+    "total_cost": 0.0156
+  },
+  "metadata": {
+    "agent_name": "Vision Analyst",
+    "model_name": "gpt-4o",
+    "processing_time": 3.2
+  }
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Model doesn't support vision**: Ensure you're using gpt-4o, gpt-4o-mini, or claude-sonnet-4
+2. **Image URL not accessible**: Verify the image URL is publicly accessible
+3. **Image too large**: Resize images to under 4096x4096 pixels
+4. **Poor analysis quality**: Use higher resolution images or more specific prompts
+5. **High costs**: Reduce image resolution or use gpt-4o-mini for basic tasks
+
+### Image URL Requirements
+
+- Must be publicly accessible (no authentication required)
+- Must return appropriate Content-Type headers
+- Should be served over HTTPS
+- Should not exceed 20MB in file size

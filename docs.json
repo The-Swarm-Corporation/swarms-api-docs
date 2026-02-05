@@ -186,6 +186,7 @@
             "pages": [
               "docs/examples/examples/streaming",
               "docs/examples/examples/search-enabled",
+              "docs/examples/examples/vision-capabilities",
               "docs/examples/examples/mcp-integration",
               "docs/examples/examples/advanced-research"
             ]
