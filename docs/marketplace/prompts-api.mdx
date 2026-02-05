@@ -11,6 +11,7 @@ The Prompts API allows you to manage AI prompts in the Swarms marketplace. You c
 All prompt management endpoints require authentication using one of the following methods:
 
 - **API Key**: Include your API key in the `Authorization` header as `Bearer <your-api-key>`
+- **Supabase Session**: Include your Supabase session token in the `Authorization` header
 
 ## Base URL
 
@@ -56,8 +57,8 @@ POST /api/add-prompt
   ```
 </ParamField>
 
-<ParamField body="tags" type="string">
-  Comma-separated tags for categorization (e.g., "content,writing,creative")
+<ParamField body="tags" type="string" required>
+  Comma-separated tags (minimum 2 characters)
 </ParamField>
 
 <ParamField body="is_free" type="boolean" default="true">
@@ -77,42 +78,67 @@ POST /api/add-prompt
 </ParamField>
 
 <ParamField body="image_url" type="string">
-  A valid URL to an image representing the prompt
+  Public image URL (valid URL or empty string)
 </ParamField>
 
 <ParamField body="file_path" type="string">
-  Path to any associated files
+  Storage path for image (alternative to `image_url`)
+</ParamField>
+
+<ParamField body="image_base64" type="string">
+  Base64-encoded image (alternative to `image_url`; can include `data:image/...;base64,` prefix)
 </ParamField>
 
 <ParamField body="links" type="array">
-  An array of relevant links
-  ```json
-  [
-    {
-      "name": "Documentation",
-      "url": "https://example.com/docs"
-    }
-  ]
-  ```
+  Links: array of strings or `{ "name": string, "url": string }` (e.g. website, twitter, telegram for token metadata)
 </ParamField>
 
 <ParamField body="seller_wallet_address" type="string">
-  Wallet address for receiving payments (required for paid prompts)
+  Seller wallet address
 </ParamField>
 
 <ParamField body="tokenized_on" type="boolean">
-  Whether the prompt is tokenized on blockchain
+  Enable tokenization on Solana
 </ParamField>
 
-### Response
+<ParamField body="ticker" type="string">
+  Required when `tokenized_on` is true; uppercase letters and numbers only; max 10 characters
+</ParamField>
+
+<ParamField body="creator_wallet" type="string">
+  Creator wallet public key; required when `tokenized_on` is true
+</ParamField>
+
+<ParamField body="private_key" type="string">
+  Private key for signing (JSON array or base64); required when `tokenized_on` is true
+</ParamField>
+
+### Validation rules
+
+- **Paid prompts**: When `is_free` is `false`, `price_usd` is required and must be &gt; 0.
+- **Tokenization**: When `tokenized_on` is `true`, `ticker`, `creator_wallet`, and `private_key` are required; ticker must be uppercase alphanumeric, max 10 characters.
+
+### Success response (200)
 
 ```json
 {
   "success": true,
   "id": "550e8400-e29b-41d4-a716-446655440000",
-  "listing_url": "https://swarms.world/prompt/550e8400-e29b-41d4-a716-446655440000"
+  "listing_url": "https://swarms.world/prompt/550e8400-e29b-41d4-a716-446655440000",
+  "tokenized": false,
+  "token_address": null,
+  "pool_address": null
 }
 ```
+
+When tokenization is used, `tokenized` is `true` and `token_address` and `pool_address` are set.
+
+### Error responses (Add Prompt)
+
+- **400** – Validation: `error`, `message`, `details`, `errors`, `status_code`. Content validation: also `trustworthiness`, `contentQuality`. Duplicate: `existingId`. Tokenization failed: standard 400 shape.
+- **401** – `error`, `message`, `details`, `how_to_get_key`, `status_code` (e.g. API key missing, invalid/expired, user not found).
+- **429** – `error`, `message`, `details`, `currentUsage`, `limits`, `resetTime`, `status_code`.
+- **500** – Server/database/tokenization error: `error`, `message`, `details`, `status_code` (may include `hint`, `code` for DB errors).
 
 ### Example Request
 
@@ -536,13 +562,17 @@ The API returns standard HTTP status codes:
 
 ### Example Error Response
 
+All endpoints return consistent error responses:
+
 ```json
 {
-  "error": "Validation error",
-  "message": "Prompt content must be at least 5 characters long",
-  "code": "VALIDATION_ERROR"
+  "error": "Error message",
+  "message": "Detailed error description",
+  "code": "ERROR_CODE"
 }
 ```
+
+Validation errors may include `details`, `errors`, and `status_code`. Duplicate content responses include `existingId`. Rate limit (429) responses include `currentUsage`, `limits`, and `resetTime`. Authentication (401) responses may include `how_to_get_key`.
 
 ### Common Validation Errors
 
@@ -550,8 +580,9 @@ The API returns standard HTTP status codes:
 - Prompt content less than 5 characters
 - Invalid URL format for `image_url` or links
 - Missing `price_usd` when `is_free` is false
-- Missing `seller_wallet_address` for paid prompts
 - Invalid use case format (missing title or description)
+- Duplicate content: response includes `existingId` with the existing prompt ID
+- Tokenization: when `tokenized_on` is true, missing or invalid `ticker`, `creator_wallet`, or `private_key`
 
 ---
 
@@ -559,20 +590,22 @@ The API returns standard HTTP status codes:
 
 All prompts undergo automatic validation for:
 
-- **Duplicate Detection**: Checks if the same prompt content already exists for the user
-- **Quality Assessment**: Evaluates prompt clarity and completeness
+- **Duplicate Detection**: Same prompt content for the same user returns 400 with `existingId`
+- **Quality Assessment**: Evaluates prompt clarity and completeness (responses may include `trustworthiness`, `contentQuality`)
 - **Content Safety**: Ensures prompts don't contain harmful or inappropriate content
 - **Trustworthiness Scoring**: Assigns a score based on various quality factors
 
-Prompts that fail validation will receive a `403 Forbidden` response with details about the validation failure.
+Prompts that fail validation will receive a `403 Forbidden` or `400 Bad Request` response with details about the validation failure.
 
-### Validation Response Example
+### Validation Response Example (duplicate)
 
 ```json
 {
   "error": "Content validation failed",
   "message": "This prompt appears to be a duplicate of an existing prompt",
-  "code": "DUPLICATE_CONTENT"
+  "details": "...",
+  "existingId": "uuid-of-existing-prompt",
+  "status_code": 400
 }
 ```
 
