@@ -685,6 +685,144 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 **Note**: When `marketplace_prompt_id` is provided, the system automatically fetches the agent's name, description, and system prompt from the marketplace. You can find marketplace prompts using the [Query Prompts API](/marketplace/prompts-api#query-prompts).
 
+### Agent with Image Analysis
+
+Enable vision capabilities by providing base64-encoded images to your agent. The agent can analyze single or multiple images and answer questions about visual content. Use the `img` parameter for a single image or `imgs` for multiple images.
+
+<Tabs>
+<Tab title="Python">
+
+```python
+import requests
+import base64
+
+# Encode an image from a file
+with open("path/to/image.jpg", "rb") as image_file:
+    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+# Or encode from a URL
+# import requests as req
+# response = req.get("https://example.com/image.jpg")
+# base64_image = base64.b64encode(response.content).decode('utf-8')
+
+payload = {
+    "agent_config": {
+        "agent_name": "Image Analyzer",
+        "description": "AI agent specialized in image analysis",
+        "system_prompt": "You are an expert at analyzing and describing images in detail.",
+        "model_name": "gpt-4o",
+        "max_tokens": 2048,
+        "temperature": 0.5
+    },
+    "task": "Describe what you see in this image in detail",
+    "img": base64_image
+}
+
+response = requests.post(
+    "https://api.swarms.world/v1/agent/completions",
+    headers={"x-api-key": "your-api-key"},
+    json=payload
+)
+
+result = response.json()
+print(result['outputs'][0]['content'])
+```
+
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+import * as fs from 'fs';
+
+// Encode an image from a file
+const imageBuffer = fs.readFileSync('path/to/image.jpg');
+const base64Image = imageBuffer.toString('base64');
+
+// Or encode from a URL
+// const imageResponse = await fetch('https://example.com/image.jpg');
+// const arrayBuffer = await imageResponse.arrayBuffer();
+// const base64Image = Buffer.from(arrayBuffer).toString('base64');
+
+const payload = {
+    agent_config: {
+        agent_name: "Image Analyzer",
+        description: "AI agent specialized in image analysis",
+        system_prompt: "You are an expert at analyzing and describing images in detail.",
+        model_name: "gpt-4o",
+        max_tokens: 2048,
+        temperature: 0.5
+    },
+    task: "Describe what you see in this image in detail",
+    img: base64Image
+};
+
+const response = await fetch('https://api.swarms.world/v1/agent/completions', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'your-api-key'
+    },
+    body: JSON.stringify(payload)
+});
+
+const result = await response.json();
+console.log(result.outputs[0].content);
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use reqwest;
+use serde_json::json;
+use base64::{Engine as _, engine::general_purpose};
+use std::fs;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+
+    // Encode an image from a file
+    let image_bytes = fs::read("path/to/image.jpg")?;
+    let base64_image = general_purpose::STANDARD.encode(&image_bytes);
+
+    let payload = json!({
+        "agent_config": {
+            "agent_name": "Image Analyzer",
+            "description": "AI agent specialized in image analysis",
+            "system_prompt": "You are an expert at analyzing and describing images in detail.",
+            "model_name": "gpt-4o",
+            "max_tokens": 2048,
+            "temperature": 0.5
+        },
+        "task": "Describe what you see in this image in detail",
+        "img": base64_image
+    });
+
+    let response = client
+        .post("https://api.swarms.world/v1/agent/completions")
+        .header("x-api-key", "your-api-key")
+        .json(&payload)
+        .send()
+        .await?;
+
+    let result: serde_json::Value = response.json().await?;
+    println!("{}", result["outputs"][0]["content"]);
+
+    Ok(())
+}
+```
+
+</Tab>
+</Tabs>
+
+**Supported Models**: Only vision-capable models support image analysis:
+- `gpt-4o`: Best for detailed visual analysis
+- `gpt-4o-mini`: Cost-effective for basic vision tasks
+- `claude-sonnet-4-20250514`: High-quality vision understanding
+
+**Image Processing**: The API automatically calculates image token costs based on resolution. Larger images consume more tokens. See the [Vision Capabilities](/docs/examples/examples/vision-capabilities) guide for detailed information on image encoding and best practices.
+
 ## Batch Processing
 
 Process multiple agent completions simultaneously using the batch endpoint. This is useful for parallel processing of multiple tasks or running the same task with different configurations.
