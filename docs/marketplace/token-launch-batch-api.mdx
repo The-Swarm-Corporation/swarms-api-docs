@@ -1,0 +1,581 @@
+---
+title: "Token Launch Batch API"
+description: "Create multiple tokenized agents in a single request"
+---
+
+
+**POST** `https://swarms.world/api/token/launch/batch`
+
+Creates multiple tokenized agents in a single request. Each item in the batch is launched the same way as the [single Token Launch](/docs/marketplace/token-launch-api) endpoint: minimal agent listing plus token creation on Solana via Jupiter. You can use one private key for all tokens (top-level `private_key`) or a different key per token (or a mix of both).
+
+**Use cases:** Launch many agents from one wallet, or from multiple wallets in one call; bulk tokenization with consistent or per-item metadata.
+
+**Content type:** This endpoint accepts **JSON only** (`application/json`). For multipart or file uploads, use the single [Token Launch](/docs/marketplace/token-launch-api) endpoint per token.
+
+**Batch size:** Minimum 1 token, maximum **50** tokens per request.
+
+**Execution:** All tokens are processed in **parallel**. If some items fail (e.g. downstream Add Agent errors), the response uses HTTP **207 Multi-Status** and includes both successes and failures in `results`.
+
+---
+
+## Request
+
+### Headers
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token. Use your API key: `Bearer YOUR_API_KEY`. |
+| `Content-Type` | string | Yes | Must be `application/json`. |
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `private_key` | string | Conditional | Default private key for all tokens. Required if any token does not provide its own `private_key`. |
+| `tokens` | array | Yes | Array of token definitions (1–50 items). See **Token item** below. |
+
+**Token item** (each element of `tokens`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Display name of the agent. Minimum 2 characters. |
+| `description` | string | Yes | Description of the agent. Cannot be empty. |
+| `ticker` | string | Yes | Token symbol (e.g. `MAG`, `SWARM`). 1–10 characters; only letters and numbers. Automatically uppercased. |
+| `private_key` | string | No | Overrides the top-level `private_key` for this token only. Use when different wallets create different tokens. |
+| `image` | string | No | Agent/token image. **URL** (`https://...` or `http://...`): used as-is. **Base64** (data URL or raw): uploaded to Supabase Storage, then the Supabase URL is sent to Jupiter. Omit for no image. |
+
+**Private key rule:** Every token must have a private key. Either set `private_key` at the top level (applies to all tokens that don't set their own) or set `private_key` on each token, or mix: some tokens use the default, others override with their own.
+
+
+
+## Code examples by language
+
+The following table lists the same batch launch request implemented in each language. Use the tabs below to view or copy the code.
+
+| Language | Description |
+|----------|-------------|
+| cURL | Raw HTTP request with `curl`. |
+| Python | Using `requests` (sync). |
+| TypeScript | Using `fetch` (Node or browser). |
+| Rust | Using `reqwest` (blocking). |
+| Go | Using `net/http` and `encoding/json`. |
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://swarms.world/api/token/launch/batch \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "private_key": "[1,2,3,...]",
+    "tokens": [
+      { "name": "Agent One", "description": "First.", "ticker": "ONE" },
+      { "name": "Agent Two", "description": "Second.", "ticker": "TWO" }
+    ]
+  }'
+```
+
+```python Python
+import requests
+
+BASE_URL = "https://swarms.world"
+API_KEY = "YOUR_API_KEY"
+
+payload = {
+    "private_key": "[1,2,3,...]",
+    "tokens": [
+        {"name": "Agent One", "description": "First agent.", "ticker": "ONE"},
+        {"name": "Agent Two", "description": "Second agent.", "ticker": "TWO"},
+    ],
+}
+
+response = requests.post(
+    f"{BASE_URL}/api/token/launch/batch",
+    headers={
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json=payload,
+)
+
+data = response.json()
+if response.status_code == 200:
+    print("All succeeded:", data["results"])
+elif response.status_code == 207:
+    print("Partial:", data["succeeded"], "ok,", data["failed"], "failed")
+    for r in data["results"]:
+        if not r["success"]:
+            print("  Index", r["index"], ":", r["error"])
+else:
+    print("Error:", data.get("message", data.get("error")))
+```
+
+```typescript TypeScript
+const BASE_URL = "https://swarms.world";
+const API_KEY = "YOUR_API_KEY";
+
+interface TokenItem {
+  name: string;
+  description: string;
+  ticker: string;
+  private_key?: string;
+  image?: string;
+}
+
+interface BatchLaunchParams {
+  private_key?: string;
+  tokens: TokenItem[];
+}
+
+interface BatchLaunchSuccess {
+  success: boolean;
+  total: number;
+  succeeded: number;
+  failed: number;
+  results: Array<
+    | { success: true; index: number; id: string; listing_url?: string; token_address?: string | null; pool_address?: string | null }
+    | { success: false; index: number; error: string }
+  >;
+  failures?: Array<{ success: false; index: number; error: string }>;
+}
+
+async function launchBatch(params: BatchLaunchParams): Promise<BatchLaunchSuccess> {
+  const response = await fetch(`${BASE_URL}/api/token/launch/batch`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok && response.status !== 207) {
+    throw new Error(data.message ?? data.error ?? "Batch launch failed");
+  }
+
+  return data as BatchLaunchSuccess;
+}
+
+// Usage
+launchBatch({
+  private_key: "[1,2,3,...]",
+  tokens: [
+    { name: "Agent One", description: "First.", ticker: "ONE" },
+    { name: "Agent Two", description: "Second.", ticker: "TWO" },
+  ],
+})
+  .then((res) => {
+    console.log("Succeeded:", res.succeeded, "Failed:", res.failed);
+    res.results.forEach((r) => {
+      if (r.success) console.log("  ", r.index, r.listing_url);
+      else console.log("  ", r.index, r.error);
+    });
+  })
+  .catch((err) => console.error(err));
+```
+
+```rust Rust
+// Add reqwest and serde_json to Cargo.toml
+use reqwest::blocking::Client;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let payload = json!({
+        "private_key": "[1,2,3,...]",
+        "tokens": [
+            {"name": "Agent One", "description": "First.", "ticker": "ONE"},
+            {"name": "Agent Two", "description": "Second.", "ticker": "TWO"}
+        ]
+    });
+    let res = client
+        .post("https://swarms.world/api/token/launch/batch")
+        .header("Authorization", "Bearer YOUR_API_KEY")
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()?;
+    let data: serde_json::Value = res.json()?;
+    if res.status().as_u16() == 200 {
+        println!("All succeeded: {:?}", data["results"]);
+    } else if res.status().as_u16() == 207 {
+        println!(
+            "Partial: {} ok, {} failed",
+            data["succeeded"], data["failed"]
+        );
+        for r in data["results"].as_array().unwrap_or(&vec![]) {
+            if !r["success"].as_bool().unwrap_or(false) {
+                println!("  Index {}: {}", r["index"], r["error"]);
+            }
+        }
+    } else {
+        println!("Error: {}", data["message"].as_str().unwrap_or("Unknown"));
+    }
+    Ok(())
+}
+```
+
+```go Go
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
+
+const baseURL = "https://swarms.world"
+const apiKey = "YOUR_API_KEY"
+
+func main() {
+	payload := map[string]interface{}{
+		"private_key": "[1,2,3,...]",
+		"tokens": []map[string]string{
+			{"name": "Agent One", "description": "First.", "ticker": "ONE"},
+			{"name": "Agent Two", "description": "Second.", "ticker": "TWO"},
+		},
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", baseURL+"/api/token/launch/batch", bytes.NewBuffer(body))
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Request error:", err)
+		return
+	}
+	defer resp.Body.Close()
+	var data map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&data)
+	if resp.StatusCode == 200 {
+		fmt.Println("All succeeded:", data["results"])
+	} else if resp.StatusCode == 207 {
+		fmt.Printf("Partial: %v ok, %v failed\n", data["succeeded"], data["failed"])
+		for _, r := range data["results"].([]interface{}) {
+			item := r.(map[string]interface{})
+			if !item["success"].(bool) {
+				fmt.Printf("  Index %v: %v\n", item["index"], item["error"])
+			}
+		}
+	} else {
+		fmt.Println("Error:", data["message"])
+	}
+}
+```
+
+</CodeGroup>
+
+---
+
+
+
+---
+
+## Response
+
+### Success – All tokens launched (HTTP 200)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | `true` when all tokens were launched. |
+| `total` | number | Total number of tokens in the batch. |
+| `succeeded` | number | Number of tokens that were created successfully. |
+| `failed` | number | Number of tokens that failed (0 when status is 200). |
+| `results` | array | One entry per token, in **index order**. Each success entry has the shape below. |
+
+**Success result item** (each entry in `results` when that token succeeded):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Always `true`. |
+| `index` | number | Zero-based index of the token in the request `tokens` array. |
+| `id` | string | UUID of the created agent in the database. |
+| `listing_url` | string | Full URL to the agent page, e.g. `https://swarms.world/agent/{id}`. |
+| `token_address` | string \| null | Solana mint address of the created token. |
+| `pool_address` | string \| null | Jupiter pool/config address for the token, when available. |
+
+### Partial success – Some tokens failed (HTTP 207)
+
+When at least one token fails (e.g. Add Agent returns an error), the response status is **207 Multi-Status**. The body has the same structure as above, with:
+
+- `success`: `false`
+- `succeeded` + `failed`: counts of successful and failed items
+- `results`: array of **both** successful and failed items, sorted by `index`
+- `failures`: optional array of only the failed items (for convenience)
+
+**Failure result item** (entry in `results` when that token failed):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Always `false`. |
+| `index` | number | Zero-based index of the token in the request `tokens` array. |
+| `error` | string | Error message (e.g. from Add Agent or tokenization). |
+
+### Error response body (4xx / 5xx)
+
+Request-level errors (validation, invalid key, insufficient SOL, wrong content type, etc.) return a single error object, not a batch result.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `error` | string | Short error category (e.g. `Validation error`, `Invalid private key`). |
+| `message` | string | Human-readable error description. |
+| `details` | string \| object | Optional; validation details or other context. |
+| `status_code` | number | HTTP status code. |
+| `token_index` | number | Optional; present for per-token errors (e.g. invalid private key or insufficient SOL) to indicate which token in `tokens` caused the error. |
+
+**Authentication errors (401)** from the downstream Add Agent call are returned as failed items in `results` (HTTP 207), not as a single 401 response. The error message in the failed result will indicate authentication failure.
+
+**Validation errors (400)** for the whole request (e.g. missing private key for all tokens, invalid JSON, or validation failure) include:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `details` | object | Often Zod-style `fieldErrors` for `tokens` or top-level fields. |
+
+**Insufficient SOL (400)** includes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `token_index` | number | Index of the token whose creator wallet has insufficient SOL. |
+| `required_sol` | number | Minimum required SOL (0.04). |
+| `current_balance_sol` | number | Creator wallet balance at time of check. |
+
+---
+
+## HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | All tokens launched successfully. |
+| `207` | Multi-Status: at least one token succeeded and at least one failed. Check `results` (or `failures`) for per-item outcome. |
+| `400` | Bad request: invalid JSON, validation failed, invalid private key, insufficient SOL for a token, or unsupported content type (e.g. not `application/json`). Use `token_index` when present to identify the failing token. |
+| `401` | Unauthorized: missing or invalid API key. (If Add Agent returns 401 for some items, those appear as failed entries in a 207 response.) |
+| `405` | Method not allowed; only POST is accepted. |
+| `429` | Too many requests; daily agent limit exceeded. |
+| `500` | Internal server error. |
+
+---
+
+## Examples
+
+### Minimal request – one private key for all tokens
+
+```json
+POST https://swarms.world/api/token/launch/batch
+Authorization: Bearer YOUR_API_KEY
+Content-Type: application/json
+
+{
+  "private_key": "[1,2,3,...]",
+  "tokens": [
+    { "name": "Agent One", "description": "First agent.", "ticker": "ONE" },
+    { "name": "Agent Two", "description": "Second agent.", "ticker": "TWO" }
+  ]
+}
+```
+
+### Response examples by status
+
+Output JSON for each HTTP status. Use the tabs to switch between response types.
+
+<CodeGroup>
+
+```json 200 Success
+{
+  "success": true,
+  "total": 2,
+  "succeeded": 2,
+  "failed": 0,
+  "results": [
+    {
+      "success": true,
+      "index": 0,
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "listing_url": "https://swarms.world/agent/550e8400-e29b-41d4-a716-446655440001",
+      "token_address": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+      "pool_address": "9yZ...configKey"
+    },
+    {
+      "success": true,
+      "index": 1,
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "listing_url": "https://swarms.world/agent/550e8400-e29b-41d4-a716-446655440002",
+      "token_address": "8yLYtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsV",
+      "pool_address": "9zA...configKey"
+    }
+  ]
+}
+```
+
+```json 207 Partial success
+{
+  "success": false,
+  "total": 2,
+  "succeeded": 1,
+  "failed": 1,
+  "results": [
+    {
+      "success": true,
+      "index": 0,
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "listing_url": "https://swarms.world/agent/550e8400-e29b-41d4-a716-446655440001",
+      "token_address": "7xKX...",
+      "pool_address": "9yZ..."
+    },
+    {
+      "success": false,
+      "index": 1,
+      "error": "Agent with this name and content already exists."
+    }
+  ],
+  "failures": [
+    {
+      "success": false,
+      "index": 1,
+      "error": "Agent with this name and content already exists."
+    }
+  ]
+}
+```
+
+```json 400 Validation (missing private key)
+{
+  "error": "Validation error",
+  "message": "Request validation failed",
+  "details": {
+    "formErrors": ["Either provide a top-level private_key or a private_key for each token."],
+    "fieldErrors": { "tokens": [] }
+  },
+  "status_code": 400
+}
+```
+
+```json 400 Validation (invalid ticker)
+{
+  "error": "Validation error",
+  "message": "Request validation failed",
+  "details": {
+    "fieldErrors": {
+      "tokens": {
+        "1": { "ticker": ["Ticker must contain only letters and numbers"] }
+      }
+    }
+  },
+  "status_code": 400
+}
+```
+
+```json 400 Invalid private key
+{
+  "error": "Invalid private key",
+  "message": "Invalid private key format. Must be JSON array, base64, or base58 string.",
+  "token_index": 2,
+  "status_code": 400
+}
+```
+
+```json 400 Insufficient SOL
+{
+  "error": "Insufficient SOL balance",
+  "message": "Token at index 1 (Agent Two) requires at least 0.04 SOL. Creator wallet balance: 0.0029 SOL.",
+  "token_index": 1,
+  "required_sol": 0.04,
+  "current_balance_sol": 0.0029,
+  "status_code": 400
+}
+```
+
+```json 400 Unsupported content type
+{
+  "error": "Unsupported content type",
+  "message": "Batch launch accepts application/json only.",
+  "status_code": 400
+}
+```
+
+</CodeGroup>
+
+### Mixed private keys – default plus overrides
+
+```json
+{
+  "private_key": "[default-wallet-key]",
+  "tokens": [
+    { "name": "Agent A", "description": "Uses default key.", "ticker": "AGTA" },
+    {
+      "name": "Agent B",
+      "description": "Uses a different wallet.",
+      "ticker": "AGTB",
+      "private_key": "[other-wallet-key]"
+    }
+  ]
+}
+```
+
+### Request with image URL and base64
+
+```json
+{
+  "private_key": "[1,2,3,...]",
+  "tokens": [
+    {
+      "name": "Agent With URL Image",
+      "description": "Image from URL.",
+      "ticker": "URLIMG",
+      "image": "https://example.com/icon.png"
+    },
+    {
+      "name": "Agent With Base64 Image",
+      "description": "Image as base64.",
+      "ticker": "B64IMG",
+      "image": "data:image/png;base64,iVBORw0KGgo..."
+    }
+  ]
+}
+```
+
+---
+
+## Notes
+
+1. **Private key formats**  
+   Same as the single Token Launch API:
+   - **JSON array**: 64 integers, e.g. `[1,2,3,...,64]`
+   - **Base64**: 64-byte key encoded as base64
+   - **Base58**: 64-byte key encoded as base58 (e.g. Phantom export format)
+
+2. **Ticker**  
+   Per token: 1–10 characters, letters and numbers only. Stored and returned in uppercase.
+
+3. **Image**  
+   - **URL**: `https://...` or `http://...` is used as-is.
+   - **Base64**: `data:image/...;base64,...` or raw base64 is uploaded to Supabase Storage; the resulting URL is sent to Jupiter.
+   - Batch endpoint does **not** support multipart file upload; use the single Token Launch endpoint for file uploads.
+
+4. **Authentication**  
+   Same API key as the rest of the Swarms Platform API. Create and manage keys at [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys). If Add Agent returns 401 for some items, those appear as failed entries in a 207 response with an authentication-related error message.
+
+5. **Rate limits**  
+   Subject to the same daily agent creation limits as Add Agent. Each token in the batch counts toward your limit. See the [API Reference](https://docs.swarms.ai/api-reference) for limits and reset behavior.
+
+6. **Batch size**  
+   Minimum 1, maximum 50 tokens per request. For larger batches, send multiple requests.
+
+7. **Order and indexing**  
+   `results` are sorted by `index` (the position in the request `tokens` array). Use `index` to correlate successes and failures with your input.
+
+8. **Pre-validation and early exit**  
+   Before launching any token, the endpoint validates all private keys and (when RPC is available) checks SOL balance for each creator wallet. If any of these checks fail, the entire request returns 400 with `token_index` so you can fix that item and retry.
+
+9. **Downstream behavior**  
+   Each token is created via the same Add Agent flow as the single Token Launch endpoint (placeholder agent, default metadata, `tokenized_on: true`). Failures (e.g. duplicate agent, tokenization error) are reported per item in `results` with HTTP 207.
+
+---
+
+## See also
+
+- [Token Launch (single)](/docs/marketplace/token-launch-api) – Create one token per request; supports JSON and multipart.
+- [Agents API](/docs/marketplace/agents-api) – Full agent creation API used internally by both launch endpoints.
+- [API Reference](https://docs.swarms.ai/api-reference) – Overview, authentication, and other endpoints.
