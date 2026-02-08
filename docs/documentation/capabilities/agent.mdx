@@ -40,6 +40,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `role` | `string` | No | `"worker"` | The designated role of the agent within the swarm, which influences its behavior and interaction with other agents |
 | `max_loops` | `Union[int, string]` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer for a fixed count, or 'auto' to allow the system to determine the necessary number based on the task's complexity |
 | `tools_list_dictionary` | `List[Dict]` | No | - | A dictionary of tools that the agent can use to complete its task |
+| `selected_tools` | `string \| List[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Pass a list of tool names to restrict which tools the agent can use (e.g. `["think", "create_plan"]`). Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. Note: `run_bash` is not permitted for security reasons |
 | `mcp_url` | `string` | No | - | The URL of the MCP server that the agent can use to complete its task |
 | `streaming_on` | `boolean` | No | `false` | A flag indicating whether the agent should stream its output |
 | `llm_args` | `Dict` | No | - | Additional arguments to pass to the LLM such as top_p, frequency_penalty, presence_penalty, etc. |

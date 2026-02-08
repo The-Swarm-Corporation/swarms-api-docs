@@ -70,6 +70,23 @@ Once all subtasks are complete, the agent:
 - Optionally calls a completion tool (e.g., `complete_task`)
 - Returns the final result to your application
 
+### Tool Selection
+
+By default, autonomous agents have access to all safe built-in tools. You can restrict which tools are available using the `selected_tools` parameter in `agent_config`:
+
+```python
+"agent_config": {
+    "agent_name": "My Agent",
+    "model_name": "gpt-4.1",
+    "max_loops": "auto",
+    "selected_tools": ["create_plan", "think", "subtask_done", "complete_task", "read_file"]
+}
+```
+
+Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`.
+
+<Note>`run_bash` is not available via the API for security reasons.</Note>
+
 ## Complete Example: Autonomous Medical Diagnosis Agent
 
 This example shows an autonomous agent that:

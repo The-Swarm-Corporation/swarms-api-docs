@@ -55,6 +55,7 @@ headers = {
 | `role` | `string` | No | `"worker"` | Agent's role within the swarm |
 | `max_loops` | `integer` | No | `1` | Maximum number of times the agent can repeat its task |
 | `tools_list_dictionary` | `List[dict]` | No | `null` | List of tools the agent can use |
+| `selected_tools` | `string \| List[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. `run_bash` is not permitted |
 | `mcp_url` | `string` | No | `null` | URL of MCP server for the agent |
 | `streaming_on` | `boolean` | No | `false` | Whether the agent should stream its output |
 | `llm_args` | `dict` | No | `null` | Additional LLM arguments (top_p, frequency_penalty, etc.) |
