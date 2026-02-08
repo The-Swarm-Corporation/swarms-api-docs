@@ -71,6 +71,7 @@
               "docs/documentation/multi-agent/concurrent_workflow",
               "docs/documentation/multi-agent/multi_agent_router",
               "docs/documentation/multi-agent/mixture_of_agents",
+              "docs/documentation/multi-agent/group_chat",
               "docs/documentation/multi-agent/majority_voting",
               "docs/documentation/multi-agent/hierarchical_swarm",
               "docs/documentation/multi-agent/agent_rearrange",
@@ -202,6 +203,7 @@
               "docs/examples/examples/concurrent-workflow",
               "docs/examples/examples/multi-agent-router",
               "docs/examples/examples/mixture-of-agents",
+              "docs/examples/examples/group-chat",
               "docs/examples/examples/advanced-research",
               "docs/examples/examples/batch-processing",
               "docs/examples/examples/batch-swarm-completions"
