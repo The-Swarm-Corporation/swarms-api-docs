@@ -37,7 +37,34 @@ It's quick and easy to create your own agent in the marketplace.
 POST /api/add-agent
 ```
 
-### Request Body
+### Input schema (Add Agent)
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Display name (min 2 characters) |
+| `agent` | string | No | Agent code/content (min 5 characters if provided); can be null |
+| `language` | string | No | Programming or script language |
+| `description` | string | Yes | Description of the agent |
+| `requirements` | array | No | Dependencies; each `{ "package": string, "installation": string }` |
+| `useCases` | array | Yes | Use cases; each `{ "title": string, "description": string }` |
+| `tags` | string | No | Comma-separated tags (min 2 characters if provided) |
+| `is_free` | boolean | No | Default `true` |
+| `price_usd` | number | If paid | Required when `is_free` is false; must be &gt; 0 |
+| `category` | string | No | Optional category |
+| `status` | string | No | `'pending'` \| `'approved'` \| `'rejected'`; default `'pending'` |
+| `tokenized_on` | boolean | No | Enable tokenization on Solana |
+| `ticker` | string | If tokenized | Required when `tokenized_on` is true; uppercase alphanumeric; max 10 characters |
+| `image_url` | string | No | Public image URL (valid URL or empty string) |
+| `file_path` | string | No | Storage path for image (alternative to `image_url`) |
+| `image_base64` | string | No | Base64-encoded image (alternative to `image_url`; may include `data:image/...;base64,` prefix) |
+| `links` | array | No | Array of strings or `{ "name": string, "url": string }` |
+| `seller_wallet_address` | string | No | Seller wallet address |
+| `x402_url` | string | No | x402 payment URL (valid URL or empty string) |
+| `mcp_url` | string | No | MCP server URL (valid URL or empty string) |
+| `creator_wallet` | string | If tokenized | Creator wallet public key; required when `tokenized_on` is true |
+| `private_key` | string | If tokenized | Private key for signing (JSON array or base64); required when `tokenized_on` is true |
+
+### Request Body (detailed)
 
 Just provide the necessary agent details:
 
@@ -45,8 +72,8 @@ Just provide the necessary agent details:
   The name of the agent (minimum 2 characters)
 </ParamField>
 
-<ParamField body="agent" type="string" required>
-  The agent code or configuration (minimum 5 characters)
+<ParamField body="agent" type="string">
+  Agent code/content (minimum 5 characters if provided); can be null
 </ParamField>
 
 <ParamField body="description" type="string" required>
@@ -82,7 +109,7 @@ Just provide the necessary agent details:
 </ParamField>
 
 <ParamField body="tags" type="string">
-  Comma-separated tags for categorization (e.g., "data,analysis,python")
+  Comma-separated tags (minimum 2 characters if provided)
 </ParamField>
 
 <ParamField body="is_free" type="boolean" default="true">
@@ -102,26 +129,56 @@ Just provide the necessary agent details:
 </ParamField>
 
 <ParamField body="image_url" type="string">
-  URL to an image representing your agent
+  Public image URL (valid URL or empty string)
 </ParamField>
 
 <ParamField body="file_path" type="string">
-  Path to any associated files
+  Storage path for image (alternative to `image_url`)
+</ParamField>
+
+<ParamField body="image_base64" type="string">
+  Base64-encoded image (alternative to `image_url`; can include `data:image/...;base64,` prefix)
 </ParamField>
 
 <ParamField body="links" type="array">
-  An array of relevant links (docs, repo, etc.)
+  Links: array of strings or `{ "name": string, "url": string }` (e.g. website, twitter, telegram for token metadata)
 </ParamField>
 
 <ParamField body="seller_wallet_address" type="string">
-  Wallet address for payments (for paid agents)
+  Seller wallet address
+</ParamField>
+
+<ParamField body="x402_url" type="string">
+  x402 payment URL (valid URL or empty string)
+</ParamField>
+
+<ParamField body="mcp_url" type="string">
+  MCP server URL (valid URL or empty string)
 </ParamField>
 
 <ParamField body="tokenized_on" type="boolean">
-  Whether the agent is tokenized on blockchain
+  Enable tokenization on Solana
 </ParamField>
 
-### Response
+<ParamField body="ticker" type="string">
+  Required when `tokenized_on` is true; uppercase letters and numbers only; max 10 characters
+</ParamField>
+
+<ParamField body="creator_wallet" type="string">
+  Creator wallet public key; required when `tokenized_on` is true
+</ParamField>
+
+<ParamField body="private_key" type="string">
+  Private key for signing (JSON array or base64); required when `tokenized_on` is true
+</ParamField>
+
+### Validation rules
+
+- **Paid agents**: When `is_free` is `false`, `price_usd` is required and must be &gt; 0.
+- **Tokenization**: When `tokenized_on` is `true`, `ticker`, `creator_wallet`, and `private_key` are required; ticker must be uppercase alphanumeric, max 10 characters.
+- **Duplicate**: Same name and same `agent` content for the same user returns 400 with `existingId`.
+
+### Success response (200)
 
 On success, you'll immediately get:
 
@@ -129,9 +186,51 @@ On success, you'll immediately get:
 {
   "success": true,
   "id": "550e8400-e29b-41d4-a716-446655440000",
-  "listing_url": "https://swarms.world/agent/550e8400-e29b-41d4-a716-446655440000"
+  "listing_url": "https://swarms.world/agent/550e8400-e29b-41d4-a716-446655440000",
+  "tokenized": false,
+  "token_address": null,
+  "pool_address": null
 }
 ```
+
+When tokenization is used, `tokenized` is `true` and `token_address` and `pool_address` are set.
+
+### Output schema (Add Agent — success)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | `true` on success |
+| `id` | string | UUID of the created agent |
+| `listing_url` | string | URL to the agent listing (e.g. `https://swarms.world/agent/{id}`) |
+| `tokenized` | boolean | Whether the agent was tokenized |
+| `token_address` | string \| null | Solana token address (when tokenized) |
+| `pool_address` | string \| null | Liquidity pool address (when tokenized) |
+
+### Error responses (Add Agent)
+
+- **400** – Validation: `error`, `message`, `details`, `errors`, `status_code`. Content validation: also `trustworthiness`, `contentQuality`. Duplicate agent: `existingId`. Tokenization failed: standard 400 shape.
+- **401** – `error`, `message`, `details`, `how_to_get_key`, `status_code`.
+- **429** – `error`, `message`, `details`, `currentUsage`, `limits`, `resetTime`, `status_code`.
+- **500** – Server/database/price conversion/tokenization error: `error`, `message`, `details`, `status_code` (may include `hint`, `code` for DB errors).
+
+### Error output schema (common fields)
+
+| HTTP | Field | Type | Description |
+|------|-------|------|-------------|
+| All | `error` | string | Short error message |
+| All | `message` | string | Detailed description |
+| All | `code` | string | Error code (e.g. `VALIDATION_ERROR`) |
+| All | `details` | string | Optional extra context |
+| All | `status_code` | number | HTTP status code |
+| 400 | `errors` | object | Validation errors by field |
+| 400 | `existingId` | string | Existing agent ID (duplicate) |
+| 400 | `trustworthiness` | number | Content trust score (content validation) |
+| 400 | `contentQuality` | number | Content quality score (content validation) |
+| 401 | `how_to_get_key` | string | Instructions to obtain API key |
+| 429 | `currentUsage` | object | Current usage counts |
+| 429 | `limits` | object | Rate limit values |
+| 429 | `resetTime` | string | ISO timestamp when limit resets |
+| 500 | `hint` | string | Optional DB/system hint (DB errors may also include a `code` field) |
 
 ### Example Request
 
@@ -533,13 +632,17 @@ The API uses standard HTTP status codes to signal errors:
 
 ### Example Error Response
 
+All endpoints return consistent error responses:
+
 ```json
 {
-  "error": "Validation error",
-  "message": "Agent name must be at least 2 characters long",
-  "code": "VALIDATION_ERROR"
+  "error": "Error message",
+  "message": "Detailed error description",
+  "code": "ERROR_CODE"
 }
 ```
+
+Validation errors may include `details`, `errors`, and `status_code`. Duplicate agent responses include `existingId`. Rate limit (429) responses include `currentUsage`, `limits`, and `resetTime`. Authentication (401) responses may include `how_to_get_key`.
 
 ---
 
@@ -547,12 +650,12 @@ The API uses standard HTTP status codes to signal errors:
 
 Every agent undergoes automated checks, including:
 
-- **Duplicate Detection**: No duplicate agents per user
+- **Duplicate Detection**: Same name and same `agent` content for the same user returns 400 with `existingId`
 - **Quality Assessment**: Checks code completeness and standards
 - **Security Scanning**: Ensures code is safe
-- **Trustworthiness Scoring**: Rates each agent on quality and trust
+- **Trustworthiness Scoring**: Rates each agent on quality and trust (content validation responses may include `trustworthiness`, `contentQuality`)
 
-Agents failing validation will get a `403 Forbidden` with detailed reasons.
+Agents failing validation will get a `403 Forbidden` or `400 Bad Request` with detailed reasons.
 
 ---
 

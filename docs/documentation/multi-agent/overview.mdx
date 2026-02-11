@@ -63,6 +63,7 @@ Each agent in the `agents` array can be configured with the following parameters
 | `role` | `string` | No | `"worker"` | The designated role of the agent within the swarm, which influences its behavior and interaction with other agents. |
 | `max_loops` | `integer \| string` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer for a fixed count, or `'auto'` to allow the system to determine the necessary number based on the task's complexity. |
 | `tools_list_dictionary` | `array[object]` | No | - | A dictionary of tools that the agent can use to complete its task. |
+| `selected_tools` | `string \| array[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Pass a list of tool names to restrict which tools the agent can use (e.g. `["think", "create_plan"]`). Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. Note: `run_bash` is not permitted for security reasons. |
 | `mcp_url` | `string` | No | - | The URL of the MCP server that the agent can use to complete its task. |
 | `mcp_config` | `object` | No | - | The MCP connection configuration to use for the agent. See MCP Connection Configuration table below. |
 | `mcp_configs` | `object` | No | - | Multiple MCP connections to use for the agent. This is a list of MCP connections. See Multiple MCP Connections below. |
@@ -252,5 +253,5 @@ print(result)
 ## Additional Resources
 
 - [API Dashboard](https://swarms.world/platform/api-keys)
-- [API Reference](/docs/api-reference)
+- [API Reference](https://docs.swarms.ai/api-reference)
 - [Getting Started Guide](/docs/documentation/getting-started/quickstart)
