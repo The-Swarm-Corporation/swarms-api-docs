@@ -193,6 +193,7 @@
               "docs/examples/examples/search-enabled",
               "docs/examples/examples/vision-capabilities",
               "docs/examples/examples/mcp-integration",
+              "docs/examples/examples/agent-handoffs",
               "docs/examples/examples/sub-agent-delegation",
               "docs/examples/api_examples/agent_completion_single_agent",
               "docs/examples/api_examples/autonomous_agent_tutorial"
