@@ -1,0 +1,110 @@
+---
+title: "Sub-Agent Delegation Example"
+description: "Build a market analysis system where a coordinator agent dynamically creates and delegates to specialized sub-agents"
+---
+
+## Parallel Market Analysis with Sub-Agents
+
+This example demonstrates how a single coordinator agent can dynamically create specialized sub-agents and delegate parallel research tasks — perfect for complex analyses that benefit from domain-specific expertise.
+
+### What This Example Shows
+
+- Enabling sub-agent delegation with `max_loops="auto"`
+- How the coordinator autonomously creates and assigns work to sub-agents
+- Parallel execution across multiple research domains
+- Result aggregation into a unified report
+
+### Step 1: Setup
+
+```python
+import requests
+import os
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 2: Configure the Coordinator Agent
+
+The coordinator agent needs `max_loops="auto"` to enable autonomous tool use, including `create_sub_agent` and `assign_task`:
+
+```python
+def analyze_market(company: str) -> dict:
+    """Run a parallel market analysis using sub-agent delegation."""
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Market-Analysis-Coordinator",
+            "description": "Senior market analyst that coordinates parallel research streams",
+            "system_prompt": (
+                "You are a senior market analyst coordinating a research team. "
+                "For each analysis request:\n"
+                "1. Create specialized sub-agents for each research domain\n"
+                "2. Assign specific research tasks to each sub-agent\n"
+                "3. Wait for all results and compile a comprehensive market report\n\n"
+                "Always create at least 3 sub-agents covering: "
+                "financial analysis, competitive landscape, and industry trends."
+            ),
+            "model_name": "gpt-4.1",
+            "max_loops": "auto",
+            "max_tokens": 8192,
+            "temperature": 0.3
+        },
+        "task": (
+            f"Conduct a comprehensive market analysis for {company}. "
+            "Create specialized sub-agents and delegate the following research areas:\n"
+            "1. Financial Analysis: Revenue trends, profitability, key financial metrics\n"
+            "2. Competitive Landscape: Major competitors, market share, differentiation\n"
+            "3. Industry Trends: Market growth, emerging technologies, regulatory changes\n"
+            "4. Risk Assessment: Key risks, vulnerabilities, mitigation strategies\n\n"
+            "Compile all findings into a structured executive briefing."
+        )
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=300
+    )
+
+    return response.json()
+```
+
+### Step 3: Run the Analysis
+
+```python
+result = analyze_market("Tesla Inc.")
+
+if result.get("success"):
+    print(f"Agent: {result['name']}")
+    print(f"Output:\n{result['outputs'][:2000]}...")
+    print(f"\nTotal cost: ${result['usage']['total_cost']:.4f}")
+else:
+    print(f"Error: {result}")
+```
+
+**Expected Behavior:**
+
+The coordinator will autonomously:
+
+1. **Create sub-agents** — e.g., "Financial-Analyst", "Competition-Researcher", "Industry-Trends-Analyst", "Risk-Assessor"
+2. **Assign tasks** — Each sub-agent receives a focused research task
+3. **Execute in parallel** — Sub-agents run concurrently
+4. **Compile results** — The coordinator synthesizes all findings into a unified report
+
+<Note>
+Sub-agent workflows take longer than single-agent calls since multiple agents are created and run. Use a timeout of 300 seconds or more for complex delegation tasks.
+</Note>
+
+## Next Steps
+
+- [Sub-Agent Delegation Reference](/docs/documentation/capabilities/sub_agents) — Full documentation on sub-agent tools and parameters
+- [Autonomous Agent Tutorial](/docs/examples/api_examples/autonomous_agent_tutorial) — Learn the autonomous mode that powers sub-agents
+- [HierarchicalSwarm](/docs/documentation/multi-agent/hierarchical_swarm) — Pre-defined multi-agent hierarchy for known team structures

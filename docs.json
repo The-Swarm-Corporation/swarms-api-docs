@@ -83,6 +83,7 @@
             "group": "Capabilities",
             "pages": [
               "docs/documentation/capabilities/swarms_api_tools",
+              "docs/documentation/capabilities/sub_agents",
               "docs/documentation/capabilities/mcp_integration",
               "docs/documentation/capabilities/tools",
               "docs/documentation/capabilities/marketplace_agents",
@@ -192,6 +193,7 @@
               "docs/examples/examples/search-enabled",
               "docs/examples/examples/vision-capabilities",
               "docs/examples/examples/mcp-integration",
+              "docs/examples/examples/sub-agent-delegation",
               "docs/examples/api_examples/agent_completion_single_agent",
               "docs/examples/api_examples/autonomous_agent_tutorial"
             ]
