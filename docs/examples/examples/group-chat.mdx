@@ -1,0 +1,231 @@
+---
+title: "Group Chat Example"
+description: "Build a product strategy brainstorm with GroupChat"
+---
+
+## Product Strategy Brainstorm
+
+This example demonstrates how to facilitate a collaborative discussion between multiple specialist agents using GroupChat - perfect for brainstorming, cross-functional planning, and multi-perspective problem solving.
+
+### Step 1: Setup
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 2: Define the Discussion Panel
+
+Create agents with distinct expertise who will collaborate through group conversation:
+
+```python
+def run_product_brainstorm(product_brief: str) -> dict:
+    """Run a collaborative product strategy discussion."""
+
+    swarm_config = {
+        "name": "Product Strategy GroupChat",
+        "description": "Cross-functional product brainstorm",
+        "swarm_type": "GroupChat",
+        "task": f"""Collaborate on a go-to-market strategy for the following product:
+
+{product_brief}
+
+Each participant should contribute their domain expertise, build on others' ideas, and identify blind spots. Converge on a concrete action plan.""",
+        "agents": [
+            {
+                "agent_name": "Product Manager",
+                "description": "Drives product vision, roadmap, and prioritization",
+                "system_prompt": """You are a Senior Product Manager. In this group discussion:
+- Define the core value proposition and target personas
+- Prioritize features for the launch MVP
+- Identify key metrics and success criteria
+- Challenge assumptions and ask clarifying questions
+
+Be concise and action-oriented. Build on what other participants say.""",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Growth Marketer",
+                "description": "Designs acquisition channels and launch campaigns",
+                "system_prompt": """You are a Growth Marketing Lead. In this group discussion:
+- Propose acquisition channels ranked by expected ROI
+- Design the launch campaign strategy
+- Suggest pricing and positioning tactics
+- Estimate CAC benchmarks for each channel
+
+Be data-driven and specific with numbers. React to others' suggestions.""",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Engineering Lead",
+                "description": "Assesses technical feasibility and delivery timelines",
+                "system_prompt": """You are an Engineering Lead. In this group discussion:
+- Evaluate technical feasibility of proposed features
+- Flag complexity risks and dependencies
+- Propose a realistic MVP scope and timeline
+- Suggest technical shortcuts for faster time-to-market
+
+Be pragmatic. Push back on scope creep and offer alternatives.""",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "temperature": 0.4
+            },
+            {
+                "agent_name": "Customer Success Lead",
+                "description": "Represents the customer voice and retention strategy",
+                "system_prompt": """You are a Customer Success Lead. In this group discussion:
+- Advocate for the end-user experience
+- Identify onboarding friction points
+- Propose retention and engagement hooks
+- Share common objections and how to address them
+
+Ground the discussion in real customer needs. Challenge ideas that overlook usability.""",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "temperature": 0.5
+            }
+        ],
+        "max_loops": 1
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=180
+    )
+
+    return response.json()
+```
+
+### Step 3: Run the Brainstorm
+
+```python
+# Product brief
+brief = """
+PRODUCT: TaskPilot - AI-powered project management tool for remote teams
+TARGET: Small-to-mid engineering teams (5-30 people)
+KEY FEATURES:
+- AI auto-assigns tasks based on team capacity and skill matching
+- Natural language standup summaries generated from activity
+- Smart sprint planning that predicts delivery risk
+- Integrations with GitHub, Slack, and Jira
+
+STAGE: Pre-launch, MVP built, 12 beta users
+BUDGET: $50K for initial go-to-market
+TIMELINE: 8 weeks to public launch
+"""
+
+# Run brainstorm
+result = run_product_brainstorm(brief)
+
+# Display the group discussion
+for output in result.get("output", []):
+    participant = output["role"]
+    content = output["content"]
+
+    print(f"\n{'='*50}")
+    print(f"{participant.upper()}")
+    print(f"{'='*50}")
+    print(content[:800] + "...")
+```
+
+**Expected Output:**
+```
+==================================================
+PRODUCT MANAGER
+==================================================
+Based on the brief, here's my take on the launch strategy:
+
+VALUE PROPOSITION: "Stop managing tasks. Let AI manage them for you."
+Target persona: Engineering managers at remote-first startups (5-30 devs)
+who currently use Jira/Linear but struggle with sprint planning accuracy.
+
+MVP PRIORITY (Must-have for launch):
+1. AI task assignment - this is the core differentiator
+2. Slack integration - lowest friction adoption path
+3. Standup summaries - immediate daily value
+
+DEFER post-launch:
+- Jira migration (complex, slow ROI)
+- Delivery risk prediction (needs more data)
+
+SUCCESS METRICS:
+- 50 teams onboarded in 8 weeks
+- 60% WAU after first month
+- NPS > 40 from beta cohort...
+
+==================================================
+GROWTH MARKETER
+==================================================
+Love the positioning. Here's my channel strategy for the $50K budget:
+
+CHANNEL ALLOCATION:
+1. Product Hunt launch ($2K) - Expected: 500-1K signups, best ROI
+2. Dev-focused content marketing ($15K) - Blog posts, Twitter threads
+3. Slack community partnerships ($8K) - Sponsor remote-work communities
+4. LinkedIn ads targeting eng managers ($15K) - Est. CAC: $35-50
+5. Beta user referral program ($10K) - Give existing 12 users incentives
+
+PRICING:
+- Free tier: up to 5 users (growth loop)
+- Pro: $12/user/month (target ACV ~$2,500)
+- Launch discount: 40% off annual for first 3 months...
+
+==================================================
+ENGINEERING LEAD
+==================================================
+A few reality checks on the proposed scope:
+
+FEASIBLE IN 8 WEEKS:
+- AI task assignment: Core algo exists from MVP, needs polish. 3 weeks.
+- Slack integration: Standard OAuth + webhooks. 2 weeks.
+- Standup summaries: We can ship a v1 using activity logs. 1 week.
+
+RISKS:
+- GitHub integration adds 2-3 weeks if we want bidirectional sync.
+  Recommend: start with read-only GitHub status sync (1 week).
+- AI assignment accuracy depends on historical data. New teams
+  will have a cold-start problem. Suggest: manual override + learning mode.
+
+TIMELINE: 6 weeks eng + 2 weeks buffer = doable if we freeze scope NOW...
+
+==================================================
+CUSTOMER SUCCESS LEAD
+==================================================
+From our 12 beta users, here's what I'm seeing:
+
+TOP ONBOARDING FRICTION:
+1. Teams don't trust AI assignments on day one - need a "suggestion mode"
+   before fully autonomous mode
+2. Connecting Slack takes 3 clicks but users expect 1-click setup
+3. No clear "aha moment" in first 5 minutes
+
+RETENTION HOOKS I'd prioritize:
+- Daily standup digest in Slack (passive value, no effort needed)
+- Weekly "time saved" report (quantifies ROI for the buyer)
+- Team leaderboard for sprint completion (engagement driver)
+
+COMMON OBJECTION: "How is this different from Jira automation rules?"
+Answer: We need a clear comparison page and a 2-minute demo video...
+```
+
+<Note>
+GroupChat enables collaborative discussion where agents can build on each other's ideas. Use it when you need cross-functional input on the same problem - each agent contributes their domain expertise while reacting to the broader conversation context.
+</Note>

@@ -1,0 +1,473 @@
+---
+name: "GroupChat"
+description: "Collaborative discussion swarm where multiple agents engage in group conversation, building on each other's ideas for brainstorming and cross-functional planning"
+---
+
+**Swarm Type**: `GroupChat`
+
+## Overview
+
+The GroupChat swarm type facilitates collaborative discussion between multiple specialist agents. Unlike workflows where agents operate independently, GroupChat enables agents to engage in a shared conversation where each participant can build on, challenge, and refine ideas from others. This architecture is ideal for brainstorming, cross-functional planning, and problems that benefit from interactive dialogue.
+
+Key features:
+- **Collaborative Discussion**: Agents engage in shared conversation rather than working in isolation
+- **Cross-Functional Input**: Combine perspectives from different domains in a single discussion
+- **Idea Building**: Each agent can react to and build on contributions from other participants
+- **Convergent Outcomes**: Discussion naturally converges toward actionable conclusions
+
+## Use Cases
+
+- Product strategy brainstorming sessions
+- Cross-functional planning and alignment
+- Architectural design discussions
+- Risk assessment with multiple stakeholders
+- Creative ideation requiring diverse perspectives
+
+## API Usage
+
+### Basic GroupChat Example
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Product Launch Strategy",
+    "description": "Cross-functional product launch discussion",
+    "swarm_type": "GroupChat",
+    "task": "Discuss and develop a go-to-market strategy for an AI-powered project management tool targeting remote engineering teams of 5-30 people. The MVP is built with 12 beta users. Budget is $50K with an 8-week timeline to public launch.",
+    "agents": [
+      {
+        "agent_name": "Product Manager",
+        "description": "Drives product vision, roadmap, and prioritization",
+        "system_prompt": "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
+        "model_name": "gpt-4o",
+        "role": "worker",
+        "max_loops": 1,
+        "temperature": 0.5
+      },
+      {
+        "agent_name": "Growth Marketer",
+        "description": "Designs acquisition channels and launch campaigns",
+        "system_prompt": "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
+        "model_name": "gpt-4o",
+        "role": "worker",
+        "max_loops": 1,
+        "temperature": 0.5
+      },
+      {
+        "agent_name": "Engineering Lead",
+        "description": "Assesses technical feasibility and delivery timelines",
+        "system_prompt": "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
+        "model_name": "gpt-4o",
+        "role": "worker",
+        "max_loops": 1,
+        "temperature": 0.4
+      },
+      {
+        "agent_name": "Customer Success Lead",
+        "description": "Represents the customer voice and retention strategy",
+        "system_prompt": "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
+        "model_name": "gpt-4o",
+        "role": "worker",
+        "max_loops": 1,
+        "temperature": 0.5
+      }
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Product Launch Strategy",
+    "description": "Cross-functional product launch discussion",
+    "swarm_type": "GroupChat",
+    "task": "Discuss and develop a go-to-market strategy for an AI-powered project management tool targeting remote engineering teams of 5-30 people. The MVP is built with 12 beta users. Budget is $50K with an 8-week timeline to public launch.",
+    "agents": [
+        {
+            "agent_name": "Product Manager",
+            "description": "Drives product vision, roadmap, and prioritization",
+            "system_prompt": "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
+            "model_name": "gpt-4o",
+            "role": "worker",
+            "max_loops": 1,
+            "temperature": 0.5
+        },
+        {
+            "agent_name": "Growth Marketer",
+            "description": "Designs acquisition channels and launch campaigns",
+            "system_prompt": "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
+            "model_name": "gpt-4o",
+            "role": "worker",
+            "max_loops": 1,
+            "temperature": 0.5
+        },
+        {
+            "agent_name": "Engineering Lead",
+            "description": "Assesses technical feasibility and delivery timelines",
+            "system_prompt": "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
+            "model_name": "gpt-4o",
+            "role": "worker",
+            "max_loops": 1,
+            "temperature": 0.4
+        },
+        {
+            "agent_name": "Customer Success Lead",
+            "description": "Represents the customer voice and retention strategy",
+            "system_prompt": "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
+            "model_name": "gpt-4o",
+            "role": "worker",
+            "max_loops": 1,
+            "temperature": 0.5
+        }
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print("GroupChat swarm completed successfully!")
+    for output in result.get("output", []):
+        print(f"\n{output['role']}: {output['content'][:200]}...")
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Product Launch Strategy",
+    description: "Cross-functional product launch discussion",
+    swarm_type: "GroupChat",
+    task: "Discuss and develop a go-to-market strategy for an AI-powered project management tool targeting remote engineering teams of 5-30 people. The MVP is built with 12 beta users. Budget is $50K with an 8-week timeline to public launch.",
+    agents: [
+        {
+            agent_name: "Product Manager",
+            description: "Drives product vision, roadmap, and prioritization",
+            system_prompt: "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
+            model_name: "gpt-4o",
+            role: "worker",
+            max_loops: 1,
+            temperature: 0.5
+        },
+        {
+            agent_name: "Growth Marketer",
+            description: "Designs acquisition channels and launch campaigns",
+            system_prompt: "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
+            model_name: "gpt-4o",
+            role: "worker",
+            max_loops: 1,
+            temperature: 0.5
+        },
+        {
+            agent_name: "Engineering Lead",
+            description: "Assesses technical feasibility and delivery timelines",
+            system_prompt: "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
+            model_name: "gpt-4o",
+            role: "worker",
+            max_loops: 1,
+            temperature: 0.4
+        },
+        {
+            agent_name: "Customer Success Lead",
+            description: "Represents the customer voice and retention strategy",
+            system_prompt: "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
+            model_name: "gpt-4o",
+            role: "worker",
+            max_loops: 1,
+            temperature: 0.5
+        }
+    ],
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("GroupChat swarm completed successfully!");
+        result.output.forEach(output => {
+            console.log(`\n${output.role}: ${output.content}`);
+        });
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type Agent struct {
+    AgentName    string  `json:"agent_name"`
+    Description  string  `json:"description"`
+    SystemPrompt string  `json:"system_prompt"`
+    ModelName    string  `json:"model_name"`
+    Role         string  `json:"role"`
+    MaxLoops     int     `json:"max_loops"`
+    Temperature  float64 `json:"temperature"`
+}
+
+type SwarmConfig struct {
+    Name        string  `json:"name"`
+    Description string  `json:"description"`
+    SwarmType   string  `json:"swarm_type"`
+    Task        string  `json:"task"`
+    Agents      []Agent `json:"agents"`
+    MaxLoops    int     `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:        "Product Launch Strategy",
+        Description: "Cross-functional product launch discussion",
+        SwarmType:   "GroupChat",
+        Task:        "Discuss and develop a go-to-market strategy for an AI-powered project management tool targeting remote engineering teams of 5-30 people. The MVP is built with 12 beta users. Budget is $50K with an 8-week timeline to public launch.",
+        Agents: []Agent{
+            {
+                AgentName:    "Product Manager",
+                Description:  "Drives product vision, roadmap, and prioritization",
+                SystemPrompt: "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
+                ModelName:    "gpt-4o",
+                Role:         "worker",
+                MaxLoops:     1,
+                Temperature:  0.5,
+            },
+            {
+                AgentName:    "Growth Marketer",
+                Description:  "Designs acquisition channels and launch campaigns",
+                SystemPrompt: "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
+                ModelName:    "gpt-4o",
+                Role:         "worker",
+                MaxLoops:     1,
+                Temperature:  0.5,
+            },
+            {
+                AgentName:    "Engineering Lead",
+                Description:  "Assesses technical feasibility and delivery timelines",
+                SystemPrompt: "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
+                ModelName:    "gpt-4o",
+                Role:         "worker",
+                MaxLoops:     1,
+                Temperature:  0.4,
+            },
+            {
+                AgentName:    "Customer Success Lead",
+                Description:  "Represents the customer voice and retention strategy",
+                SystemPrompt: "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
+                ModelName:    "gpt-4o",
+                Role:         "worker",
+                MaxLoops:     1,
+                Temperature:  0.5,
+            },
+        },
+        MaxLoops: 1,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Product Launch Strategy",
+        "description": "Cross-functional product launch discussion",
+        "swarm_type": "GroupChat",
+        "task": "Discuss and develop a go-to-market strategy for an AI-powered project management tool targeting remote engineering teams of 5-30 people. The MVP is built with 12 beta users. Budget is $50K with an 8-week timeline to public launch.",
+        "agents": [
+            {
+                "agent_name": "Product Manager",
+                "description": "Drives product vision, roadmap, and prioritization",
+                "system_prompt": "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Growth Marketer",
+                "description": "Designs acquisition channels and launch campaigns",
+                "system_prompt": "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Engineering Lead",
+                "description": "Assesses technical feasibility and delivery timelines",
+                "system_prompt": "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "temperature": 0.4
+            },
+            {
+                "agent_name": "Customer Success Lead",
+                "description": "Represents the customer voice and retention strategy",
+                "system_prompt": "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "temperature": 0.5
+            }
+        ],
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("GroupChat swarm completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "swarms-G17nZFDesmLHxCRoeyF3NVYvPaXk",
+    "status": "success",
+    "swarm_name": "Product Launch Strategy",
+    "description": "Cross-functional product launch discussion",
+    "swarm_type": "GroupChat",
+    "output": [
+        {
+            "role": "Product Manager",
+            "content": "Here's my take on the launch strategy. Value proposition: 'Stop managing tasks — let AI manage them for you.' Target persona: engineering managers at remote-first startups who currently use Jira or Linear but struggle with sprint planning accuracy. MVP priority for launch: (1) AI task assignment — this is the core differentiator, (2) Slack integration — lowest friction adoption path, (3) standup summaries — immediate daily value. I'd defer Jira migration and delivery risk prediction post-launch. Success metrics: 50 teams onboarded in 8 weeks, 60% WAU after first month."
+        },
+        {
+            "role": "Growth Marketer",
+            "content": "Love the positioning. Channel strategy for the $50K budget: Product Hunt launch ($2K, expected 500-1K signups), dev-focused content marketing ($15K), Slack community partnerships ($8K), LinkedIn ads targeting eng managers ($15K, est. CAC $35-50), and a beta user referral program ($10K). Pricing: free tier up to 5 users as growth loop, Pro at $12/user/month targeting ~$2,500 ACV, with a 40% launch discount on annual plans for the first 3 months."
+        },
+        {
+            "role": "Engineering Lead",
+            "content": "Reality check on scope. Feasible in 8 weeks: AI task assignment (core algo exists, needs polish — 3 weeks), Slack integration (standard OAuth + webhooks — 2 weeks), standup summaries (v1 using activity logs — 1 week). Risks: GitHub integration adds 2-3 weeks for bidirectional sync, recommend starting with read-only status sync (1 week). AI assignment accuracy has a cold-start problem for new teams — suggest manual override plus learning mode. Timeline: 6 weeks eng + 2 weeks buffer, doable if we freeze scope now."
+        },
+        {
+            "role": "Customer Success Lead",
+            "content": "From our 12 beta users, top onboarding friction: teams don't trust AI assignments on day one (need a suggestion mode before autonomous mode), Slack connection takes 3 clicks but users expect 1-click, and there's no clear aha moment in the first 5 minutes. Retention hooks I'd prioritize: daily standup digest in Slack (passive value), weekly time-saved report (quantifies ROI for the buyer), team leaderboard for sprint completion. Common objection: 'How is this different from Jira automation rules?' — we need a comparison page and a 2-minute demo video."
+        }
+    ],
+    "number_of_agents": 4,
+    "service_tier": "standard",
+    "execution_time": 35.2,
+    "usage": {
+        "input_tokens": 45,
+        "output_tokens": 2400,
+        "total_tokens": 2445,
+        "billing_info": {
+            "cost_breakdown": {
+                "agent_cost": 0.04,
+                "input_token_cost": 0.000135,
+                "output_token_cost": 0.036,
+                "token_counts": {
+                    "total_input_tokens": 45,
+                    "total_output_tokens": 2400,
+                    "total_tokens": 2445
+                },
+                "num_agents": 4,
+                "service_tier": "standard",
+                "night_time_discount_applied": false
+            },
+            "total_cost": 0.076135,
+            "discount_active": false
+        }
+    }
+}
+```
+
+## Best Practices
+
+- Design agents with complementary but distinct expertise to maximize discussion breadth
+- Use descriptive system prompts that instruct agents to build on and react to other participants' input
+- GroupChat works best with 3-6 agents — too few limits perspective diversity, too many dilutes focus
+- Ideal for brainstorming and planning tasks where interactive dialogue adds more value than independent analysis
