@@ -1,0 +1,413 @@
+---
+name: "DebateWithJudge"
+description: "Structured debate architecture where a Pro agent and Con agent present opposing arguments, evaluated and synthesized by an impartial Judge agent through progressive refinement loops"
+---
+
+**Swarm Type**: `DebateWithJudge`
+
+## Overview
+
+The DebateWithJudge swarm type implements a structured debate architecture with progressive self-refinement. Two debater agents — one arguing in favor (Pro) and one arguing against (Con) — present opposing arguments on a given topic. An impartial Judge agent evaluates both sides, provides feedback, and synthesizes the strongest elements into a refined answer. This process repeats over multiple loops, with each round producing progressively better arguments and a more nuanced final synthesis.
+
+Key features:
+- **Structured Argumentation**: Pro and Con agents present opposing perspectives with evidence-based reasoning
+- **Impartial Evaluation**: A Judge agent objectively assesses argument quality and provides constructive feedback
+- **Progressive Refinement**: Each debate loop builds on the judge's synthesis, producing increasingly refined arguments
+- **Convergent Synthesis**: The final output combines the strongest elements from both sides into a well-reasoned conclusion
+
+## Use Cases
+
+- Policy analysis requiring balanced pro/con evaluation
+- Strategic decision-making with structured trade-off analysis
+- Risk assessment where both opportunities and threats need rigorous examination
+- Technology evaluation comparing competing approaches
+- Investment analysis weighing bull and bear cases
+- Ethical dilemma resolution with multi-perspective reasoning
+
+## API Usage
+
+### Basic DebateWithJudge Example
+
+The DebateWithJudge architecture requires exactly **3 agents** in a specific order:
+1. **Pro Agent** — argues in favor of the proposition
+2. **Con Agent** — argues against the proposition
+3. **Judge Agent** — evaluates both sides and provides synthesis
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Work Policy Debate",
+    "description": "Structured debate on workplace policy with judge evaluation",
+    "swarm_type": "DebateWithJudge",
+    "task": "Should companies adopt a mandatory 4-day work week? Consider productivity impact, employee wellbeing, competitive dynamics, and implementation challenges.",
+    "agents": [
+      {
+        "agent_name": "Pro Advocate",
+        "description": "Argues in favor of the proposition with evidence-based reasoning",
+        "system_prompt": "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.5
+      },
+      {
+        "agent_name": "Con Advocate",
+        "description": "Argues against the proposition with evidence-based reasoning",
+        "system_prompt": "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.5
+      },
+      {
+        "agent_name": "Impartial Judge",
+        "description": "Evaluates arguments from both sides and provides synthesis",
+        "system_prompt": "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.3
+      }
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Work Policy Debate",
+    "description": "Structured debate on workplace policy with judge evaluation",
+    "swarm_type": "DebateWithJudge",
+    "task": "Should companies adopt a mandatory 4-day work week? Consider productivity impact, employee wellbeing, competitive dynamics, and implementation challenges.",
+    "agents": [
+        {
+            "agent_name": "Pro Advocate",
+            "description": "Argues in favor of the proposition with evidence-based reasoning",
+            "system_prompt": "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.5
+        },
+        {
+            "agent_name": "Con Advocate",
+            "description": "Argues against the proposition with evidence-based reasoning",
+            "system_prompt": "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.5
+        },
+        {
+            "agent_name": "Impartial Judge",
+            "description": "Evaluates arguments from both sides and provides synthesis",
+            "system_prompt": "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.3
+        }
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(json.dumps(result["output"], indent=2))
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Work Policy Debate",
+    description: "Structured debate on workplace policy with judge evaluation",
+    swarm_type: "DebateWithJudge",
+    task: "Should companies adopt a mandatory 4-day work week? Consider productivity impact, employee wellbeing, competitive dynamics, and implementation challenges.",
+    agents: [
+        {
+            agent_name: "Pro Advocate",
+            description: "Argues in favor of the proposition with evidence-based reasoning",
+            system_prompt: "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.5
+        },
+        {
+            agent_name: "Con Advocate",
+            description: "Argues against the proposition with evidence-based reasoning",
+            system_prompt: "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.5
+        },
+        {
+            agent_name: "Impartial Judge",
+            description: "Evaluates arguments from both sides and provides synthesis",
+            system_prompt: "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.3
+        }
+    ],
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("DebateWithJudge swarm completed successfully!");
+        result.output.forEach(output => {
+            console.log(`\n${output.role}: ${output.content}`);
+        });
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type Agent struct {
+    AgentName    string  `json:"agent_name"`
+    Description  string  `json:"description"`
+    SystemPrompt string  `json:"system_prompt"`
+    ModelName    string  `json:"model_name"`
+    MaxLoops     int     `json:"max_loops"`
+    Temperature  float64 `json:"temperature"`
+}
+
+type SwarmConfig struct {
+    Name        string  `json:"name"`
+    Description string  `json:"description"`
+    SwarmType   string  `json:"swarm_type"`
+    Task        string  `json:"task"`
+    Agents      []Agent `json:"agents"`
+    MaxLoops    int     `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:        "Work Policy Debate",
+        Description: "Structured debate on workplace policy with judge evaluation",
+        SwarmType:   "DebateWithJudge",
+        Task:        "Should companies adopt a mandatory 4-day work week? Consider productivity impact, employee wellbeing, competitive dynamics, and implementation challenges.",
+        Agents: []Agent{
+            {
+                AgentName:    "Pro Advocate",
+                Description:  "Argues in favor of the proposition with evidence-based reasoning",
+                SystemPrompt: "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.5,
+            },
+            {
+                AgentName:    "Con Advocate",
+                Description:  "Argues against the proposition with evidence-based reasoning",
+                SystemPrompt: "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.5,
+            },
+            {
+                AgentName:    "Impartial Judge",
+                Description:  "Evaluates arguments from both sides and provides synthesis",
+                SystemPrompt: "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
+        },
+        MaxLoops: 1,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Work Policy Debate",
+        "description": "Structured debate on workplace policy with judge evaluation",
+        "swarm_type": "DebateWithJudge",
+        "task": "Should companies adopt a mandatory 4-day work week? Consider productivity impact, employee wellbeing, competitive dynamics, and implementation challenges.",
+        "agents": [
+            {
+                "agent_name": "Pro Advocate",
+                "description": "Argues in favor of the proposition with evidence-based reasoning",
+                "system_prompt": "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Con Advocate",
+                "description": "Argues against the proposition with evidence-based reasoning",
+                "system_prompt": "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Impartial Judge",
+                "description": "Evaluates arguments from both sides and provides synthesis",
+                "system_prompt": "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            }
+        ],
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("DebateWithJudge swarm completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "swarms-D8kW2mPxLnRcYvT4qH9sJE",
+    "status": "success",
+    "swarm_name": "Work Policy Debate",
+    "description": "Structured debate on workplace policy with judge evaluation",
+    "swarm_type": "DebateWithJudge",
+    "output": [
+        {
+            "role": "Pro Advocate",
+            "content": "The case for a 4-day work week is compelling and backed by growing evidence. Microsoft Japan's 2019 trial saw a 40% productivity increase. Iceland's 2015-2019 trial across 2,500 workers showed maintained or improved productivity with significantly better employee wellbeing. A 4-day week reduces burnout (Gallup reports 76% of workers experience burnout at least sometimes), lowers turnover costs (replacing an employee costs 50-200% of salary), and gives companies a powerful recruiting advantage in a tight labor market. The compressed schedule forces better meeting discipline and eliminates low-value work. Companies like Bolt, Buffer, and Kickstarter have adopted it permanently with positive results."
+        },
+        {
+            "role": "Con Advocate",
+            "content": "While the headline stats are attractive, the 4-day work week has significant practical problems. First, the trials cherry-pick: Microsoft Japan's results came from a single month-long experiment with other simultaneous changes. Most successful cases are in knowledge work — manufacturing, healthcare, retail, and customer service cannot simply compress schedules without service gaps. Second, a mandatory policy removes flexibility: some employees prefer 5 shorter days, and some roles require daily client contact. Third, competitive risk: if your competitors operate 5 days and you operate 4, response times suffer. Finally, implementation costs are real — you may need to hire additional staff for coverage, offsetting any productivity gains."
+        },
+        {
+            "role": "Impartial Judge",
+            "content": "Both sides present valid arguments. The Pro side effectively demonstrates productivity benefits with concrete data from Microsoft Japan and Iceland trials, and correctly identifies recruiting and retention advantages. The Con side raises important practical limitations, particularly around industry applicability and the weakness of short-term trial data. My synthesis: a 4-day work week should not be mandated universally but adopted selectively. Knowledge-work companies with output-based metrics are strong candidates. Companies should run 3-6 month pilots with clear KPIs before committing. The evidence supports that well-implemented compressed schedules can maintain productivity while improving wellbeing, but the approach must be tailored to industry, role type, and company culture rather than applied as a blanket policy."
+        }
+    ],
+    "number_of_agents": 3,
+    "service_tier": "standard",
+    "execution_time": 28.7,
+    "usage": {
+        "input_tokens": 38,
+        "output_tokens": 1800,
+        "total_tokens": 1838,
+        "billing_info": {
+            "cost_breakdown": {
+                "agent_cost": 0.03,
+                "input_token_cost": 0.000114,
+                "output_token_cost": 0.027,
+                "token_counts": {
+                    "total_input_tokens": 38,
+                    "total_output_tokens": 1800,
+                    "total_tokens": 1838
+                },
+                "num_agents": 3,
+                "service_tier": "standard",
+                "night_time_discount_applied": false
+            },
+            "total_cost": 0.057114,
+            "discount_active": false
+        }
+    }
+}
+```
+
+## Best Practices
+
+- Always provide exactly 3 agents in the correct order: Pro (first), Con (second), Judge (third)
+- Design Pro and Con prompts to be balanced in depth — a one-sided debate produces a weak synthesis
+- Use lower temperature (0.3-0.4) for the Judge agent to ensure consistent, objective evaluation
+- Increase `max_loops` for complex topics that benefit from multiple rounds of refinement — each loop produces stronger arguments
+- DebateWithJudge works best for binary or comparative questions where opposing perspectives add genuine analytical value
