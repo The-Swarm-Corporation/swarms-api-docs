@@ -77,7 +77,8 @@
               "docs/documentation/multi-agent/agent_rearrange",
               "docs/documentation/multi-agent/batched_grid_workflow",
               "docs/documentation/multi-agent/advanced_research",
-              "docs/documentation/multi-agent/graph_workflow"
+              "docs/documentation/multi-agent/graph_workflow",
+              "docs/documentation/multi-agent/round_robin"
             ]
           },
           {
@@ -211,6 +212,7 @@
               "docs/examples/examples/group-chat",
               "docs/examples/examples/graph-workflow",
               "docs/examples/examples/advanced-research",
+              "docs/examples/examples/round-robin",
               "docs/examples/examples/batch-processing",
               "docs/examples/examples/batch-swarm-completions"
             ]

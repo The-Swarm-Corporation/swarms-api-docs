@@ -1,0 +1,408 @@
+---
+name: "RoundRobin"
+description: "Randomized round-robin task distribution where agents take turns collaborating with full conversation context"
+---
+
+**Swarm Type**: `RoundRobin`
+
+## Overview
+
+The RoundRobin swarm implements a collaborative communication pattern where agents take turns processing a task in a randomized round-robin fashion. Each loop, agents are shuffled into a random order and each receives the full conversation history, encouraging them to build upon and refine previous agents' contributions. This creates a natural collaborative dynamic similar to a brainstorming session.
+
+Key features:
+- **Randomized Turn Order**: Agents are shuffled each loop for varied interaction patterns
+- **Full Conversation Context**: Every agent sees the complete conversation history from prior agents
+- **Collaborative Prompting**: Built-in prompts encourage agents to acknowledge and extend others' contributions
+- **Iterative Refinement**: Multiple loops allow the group to progressively deepen their analysis
+- **Automatic Retries**: Exponential backoff retry logic for resilient agent execution
+
+## Use Cases
+
+- Collaborative brainstorming and ideation sessions
+- Research synthesis from multiple domain experts
+- Code review with multiple engineering perspectives
+- Content creation with iterative editorial refinement
+- Strategic planning with cross-functional input
+
+## API Usage
+
+### Basic RoundRobin Example
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Market Strategy Roundtable",
+    "description": "Collaborative market strategy discussion with round-robin agent turns",
+    "swarm_type": "RoundRobin",
+    "task": "Develop a go-to-market strategy for an AI-powered code review tool targeting mid-size engineering teams (20-100 developers). Cover positioning, pricing, channels, and competitive differentiation.",
+    "agents": [
+      {
+        "agent_name": "Product Strategist",
+        "description": "Defines product positioning and value proposition",
+        "system_prompt": "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.5
+      },
+      {
+        "agent_name": "Growth Marketer",
+        "description": "Designs acquisition channels and launch campaigns",
+        "system_prompt": "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.5
+      },
+      {
+        "agent_name": "Sales Engineer",
+        "description": "Evaluates technical feasibility and enterprise readiness",
+        "system_prompt": "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.4
+      }
+    ],
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Market Strategy Roundtable",
+    "description": "Collaborative market strategy discussion with round-robin agent turns",
+    "swarm_type": "RoundRobin",
+    "task": "Develop a go-to-market strategy for an AI-powered code review tool targeting mid-size engineering teams (20-100 developers). Cover positioning, pricing, channels, and competitive differentiation.",
+    "agents": [
+        {
+            "agent_name": "Product Strategist",
+            "description": "Defines product positioning and value proposition",
+            "system_prompt": "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.5
+        },
+        {
+            "agent_name": "Growth Marketer",
+            "description": "Designs acquisition channels and launch campaigns",
+            "system_prompt": "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.5
+        },
+        {
+            "agent_name": "Sales Engineer",
+            "description": "Evaluates technical feasibility and enterprise readiness",
+            "system_prompt": "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "temperature": 0.4
+        }
+    ],
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(json.dumps(result["output"], indent=2))
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Market Strategy Roundtable",
+    description: "Collaborative market strategy discussion with round-robin agent turns",
+    swarm_type: "RoundRobin",
+    task: "Develop a go-to-market strategy for an AI-powered code review tool targeting mid-size engineering teams (20-100 developers). Cover positioning, pricing, channels, and competitive differentiation.",
+    agents: [
+        {
+            agent_name: "Product Strategist",
+            description: "Defines product positioning and value proposition",
+            system_prompt: "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.5
+        },
+        {
+            agent_name: "Growth Marketer",
+            description: "Designs acquisition channels and launch campaigns",
+            system_prompt: "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.5
+        },
+        {
+            agent_name: "Sales Engineer",
+            description: "Evaluates technical feasibility and enterprise readiness",
+            system_prompt: "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            temperature: 0.4
+        }
+    ],
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("RoundRobin swarm completed successfully!");
+        console.log("Output:", JSON.stringify(result.output, null, 2));
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type Agent struct {
+    AgentName    string  `json:"agent_name"`
+    Description  string  `json:"description"`
+    SystemPrompt string  `json:"system_prompt"`
+    ModelName    string  `json:"model_name"`
+    MaxLoops     int     `json:"max_loops"`
+    Temperature  float64 `json:"temperature"`
+}
+
+type SwarmConfig struct {
+    Name        string  `json:"name"`
+    Description string  `json:"description"`
+    SwarmType   string  `json:"swarm_type"`
+    Task        string  `json:"task"`
+    Agents      []Agent `json:"agents"`
+    MaxLoops    int     `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:        "Market Strategy Roundtable",
+        Description: "Collaborative market strategy discussion with round-robin agent turns",
+        SwarmType:   "RoundRobin",
+        Task:        "Develop a go-to-market strategy for an AI-powered code review tool targeting mid-size engineering teams (20-100 developers). Cover positioning, pricing, channels, and competitive differentiation.",
+        Agents: []Agent{
+            {
+                AgentName:    "Product Strategist",
+                Description:  "Defines product positioning and value proposition",
+                SystemPrompt: "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.5,
+            },
+            {
+                AgentName:    "Growth Marketer",
+                Description:  "Designs acquisition channels and launch campaigns",
+                SystemPrompt: "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.5,
+            },
+            {
+                AgentName:    "Sales Engineer",
+                Description:  "Evaluates technical feasibility and enterprise readiness",
+                SystemPrompt: "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
+                ModelName:    "gpt-4o",
+                MaxLoops:     1,
+                Temperature:  0.4,
+            },
+        },
+        MaxLoops: 1,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Market Strategy Roundtable",
+        "description": "Collaborative market strategy discussion with round-robin agent turns",
+        "swarm_type": "RoundRobin",
+        "task": "Develop a go-to-market strategy for an AI-powered code review tool targeting mid-size engineering teams (20-100 developers). Cover positioning, pricing, channels, and competitive differentiation.",
+        "agents": [
+            {
+                "agent_name": "Product Strategist",
+                "description": "Defines product positioning and value proposition",
+                "system_prompt": "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Growth Marketer",
+                "description": "Designs acquisition channels and launch campaigns",
+                "system_prompt": "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Sales Engineer",
+                "description": "Evaluates technical feasibility and enterprise readiness",
+                "system_prompt": "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.4
+            }
+        ],
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("RoundRobin swarm completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "swarms-R82kLFDesmLHxCRoeyF3NVYvPaXk",
+    "status": "success",
+    "swarm_name": "Market Strategy Roundtable",
+    "description": "Collaborative market strategy discussion with round-robin agent turns",
+    "swarm_type": "RoundRobin",
+    "output": [
+        {
+            "role": "Product Strategist",
+            "content": "Our core value proposition centers on 'AI-native code review that understands your codebase, not just syntax.' Unlike GitHub Copilot (focused on generation) or SonarQube (static analysis), we combine deep codebase understanding with contextual review that catches architectural issues, not just linting errors..."
+        },
+        {
+            "role": "Growth Marketer",
+            "content": "Building on the Product Strategist's positioning, here's the channel strategy: 1) Developer communities (Dev.to, Hacker News launches) - lowest CAC at $15-25. 2) GitHub Marketplace listing - organic discovery channel. 3) Content marketing targeting 'code review best practices' keywords..."
+        },
+        {
+            "role": "Sales Engineer",
+            "content": "Acknowledging the positioning and channel strategy above, here's the enterprise readiness assessment: Integration requirements include GitHub/GitLab webhooks, SSO via SAML/OIDC, and a 15-minute POC setup. For mid-size teams, the key adoption blocker is proving value in the first PR review..."
+        }
+    ],
+    "number_of_agents": 3,
+    "service_tier": "standard",
+    "execution_time": 32.6,
+    "usage": {
+        "input_tokens": 45,
+        "output_tokens": 2400,
+        "total_tokens": 2445,
+        "billing_info": {
+            "cost_breakdown": {
+                "agent_cost": 0.03,
+                "input_token_cost": 0.000135,
+                "output_token_cost": 0.036,
+                "token_counts": {
+                    "total_input_tokens": 45,
+                    "total_output_tokens": 2400,
+                    "total_tokens": 2445
+                },
+                "num_agents": 3,
+                "service_tier": "standard",
+                "night_time_discount_applied": false
+            },
+            "total_cost": 0.066135,
+            "discount_active": false,
+            "discount_type": "none",
+            "discount_percentage": 0
+        }
+    }
+}
+```
+
+## Best Practices
+
+- Use 3-5 agents for optimal collaboration — too many agents dilute the conversation context
+- Each agent should have a clearly distinct expertise so contributions don't overlap
+- Increase `max_loops` when you want agents to iterate and refine each other's ideas across multiple rounds
+- Agent order is randomized each loop, so design prompts that work regardless of speaking position
+- Ideal for tasks where diverse perspectives and iterative refinement produce better results than parallel independent work

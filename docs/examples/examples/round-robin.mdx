@@ -1,0 +1,206 @@
+---
+title: "Round Robin Example"
+description: "Build a collaborative research team with RoundRobin"
+---
+
+## Collaborative Research Team with Round-Robin Turns
+
+This example demonstrates how to use RoundRobin to facilitate collaborative discussion where agents take randomized turns and build on each other's contributions — perfect for brainstorming, research synthesis, and cross-functional planning.
+
+### Step 1: Get Your API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Sign in or create an account
+3. Generate a new API key
+4. Set it as an environment variable:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+### Step 2: Setup
+
+```python
+import requests
+import json
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 3: Define the Research Team
+
+Create a team of domain experts who will take turns contributing their perspective. Each agent sees the full conversation history and builds on what others have said:
+
+```python
+def run_roundtable(topic: str, max_loops: int = 1) -> dict:
+    """Run a collaborative round-robin research discussion."""
+
+    swarm_config = {
+        "name": "Research Roundtable",
+        "description": "Collaborative research with round-robin agent turns",
+        "swarm_type": "RoundRobin",
+        "task": topic,
+        "agents": [
+            {
+                "agent_name": "Industry Researcher",
+                "description": "Gathers market data and industry trends",
+                "system_prompt": "You are an industry researcher. Provide data-driven market analysis, cite specific numbers and trends, and identify key players. Build on insights from other team members when available.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.4
+            },
+            {
+                "agent_name": "Technology Analyst",
+                "description": "Evaluates technical landscape and innovation",
+                "system_prompt": "You are a technology analyst. Assess the technical landscape, evaluate emerging technologies, and identify innovation opportunities. Reference and build upon the research data shared by other team members.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.4
+            },
+            {
+                "agent_name": "Strategy Advisor",
+                "description": "Synthesizes insights into actionable strategy",
+                "system_prompt": "You are a strategy advisor. Synthesize insights from the team into actionable strategic recommendations. Identify risks, opportunities, and provide a prioritized roadmap. Reference specific points made by other team members.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.5
+            }
+        ],
+        "max_loops": max_loops
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=180
+    )
+
+    return response.json()
+```
+
+### Step 4: Run the Roundtable
+
+```python
+# Define the research topic
+topic = """
+Analyze the emerging autonomous AI agent market. Cover the current state of
+the technology, major players and their approaches, enterprise adoption
+barriers, and the most promising near-term use cases. Provide actionable
+insights for a startup considering entering this space.
+"""
+
+# Run the roundtable discussion
+result = run_roundtable(topic)
+
+# Display the collaborative discussion
+for output in result.get("output", []):
+    agent = output["role"]
+    content = output["content"]
+
+    print(f"\n{'='*60}")
+    print(f"{agent}")
+    print(f"{'='*60}")
+
+    # Handle content as string or list
+    if isinstance(content, list):
+        content = ' '.join(str(item) for item in content)
+
+    print(str(content)[:800] + "...")
+```
+
+**Expected Output:**
+```
+============================================================
+Industry Researcher
+============================================================
+## Autonomous AI Agent Market Analysis
+
+### Market Overview
+The autonomous AI agent market reached an estimated $4.2B in 2024 and is
+projected to grow at 45% CAGR through 2028. Key segments include:
+- Developer tools & coding agents (35% of market)
+- Customer service automation (28%)
+- Enterprise workflow agents (22%)
+- Research & analysis agents (15%)
+
+### Major Players
+- **OpenAI** (GPT-based agents, Assistants API)
+- **Anthropic** (Claude, tool use framework)
+- **Google** (Gemini agents, Vertex AI)
+- **Startups**: Cognition (Devin), Adept, Induced AI, CrewAI, Swarms
+
+### Enterprise Adoption
+Current penetration: ~12% of Fortune 500 in production...
+
+============================================================
+Technology Analyst
+============================================================
+Building on the Industry Researcher's market data, let me assess the
+technical landscape:
+
+### Core Technology Stack
+The agent frameworks broadly fall into three categories:
+1. **Single-agent loops** (ReAct, function calling) — mature but limited
+2. **Multi-agent orchestration** (Swarms, CrewAI, AutoGen) — growing fast
+3. **Code-generation agents** (Devin, Cursor) — highest enterprise demand
+
+### Key Technical Differentiators
+Drawing from the market segments identified above:
+- Tool use reliability (currently 85-92% accuracy)
+- Context window management for long-running tasks
+- Multi-step planning and self-correction capabilities
+- Sandboxed execution environments for safety...
+
+============================================================
+Strategy Advisor
+============================================================
+Synthesizing the market data from our Industry Researcher and the technical
+assessment from our Technology Analyst, here are my strategic recommendations:
+
+### Entry Strategy (Priority Order)
+1. **Target the multi-agent orchestration gap** — As noted, this segment is
+   growing fastest at 45% CAGR, and tool use reliability (85-92%) leaves
+   room for differentiation through better orchestration
+
+2. **Focus on enterprise workflow agents** — The 22% market share with only
+   12% Fortune 500 penetration signals massive headroom
+
+3. **Build on open-source adoption** — CrewAI and Swarms have proven the
+   community-first model works for developer tools
+
+### Key Risks
+- Commoditization risk as foundation model providers add native agent features
+- Enterprise security and compliance requirements add 6-12 months to sales cycles...
+```
+
+### Step 5: Multi-Loop Refinement (Optional)
+
+Run multiple rounds so agents can iterate on each other's contributions:
+
+```python
+# Run 2 loops — agents go around twice, refining their analysis each time
+deep_result = run_roundtable(
+    topic="Evaluate the competitive positioning of Anthropic vs OpenAI vs Google in the enterprise AI market. Assess technical capabilities, pricing strategy, ecosystem lock-in, and likely market share in 3 years.",
+    max_loops=2
+)
+
+# Show the final contributions after 2 rounds of refinement
+for output in deep_result.get("output", []):
+    print(f"\n{output['role']}:")
+    content = output["content"]
+    if isinstance(content, list):
+        content = ' '.join(str(item) for item in content)
+    print(str(content)[:600] + "...")
+```
+
+<Note>
+RoundRobin creates a collaborative dynamic where each agent sees the full conversation history and naturally builds on prior contributions. Agent order is randomized each loop, so every agent gets a chance to lead the conversation. Use `max_loops` > 1 when you want the team to iteratively refine their analysis across multiple rounds.
+</Note>
