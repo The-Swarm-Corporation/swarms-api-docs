@@ -1,0 +1,224 @@
+---
+title: "Heavy Swarm Example"
+description: "Run deep multi-perspective research and analysis with HeavySwarm"
+---
+
+## Comprehensive Market Intelligence with HeavySwarm
+
+This example demonstrates how to use HeavySwarm for deep, multi-perspective analysis. Unlike other swarm types, HeavySwarm automatically creates and manages five specialized agents (Research, Analysis, Alternatives, Verification, Synthesis) — you provide the task, configuration, and an empty `agents` array.
+
+### Step 1: Get Your API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Sign in or create an account
+3. Generate a new API key
+4. Set it as an environment variable:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+### Step 2: Setup
+
+```python
+import requests
+import json
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 3: Define the Research Function
+
+HeavySwarm creates its own five specialized agents internally — pass an empty `agents` array and configure the swarm using HeavySwarm-specific parameters:
+
+```python
+def run_heavy_analysis(task: str, loops_per_agent: int = 1, max_loops: int = 1) -> dict:
+    """Run a deep multi-perspective analysis using HeavySwarm."""
+
+    swarm_config = {
+        "name": "Market Intelligence Swarm",
+        "description": "Deep multi-agent research and analysis",
+        "swarm_type": "HeavySwarm",
+        "task": task,
+        "agents": [],
+        "heavy_swarm_loops_per_agent": loops_per_agent,
+        "heavy_swarm_question_agent_model_name": "gpt-4.1",
+        "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
+        "max_loops": max_loops
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=300
+    )
+
+    return response.json()
+```
+
+### Step 4: Run the Analysis
+
+```python
+# Define a complex research task
+task = """
+Analyze the competitive landscape of the AI infrastructure market in 2025.
+Focus on: cloud GPU providers, inference optimization startups, open-source
+model serving frameworks, and edge AI deployment platforms. Evaluate market
+sizing, key players, moats, and identify the most promising investment
+opportunities with risk-adjusted return potential.
+"""
+
+# Run HeavySwarm analysis
+result = run_heavy_analysis(task)
+
+# Display results from each specialized agent
+for output in result.get("output", []):
+    agent = output["role"]
+    content = output["content"]
+
+    print(f"\n{'='*60}")
+    print(f"{agent}")
+    print(f"{'='*60}")
+
+    # Handle content that may be a dict (question generator) or string
+    if isinstance(content, dict):
+        for key, value in content.items():
+            if key != "thinking":
+                print(f"\n{key}:")
+                print(f"  {value}")
+    else:
+        print(str(content)[:800] + "...")
+```
+
+**Expected Output:**
+```
+============================================================
+Question Generator Agent
+============================================================
+
+research_question:
+  What are the current market sizes, growth rates, and key players across cloud GPU,
+  inference optimization, model serving, and edge AI segments?
+
+analysis_question:
+  What statistical patterns emerge from funding rounds, revenue multiples, and
+  customer adoption rates across AI infrastructure subsectors?
+
+alternatives_question:
+  What are the highest risk-adjusted investment strategies considering direct equity,
+  infrastructure ETFs, and picks-and-shovels approaches across these segments?
+
+verification_question:
+  How do reported market projections and competitive moat claims align with verified
+  deployment data, customer churn rates, and technical benchmarks?
+
+============================================================
+Research-Agent
+============================================================
+## AI Infrastructure Market Research
+
+### Market Overview
+The global AI infrastructure market reached approximately $65B in 2024 and is
+projected to exceed $120B by 2027 (38% CAGR).
+
+### Cloud GPU Providers
+Key players: NVIDIA (dominant), AMD (growing share), AWS Trainium/Inferentia
+(custom silicon), Google TPU, CoreWeave (GPU-as-a-service)
+
+Market dynamics: Severe GPU shortage easing in 2025, but demand continues to
+outpace supply for H100/B200 clusters...
+
+============================================================
+Analysis-Agent
+============================================================
+## Statistical Analysis of AI Infrastructure Trends
+
+### Funding Pattern Analysis
+- Total VC funding in AI infra: $18.2B in 2024 (up 142% from 2023)
+- Median Series B valuation: 45x ARR for inference optimization startups
+- Customer acquisition efficiency: Cloud GPU providers show 0.8x CAC/LTV
+  ratio vs 1.2x for edge AI platforms
+
+### Adoption Rate Analysis
+- Enterprise GPU cloud adoption: 67% of Fortune 500 (up from 34% in 2023)
+- Open-source model serving: vLLM and TensorRT-LLM dominating with 78%
+  combined market share in inference workloads...
+
+============================================================
+Alternatives-Agent
+============================================================
+## Investment Strategy Alternatives
+
+### Strategy 1: Infrastructure Picks-and-Shovels (Recommended)
+Focus: NVIDIA, networking (Arista, Broadcom), power/cooling
+Risk: Moderate | Expected Return: 25-35% annualized
+Rationale: Benefits from all AI growth regardless of which models win
+
+### Strategy 2: Pure-Play Inference Optimization
+Focus: Emerging startups (Groq, Cerebras, Together AI)
+Risk: High | Expected Return: 3-10x over 5 years (venture-style)
+Rationale: Inference costs are the primary bottleneck...
+
+============================================================
+Verification-Agent
+============================================================
+## Verification Assessment
+
+### Claim: AI infra market at $65B (2024)
+Status: VERIFIED
+Sources: Gartner ($62-68B range), IDC ($64.5B), cross-referenced with
+public company revenues (NVIDIA data center: $47.5B alone)
+
+### Claim: 38% CAGR through 2027
+Status: PARTIALLY VERIFIED
+Note: Estimates range from 28-45% depending on methodology. Conservative
+base case of 30% is better supported by deployment data...
+
+============================================================
+Synthesis-Agent
+============================================================
+## Executive Summary
+
+The AI infrastructure market represents a verified $65B opportunity growing
+at 30-38% CAGR. Our multi-agent analysis reveals strong consensus on three
+key findings:
+
+1. **Infrastructure layer offers best risk-adjusted returns** - All four
+   specialist agents converge on picks-and-shovels as the safest approach
+2. **Inference optimization is the highest-growth subsector** - 142% YoY
+   funding growth with verified demand signals
+3. **Edge AI remains early-stage** - Higher risk but strategic importance
+   for the 2026-2028 cycle...
+```
+
+### Step 5: Multi-Loop Deep Dive (Optional)
+
+For tasks requiring deeper analysis, increase `loops_per_agent` and `max_loops`. Each iteration builds on previous results:
+
+```python
+# Run a deeper 2-loop analysis for thorough due diligence
+deep_result = run_heavy_analysis(
+    task="Conduct due diligence on CoreWeave as a potential investment. Evaluate their GPU cloud infrastructure business model, competitive positioning against AWS/Azure/GCP, financial health, customer concentration risk, and long-term defensibility.",
+    loops_per_agent=2,
+    max_loops=2
+)
+
+# The synthesis agent output from the final loop contains the most refined analysis
+outputs = deep_result.get("output", [])
+for output in outputs:
+    if output["role"] == "Synthesis-Agent":
+        print("FINAL SYNTHESIZED ANALYSIS:")
+        print(str(output["content"])[:2000])
+```
+
+<Note>
+HeavySwarm is best suited for complex research and analysis tasks that benefit from multiple specialized perspectives. It automatically decomposes your task into four targeted questions, executes them in parallel across Research, Analysis, Alternatives, and Verification agents, then synthesizes everything into a comprehensive report. No agent configuration is needed — just provide the task and an empty `agents` array.
+</Note>

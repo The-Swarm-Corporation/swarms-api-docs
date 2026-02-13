@@ -1,0 +1,549 @@
+---
+name: "HeavySwarm"
+description: "High-capacity multi-agent swarm that decomposes complex tasks into specialized questions and executes them using five specialized agents for comprehensive analysis"
+---
+
+**Swarm Type**: `HeavySwarm`
+
+## Overview
+
+The HeavySwarm is a sophisticated multi-agent orchestration system inspired by X.AI's Grok 4 Heavy architecture. It automatically decomposes complex tasks into specialized questions and executes them using five built-in specialized agents: Research, Analysis, Alternatives, Verification, and Synthesis. Unlike other swarm types, HeavySwarm creates and manages its own agents internally — pass an empty `agents` array (`"agents": []`) in the request.
+
+Key features:
+- **Automatic Task Decomposition**: Complex tasks are intelligently broken down into specialized questions using function calling
+- **Five Specialized Agents**: Research, Analysis, Alternatives, Verification, and Synthesis agents work in concert
+- **Parallel Execution**: Four specialist agents execute simultaneously for maximum efficiency
+- **Iterative Refinement**: Multi-loop execution where each loop builds upon previous results
+- **Comprehensive Synthesis**: A dedicated synthesis agent integrates all findings into an executive-ready report
+
+## Architecture
+
+The HeavySwarm follows a structured 5-phase workflow:
+
+1. **Task Decomposition** — A question generation agent analyzes the input task and creates four specialized questions using function calling
+2. **Parallel Execution** — Four specialized agents (Research, Analysis, Alternatives, Verification) execute their questions simultaneously
+3. **Result Collection** — Outputs are validated and collected from all agents
+4. **Synthesis** — A fifth Synthesis agent integrates all results into a comprehensive report
+5. **Iterative Refinement** — When `heavy_swarm_loops_per_agent` > 1, the process repeats with context from previous iterations
+
+### Specialized Agents
+
+| Agent | Role |
+|-------|------|
+| **Research Agent** | Comprehensive information gathering, source verification, data collection, and systematic search strategies |
+| **Analysis Agent** | Statistical analysis, pattern recognition, causal relationship identification, and predictive modeling |
+| **Alternatives Agent** | Strategic option generation, creative problem-solving, scenario planning, and trade-off analysis |
+| **Verification Agent** | Fact-checking, feasibility assessment, risk assessment, and compliance verification |
+| **Synthesis Agent** | Multi-perspective integration, executive summaries, strategic alignment, and actionable recommendations |
+
+## HeavySwarm-Specific Parameters
+
+Since HeavySwarm manages its own agents, it uses dedicated parameters at the swarm configuration level:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `heavy_swarm_loops_per_agent` | `integer` | `1` | Number of execution loops per agent. Higher values enable iterative refinement for deeper analysis. |
+| `heavy_swarm_question_agent_model_name` | `string` | `"gpt-4.1"` | Model used for the question generation phase. This agent decomposes the task into specialized questions. |
+| `heavy_swarm_worker_model_name` | `string` | `"claude-sonnet-4-20250514"` | Model used for all five specialized worker agents (Research, Analysis, Alternatives, Verification, Synthesis). |
+
+## Use Cases
+
+- Deep research and comprehensive market analysis
+- Due diligence and investment research
+- Policy analysis and strategic planning
+- Technology assessment and competitive intelligence
+- Complex problem-solving requiring multiple perspectives
+- Medical or scientific research synthesis
+
+## API Usage
+
+### Basic HeavySwarm Example
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Market Research Swarm",
+    "description": "Comprehensive market analysis using HeavySwarm",
+    "swarm_type": "HeavySwarm",
+    "task": "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
+    "agents": [],
+    "heavy_swarm_loops_per_agent": 1,
+    "heavy_swarm_question_agent_model_name": "gpt-4.1",
+    "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
+    "max_loops": 1
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Market Research Swarm",
+    "description": "Comprehensive market analysis using HeavySwarm",
+    "swarm_type": "HeavySwarm",
+    "task": "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
+    "agents": [],
+    "heavy_swarm_loops_per_agent": 1,
+    "heavy_swarm_question_agent_model_name": "gpt-4.1",
+    "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
+    "max_loops": 1
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(json.dumps(result["output"], indent=2))
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Market Research Swarm",
+    description: "Comprehensive market analysis using HeavySwarm",
+    swarm_type: "HeavySwarm",
+    task: "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
+    agents: [],
+    heavy_swarm_loops_per_agent: 1,
+    heavy_swarm_question_agent_model_name: "gpt-4.1",
+    heavy_swarm_worker_model_name: "claude-sonnet-4-20250514",
+    max_loops: 1
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("HeavySwarm completed successfully!");
+        console.log("Output:", JSON.stringify(result.output, null, 2));
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type SwarmConfig struct {
+    Name                          string        `json:"name"`
+    Description                   string        `json:"description"`
+    SwarmType                     string        `json:"swarm_type"`
+    Task                          string        `json:"task"`
+    Agents                        []interface{} `json:"agents"`
+    HeavySwarmLoopsPerAgent       int           `json:"heavy_swarm_loops_per_agent"`
+    HeavySwarmQuestionAgentModel  string        `json:"heavy_swarm_question_agent_model_name"`
+    HeavySwarmWorkerModel         string        `json:"heavy_swarm_worker_model_name"`
+    MaxLoops                      int           `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:                          "Market Research Swarm",
+        Description:                   "Comprehensive market analysis using HeavySwarm",
+        SwarmType:                     "HeavySwarm",
+        Task:                          "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
+        Agents:                        []interface{}{},
+        HeavySwarmLoopsPerAgent:       1,
+        HeavySwarmQuestionAgentModel:  "gpt-4.1",
+        HeavySwarmWorkerModel:         "claude-sonnet-4-20250514",
+        MaxLoops:                      1,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Market Research Swarm",
+        "description": "Comprehensive market analysis using HeavySwarm",
+        "swarm_type": "HeavySwarm",
+        "task": "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
+        "agents": [],
+        "heavy_swarm_loops_per_agent": 1,
+        "heavy_swarm_question_agent_model_name": "gpt-4.1",
+        "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
+        "max_loops": 1
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("HeavySwarm completed successfully!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+### Multi-Loop Deep Analysis Example
+
+Use multiple loops for iterative refinement where each loop builds upon the previous results:
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Deep Due Diligence Swarm",
+    "description": "Multi-loop investment due diligence analysis",
+    "swarm_type": "HeavySwarm",
+    "task": "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
+    "agents": [],
+    "heavy_swarm_loops_per_agent": 3,
+    "heavy_swarm_question_agent_model_name": "gpt-4.1",
+    "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
+    "max_loops": 2
+  }'
+```
+</Tab>
+
+<Tab title="Python (requests)">
+```python
+import requests
+import json
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = "your_api_key_here"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+swarm_config = {
+    "name": "Deep Due Diligence Swarm",
+    "description": "Multi-loop investment due diligence analysis",
+    "swarm_type": "HeavySwarm",
+    "task": "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
+    "agents": [],
+    "heavy_swarm_loops_per_agent": 3,
+    "heavy_swarm_question_agent_model_name": "gpt-4.1",
+    "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
+    "max_loops": 2
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(json.dumps(result["output"], indent=2))
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+</Tab>
+
+<Tab title="JavaScript (fetch)">
+```javascript
+const API_BASE_URL = "https://api.swarms.world";
+const API_KEY = "your_api_key_here";
+
+const headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+};
+
+const swarmConfig = {
+    name: "Deep Due Diligence Swarm",
+    description: "Multi-loop investment due diligence analysis",
+    swarm_type: "HeavySwarm",
+    task: "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
+    agents: [],
+    heavy_swarm_loops_per_agent: 3,
+    heavy_swarm_question_agent_model_name: "gpt-4.1",
+    heavy_swarm_worker_model_name: "claude-sonnet-4-20250514",
+    max_loops: 2
+};
+
+fetch(`${API_BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(swarmConfig)
+})
+.then(response => response.json())
+.then(result => {
+    if (result.status === "success") {
+        console.log("Deep analysis completed!");
+        console.log("Output:", JSON.stringify(result.output, null, 2));
+    }
+})
+.catch(error => console.error("Error:", error));
+```
+</Tab>
+
+<Tab title="Go">
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+)
+
+type SwarmConfig struct {
+    Name                          string        `json:"name"`
+    Description                   string        `json:"description"`
+    SwarmType                     string        `json:"swarm_type"`
+    Task                          string        `json:"task"`
+    Agents                        []interface{} `json:"agents"`
+    HeavySwarmLoopsPerAgent       int           `json:"heavy_swarm_loops_per_agent"`
+    HeavySwarmQuestionAgentModel  string        `json:"heavy_swarm_question_agent_model_name"`
+    HeavySwarmWorkerModel         string        `json:"heavy_swarm_worker_model_name"`
+    MaxLoops                      int           `json:"max_loops"`
+}
+
+func main() {
+    API_BASE_URL := "https://api.swarms.world"
+    API_KEY := "your_api_key_here"
+
+    swarmConfig := SwarmConfig{
+        Name:                          "Deep Due Diligence Swarm",
+        Description:                   "Multi-loop investment due diligence analysis",
+        SwarmType:                     "HeavySwarm",
+        Task:                          "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
+        Agents:                        []interface{}{},
+        HeavySwarmLoopsPerAgent:       3,
+        HeavySwarmQuestionAgentModel:  "gpt-4.1",
+        HeavySwarmWorkerModel:         "claude-sonnet-4-20250514",
+        MaxLoops:                      2,
+    }
+
+    jsonData, _ := json.Marshal(swarmConfig)
+
+    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/swarm/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", API_KEY)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Printf("Response: %s\n", string(body))
+}
+```
+</Tab>
+
+<Tab title="Rust">
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let api_base_url = "https://api.swarms.world";
+    let api_key = "your_api_key_here";
+
+    let swarm_config = json!({
+        "name": "Deep Due Diligence Swarm",
+        "description": "Multi-loop investment due diligence analysis",
+        "swarm_type": "HeavySwarm",
+        "task": "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
+        "agents": [],
+        "heavy_swarm_loops_per_agent": 3,
+        "heavy_swarm_question_agent_model_name": "gpt-4.1",
+        "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
+        "max_loops": 2
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(&format!("{}/v1/swarm/completions", api_base_url))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&swarm_config)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let result: Value = response.json().await?;
+        println!("Deep analysis completed!");
+        println!("Response: {:?}", result);
+    } else {
+        println!("Error: {}", response.status());
+    }
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+**Example Response**:
+```json
+{
+    "job_id": "swarms-K29xMFDrsmLHxCRoeyF3NVYvPaXk",
+    "status": "success",
+    "swarm_name": "Market Research Swarm",
+    "description": "Comprehensive market analysis using HeavySwarm",
+    "swarm_type": "HeavySwarm",
+    "output": [
+        {
+            "role": "Question Generator Agent",
+            "content": {
+                "research_question": "What are the current global market size, growth rates, and key players across solar, wind, hydrogen, and battery storage segments?",
+                "analysis_question": "What statistical patterns emerge from renewable energy adoption rates, cost curves, and capacity factor improvements over the past decade?",
+                "alternatives_question": "What are the most promising investment strategies across renewable energy subsectors considering risk-adjusted returns and portfolio diversification?",
+                "verification_question": "How do projected renewable energy cost trajectories and policy commitments align with independently verified deployment data and grid integration feasibility?"
+            }
+        },
+        {
+            "role": "Research-Agent",
+            "content": "Comprehensive research findings on the renewable energy sector including market sizing data, key players analysis, regulatory landscape across major markets, and technological innovation timelines..."
+        },
+        {
+            "role": "Analysis-Agent",
+            "content": "Statistical analysis of renewable energy adoption patterns showing compound growth rates, learning curve analysis for solar PV and wind technologies, correlation between policy incentives and deployment rates..."
+        },
+        {
+            "role": "Alternatives-Agent",
+            "content": "Strategic investment alternatives analysis covering direct equity positions, ETF-based approaches, project finance opportunities, and emerging technology bets with detailed risk-return profiles..."
+        },
+        {
+            "role": "Verification-Agent",
+            "content": "Verification assessment of key claims including cross-referenced deployment data, validated cost projections against IRENA and BloombergNEF databases, feasibility assessment of grid integration targets..."
+        },
+        {
+            "role": "Synthesis-Agent",
+            "content": "Executive Summary: The renewable energy sector presents strong investment fundamentals with verified compound growth trajectories. Key Insights: Solar PV costs have declined 89% since 2010, wind energy capacity factors have improved 25%... Actionable Recommendations: 1. Overweight solar and battery storage... Risks & Mitigation: Supply chain concentration in key materials..."
+        }
+    ],
+    "number_of_agents": 5,
+    "service_tier": "standard",
+    "execution_time": 62.4,
+    "usage": {
+        "input_tokens": 85,
+        "output_tokens": 5400,
+        "total_tokens": 5485,
+        "billing_info": {
+            "cost_breakdown": {
+                "agent_cost": 0.08,
+                "input_token_cost": 0.000255,
+                "output_token_cost": 0.081,
+                "token_counts": {
+                    "total_input_tokens": 85,
+                    "total_output_tokens": 5400,
+                    "total_tokens": 5485
+                },
+                "num_agents": 5,
+                "service_tier": "standard",
+                "night_time_discount_applied": false
+            },
+            "total_cost": 0.161255,
+            "discount_active": false,
+            "discount_type": "none",
+            "discount_percentage": 0
+        }
+    }
+}
+```
+
+## Best Practices
+
+- Use HeavySwarm for complex tasks that benefit from multi-perspective analysis rather than simple queries
+- Start with `heavy_swarm_loops_per_agent: 1` and increase only when deeper iterative analysis is needed
+- Choose the question agent model carefully — it determines the quality of task decomposition which drives the entire workflow
+- Use a capable worker model (e.g., `claude-sonnet-4-20250514`) for the specialized agents to get high-quality research, analysis, and verification
+- HeavySwarm requires an empty `agents` array (`"agents": []`) in the request — all five agents are created and managed internally
+- For time-sensitive tasks, keep `max_loops` at 1; increase for comprehensive research where thoroughness is prioritized over speed
+- Schedule non-urgent deep analysis during off-peak hours (8 PM - 6 AM PT) for cost savings
