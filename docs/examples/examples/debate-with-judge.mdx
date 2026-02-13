@@ -1,0 +1,175 @@
+---
+title: "Debate With Judge Example"
+description: "Build a structured debate with progressive refinement using DebateWithJudge"
+---
+
+## Technology Strategy Debate
+
+This example demonstrates how to set up a structured debate between opposing agents with an impartial judge using DebateWithJudge — ideal for decision-making, policy analysis, and evaluating trade-offs on complex topics.
+
+### Step 1: Setup
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 2: Define the Debate Panel
+
+Create exactly 3 agents — a Pro debater, a Con debater, and a Judge — who will engage in structured argumentation:
+
+```python
+def run_debate(topic: str, max_loops: int = 1) -> dict:
+    """Run a structured debate with judge evaluation."""
+
+    swarm_config = {
+        "name": "Tech Strategy Debate",
+        "description": "Structured debate with progressive refinement",
+        "swarm_type": "DebateWithJudge",
+        "task": topic,
+        "agents": [
+            {
+                "agent_name": "Pro Debater",
+                "description": "Argues in favor of the proposition",
+                "system_prompt": "You are an expert debater arguing IN FAVOR of the given proposition. Present well-structured arguments with evidence, data, and concrete examples. Anticipate counterarguments and address them. In refinement rounds, strengthen your case based on the judge's feedback.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Con Debater",
+                "description": "Argues against the proposition",
+                "system_prompt": "You are an expert debater arguing AGAINST the given proposition. Identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world counterexamples. In refinement rounds, sharpen your opposition based on the judge's feedback.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Debate Judge",
+                "description": "Evaluates arguments and provides synthesis",
+                "system_prompt": "You are an impartial judge evaluating a structured debate. Assess both sides on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side. Provide a clear verdict with justification, synthesizing the best elements from both arguments into a balanced conclusion.",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.3
+            }
+        ],
+        "max_loops": max_loops
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=180
+    )
+
+    return response.json()
+```
+
+### Step 3: Run the Debate
+
+```python
+# Define the debate topic
+topic = """
+Should startups build their initial product on a microservices architecture
+or a monolithic architecture? Consider development speed, scalability,
+operational complexity, team size constraints, and long-term maintainability.
+"""
+
+# Run the debate
+result = run_debate(topic)
+
+# Display the debate
+for output in result.get("output", []):
+    role = output["role"]
+    content = output["content"]
+
+    print(f"\n{'='*60}")
+    print(f"{role}")
+    print(f"{'='*60}")
+
+    if isinstance(content, list):
+        content = ' '.join(str(item) for item in content)
+
+    print(str(content)[:800] + "...")
+```
+
+**Expected Output:**
+```
+============================================================
+Pro Debater
+============================================================
+Startups should absolutely begin with a monolithic architecture.
+Here's the evidence-based case:
+
+1. DEVELOPMENT SPEED: A monolith eliminates inter-service
+   communication overhead. Shopify scaled to $5.6B revenue on a
+   Ruby on Rails monolith. Instagram had 30M users on a Django
+   monolith before acquisition.
+
+2. TEAM SIZE: Startups typically have 2-8 engineers. Microservices
+   require dedicated DevOps — a luxury most early-stage teams
+   cannot afford. The overhead of managing service discovery,
+   API contracts, and distributed debugging slows a small team...
+
+============================================================
+Con Debater
+============================================================
+The monolith-first argument ignores critical modern realities:
+
+1. CLOUD-NATIVE TOOLING: In 2024, frameworks like Next.js API
+   routes, AWS Lambda, and Vercel serverless functions make
+   microservices nearly as easy to deploy as monoliths. The
+   operational overhead argument is outdated.
+
+2. SCALING BOTTLENECKS: Monoliths force you to scale everything
+   together. If your search feature needs 10x the compute of
+   your auth service, you're paying for 10x across the board...
+
+============================================================
+Debate Judge
+============================================================
+Both sides present compelling arguments. Here is my evaluation:
+
+PRO STRENGTHS: The development speed argument is well-supported
+by real examples (Shopify, Instagram). The team size constraint
+is a practical reality for most early-stage startups.
+
+CON STRENGTHS: The point about modern cloud tooling reducing
+microservices overhead is valid. The scaling cost argument has
+merit for compute-intensive applications.
+
+VERDICT: For most startups, begin with a modular monolith...
+```
+
+### Step 4: Multi-Loop Refinement
+
+Run multiple debate rounds where the judge's feedback helps both sides sharpen their arguments:
+
+```python
+# Run 2 loops — debaters refine their arguments based on judge feedback
+deep_result = run_debate(
+    topic="Should AI companies open-source their foundation models? Consider innovation speed, safety risks, competitive moats, and societal benefit.",
+    max_loops=2
+)
+
+# Show the final contributions after 2 rounds of refinement
+for output in deep_result.get("output", []):
+    print(f"\n{output['role']}:")
+    content = output["content"]
+    if isinstance(content, list):
+        content = ' '.join(str(item) for item in content)
+    print(str(content)[:600] + "...")
+```
+
+<Note>
+DebateWithJudge requires exactly 3 agents in order: Pro (argues in favor), Con (argues against), and Judge (evaluates and synthesizes). Increasing `max_loops` enables progressive refinement — each round produces stronger arguments as debaters respond to the judge's feedback from the previous round.
+</Note>
