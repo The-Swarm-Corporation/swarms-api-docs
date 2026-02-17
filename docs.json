@@ -79,7 +79,7 @@
               "docs/documentation/multi-agent/advanced_research",
               "docs/documentation/multi-agent/graph_workflow",
               "docs/documentation/multi-agent/debate_with_judge",
-              "docs/documentation/multi-agent/heavy_swarm"
+              "docs/documentation/multi-agent/heavy_swarm",
               "docs/documentation/multi-agent/round_robin"
             ]
           },
