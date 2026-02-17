@@ -321,6 +321,11 @@
         "icon": "headset"
       },
       {
+        "label": "Status",
+        "href": "https://status.swarms.ai",
+        "icon": "activity"
+      },
+      {
         "label": "Clients",
         "href": "https://docs.swarms.ai/docs/documentation/resources/client-libraries",
         "icon": "book-open"
