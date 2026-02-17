@@ -1,0 +1,136 @@
+---
+title: "Structured Outputs Example"
+description: "Extract structured JSON data from unstructured text using schema-enforced outputs"
+---
+
+## Company Data Extractor
+
+This example demonstrates how to extract structured, schema-enforced JSON from unstructured text using `llm_args.response_format` - perfect for data extraction, classification, and form processing.
+
+### Step 1: Get Your Swarms API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Create an account or sign in
+3. Generate a new API key
+4. Store it securely in your environment variables
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+### Step 2: Setup
+
+```python
+import requests
+import json
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 3: Define Your Structured Output Agent
+
+Create an agent with a JSON schema that defines the exact fields you want extracted:
+
+```python
+def extract_company_info(text: str) -> dict:
+    """Extract structured company information from unstructured text."""
+
+    payload = {
+        "agent_config": {
+            "agent_name": "Company Extractor",
+            "description": "Extracts structured company info from text",
+            "system_prompt": "Extract the requested information from the provided text. Return only the JSON output.",
+            "model_name": "gpt-4o",
+            "max_tokens": 4096,
+            "temperature": 0.0,
+            "llm_args": {
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "company_info",
+                        "strict": True,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "company_name": {
+                                    "type": "string",
+                                    "description": "The name of the company"
+                                },
+                                "industry": {
+                                    "type": "string",
+                                    "description": "The industry the company operates in"
+                                },
+                                "founded_year": {
+                                    "type": "integer",
+                                    "description": "The year the company was founded"
+                                },
+                                "key_products": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Main products or services"
+                                }
+                            },
+                            "required": ["company_name", "industry", "founded_year", "key_products"],
+                            "additionalProperties": False
+                        }
+                    }
+                }
+            }
+        },
+        "task": text
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=60
+    )
+
+    return response.json()
+```
+
+### Step 4: Run the Extraction
+
+```python
+# Sample unstructured text
+text = """
+Anthropic is an AI safety company founded in 2021 by Dario Amodei and Daniela Amodei.
+They are known for building Claude, a family of large language models, and for their
+research on AI alignment and interpretability. The company is based in San Francisco
+and has raised over $7 billion in funding.
+"""
+
+# Run extraction
+result = extract_company_info(text)
+
+# Parse the structured output
+content = result["outputs"][0]["content"]
+company_info = json.loads(content)
+print(json.dumps(company_info, indent=2))
+```
+
+**Expected Output:**
+```json
+{
+  "company_name": "Anthropic",
+  "industry": "Artificial Intelligence / AI Safety",
+  "founded_year": 2021,
+  "key_products": [
+    "Claude",
+    "AI alignment research",
+    "AI interpretability research"
+  ]
+}
+```
+
+<Note>
+The schema uses `"strict": true` and `"additionalProperties": false` to guarantee the response matches your schema exactly. Every field in `required` will always be present in the output.
+</Note>

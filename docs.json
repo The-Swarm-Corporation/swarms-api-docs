@@ -190,6 +190,7 @@
           {
             "group": "Agent Capabilities",
             "pages": [
+              "docs/examples/examples/structured-outputs",
               "docs/examples/examples/streaming",
               "docs/examples/examples/search-enabled",
               "docs/examples/examples/vision-capabilities",
