@@ -196,6 +196,7 @@
               "docs/examples/examples/streaming",
               "docs/examples/examples/search-enabled",
               "docs/examples/examples/vision-capabilities",
+              "docs/examples/examples/image-with-marketplace-prompt",
               "docs/examples/examples/mcp-integration",
               "docs/examples/examples/agent-handoffs",
               "docs/examples/examples/sub-agent-delegation",

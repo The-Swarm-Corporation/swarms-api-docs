@@ -1,0 +1,147 @@
+---
+title: 'Image Processing with a Marketplace Prompt'
+description: '3-step tutorial: create a Swarms agent that processes images using a prebuilt prompt from the marketplace'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+This tutorial shows how to run a **vision-capable agent** that uses a **prebuilt prompt from the Swarms marketplace**. You'll encode a local image to base64, configure the agent with a `marketplace_prompt_id`, and get a response (e.g., "What city is this image of?").
+
+<Info>
+You need an API key and the Python client. Get your key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys). Find marketplace prompts on [swarms.world](https://swarms.world) or via the [Query Prompts API](/docs/marketplace/prompts-api#query-prompts).
+</Info>
+
+## Step 1 — Set up the client and API key
+
+Install the client and load your API key from a `.env` file:
+
+```bash
+pip install swarms-client python-dotenv
+```
+
+Create a `.env` file in your project root:
+
+```bash
+SWARMS_API_KEY=your-api-key-here
+```
+
+Then initialize the Swarms client in your script:
+
+```python
+import os
+from dotenv import load_dotenv
+from swarms_client import SwarmsClient
+
+load_dotenv()
+
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+    base_url="https://api.swarms.world",
+    timeout=1000,
+)
+```
+
+<Note>
+Keep your API key out of version control. Use `.env` and add `.env` to your `.gitignore`.
+</Note>
+
+## Step 2 — Encode your image and pick a marketplace prompt
+
+Encode your image to base64 (required for the vision API). Use a local file path or replace with your own image:
+
+```python
+import base64
+
+def encode_image_to_base64(image_path: str) -> str:
+    """Encode an image to base64."""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
+image_path = "img.jpg"  # or your image path
+image_base64 = encode_image_to_base64(image_path)
+```
+
+Choose a **marketplace prompt ID** for your agent. The prompt defines the agent's system prompt, name, and description. You can browse prompts on [swarms.world](https://swarms.world) or query them via the [Prompts API](/docs/marketplace/prompts-api). Use a prompt that fits vision or general analysis. Example ID used below: `72021048-6f31-48b6-b624-7732e6f93437`.
+
+## Step 3 — Run the agent with the image and task
+
+Build an `agent_config` that uses the marketplace prompt and a vision-capable model, then call `client.agent.run` with your `task` and `img`:
+
+```python
+import json
+
+agent_config = {
+    "model_name": "gpt-4.1",
+    "dynamic_temperature_enabled": True,
+    "max_loops": 1,
+    "marketplace_prompt_id": "72021048-6f31-48b6-b624-7732e6f93437",
+}
+
+out = client.agent.run(
+    agent_config=agent_config,
+    task="What city is this image of?",
+    img=image_base64,
+)
+
+print(json.dumps(out, indent=4))
+```
+
+When `marketplace_prompt_id` is set, the API fetches the prompt from the marketplace and uses it as the agent's system prompt; you don't need to pass `system_prompt`, `agent_name`, or `description` yourself.
+
+## Complete script
+
+Here is the full script in one place:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import base64
+    import json
+    import os
+
+    from dotenv import load_dotenv
+    from swarms_client import SwarmsClient
+
+    load_dotenv()
+
+    client = SwarmsClient(
+        api_key=os.getenv("SWARMS_API_KEY"),
+        base_url="https://api.swarms.world",
+        timeout=1000,
+    )
+
+    def encode_image_to_base64(image_path: str) -> str:
+        """Encode an image to base64"""
+        with open(image_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode("utf-8")
+
+    image_path = "img.jpg"
+    image_base64 = encode_image_to_base64(image_path)
+
+    agent_config = {
+        "model_name": "gpt-4.1",
+        "dynamic_temperature_enabled": True,
+        "max_loops": 1,
+        "marketplace_prompt_id": "72021048-6f31-48b6-b624-7732e6f93437",
+    }
+
+    out = client.agent.run(
+        agent_config=agent_config,
+        task="What city is this image of?",
+        img=image_base64,
+    )
+
+    print(json.dumps(out, indent=4))
+    ```
+  </Tab>
+</Tabs>
+
+## Summary
+
+| Step | What you did |
+|------|----------------|
+| **1** | Set up `SwarmsClient` with your API key from `.env`. |
+| **2** | Encoded a local image to base64 and chose a `marketplace_prompt_id`. |
+| **3** | Ran the agent with `agent_config`, `task`, and `img=image_base64`. |
+
+For more details, see [Vision Capabilities](/docs/examples/examples/vision-capabilities), [Marketplace Agents](/docs/examples/examples/marketplace-agents), and [Using marketplace prompts with agents](/docs/marketplace/prompts-api#using-marketplace-prompts-with-agents).
