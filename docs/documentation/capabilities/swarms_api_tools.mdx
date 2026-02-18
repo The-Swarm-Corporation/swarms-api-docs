@@ -1,109 +1,814 @@
 ---
 title: 'Structured Outputs'
-description: 'Learn how to create and manage AI agent swarms with optional tool integration using the Swarms API'
+description: 'Get schema-enforced JSON output from your agents using response_format, and integrate tools for function calling'
 ---
 
-<Note>
-This guide covers setting up and using the Swarms API with tools for creating AI agent swarms.
-</Note>
+The Swarms API supports two distinct capabilities for controlling agent output:
 
-The Swarms API enables you to conditionally integrate structured outputs and tools into one or multiple agents based on your requirements. You can define tool schemas that are compatible with your chosen model provider - for example, if you're using OpenAI models, you can use OpenAI-compatible schemas, or if you're using Anthropic models, you can use Anthropic-compatible schemas.
+- **Structured Outputs** — enforce a JSON schema on the LLM's response using `llm_args.response_format`
+- **Tools / Function Calling** — provide tool definitions the LLM can invoke using `tools_list_dictionary`
 
-## Creating a Swarm with Tools
+## Structured Outputs
 
-### Step 1: Define Your Tool Dictionary
+Structured outputs guarantee that an agent's response conforms to a JSON schema you define. This uses the model provider's native `response_format` parameter (e.g., OpenAI's structured outputs), passed through `llm_args` in the agent config.
+
+### How It Works
+
+Add a `response_format` object inside `llm_args` in your agent configuration. The API passes this directly to the underlying LLM via LiteLLM.
 
 ```python
-tool_dictionary = {
-    "type": "function",
-    "function": {
-        "name": "search_topic",
-        "description": "Conduct an in-depth search on a specified topic",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "depth": {
-                    "type": "integer",
-                    "description": "Search depth (1-3)"
-                },
-                "detailed_queries": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "description": "Specific search queries"
-                    }
-                }
-            },
-            "required": ["depth", "detailed_queries"]
+"agent_config": {
+    "agent_name": "Data Extractor",
+    "model_name": "gpt-4o",
+    "llm_args": {
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "your_schema",
+                "strict": true,
+                "schema": { ... }
+            }
         }
     }
 }
 ```
 
-### Step 2: Create Agent Configurations
+---
+
+### Example: JSON Schema Mode
+
+Extract structured data from unstructured text by defining the exact fields you want.
+
+<Tabs>
+<Tab title="Python">
 
 ```python
-agent_config = {
-    "agent_name": "Market Analyst",
-    "description": "Analyzes market trends",
-    "system_prompt": "You are a financial analyst expert.",
-    "model_name": "openai/gpt-4",
-    "role": "worker",
-    "max_loops": 1,
-    "max_tokens": 8192,
-    "temperature": 0.5,
-    "auto_generate_prompt": False,
-    "tools_dictionary": [tool_dictionary]  # Optional: Add tools if needed
+import requests
+import json
+import os
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/agent/completions",
+    headers=headers,
+    json={
+        "agent_config": {
+            "agent_name": "Company Extractor",
+            "description": "Extracts structured company info from text",
+            "system_prompt": "Extract the requested information from the provided text. Return only the JSON output.",
+            "model_name": "gpt-4o",
+            "max_tokens": 4096,
+            "temperature": 0.0,
+            "llm_args": {
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "company_info",
+                        "strict": True,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "company_name": {
+                                    "type": "string",
+                                    "description": "The name of the company"
+                                },
+                                "industry": {
+                                    "type": "string",
+                                    "description": "The industry the company operates in"
+                                },
+                                "founded_year": {
+                                    "type": "integer",
+                                    "description": "The year the company was founded"
+                                },
+                                "key_products": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Main products or services"
+                                }
+                            },
+                            "required": ["company_name", "industry", "founded_year", "key_products"],
+                            "additionalProperties": False
+                        }
+                    }
+                }
+            }
+        },
+        "task": "Anthropic is an AI safety company founded in 2021. They are known for building Claude, a family of large language models, and for their research on AI alignment and interpretability."
+    }
+)
+
+print(json.dumps(response.json(), indent=2))
+```
+
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const API_KEY = process.env.SWARMS_API_KEY;
+const BASE_URL = "https://api.swarms.world";
+
+const response = await fetch(`${BASE_URL}/v1/agent/completions`, {
+    method: "POST",
+    headers: {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        agent_config: {
+            agent_name: "Company Extractor",
+            description: "Extracts structured company info from text",
+            system_prompt: "Extract the requested information from the provided text. Return only the JSON output.",
+            model_name: "gpt-4o",
+            max_tokens: 4096,
+            temperature: 0.0,
+            llm_args: {
+                response_format: {
+                    type: "json_schema",
+                    json_schema: {
+                        name: "company_info",
+                        strict: true,
+                        schema: {
+                            type: "object",
+                            properties: {
+                                company_name: {
+                                    type: "string",
+                                    description: "The name of the company"
+                                },
+                                industry: {
+                                    type: "string",
+                                    description: "The industry the company operates in"
+                                },
+                                founded_year: {
+                                    type: "integer",
+                                    description: "The year the company was founded"
+                                },
+                                key_products: {
+                                    type: "array",
+                                    items: { type: "string" },
+                                    description: "Main products or services"
+                                }
+                            },
+                            required: ["company_name", "industry", "founded_year", "key_products"],
+                            additionalProperties: false
+                        }
+                    }
+                }
+            }
+        },
+        task: "Anthropic is an AI safety company founded in 2021. They are known for building Claude, a family of large language models, and for their research on AI alignment and interpretability."
+    })
+});
+
+const result = await response.json();
+console.log(JSON.stringify(result, null, 2));
+```
+
+</Tab>
+<Tab title="cURL">
+
+```bash
+curl -X POST "https://api.swarms.world/v1/agent/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_config": {
+      "agent_name": "Company Extractor",
+      "description": "Extracts structured company info from text",
+      "system_prompt": "Extract the requested information from the provided text. Return only the JSON output.",
+      "model_name": "gpt-4o",
+      "max_tokens": 4096,
+      "temperature": 0.0,
+      "llm_args": {
+        "response_format": {
+          "type": "json_schema",
+          "json_schema": {
+            "name": "company_info",
+            "strict": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "company_name": {
+                  "type": "string",
+                  "description": "The name of the company"
+                },
+                "industry": {
+                  "type": "string",
+                  "description": "The industry the company operates in"
+                },
+                "founded_year": {
+                  "type": "integer",
+                  "description": "The year the company was founded"
+                },
+                "key_products": {
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "description": "Main products or services"
+                }
+              },
+              "required": ["company_name", "industry", "founded_year", "key_products"],
+              "additionalProperties": false
+            }
+          }
+        }
+      }
+    },
+    "task": "Anthropic is an AI safety company founded in 2021. They are known for building Claude, a family of large language models, and for their research on AI alignment and interpretability."
+  }'
+```
+
+</Tab>
+</Tabs>
+
+#### Expected Response
+
+The agent's `outputs` field contains the structured JSON in the `content` field:
+
+```json
+{
+  "job_id": "agent-a563cb00f8034d13bbb0401257cc3f7a",
+  "success": true,
+  "name": "Company Extractor",
+  "outputs": [
+    {
+      "role": "Company Extractor",
+      "content": "{\"company_name\":\"Anthropic\",\"industry\":\"AI safety and research\",\"founded_year\":2021,\"key_products\":[\"Claude language models\",\"AI alignment research\",\"AI interpretability research\"]}"
+    }
+  ],
+  "usage": {
+    "input_tokens": 85,
+    "output_tokens": 95,
+    "total_tokens": 180,
+    "total_cost": 0.00231
+  }
 }
 ```
 
-### Step 3: Create the Swarm Payload
+<Note>
+The `content` field is a JSON string. Parse it in your application to get the structured object.
+</Note>
+
+---
+
+### Structured Outputs in a Swarm
+
+Use structured outputs with multiple agents in a ConcurrentWorkflow. Each agent can have its own `response_format` schema.
+
+<Tabs>
+<Tab title="Python">
 
 ```python
-payload = {
-    "name": "Your Swarm Name",
-    "description": "Swarm description",
-    "agents": [agent_config],
+import requests
+import json
+import os
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json={
+        "name": "Market Analysis Swarm",
+        "description": "Parallel market analysis with structured output",
+        "agents": [
+            {
+                "agent_name": "Risk Assessor",
+                "description": "Evaluates investment risk",
+                "system_prompt": "You are a risk assessment expert. Evaluate the investment risk based on the provided information.",
+                "model_name": "gpt-4o",
+                "max_tokens": 4096,
+                "temperature": 0.0,
+                "llm_args": {
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "risk_assessment",
+                            "strict": True,
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "risk_level": {"type": "string"},
+                                    "risk_score": {"type": "number"},
+                                    "factors": {
+                                        "type": "array",
+                                        "items": {"type": "string"}
+                                    },
+                                    "recommendation": {"type": "string"}
+                                },
+                                "required": ["risk_level", "risk_score", "factors", "recommendation"],
+                                "additionalProperties": False
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "agent_name": "Growth Analyst",
+                "description": "Projects growth potential",
+                "system_prompt": "You are a growth analysis expert. Project the growth potential based on the provided information.",
+                "model_name": "gpt-4o",
+                "max_tokens": 4096,
+                "temperature": 0.0,
+                "llm_args": {
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "growth_projection",
+                            "strict": True,
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "growth_potential": {"type": "string"},
+                                    "projected_roi_percent": {"type": "number"},
+                                    "time_horizon_months": {"type": "integer"},
+                                    "catalysts": {
+                                        "type": "array",
+                                        "items": {"type": "string"}
+                                    }
+                                },
+                                "required": ["growth_potential", "projected_roi_percent", "time_horizon_months", "catalysts"],
+                                "additionalProperties": False
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "max_loops": 1,
+        "swarm_type": "ConcurrentWorkflow",
+        "task": "Analyze NVIDIA as an investment opportunity given their dominance in AI GPU market, recent earnings beat, and current P/E ratio of 65."
+    }
+)
+
+print(json.dumps(response.json(), indent=2))
+```
+
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const API_KEY = process.env.SWARMS_API_KEY;
+const BASE_URL = "https://api.swarms.world";
+
+const response = await fetch(`${BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        name: "Market Analysis Swarm",
+        description: "Parallel market analysis with structured output",
+        agents: [
+            {
+                agent_name: "Risk Assessor",
+                description: "Evaluates investment risk",
+                system_prompt: "You are a risk assessment expert. Evaluate the investment risk based on the provided information.",
+                model_name: "gpt-4o",
+                max_tokens: 4096,
+                temperature: 0.0,
+                llm_args: {
+                    response_format: {
+                        type: "json_schema",
+                        json_schema: {
+                            name: "risk_assessment",
+                            strict: true,
+                            schema: {
+                                type: "object",
+                                properties: {
+                                    risk_level: { type: "string" },
+                                    risk_score: { type: "number" },
+                                    factors: { type: "array", items: { type: "string" } },
+                                    recommendation: { type: "string" }
+                                },
+                                required: ["risk_level", "risk_score", "factors", "recommendation"],
+                                additionalProperties: false
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                agent_name: "Growth Analyst",
+                description: "Projects growth potential",
+                system_prompt: "You are a growth analysis expert. Project the growth potential based on the provided information.",
+                model_name: "gpt-4o",
+                max_tokens: 4096,
+                temperature: 0.0,
+                llm_args: {
+                    response_format: {
+                        type: "json_schema",
+                        json_schema: {
+                            name: "growth_projection",
+                            strict: true,
+                            schema: {
+                                type: "object",
+                                properties: {
+                                    growth_potential: { type: "string" },
+                                    projected_roi_percent: { type: "number" },
+                                    time_horizon_months: { type: "integer" },
+                                    catalysts: { type: "array", items: { type: "string" } }
+                                },
+                                required: ["growth_potential", "projected_roi_percent", "time_horizon_months", "catalysts"],
+                                additionalProperties: false
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        max_loops: 1,
+        swarm_type: "ConcurrentWorkflow",
+        task: "Analyze NVIDIA as an investment opportunity given their dominance in AI GPU market, recent earnings beat, and current P/E ratio of 65."
+    })
+});
+
+const result = await response.json();
+console.log(JSON.stringify(result, null, 2));
+```
+
+</Tab>
+<Tab title="cURL">
+
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Market Analysis Swarm",
+    "description": "Parallel market analysis with structured output",
+    "agents": [
+      {
+        "agent_name": "Risk Assessor",
+        "description": "Evaluates investment risk",
+        "system_prompt": "You are a risk assessment expert.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096,
+        "temperature": 0.0,
+        "llm_args": {
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "risk_assessment",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "risk_level": {"type": "string"},
+                  "risk_score": {"type": "number"},
+                  "factors": {"type": "array", "items": {"type": "string"}},
+                  "recommendation": {"type": "string"}
+                },
+                "required": ["risk_level", "risk_score", "factors", "recommendation"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "agent_name": "Growth Analyst",
+        "description": "Projects growth potential",
+        "system_prompt": "You are a growth analysis expert.",
+        "model_name": "gpt-4o",
+        "max_tokens": 4096,
+        "temperature": 0.0,
+        "llm_args": {
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "growth_projection",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "growth_potential": {"type": "string"},
+                  "projected_roi_percent": {"type": "number"},
+                  "time_horizon_months": {"type": "integer"},
+                  "catalysts": {"type": "array", "items": {"type": "string"}}
+                },
+                "required": ["growth_potential", "projected_roi_percent", "time_horizon_months", "catalysts"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    ],
     "max_loops": 1,
     "swarm_type": "ConcurrentWorkflow",
-    "task": "Your task description",
-    "output_type": "dict"
+    "task": "Analyze NVIDIA as an investment opportunity given their dominance in AI GPU market, recent earnings beat, and current P/E ratio of 65."
+  }'
+```
+
+</Tab>
+</Tabs>
+
+#### Expected Response
+
+Each agent returns its own structured output in the `output` array:
+
+```json
+{
+  "job_id": "swarm-3e54b3f41f8f461cbd05bf30d8eaecf8",
+  "status": "success",
+  "swarm_name": "Market Analysis Swarm",
+  "swarm_type": "ConcurrentWorkflow",
+  "output": [
+    {
+      "role": "Risk Assessor",
+      "content": "{\"risk_level\":\"Moderate\",\"risk_score\":6.5,\"factors\":[\"Dominance in AI GPU market provides a strong competitive advantage.\",\"Recent earnings beat indicates strong financial performance.\",\"High P/E ratio of 65 suggests the stock may be overvalued.\"],\"recommendation\":\"Consider as a growth investment, but monitor the high valuation closely.\"}"
+    },
+    {
+      "role": "Growth Analyst",
+      "content": "{\"growth_potential\":\"Strong growth due to AI and GPU leadership.\",\"projected_roi_percent\":15,\"time_horizon_months\":12,\"catalysts\":[\"Continued demand for AI and machine learning applications\",\"Expansion in data center and cloud computing markets\",\"New product launches and technological advancements\"]}"
+    }
+  ],
+  "number_of_agents": 2
 }
 ```
 
-### Step 4: Make the API Request
+---
 
-```python
-def run_swarm(payload):
-    response = requests.post(
-        f"{BASE_URL}/v1/swarm/completions",
-        headers=headers,
-        json=payload
-    )
-    return response.json()
+## Tools / Function Calling
+
+Tools let the LLM invoke functions during execution. This is separate from structured outputs — tools define **actions** the model can take, while structured outputs control the **format** of the model's response.
+
+Use `tools_list_dictionary` in the agent config to define available tools using the OpenAI function calling schema.
+
+### Defining Tools
+
+Each tool follows the OpenAI function calling format:
+
+```json
+{
+    "type": "function",
+    "function": {
+        "name": "tool_name",
+        "description": "What this tool does",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "param_name": {
+                    "type": "string",
+                    "description": "Parameter description"
+                }
+            },
+            "required": ["param_name"]
+        }
+    }
+}
 ```
 
-## Complete Example
+### Example: Agent with Tools
 
-Here's a complete example of a financial analysis swarm:
+<Tabs>
+<Tab title="Python">
 
 ```python
-def run_financial_analysis_swarm():
-    payload = {
+import requests
+import json
+import os
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/agent/completions",
+    headers=headers,
+    json={
+        "agent_config": {
+            "agent_name": "Market Analyst",
+            "description": "Analyzes market trends using search tools",
+            "system_prompt": "You are a financial analyst expert. Use the search tool to gather information before providing analysis.",
+            "model_name": "openai/gpt-4o",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.5,
+            "tools_list_dictionary": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "search_topic",
+                        "description": "Conduct an in-depth search on a specified topic",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "depth": {
+                                    "type": "integer",
+                                    "description": "Search depth (1-3)"
+                                },
+                                "detailed_queries": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                        "description": "Specific search queries"
+                                    }
+                                }
+                            },
+                            "required": ["depth", "detailed_queries"]
+                        }
+                    }
+                }
+            ]
+        },
+        "task": "What are the best ETFs and index funds for AI and tech?"
+    }
+)
+
+print(json.dumps(response.json(), indent=2))
+```
+
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const API_KEY = process.env.SWARMS_API_KEY;
+const BASE_URL = "https://api.swarms.world";
+
+const response = await fetch(`${BASE_URL}/v1/agent/completions`, {
+    method: "POST",
+    headers: {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        agent_config: {
+            agent_name: "Market Analyst",
+            description: "Analyzes market trends using search tools",
+            system_prompt: "You are a financial analyst expert. Use the search tool to gather information before providing analysis.",
+            model_name: "openai/gpt-4o",
+            max_loops: 1,
+            max_tokens: 8192,
+            temperature: 0.5,
+            tools_list_dictionary: [
+                {
+                    type: "function",
+                    function: {
+                        name: "search_topic",
+                        description: "Conduct an in-depth search on a specified topic",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                depth: {
+                                    type: "integer",
+                                    description: "Search depth (1-3)"
+                                },
+                                detailed_queries: {
+                                    type: "array",
+                                    items: {
+                                        type: "string",
+                                        description: "Specific search queries"
+                                    }
+                                }
+                            },
+                            required: ["depth", "detailed_queries"]
+                        }
+                    }
+                }
+            ]
+        },
+        task: "What are the best ETFs and index funds for AI and tech?"
+    })
+});
+
+const result = await response.json();
+console.log(JSON.stringify(result, null, 2));
+```
+
+</Tab>
+<Tab title="cURL">
+
+```bash
+curl -X POST "https://api.swarms.world/v1/agent/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_config": {
+      "agent_name": "Market Analyst",
+      "description": "Analyzes market trends using search tools",
+      "system_prompt": "You are a financial analyst expert. Use the search tool to gather information before providing analysis.",
+      "model_name": "openai/gpt-4o",
+      "max_loops": 1,
+      "max_tokens": 8192,
+      "temperature": 0.5,
+      "tools_list_dictionary": [
+        {
+          "type": "function",
+          "function": {
+            "name": "search_topic",
+            "description": "Conduct an in-depth search on a specified topic",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "depth": {
+                  "type": "integer",
+                  "description": "Search depth (1-3)"
+                },
+                "detailed_queries": {
+                  "type": "array",
+                  "items": {"type": "string", "description": "Specific search queries"}
+                }
+              },
+              "required": ["depth", "detailed_queries"]
+            }
+          }
+        }
+      ]
+    },
+    "task": "What are the best ETFs and index funds for AI and tech?"
+  }'
+```
+
+</Tab>
+</Tabs>
+
+#### Expected Response
+
+When the model calls a tool, the `content` field contains the tool call arguments:
+
+```json
+{
+  "job_id": "agent-f424ee9035fb41b99b72459a55683eeb",
+  "success": true,
+  "name": "Market Analyst",
+  "outputs": [
+    {
+      "role": "Market Analyst",
+      "content": [
+        {
+          "function": {
+            "arguments": "{\"depth\":2,\"detailed_queries\":[\"best ETFs for AI and technology\",\"top index funds for technology sector\"]}",
+            "name": "search_topic"
+          },
+          "id": "call_efaxUkKmjKYHryMKZMnQBvdi",
+          "type": "function"
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 115,
+    "output_tokens": 146,
+    "total_tokens": 261,
+    "total_cost": 0.003448
+  }
+}
+```
+
+### Multi-Agent Swarm with Tools
+
+Combine multiple tool-enabled agents in a swarm. Each agent can have its own set of tools.
+
+<Tabs>
+<Tab title="Python">
+
+```python
+import requests
+import json
+import os
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json={
         "name": "Financial Analysis Swarm",
-        "description": "Market analysis swarm",
+        "description": "Multi-agent financial analysis with tools",
         "agents": [
             {
                 "agent_name": "Market Analyst",
                 "description": "Analyzes market trends",
                 "system_prompt": "You are a financial analyst expert.",
-                "model_name": "openai/gpt-4",
-                "role": "worker",
+                "model_name": "openai/gpt-4o",
                 "max_loops": 1,
                 "max_tokens": 8192,
                 "temperature": 0.5,
-                "auto_generate_prompt": False,
-                "tools_dictionary": [
+                "tools_list_dictionary": [
                     {
                         "type": "function",
                         "function": {
@@ -126,224 +831,246 @@ def run_financial_analysis_swarm():
                         }
                     }
                 ]
-            }
-        ],
-        "max_loops": 1,
-        "swarm_type": "ConcurrentWorkflow",
-        "task": "Analyze top performing tech ETFs",
-        "output_type": "dict"
-    }
-    
-    response = requests.post(
-        f"{BASE_URL}/v1/swarm/completions",
-        headers=headers,
-        json=payload
-    )
-    return response.json()
-```
-
-
-
-## Advanced Implementation
-
-Here's an advanced example with multiple agents and tools:
-
-```python
-import os
-import requests
-from dotenv import load_dotenv
-import json
-
-load_dotenv()
-
-API_KEY = os.getenv("SWARMS_API_KEY")
-BASE_URL = "https://api.swarms.world"
-
-headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
-
-def run_health_check():
-    response = requests.get(f"{BASE_URL}/health", headers=headers)
-    return response.json()
-
-def run_single_swarm():
-    payload = {
-        "name": "Financial Analysis Swarm",
-        "description": "Market analysis swarm",
-        "agents": [
-            {
-                "agent_name": "Market Analyst",
-                "description": "Analyzes market trends",
-                "system_prompt": "You are a financial analyst expert.",
-                "model_name": "openai/gpt-4o",
-                "role": "worker",
-                "max_loops": 1,
-                "max_tokens": 8192,
-                "temperature": 0.5,
-                "auto_generate_prompt": False,
-                "tools_dictionary": [
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": "search_topic",
-                            "description": "Conduct an in-depth search on a specified topic or subtopic, generating a comprehensive array of highly detailed search queries tailored to the input parameters.",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "depth": {
-                                        "type": "integer",
-                                        "description": "Indicates the level of thoroughness for the search. Values range from 1 to 3, where 1 represents a superficial search and 3 signifies an exploration of the topic.",
-                                    },
-                                    "detailed_queries": {
-                                        "type": "array",
-                                        "description": "An array of highly specific search queries that are generated based on the input query and the specified depth. Each query should be designed to elicit detailed and relevant information from various sources.",
-                                        "items": {
-                                            "type": "string",
-                                            "description": "Each item in this array should represent a unique search query that targets a specific aspect of the main topic, ensuring a comprehensive exploration of the subject matter.",
-                                        },
-                                    },
-                                },
-                                "required": ["depth", "detailed_queries"],
-                            },
-                        },
-                    },
-                ],
             },
             {
                 "agent_name": "Economic Forecaster",
                 "description": "Predicts economic trends",
                 "system_prompt": "You are an expert in economic forecasting.",
                 "model_name": "gpt-4o",
-                "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 8192,
                 "temperature": 0.5,
-                "auto_generate_prompt": False,
-                "tools_dictionary": [
+                "tools_list_dictionary": [
                     {
                         "type": "function",
                         "function": {
                             "name": "search_topic",
-                            "description": "Conduct an in-depth search on a specified topic or subtopic, generating a comprehensive array of highly detailed search queries tailored to the input parameters.",
+                            "description": "Conduct economic research",
                             "parameters": {
                                 "type": "object",
                                 "properties": {
                                     "depth": {
                                         "type": "integer",
-                                        "description": "Indicates the level of thoroughness for the search. Values range from 1 to 3, where 1 represents a superficial search and 3 signifies an exploration of the topic.",
+                                        "description": "Search depth (1-3)"
                                     },
                                     "detailed_queries": {
                                         "type": "array",
-                                        "description": "An array of highly specific search queries that are generated based on the input query and the specified depth. Each query should be designed to elicit detailed and relevant information from various sources.",
-                                        "items": {
-                                            "type": "string",
-                                            "description": "Each item in this array should represent a unique search query that targets a specific aspect of the main topic, ensuring a comprehensive exploration of the subject matter.",
-                                        },
-                                    },
+                                        "items": {"type": "string"}
+                                    }
                                 },
-                                "required": ["depth", "detailed_queries"],
-                            },
-                        },
-                    },
-                ],
-            },
+                                "required": ["depth", "detailed_queries"]
+                            }
+                        }
+                    }
+                ]
+            }
         ],
         "max_loops": 1,
         "swarm_type": "ConcurrentWorkflow",
-        "task": "What are the best etfs and index funds for ai and tech?",
-        "output_type": "dict",
+        "task": "Analyze top performing tech ETFs and their growth potential"
     }
+)
 
-    response = requests.post(
-        f"{BASE_URL}/v1/swarm/completions",
-        headers=headers,
-        json=payload,
-    )
-
-    print(response)
-    print(response.status_code)
-    output = response.json()
-    return json.dumps(output, indent=4)
-
-if __name__ == "__main__":
-    result = run_single_swarm()
-    print("Swarm Result:")
-    print(result)
+print(json.dumps(response.json(), indent=2))
 ```
 
+</Tab>
+<Tab title="TypeScript">
 
-## Best Practices
+```typescript
+const API_KEY = process.env.SWARMS_API_KEY;
+const BASE_URL = "https://api.swarms.world";
 
-### Error Handling
+const response = await fetch(`${BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        name: "Financial Analysis Swarm",
+        description: "Multi-agent financial analysis with tools",
+        agents: [
+            {
+                agent_name: "Market Analyst",
+                description: "Analyzes market trends",
+                system_prompt: "You are a financial analyst expert.",
+                model_name: "openai/gpt-4o",
+                max_loops: 1,
+                max_tokens: 8192,
+                temperature: 0.5,
+                tools_list_dictionary: [
+                    {
+                        type: "function",
+                        function: {
+                            name: "search_topic",
+                            description: "Conduct market research",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    depth: { type: "integer", description: "Search depth (1-3)" },
+                                    detailed_queries: { type: "array", items: { type: "string" } }
+                                },
+                                required: ["depth", "detailed_queries"]
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                agent_name: "Economic Forecaster",
+                description: "Predicts economic trends",
+                system_prompt: "You are an expert in economic forecasting.",
+                model_name: "gpt-4o",
+                max_loops: 1,
+                max_tokens: 8192,
+                temperature: 0.5,
+                tools_list_dictionary: [
+                    {
+                        type: "function",
+                        function: {
+                            name: "search_topic",
+                            description: "Conduct economic research",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    depth: { type: "integer", description: "Search depth (1-3)" },
+                                    detailed_queries: { type: "array", items: { type: "string" } }
+                                },
+                                required: ["depth", "detailed_queries"]
+                            }
+                        }
+                    }
+                ]
+            }
+        ],
+        max_loops: 1,
+        swarm_type: "ConcurrentWorkflow",
+        task: "Analyze top performing tech ETFs and their growth potential"
+    })
+});
 
-Always implement proper error handling:
-
-```python
-def safe_run_swarm(payload):
-    try:
-        response = requests.post(
-            f"{BASE_URL}/v1/swarm/completions",
-            headers=headers,
-            json=payload
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error running swarm: {e}")
-        return None
+const result = await response.json();
+console.log(JSON.stringify(result, null, 2));
 ```
 
-### Security & Configuration
+</Tab>
+<Tab title="cURL">
 
-- **Environment Variables**: Never hardcode API keys
-- **Tool Design**: Keep tools simple and focused
-- **Testing**: Validate swarm configurations before production use
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Financial Analysis Swarm",
+    "description": "Multi-agent financial analysis with tools",
+    "agents": [
+      {
+        "agent_name": "Market Analyst",
+        "description": "Analyzes market trends",
+        "system_prompt": "You are a financial analyst expert.",
+        "model_name": "openai/gpt-4o",
+        "max_loops": 1,
+        "max_tokens": 8192,
+        "temperature": 0.5,
+        "tools_list_dictionary": [
+          {
+            "type": "function",
+            "function": {
+              "name": "search_topic",
+              "description": "Conduct market research",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "depth": {"type": "integer", "description": "Search depth (1-3)"},
+                  "detailed_queries": {"type": "array", "items": {"type": "string"}}
+                },
+                "required": ["depth", "detailed_queries"]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "agent_name": "Economic Forecaster",
+        "description": "Predicts economic trends",
+        "system_prompt": "You are an expert in economic forecasting.",
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "max_tokens": 8192,
+        "temperature": 0.5,
+        "tools_list_dictionary": [
+          {
+            "type": "function",
+            "function": {
+              "name": "search_topic",
+              "description": "Conduct economic research",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "depth": {"type": "integer", "description": "Search depth (1-3)"},
+                  "detailed_queries": {"type": "array", "items": {"type": "string"}}
+                },
+                "required": ["depth", "detailed_queries"]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "max_loops": 1,
+    "swarm_type": "ConcurrentWorkflow",
+    "task": "Analyze top performing tech ETFs and their growth potential"
+  }'
+```
+
+</Tab>
+</Tabs>
+
+#### Expected Response
+
+```json
+{
+  "job_id": "swarm-884b618ebadc4b2a9c80a0660a3fb928",
+  "status": "success",
+  "swarm_name": "Financial Analysis Swarm",
+  "swarm_type": "ConcurrentWorkflow",
+  "output": [
+    {
+      "role": "Market Analyst",
+      "content": "[{\"function\": {\"arguments\": \"{\\\"depth\\\":3,\\\"detailed_queries\\\":[\\\"Top performing tech ETFs\\\",\\\"Growth potential of tech ETFs\\\"]}\", \"name\": \"search_topic\"}, \"type\": \"function\"}]"
+    },
+    {
+      "role": "Economic Forecaster",
+      "content": "[{\"function\": {\"arguments\": \"{\\\"depth\\\":2,\\\"detailed_queries\\\":[\\\"Top performing tech ETFs\\\",\\\"Factors influencing tech ETF performance\\\"]}\", \"name\": \"search_topic\"}, \"type\": \"function\"}]"
+    }
+  ],
+  "number_of_agents": 2
+}
+```
+
+---
 
 ## FAQ
 
 <AccordionGroup>
+<Accordion title="What is the difference between structured outputs and tools?">
+**Structured outputs** (`llm_args.response_format`) control the *format* of the model's response — you define a JSON schema and the model's output is guaranteed to match it.
+
+**Tools** (`tools_list_dictionary`) define *actions* the model can invoke — the model decides when to call a function and with what arguments.
+
+You can use both on the same agent if needed.
+</Accordion>
+
 <Accordion title="Do all agents need tools?">
-No, tools are optional for each agent. You can choose which agents have tools based on your specific needs. Simply omit the `tools_dictionary` field for agents that don't require tools.
+No, tools are optional for each agent. Simply omit the `tools_list_dictionary` field for agents that don't require tools.
 </Accordion>
 
-<Accordion title="What types of tools can I use?">
-Currently, the API supports function-type tools. Each tool must have:
-- A unique name
-- A clear description
-- Well-defined parameters with types and descriptions
+<Accordion title="Which models support structured outputs?">
+Structured outputs via `response_format` work with models that support OpenAI's structured output format, including `gpt-4o`, `gpt-4o-mini`, and `gpt-4.1`. The feature is passed through LiteLLM, so any LiteLLM-supported model with `response_format` support will work.
 </Accordion>
 
-<Accordion title="Can I mix agents with and without tools?">
-Yes, you can create swarms with a mix of tool-enabled and regular agents. This allows for flexible swarm architectures.
-</Accordion>
-
-<Accordion title="What's the recommended number of tools per agent?">
-While there's no strict limit, it's recommended to:
-- Keep tools focused and specific
-- Only include tools that the agent needs
-- Consider the complexity of tool interactions
+<Accordion title="Can I use structured outputs and tools together?">
+Yes. Set `llm_args.response_format` for the output format and `tools_list_dictionary` for available tools on the same agent.
 </Accordion>
 </AccordionGroup>
-
-## Troubleshooting
-
-<AccordionGroup>
-<Accordion title="API Key Issues">
-- Verify key is correctly set in `.env`
-- Check key permissions
-</Accordion>
-
-<Accordion title="Tool Execution Errors">
-- Validate tool parameters
-- Check tool function signatures
-</Accordion>
-
-<Accordion title="Response Timeout">
-- Consider reducing max_tokens
-- Simplify tool complexity
-</Accordion>
-</AccordionGroup>
-
-
-<Note>
-This advanced implementation demonstrates how to create a multi-agent swarm with sophisticated tool configurations for financial analysis tasks.
-</Note>
