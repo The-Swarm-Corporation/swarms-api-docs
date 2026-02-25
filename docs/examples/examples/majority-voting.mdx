@@ -1,0 +1,327 @@
+---
+title: "Majority Voting Example"
+description: "Build a multi-agent code review board with MajorityVoting"
+---
+
+## Automated Code Review Board
+
+This example demonstrates how to set up a panel of specialist reviewers who independently evaluate code and vote on whether it's production-ready using MajorityVoting — perfect for quality gates, approval workflows, and multi-expert decision-making.
+
+### Step 1: Get Your API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Sign in or create an account
+3. Generate a new API key
+4. Set it as an environment variable:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+### Step 2: Setup
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 3: Define the Review Board
+
+Create an odd number of reviewers — each with a distinct focus area — so votes always produce a clear majority:
+
+```python
+def run_code_review(code: str, context: str = "") -> dict:
+    """Run a multi-agent code review with majority voting."""
+
+    swarm_config = {
+        "name": "Code Review Board",
+        "description": "Multi-agent code review with majority voting",
+        "swarm_type": "MajorityVoting",
+        "task": f"""Review this code and vote on whether it is production-ready:\n\n{code}\n\n{f'Context: {context}' if context else ''}\n\nVote APPROVE if the code is production-ready. Vote REJECT if it needs changes. Explain your reasoning.""",
+        "agents": [
+            {
+                "agent_name": "Security Reviewer",
+                "description": "Reviews code for security vulnerabilities",
+                "system_prompt": """You are a security-focused code reviewer. Analyze code for:
+1. Input validation and sanitization
+2. Type safety and injection risks
+3. Edge cases that could lead to security issues
+4. Proper error handling for security-sensitive operations
+
+Vote APPROVE if the code is secure. Vote REJECT if there are security concerns. Always start your response with your vote.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Performance Reviewer",
+                "description": "Reviews code for performance and efficiency",
+                "system_prompt": """You are a performance-focused code reviewer. Analyze code for:
+1. Algorithmic efficiency and time complexity
+2. Memory usage and potential leaks
+3. Unnecessary computations or redundant operations
+4. Scalability concerns
+
+Vote APPROVE if the code is performant. Vote REJECT if there are performance concerns. Always start your response with your vote.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Best Practices Reviewer",
+                "description": "Reviews code for adherence to best practices",
+                "system_prompt": """You are a code quality reviewer focused on best practices. Check for:
+1. Type hints and docstrings
+2. Proper error handling
+3. Naming conventions and readability
+4. SOLID principles and clean code patterns
+
+Vote APPROVE if it follows best practices. Vote REJECT if it needs improvement. Always start your response with your vote.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Testing Reviewer",
+                "description": "Reviews code for testability and edge cases",
+                "system_prompt": """You are a testing-focused code reviewer. Evaluate:
+1. Edge case handling (nulls, negatives, overflow, empty inputs)
+2. Boundary conditions and off-by-one errors
+3. Testability of the code structure
+4. Missing validation that tests would catch
+
+Vote APPROVE if edge cases are well-covered. Vote REJECT if cases are missed. Always start your response with your vote.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Architecture Reviewer",
+                "description": "Reviews code for design and maintainability",
+                "system_prompt": """You are an architecture-focused code reviewer. Evaluate:
+1. Separation of concerns and single responsibility
+2. Extensibility and maintainability
+3. Hardcoded values vs configurable parameters
+4. Function design and API ergonomics
+
+Vote APPROVE if well-designed. Vote REJECT if architectural improvements are needed. Always start your response with your vote.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            }
+        ],
+        "max_loops": 1
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=180
+    )
+
+    return response.json()
+```
+
+### Step 4: Run the Code Review
+
+```python
+# Code to review
+code = """
+def calculate_discount(price, discount_percent, is_member):
+    if is_member:
+        discount_percent += 10
+    final_price = price - (price * discount_percent / 100)
+    if final_price < 0:
+        final_price = 0
+    return round(final_price, 2)
+"""
+
+# Run the review board
+result = run_code_review(code, context="Pricing module for e-commerce checkout")
+
+# Display each reviewer's vote and reasoning
+for output in result.get("output", []):
+    role = output["role"]
+    content = output["content"]
+
+    # Skip the user input echo
+    if role == "user":
+        continue
+
+    print(f"\n{'='*60}")
+    print(f"{role}")
+    print(f"{'='*60}")
+
+    if isinstance(content, list):
+        content = ' '.join(str(item) for item in content)
+
+    print(str(content)[:600] + "...")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+```
+
+**Expected Output:**
+```
+============================================================
+Security Reviewer
+============================================================
+Vote: APPROVE
+
+The function performs basic arithmetic with no external I/O,
+database queries, or user-facing output — limiting the attack
+surface. The negative price guard prevents negative total
+exploits. However, there is no input type validation — passing
+a string for price would raise a runtime TypeError rather than
+a clear error message...
+
+============================================================
+Best Practices Reviewer
+============================================================
+REJECT
+
+The function needs several improvements:
+
+1. Type Hints: No type annotations for parameters or return
+   value. Should be:
+   def calculate_discount(price: float, discount_percent: float,
+                          is_member: bool) -> float:
+
+2. Docstring: Missing documentation explaining parameters,
+   return value, and behavior.
+
+3. Magic Numbers: The 10% member bonus is hardcoded. Should
+   be a constant or parameter...
+
+============================================================
+Performance Reviewer
+============================================================
+REJECT
+
+While the function is O(1) and uses minimal memory, it has
+code quality issues that affect production readiness:
+
+1. No input validation — negative discount_percent would
+   increase the price rather than decrease it
+2. No type checking — non-numeric inputs cause unclear errors
+3. Missing docstring for maintainability...
+
+============================================================
+Testing Reviewer
+============================================================
+REJECT
+
+Several edge cases are not handled:
+
+1. Negative price: Not validated — a negative price has no
+   real-world meaning
+2. Negative discount: Could increase price unexpectedly
+3. Discount > 100%: Only caught after calculation via the
+   floor check, not validated upfront
+4. Non-numeric inputs: No type checking...
+
+============================================================
+Architecture Reviewer
+============================================================
+REJECT
+
+Architectural concerns:
+
+1. Separation of Concerns: The function mixes discount
+   calculation with membership logic. The 10% bonus should
+   be handled upstream or via a strategy pattern.
+
+2. Magic Numbers: The hardcoded 10 violates the open/closed
+   principle — adding new membership tiers requires modifying
+   the function.
+
+3. Extensibility: No way to support different discount types
+   (percentage, fixed amount, tiered) without rewriting...
+
+============================================================
+Consensus-Agent
+============================================================
+FINAL VERDICT: REJECT (4-1)
+
+The code review board has voted to REJECT this function for
+production use. Four of five reviewers identified significant
+issues:
+
+Key Issues (by priority):
+1. No input validation (security, testing, performance)
+2. Missing type hints and docstring (best practices)
+3. Hardcoded magic number for member discount (architecture)
+4. Poor separation of concerns (architecture)
+
+The Security Reviewer approved based on the limited attack
+surface, but acknowledged the lack of type validation.
+
+Recommendation: Address input validation, add type hints and
+docstring, extract the member bonus as a configurable constant,
+and add proper error handling before merging...
+
+Total cost: $0.1151
+```
+
+### Step 5: Review Multiple Code Snippets
+
+Use MajorityVoting as a quality gate in a CI-like pipeline:
+
+```python
+def batch_code_review(snippets: dict[str, str]) -> None:
+    """Review multiple code snippets and summarize results."""
+
+    print(f"Reviewing {len(snippets)} code snippets...\n")
+
+    for name, code in snippets.items():
+        result = run_code_review(code)
+        outputs = result.get("output", [])
+
+        # Get the consensus agent's final verdict
+        consensus = ""
+        for output in outputs:
+            if output["role"] == "Consensus-Agent":
+                content = output["content"]
+                if isinstance(content, list):
+                    content = ' '.join(str(item) for item in content)
+                consensus = str(content)
+                break
+
+        # Determine result
+        approved = "approve" in consensus.lower()[:100]
+        status = "APPROVED" if approved else "REJECTED"
+
+        print(f"  {name}: {status}")
+        print(f"    {consensus[:150]}...")
+        print()
+
+
+# Review multiple functions
+snippets = {
+    "validate_email": '''
+def validate_email(email: str) -> bool:
+    """Validate email format."""
+    import re
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(pattern, email))
+''',
+    "divide_numbers": '''
+def divide(a, b):
+    return a / b
+''',
+}
+
+batch_code_review(snippets)
+```
+
+<Note>
+MajorityVoting runs all agents independently in parallel, then a Consensus-Agent tallies the votes and synthesizes the reasoning into a final verdict. Use an odd number of agents (3, 5, 7) to guarantee a clear majority and avoid ties. Each agent should have a distinct evaluation focus and clear voting instructions in their system prompt.
+</Note>
