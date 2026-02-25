@@ -1,0 +1,302 @@
+---
+title: "LLM Council Example"
+description: "Build a multi-model council with peer review and synthesis using LLMCouncil"
+---
+
+## Investment Strategy Council
+
+This example demonstrates how to use LLMCouncil to get independent responses from multiple agents, have them peer-review and rank each other's work, then synthesize the best elements into a final answer — inspired by [Andrej Karpathy's llm-council](https://github.com/karpathy/llm-council) concept.
+
+### Step 1: Get Your API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Sign in or create an account
+3. Generate a new API key
+4. Set it as an environment variable:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+### Step 2: Setup
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 3: Define the Council
+
+Create council members with distinct perspectives. Each member will independently answer the query, then review and rank all anonymized responses before a chairman synthesizes the final answer:
+
+```python
+def run_llm_council(question: str) -> dict:
+    """Run a multi-model council with peer review and synthesis."""
+
+    swarm_config = {
+        "name": "Investment Strategy Council",
+        "description": "Multi-model council for investment analysis",
+        "swarm_type": "LLMCouncil",
+        "task": question,
+        "agents": [
+            {
+                "agent_name": "Analytical Councilor",
+                "description": "Deep analytical thinker focused on comprehensive coverage",
+                "system_prompt": """You are a member of an LLM Council. Provide comprehensive, analytical responses.
+
+Your strengths:
+- Deep analytical thinking and thorough exploration of multiple perspectives
+- Rich contextual understanding and detailed breakdowns
+- Evidence-based reasoning with data points
+
+Provide detailed, well-structured responses. You are part of a council where multiple agents will respond to the same query, then evaluate each other's responses. Focus on depth and accuracy.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.7
+            },
+            {
+                "agent_name": "Concise Councilor",
+                "description": "Clear and structured communicator focused on efficiency",
+                "system_prompt": """You are a member of an LLM Council. Provide concise, well-structured responses.
+
+Your strengths:
+- Clear and structured communication
+- Efficient information processing with high signal-to-noise ratio
+- Well-organized presentation with actionable takeaways
+
+Provide concise but complete answers. You are part of a council where multiple agents will respond to the same query, then evaluate each other's responses. Focus on clarity and efficiency.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.5
+            },
+            {
+                "agent_name": "Balanced Councilor",
+                "description": "Thoughtful and nuanced perspective with trade-off analysis",
+                "system_prompt": """You are a member of an LLM Council. Provide thoughtful, balanced responses.
+
+Your strengths:
+- Nuanced understanding and balanced perspectives
+- Thoughtful consideration of trade-offs, risks, and limitations
+- Clear reasoning with both pros and cons
+
+Provide balanced, well-reasoned responses. You are part of a council where multiple agents will respond to the same query, then evaluate each other's responses. Focus on nuance and fairness.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.6
+            },
+            {
+                "agent_name": "Creative Councilor",
+                "description": "Innovative thinker with unique perspectives",
+                "system_prompt": """You are a member of an LLM Council. Provide creative, innovative perspectives.
+
+Your strengths:
+- Creative problem-solving and innovative thinking
+- Unique perspectives and out-of-the-box approaches
+- Connecting seemingly unrelated concepts for novel insights
+
+Provide creative and innovative responses. You are part of a council where multiple agents will respond to the same query, then evaluate each other's responses. Focus on originality and fresh insights.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.8
+            }
+        ],
+        "max_loops": 1
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=300
+    )
+
+    return response.json()
+```
+
+### Step 4: Run the Council
+
+```python
+# Define the question
+question = """
+What are the most promising renewable energy investment opportunities
+for 2025, considering both risk and return potential?
+"""
+
+# Run council
+result = run_llm_council(question)
+
+# Display the council's workflow
+for output in result.get("output", []):
+    role = output["role"]
+    content = output["content"]
+
+    print(f"\n{'='*60}")
+    print(f"{role}")
+    print(f"{'='*60}")
+
+    if isinstance(content, list):
+        content = ' '.join(str(item) for item in content)
+
+    print(str(content)[:800] + "...")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+```
+
+**Expected Output:**
+```
+============================================================
+Analytical Councilor
+============================================================
+COMPREHENSIVE RENEWABLE ENERGY INVESTMENT ANALYSIS
+
+1. SOLAR ENERGY (Risk: Low-Medium, Return: 8-15%)
+   - Utility-scale solar continues 20%+ annual growth
+   - Key players: First Solar (FSLR), Enphase Energy (ENPH)
+   - Catalyst: IRA tax credits extending through 2032
+   - Risk factors: Panel oversupply from China, interest rate
+     sensitivity on project financing
+
+2. BATTERY STORAGE (Risk: Medium, Return: 12-25%)
+   - Grid-scale storage is the critical enabler for renewables
+   - Market growing at 35% CAGR through 2030
+   - Key players: Tesla Energy, Fluence Energy (FLNC)
+   - Risk factors: Lithium price volatility, technology shifts...
+
+============================================================
+Concise Councilor
+============================================================
+TOP 5 RENEWABLE ENERGY PLAYS FOR 2025
+
+| Sector          | Risk   | Return   | Top Pick         |
+|-----------------|--------|----------|------------------|
+| Solar           | Low    | 8-15%    | First Solar      |
+| Battery Storage | Medium | 12-25%   | Fluence Energy   |
+| Offshore Wind   | Medium | 10-18%   | Orsted           |
+| Green Hydrogen  | High   | 20-40%   | Plug Power       |
+| Nuclear/SMR     | High   | 15-30%   | NuScale Power    |
+
+Best risk-adjusted: Solar + Battery Storage combo.
+Highest upside: Green Hydrogen (but volatile)...
+
+============================================================
+Balanced Councilor
+============================================================
+BALANCED ASSESSMENT: RENEWABLE ENERGY INVESTMENTS
+
+The renewable energy sector presents genuine opportunities but
+requires careful risk management. Here's a balanced view:
+
+FAVORABLE FACTORS:
+- Policy tailwinds (IRA, EU Green Deal) provide multi-year visibility
+- Technology costs declining 5-10% annually across solar and wind
+- Corporate PPA demand at all-time highs
+
+CAUTIONARY FACTORS:
+- Many clean energy stocks trade at premium valuations
+- Interest rate sensitivity — renewables are capital-intensive
+- Supply chain concentration risks (China dominates solar, rare earths)
+
+RECOMMENDATION: A barbell approach — combine low-risk solar/wind
+ETFs (60%) with selective high-growth bets in storage and hydrogen
+(40%). Avoid overconcentration in any single technology...
+
+============================================================
+Creative Councilor
+============================================================
+UNCONVENTIONAL RENEWABLE ENERGY OPPORTUNITIES
+
+Beyond the obvious solar/wind plays, consider these overlooked
+angles:
+
+1. AGRIVOLTAICS — Solar panels over farmland. Dual revenue from
+   energy + agriculture. Early-stage but massive TAM. Watch for
+   startups combining precision agriculture with solar.
+
+2. VEHICLE-TO-GRID (V2G) — Every EV becomes a distributed battery.
+   Utilities will pay EV owners to stabilize the grid. Companies
+   enabling this infrastructure are undervalued.
+
+3. ENHANCED GEOTHERMAL — Fervo Energy's breakthrough in hot rock
+   drilling makes geothermal viable anywhere, not just volcanic
+   regions. 24/7 clean baseload power — the holy grail...
+
+============================================================
+Analytical Councilor-Evaluation
+============================================================
+RANKINGS:
+1. Response C: Most balanced and practical — acknowledges both
+   opportunities and risks. The barbell strategy is actionable.
+2. Response A: Thorough and data-rich, but lacks risk hedging
+   discussion.
+3. Response D: Creative and differentiated perspectives, but
+   speculative without risk quantification.
+4. Response B: Clear and concise, but oversimplified for an
+   investment decision of this complexity...
+
+============================================================
+Chairman
+============================================================
+FINAL SYNTHESIZED RESPONSE: RENEWABLE ENERGY INVESTMENT
+OPPORTUNITIES FOR 2025
+
+Drawing from all council member perspectives and their peer
+evaluations, here is the synthesized recommendation:
+
+CORE PORTFOLIO (60% allocation — Lower Risk):
+- Utility-scale Solar: 8-15% return potential, policy-backed
+- Battery Storage: 12-25% return, critical grid enabler
+- Diversified Clean Energy ETFs for broad exposure
+
+GROWTH ALLOCATION (30% — Medium Risk):
+- Offshore Wind: 10-18% return, massive European pipeline
+- Grid modernization plays
+
+SPECULATIVE (10% — Higher Risk, Higher Reward):
+- Green Hydrogen: 20-40% upside but volatile
+- Enhanced Geothermal: Breakthrough potential
+- Agrivoltaics and V2G infrastructure
+
+KEY INSIGHT FROM COUNCIL: The most valuable contribution came
+from combining the analytical depth of traditional sector analysis
+with the creative councilor's identification of overlooked
+opportunities like agrivoltaics and V2G...
+
+Total cost: $0.3215
+```
+
+### How LLMCouncil Works
+
+The council follows a 3-phase workflow:
+
+```
+Phase 1: INDEPENDENT RESPONSE
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  Councilor A  │  │  Councilor B  │  │  Councilor C  │  │  Councilor D  │
+│  (Analytical) │  │  (Concise)   │  │  (Balanced)  │  │  (Creative)  │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+       │                 │                 │                 │
+       ▼                 ▼                 ▼                 ▼
+   Response A        Response B        Response C        Response D
+
+Phase 2: PEER REVIEW (anonymized)
+   Each councilor ranks ALL responses (including their own)
+   Responses are anonymized so councilors judge on quality alone
+
+Phase 3: SYNTHESIS
+┌──────────────────────────────────────────────────────────────────┐
+│                         CHAIRMAN                                 │
+│  Reviews all responses + all rankings → Final synthesized answer │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+<Note>
+LLMCouncil is inspired by Andrej Karpathy's llm-council concept. Each agent responds independently, then all agents peer-review and rank each other's anonymized responses. A chairman agent synthesizes everything — original responses plus rankings — into a final answer that incorporates the strongest elements from each perspective. This multi-phase approach produces higher-quality outputs than any single agent alone.
+</Note>

@@ -219,6 +219,7 @@
               "docs/examples/examples/debate-with-judge",
               "docs/examples/examples/heavy-swarm",
               "docs/examples/examples/round-robin",
+              "docs/examples/examples/llm-council",
               "docs/examples/examples/batch-processing",
               "docs/examples/examples/batch-swarm-completions"
             ]
