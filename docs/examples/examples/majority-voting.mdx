@@ -45,15 +45,7 @@ def run_code_review(code: str, context: str = "") -> dict:
         "name": "Code Review Board",
         "description": "Multi-agent code review with majority voting",
         "swarm_type": "MajorityVoting",
-        "task": f"""Review this code and vote on whether it is production-ready:
-
-```python
-{code}
-```
-
-{f"Context: {context}" if context else ""}
-
-Vote APPROVE if the code is production-ready. Vote REJECT if it needs changes. Explain your reasoning.""",
+        "task": f"""Review this code and vote on whether it is production-ready:\n\n{code}\n\n{f'Context: {context}' if context else ''}\n\nVote APPROVE if the code is production-ready. Vote REJECT if it needs changes. Explain your reasoning.""",
         "agents": [
             {
                 "agent_name": "Security Reviewer",
