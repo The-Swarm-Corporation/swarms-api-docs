@@ -1,0 +1,336 @@
+---
+title: "Council as Judge Example"
+description: "Build a multi-dimensional AI response evaluation system with CouncilAsAJudge"
+---
+
+## AI Response Quality Evaluation System
+
+This example demonstrates how to evaluate AI-generated content across multiple quality dimensions using CouncilAsAJudge — perfect for quality assurance, model benchmarking, and response improvement workflows.
+
+### Step 1: Get Your API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Sign in or create an account
+3. Generate a new API key
+4. Set it as an environment variable:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+### Step 2: Setup
+
+```python
+import requests
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+```
+
+### Step 3: Define the Evaluation Council
+
+Create a panel of specialist evaluator agents — each focuses on a single quality dimension — plus an aggregator that synthesizes their findings into a comprehensive report:
+
+```python
+def evaluate_response(task: str, response_to_evaluate: str) -> dict:
+    """Evaluate an AI response across multiple quality dimensions."""
+
+    swarm_config = {
+        "name": "Response Quality Council",
+        "description": "Multi-dimensional AI response evaluation",
+        "swarm_type": "CouncilAsAJudge",
+        "task": f"""Evaluate the following AI-generated response:
+
+ORIGINAL TASK: {task}
+
+RESPONSE TO EVALUATE: {response_to_evaluate}""",
+        "agents": [
+            {
+                "agent_name": "Accuracy Judge",
+                "description": "Evaluates factual accuracy and correctness",
+                "system_prompt": """You are an expert accuracy evaluator. Assess the response for:
+1. Factual correctness — cross-reference claims against known facts
+2. Technical accuracy — verify technical details and specifications
+3. Internal consistency — check for contradictions within the response
+4. Source credibility — evaluate whether claims are well-supported
+5. Temporal accuracy — flag outdated or time-sensitive information
+
+Provide specific examples of accurate and inaccurate claims.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Helpfulness Judge",
+                "description": "Evaluates practical value and completeness",
+                "system_prompt": """You are an expert helpfulness evaluator. Assess the response for:
+1. Direct alignment with the user's question and intent
+2. Completeness — are all aspects of the question addressed?
+3. Actionability — can the user act on this information?
+4. Clarity of examples and explanations
+5. Proactive coverage of edge cases and follow-up questions
+
+Identify what's useful and what's missing.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Harmlessness Judge",
+                "description": "Evaluates safety and ethical considerations",
+                "system_prompt": """You are an expert safety evaluator. Assess the response for:
+1. Harmful stereotypes, biases, or discriminatory content
+2. Potential misuse scenarios or dangerous applications
+3. Promotion of unsafe practices
+4. Appropriate safety disclaimers and caveats
+5. Audience sensitivity and tone appropriateness
+
+Flag any safety concerns with severity levels.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Coherence Judge",
+                "description": "Evaluates structure and logical flow",
+                "system_prompt": """You are an expert coherence evaluator. Assess the response for:
+1. Logical flow and argument structure
+2. Information hierarchy and organization
+3. Consistent terminology and clear definitions
+4. Smooth transitions between ideas
+5. Overall readability and comprehension
+
+Reference specific sections that are well-structured or problematic.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Conciseness Judge",
+                "description": "Evaluates communication efficiency",
+                "system_prompt": """You are an expert conciseness evaluator. Assess the response for:
+1. Redundant information or repetition
+2. Unnecessary qualifiers or verbose expressions
+3. Information density — is every sentence adding value?
+4. Directness of communication
+5. Appropriate length for the question's complexity
+
+Identify specific areas that could be trimmed without losing value.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            },
+            {
+                "agent_name": "Instruction Adherence Judge",
+                "description": "Evaluates compliance with original requirements",
+                "system_prompt": """You are an expert instruction adherence evaluator. Assess the response for:
+1. Coverage of all explicit requirements in the prompt
+2. Adherence to specified constraints and formats
+3. Scope appropriateness — no over- or under-delivery
+4. Alignment with implicit expectations
+5. Format and structure compliance
+
+Check each requirement individually and note compliance status.""",
+                "model_name": "gpt-4o",
+                "max_loops": 1,
+                "temperature": 0.2
+            }
+        ],
+        "max_loops": 1
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=swarm_config,
+        timeout=180
+    )
+
+    return response.json()
+```
+
+### Step 4: Run the Evaluation
+
+```python
+# Define the original task and the response to evaluate
+original_task = """
+Explain the differences between REST and GraphQL APIs. Include pros and cons
+of each, and recommend when to use which approach.
+"""
+
+ai_response = """
+REST and GraphQL are two popular approaches to building APIs.
+
+REST (Representational State Transfer) uses fixed endpoints where each URL
+represents a resource. GET /users returns all users, GET /users/1 returns
+a specific user. It's simple and cacheable but can lead to over-fetching
+(getting more data than needed) or under-fetching (requiring multiple
+requests).
+
+GraphQL uses a single endpoint where clients specify exactly what data they
+need via queries. This eliminates over-fetching and reduces round trips.
+However, it adds complexity with schema design, makes caching harder, and
+can suffer from N+1 query problems on the backend.
+
+Use REST for simple CRUD APIs, public APIs needing easy caching, and teams
+new to API design. Use GraphQL for complex data relationships, mobile apps
+needing bandwidth efficiency, and applications with diverse frontend needs.
+"""
+
+# Run evaluation
+result = evaluate_response(original_task, ai_response)
+
+# Display dimension evaluations
+for output in result.get("output", []):
+    judge = output["role"]
+    content = output["content"]
+
+    print(f"\n{'='*60}")
+    print(f"{judge.upper()}")
+    print(f"{'='*60}")
+
+    if isinstance(content, list):
+        content = ' '.join(str(item) for item in content)
+
+    print(str(content)[:800] + "...")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+```
+
+**Expected Output:**
+```
+============================================================
+ACCURACY_JUDGE
+============================================================
+Technical Analysis (ACCURACY Dimension):
+
+The response correctly defines REST as using fixed endpoints and
+provides appropriate examples (GET /users, GET /users/1). The
+identification of over-fetching and under-fetching as REST
+limitations is accurate.
+
+Strengths:
+- Core concepts for both REST and GraphQL are correct
+- N+1 query problem in GraphQL is accurately identified
+- Caching difficulty in GraphQL is a valid concern
+
+Areas for Improvement:
+- "REST uses fixed endpoints" is an oversimplification — REST is
+  an architectural style, not strictly tied to fixed endpoints
+- Missing mention of HTTP methods (POST, PUT, DELETE) which are
+  fundamental to REST...
+
+============================================================
+HELPFULNESS_JUDGE
+============================================================
+Technical Analysis (HELPFULNESS Dimension):
+
+The response aligns with the user's request by defining both REST
+and GraphQL and outlining their pros and cons.
+
+Strengths:
+- Clear side-by-side comparison structure
+- Actionable recommendation section at the end
+- Real-world use case suggestions for each approach
+
+Gaps:
+- Lacks depth in practical scenarios and real-world examples
+- No code examples showing the difference in practice
+- Missing discussion of tooling ecosystem
+- No mention of hybrid approaches or migration strategies...
+
+============================================================
+COHERENCE_JUDGE
+============================================================
+Technical Analysis (COHERENCE Dimension):
+
+The response begins with a clear introduction but lacks a structured
+layout that distinguishes pros and cons clearly.
+
+Strengths:
+- Consistent parallel structure when comparing approaches
+- Clear topic sentences for each paragraph
+
+Issues:
+- Pros and cons are mixed within definitions rather than clearly
+  delineated
+- Transition from REST to GraphQL is abrupt — no bridging sentence
+- The recommendation section could be formatted as a comparison
+  table for better scannability...
+
+============================================================
+AGGREGATOR_AGENT
+============================================================
+Comprehensive Technical Report
+
+Executive Summary:
+The response effectively compares REST and GraphQL APIs with
+technical neutrality and directness. It scores well on accuracy
+and coherence but has room for improvement in depth and formatting.
+
+Cross-Dimensional Patterns:
+- All judges noted the response is correct but surface-level
+- Helpfulness and instruction adherence both flagged missing code
+  examples and deeper technical detail
+- Coherence and conciseness judges identified formatting improvements
+
+Prioritized Recommendations:
+1. Add structured formatting for pros/cons (high impact)
+2. Include practical code examples (high impact)
+3. Expand technical depth on caching and performance (medium impact)
+4. Include a comparison table for quick reference (medium impact)
+
+Total cost: $0.1606
+```
+
+### Step 5: Batch Evaluation for Model Comparison
+
+Use CouncilAsAJudge to compare responses from different models on the same task:
+
+```python
+def compare_model_responses(task: str, responses: dict[str, str]) -> dict:
+    """Evaluate multiple model responses and compare quality."""
+
+    results = {}
+    for model_name, response in responses.items():
+        print(f"Evaluating {model_name}...")
+        results[model_name] = evaluate_response(task, response)
+
+    # Compare final aggregator reports
+    print(f"\n{'='*60}")
+    print("MODEL COMPARISON SUMMARY")
+    print(f"{'='*60}")
+
+    for model_name, result in results.items():
+        outputs = result.get("output", [])
+        # Get the aggregator's final report (last output)
+        if outputs:
+            final = outputs[-1]["content"]
+            if isinstance(final, list):
+                final = ' '.join(str(item) for item in final)
+            print(f"\n--- {model_name} ---")
+            print(str(final)[:400] + "...")
+
+    return results
+
+
+# Compare two model responses
+task = "Explain database indexing and when to use composite indexes."
+
+responses = {
+    "Response A": "Database indexing creates a data structure that improves query speed...",
+    "Response B": "An index in a database is like a book's index — it helps you find data faster..."
+}
+
+comparison = compare_model_responses(task, responses)
+```
+
+<Note>
+CouncilAsAJudge evaluates responses across 6 dimensions in parallel: accuracy, helpfulness, harmlessness, coherence, conciseness, and instruction adherence. Each dimension judge works independently, then an aggregator synthesizes all evaluations into a single comprehensive report with prioritized recommendations.
+</Note>
