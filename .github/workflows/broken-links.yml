@@ -83,7 +83,7 @@ jobs:
           output: ./lychee-report.md
 
       - name: Upload link check report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: external-links-report
           path: ./lychee-report.md
