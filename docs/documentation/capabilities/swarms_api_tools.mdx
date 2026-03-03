@@ -773,6 +773,216 @@ When the model calls a tool, the `content` field contains the tool call argument
 }
 ```
 
+### Parsing Tool Call Responses
+
+When an agent calls a tool, the `content` field is an **array of tool call objects** (not a plain string like structured outputs). Each object contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `function.name` | `string` | The name of the tool the model wants to call |
+| `function.arguments` | `string` | A JSON-encoded string containing the tool call arguments |
+| `id` | `string` | A unique identifier for this tool call |
+| `type` | `string` | Always `"function"` |
+
+<Warning>
+The `arguments` field is a **JSON string**, not a parsed object. You must parse it with `json.loads()` (Python) or `JSON.parse()` (JavaScript) before using the values.
+</Warning>
+
+#### Step-by-Step Parsing
+
+<Tabs>
+<Tab title="Python">
+
+```python
+import requests
+import json
+import os
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+# 1. Send the request with tool definitions
+response = requests.post(
+    f"{BASE_URL}/v1/agent/completions",
+    headers=headers,
+    json={
+        "agent_config": {
+            "agent_name": "Weather Assistant",
+            "description": "Gets weather information",
+            "system_prompt": "You are a weather assistant. Use the get_weather tool to answer questions.",
+            "model_name": "gpt-4o",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.0,
+            "tools_list_dictionary": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_weather",
+                        "description": "Get the current weather for a given location",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "location": {
+                                    "type": "string",
+                                    "description": "City name, e.g. San Francisco, CA"
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "enum": ["celsius", "fahrenheit"],
+                                    "description": "Temperature unit"
+                                }
+                            },
+                            "required": ["location"]
+                        }
+                    }
+                }
+            ]
+        },
+        "task": "What is the weather in San Francisco?"
+    }
+)
+
+data = response.json()
+
+# 2. Extract tool calls from the response
+agent_output = data["outputs"][0]
+tool_calls = agent_output["content"]  # This is a list of tool call objects
+
+# 3. Parse each tool call
+for tool_call in tool_calls:
+    function_name = tool_call["function"]["name"]
+    call_id = tool_call["id"]
+
+    # Parse the arguments JSON string into a Python dict
+    arguments = json.loads(tool_call["function"]["arguments"])
+
+    print(f"Tool: {function_name}")
+    print(f"Call ID: {call_id}")
+    print(f"Arguments: {arguments}")
+
+    # 4. Use the parsed arguments in your application
+    if function_name == "get_weather":
+        location = arguments["location"]
+        unit = arguments.get("unit", "fahrenheit")
+        print(f"  → Fetching weather for {location} in {unit}")
+        # Call your actual weather API here
+```
+
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const API_KEY = process.env.SWARMS_API_KEY;
+const BASE_URL = "https://api.swarms.world";
+
+// 1. Send the request with tool definitions
+const response = await fetch(`${BASE_URL}/v1/agent/completions`, {
+    method: "POST",
+    headers: {
+        "x-api-key": API_KEY!,
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        agent_config: {
+            agent_name: "Weather Assistant",
+            description: "Gets weather information",
+            system_prompt: "You are a weather assistant. Use the get_weather tool to answer questions.",
+            model_name: "gpt-4o",
+            max_loops: 1,
+            max_tokens: 4096,
+            temperature: 0.0,
+            tools_list_dictionary: [
+                {
+                    type: "function",
+                    function: {
+                        name: "get_weather",
+                        description: "Get the current weather for a given location",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                location: {
+                                    type: "string",
+                                    description: "City name, e.g. San Francisco, CA"
+                                },
+                                unit: {
+                                    type: "string",
+                                    enum: ["celsius", "fahrenheit"],
+                                    description: "Temperature unit"
+                                }
+                            },
+                            required: ["location"]
+                        }
+                    }
+                }
+            ]
+        },
+        task: "What is the weather in San Francisco?"
+    })
+});
+
+const data = await response.json();
+
+// 2. Extract tool calls from the response
+const agentOutput = data.outputs[0];
+const toolCalls = agentOutput.content; // Array of tool call objects
+
+// 3. Parse each tool call
+for (const toolCall of toolCalls) {
+    const functionName = toolCall.function.name;
+    const callId = toolCall.id;
+
+    // Parse the arguments JSON string into an object
+    const args = JSON.parse(toolCall.function.arguments);
+
+    console.log(`Tool: ${functionName}`);
+    console.log(`Call ID: ${callId}`);
+    console.log(`Arguments:`, args);
+
+    // 4. Use the parsed arguments in your application
+    if (functionName === "get_weather") {
+        const location = args.location;
+        const unit = args.unit ?? "fahrenheit";
+        console.log(`  → Fetching weather for ${location} in ${unit}`);
+        // Call your actual weather API here
+    }
+}
+```
+
+</Tab>
+</Tabs>
+
+#### Example Output
+
+```
+Tool: get_weather
+Call ID: call_VPqXFY3bgFsTJHLQeeQYY230
+Arguments: {'location': 'San Francisco, CA'}
+  → Fetching weather for San Francisco, CA in fahrenheit
+```
+
+<Tip>
+**Detecting tool calls vs. text responses:** When the agent uses tools, `content` is an array of objects. When the agent responds with plain text, `content` is a string. Check the type to handle both cases:
+
+```python
+content = data["outputs"][0]["content"]
+if isinstance(content, list):
+    # Agent made tool call(s) — parse them
+    for tool_call in content:
+        args = json.loads(tool_call["function"]["arguments"])
+elif isinstance(content, str):
+    # Agent responded with text
+    print(content)
+```
+</Tip>
+
+---
+
 ### Multi-Agent Swarm with Tools
 
 Combine multiple tool-enabled agents in a swarm. Each agent can have its own set of tools.
@@ -1048,6 +1258,75 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
   "number_of_agents": 2
 }
 ```
+
+### Parsing Swarm Tool Calls
+
+Swarm responses differ from single-agent responses in two ways:
+
+1. The response key is **`output`** (not `outputs`)
+2. The `content` field is a **string** (serialized Python representation), not a native array
+
+Use `ast.literal_eval` in Python to safely parse the content string:
+
+<Tabs>
+<Tab title="Python">
+
+```python
+import ast
+import json
+
+data = response.json()
+
+for agent_output in data["output"]:
+    agent_name = agent_output["role"]
+    content = agent_output["content"]
+
+    # Swarm content is a string — parse it into a list
+    if isinstance(content, str):
+        tool_calls = ast.literal_eval(content)
+    else:
+        tool_calls = content
+
+    for tool_call in tool_calls:
+        function_name = tool_call["function"]["name"]
+        arguments = json.loads(tool_call["function"]["arguments"])
+
+        print(f"[{agent_name}] Tool: {function_name}")
+        print(f"  Arguments: {arguments}")
+```
+
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const data = await response.json();
+
+for (const agentOutput of data.output) {
+    const agentName = agentOutput.role;
+    let content = agentOutput.content;
+
+    // Swarm content is a string — parse it into an array
+    let toolCalls: any[];
+    if (typeof content === "string") {
+        // Replace Python-style single quotes with double quotes for JSON parsing
+        const jsonString = content.replace(/'/g, '"');
+        toolCalls = JSON.parse(jsonString);
+    } else {
+        toolCalls = content;
+    }
+
+    for (const toolCall of toolCalls) {
+        const functionName = toolCall.function.name;
+        const args = JSON.parse(toolCall.function.arguments);
+
+        console.log(`[${agentName}] Tool: ${functionName}`);
+        console.log(`  Arguments:`, args);
+    }
+}
+```
+
+</Tab>
+</Tabs>
 
 ---
 
