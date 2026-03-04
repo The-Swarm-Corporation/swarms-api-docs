@@ -1,0 +1,264 @@
+---
+title: 'Docs MCP and LLMs txt'
+description: 'Give any coding agent Claude Code, Cursor, Codex, Windsurf, and more instant access to the Swarms API documentation via MCP or llms.txt.'
+---
+
+Stop copy-pasting docs. If you're vibe coding in Cursor, automating with Claude Code, or building an agent pipeline with Codex, you can give your agent instant, accurate access to the entire Swarms API either through a live MCP server it can query on-demand, or a single `llms.txt` file you drop into context. Both are free, require no API key, and take under a minute to set up.
+
+## Overview
+
+Two ways to give your coding agent full access to the Swarms API documentation:
+
+| Method | Best For | URL |
+|--------|----------|-----|
+| **MCP Server** | Agents with MCP support (Claude Code, Cursor, Windsurf, etc.) | `https://docs.swarms.ai/mcp` |
+| **llms.txt** | Paste-and-go context for any LLM or vibe coding session | `https://docs.swarms.ai/llms.txt` |
+
+No API key required for either. No installation needed.
+
+---
+
+## Option 1: MCP Server (Recommended for Agents)
+
+The Swarms Documentation MCP Server is a hosted remote server that exposes the entire Swarms API documentation as a live searchable tool. Connect it once and your agent can look up API references, code examples, and architecture guides on-demand.
+
+**MCP Server URL:** `https://docs.swarms.ai/mcp`
+
+### Available Tool: `SearchSwarmsApiDocumentation`
+
+| Field | Value |
+|-------|-------|
+| **Operation ID** | `MintlifyDefaultSearch` |
+| **Transport** | HTTP |
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "A query to search the content with."
+    }
+  },
+  "required": ["query"]
+}
+```
+
+**Example queries your agent will run:**
+- `"agent completion API parameters"`
+- `"how to run a sequential workflow"`
+- `"mixture of agents example Python"`
+- `"authentication and API key setup"`
+- `"batch processing multiple agents"`
+
+### Setup by Agent
+
+#### Claude Code
+
+```bash
+claude mcp add --transport http swarms-docs https://docs.swarms.ai/mcp
+```
+
+Or add manually to your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "swarms-docs": {
+      "url": "https://docs.swarms.ai/mcp"
+    }
+  }
+}
+```
+
+#### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
+
+```json
+{
+  "mcpServers": {
+    "swarms-docs": {
+      "url": "https://docs.swarms.ai/mcp"
+    }
+  }
+}
+```
+
+#### Cursor
+
+Add to **Cursor Settings → MCP**, or to your project-level `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "swarms-docs": {
+      "url": "https://docs.swarms.ai/mcp"
+    }
+  }
+}
+```
+
+#### Windsurf
+
+Open the MCP configuration panel and add:
+
+```json
+{
+  "mcpServers": {
+    "swarms-docs": {
+      "url": "https://docs.swarms.ai/mcp"
+    }
+  }
+}
+```
+
+#### OpenAI Codex / Agents SDK
+
+```python
+from agents import Agent, Runner
+from agents.mcp import MCPServerHTTP
+
+swarms_docs = MCPServerHTTP(url="https://docs.swarms.ai/mcp")
+
+agent = Agent(
+    name="swarms-developer",
+    instructions="You are an expert Swarms API developer. Use the Swarms documentation tool to look up accurate API details before writing code.",
+    mcp_servers=[swarms_docs],
+)
+```
+
+#### VS Code (GitHub Copilot)
+
+Add to your workspace `.vscode/settings.json`:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "swarms-docs": {
+        "type": "http",
+        "url": "https://docs.swarms.ai/mcp"
+      }
+    }
+  }
+}
+```
+
+#### Continue.dev
+
+Add to `~/.continue/config.json`:
+
+```json
+{
+  "experimental": {
+    "modelContextProtocolServers": [
+      {
+        "transport": {
+          "type": "http",
+          "url": "https://docs.swarms.ai/mcp"
+        }
+      }
+    ]
+  }
+}
+```
+
+#### Any MCP-Compatible Agent
+
+Point any agent or framework that supports remote MCP HTTP transport at:
+
+```
+https://docs.swarms.ai/mcp
+```
+
+No authentication. No API key. Just works.
+
+---
+
+## Option 2: llms.txt (For Vibe Coders)
+
+`llms.txt` is a plain-text file containing the full Swarms API documentation in a format optimized for LLMs. Drop it into your context window, paste it into your system prompt, or use it as a reference file in any AI-assisted coding workflow.
+
+**URL:** `https://docs.swarms.ai/llms.txt`
+
+### When to Use llms.txt
+
+Use `llms.txt` when:
+- You're in a **one-shot vibe coding session** and want to paste docs directly into the prompt
+- Your agent or IDE **doesn't support MCP** yet
+- You want to **seed a new conversation** with full API knowledge before asking your agent to write Swarms code
+- You're using a **raw API call** (OpenAI, Anthropic, Groq, etc.) and want docs in the system prompt
+
+### How to Use It
+
+**In a system prompt:**
+```
+Fetch https://docs.swarms.ai/llms.txt and use it as your reference for all Swarms API code you write.
+```
+
+**In Claude / ChatGPT / Gemini:**
+1. Open `https://docs.swarms.ai/llms.txt` in your browser
+2. Copy the full content
+3. Paste it at the top of your conversation or into the system prompt field
+4. Start asking questions and generating Swarms code with full doc context
+
+**In Cursor / Windsurf (as a context file):**
+```
+@https://docs.swarms.ai/llms.txt
+```
+
+Add this reference at the top of your chat message. The agent will fetch and use the full docs as context.
+
+**Via curl (download locally):**
+```bash
+curl -o swarms-llms.txt https://docs.swarms.ai/llms.txt
+```
+
+Then reference the local file in your IDE or agent config.
+
+---
+
+## MCP Server Specification
+
+```json
+{
+  "server": {
+    "name": "Swarms API Documentation",
+    "version": "1.0.0",
+    "transport": "http"
+  },
+  "capabilities": {
+    "tools": {
+      "SearchSwarmsApiDocumentation": {
+        "name": "SearchSwarmsApiDocumentation",
+        "description": "Search across the Swarms API Documentation knowledge base to find relevant information, code examples, API references, and guides.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "A query to search the content with."
+            }
+          },
+          "required": ["query"]
+        },
+        "operationId": "MintlifyDefaultSearch"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Resources
+
+| Resource | Link |
+|----------|------|
+| **MCP Server** | `https://docs.swarms.ai/mcp` |
+| **llms.txt** | `https://docs.swarms.ai/llms.txt` |
+| **Swarms API Docs** | [docs.swarms.ai](https://docs.swarms.ai) |
+| **Get API Key** | [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys) |
+| **Model Context Protocol** | [modelcontextprotocol.io](https://modelcontextprotocol.io) |
+| **Discord Support** | [discord.gg/EamjgSaEQf](https://discord.gg/EamjgSaEQf) |
