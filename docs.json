@@ -120,8 +120,15 @@
           {
             "group": "Platform",
             "pages": [
+              "docs/marketplace/index",
               "docs/marketplace/overview",
-              "docs/marketplace/agents-vs-prompts"
+              "docs/marketplace/agents-vs-prompts",
+              "docs/marketplace/share_and_discover",
+              "docs/marketplace/monetize",
+              "docs/marketplace/account_management",
+              "docs/marketplace/apikeys",
+              "docs/marketplace/apps_page",
+              "docs/marketplace/playground_page"
             ]
           },
           {
@@ -143,6 +150,14 @@
               "docs/marketplace/token-launch-batch-api",
               "docs/marketplace/claim-fees-api",
               "docs/marketplace/examples"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": [
+              "docs/marketplace/marketplace_examples_overview",
+              "docs/marketplace/marketplace_prompt_loading",
+              "docs/marketplace/marketplace_publishing_quickstart"
             ]
           },
           {
