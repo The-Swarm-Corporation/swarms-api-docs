@@ -1,0 +1,134 @@
+---
+title: "Migration Overview"
+description: "Moving from LangGraph, CrewAI, AutoGen, or LangChain to the Swarms API — concept mapping, key differences, and where to start"
+---
+
+The Swarms API is a **hosted, model-agnostic multi-agent REST API**. Unlike Python-only orchestration frameworks, you call it over HTTP from any language, deploy nothing locally, and pay only for what you run. It handles all agent scheduling, context passing, parallel execution, and retries on its side.
+
+| Capability | LangGraph | CrewAI | AutoGen | LangChain | Swarms API |
+|---|---|---|---|---|---|
+| Deployment | Self-hosted | Self-hosted | Self-hosted | Self-hosted | Fully hosted |
+| Language | Python | Python | Python | Python / JS | Any (REST) |
+| Multi-agent | Graph DAG | Sequential / Hierarchical | GroupChat | Chains / Agents | 10+ architectures |
+| State management | Explicit state graph | Task-based | Conversation history | Memory modules | Handled by API |
+| Parallelism | Async / compiled graph | Limited | GroupChat turns | Limited | Native parallel execution |
+| Model support | OpenAI, Anthropic, etc. | OpenAI, Anthropic, etc. | OpenAI, Anthropic, etc. | 100+ via LiteLLM | 300+ via unified endpoint |
+| Pricing | Infra cost + model cost | Infra cost + model cost | Infra cost + model cost | Infra cost + model cost | Per-token + per-agent |
+
+---
+
+## Concept Mapping
+
+The table below maps every major concept from each framework to its Swarms API equivalent.
+
+### Agents
+
+| Framework | Their Concept | Swarms API Equivalent |
+|---|---|---|
+| LangGraph | `node` (a callable or Runnable) | `agent` object in `agents` array |
+| CrewAI | `Agent(role, goal, backstory)` | `agent` with `agent_name` + `system_prompt` |
+| AutoGen | `AssistantAgent` / `ConversableAgent` | `agent` with `system_prompt` |
+| LangChain | `AgentExecutor` / `LLMChain` | Single agent completion or `SequentialWorkflow` |
+
+### Workflows & Orchestration
+
+| Framework | Their Concept | Swarms API Equivalent |
+|---|---|---|
+| LangGraph | `StateGraph` with conditional edges | `GraphWorkflow` with `edges`, `entry_points`, `end_points` |
+| CrewAI | `Crew(process=Process.sequential)` | `SequentialWorkflow` |
+| CrewAI | `Crew(process=Process.hierarchical)` | `HierarchicalSwarm` |
+| AutoGen | `GroupChat` + `GroupChatManager` | `GroupChat` swarm type |
+| LangChain | `SequentialChain` | `SequentialWorkflow` |
+| LangChain | Parallel `RunnableParallel` | `ConcurrentWorkflow` |
+
+### Tasks & Prompts
+
+| Framework | Their Concept | Swarms API Equivalent |
+|---|---|---|
+| LangGraph | State dict passed between nodes | Agent output is appended to context automatically |
+| CrewAI | `Task(description, agent, expected_output)` | Top-level `task` string; agent role defined in `system_prompt` |
+| AutoGen | `initiate_chat(message)` | Top-level `task` string |
+| LangChain | `PromptTemplate` + `chain.invoke(input)` | `system_prompt` + `task` |
+
+### Tools
+
+| Framework | Their Concept | Swarms API Equivalent |
+|---|---|---|
+| LangGraph | `ToolNode` / `bind_tools` | `tools` array on agent (e.g. `"browser"`, `"code_interpreter"`) |
+| CrewAI | `@tool` decorated functions | `tools` array on agent |
+| AutoGen | `register_function` | `tools` array on agent |
+| LangChain | `Tool` / `BaseTool` | `tools` array on agent |
+
+---
+
+## Architecture Selection Guide
+
+Once you know what you were building in your old framework, use this table to pick the right Swarms workflow:
+
+| What you were building | Best Swarms architecture |
+|---|---|
+| Linear pipeline (A → B → C) | `SequentialWorkflow` |
+| Parallel fan-out (all agents same task) | `ConcurrentWorkflow` |
+| Graph with mixed parallel + sequential | `GraphWorkflow` |
+| Hierarchical with a manager agent | `HierarchicalSwarm` |
+| Route tasks to the right specialist | `MultiAgentRouter` |
+| Multiple experts debate and consensus | `MajorityVoting` |
+| Open-ended group discussion | `GroupChat` |
+| Compare N approaches to same problem | `MixtureOfAgents` |
+| Same tasks × multiple agents (grid) | `BatchedGridWorkflow` |
+
+---
+
+## Universal Migration Checklist
+
+Regardless of which framework you are migrating from, follow these steps:
+
+1. **Get your API key** at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. **Set the environment variable**: `export SWARMS_API_KEY="your-key"`
+3. **Install the HTTP client** of your choice (`requests`, `httpx`, `fetch`, `axios`, etc.)
+4. **Map each agent** in your old workflow to an `agent` object with `agent_name`, `system_prompt`, and `model_name`
+5. **Map the topology** — sequential chain, parallel fan-out, or directed graph
+6. **Replace `task` inputs** — the top-level `task` field replaces all `invoke()`, `kickoff()`, and `initiate_chat()` calls
+7. **Remove local infrastructure** — no more Python environments, LLM SDK imports, or API key plumbing per-library
+
+---
+
+## Migration Guides
+
+Choose your current framework:
+
+- [Migrate from LangGraph](/docs/guides/migration/from-langgraph)
+- [Migrate from CrewAI](/docs/guides/migration/from-crewai)
+- [Migrate from AutoGen](/docs/guides/migration/from-autogen)
+- [Migrate from LangChain](/docs/guides/migration/from-langchain)
+
+---
+
+## Quick Start After Migration
+
+Every Swarms API call follows the same pattern regardless of workflow type:
+
+```python
+import os
+import requests
+
+response = requests.post(
+    "https://api.swarms.world/v1/<workflow-endpoint>/completions",
+    headers={
+        "x-api-key": os.environ["SWARMS_API_KEY"],
+        "Content-Type": "application/json",
+    },
+    json={
+        "name": "My Workflow",
+        "description": "What this workflow does",
+        "task": "The task to complete",
+        "agents": [ ... ],   # your agents here
+        # workflow-specific fields (edges, entry_points, etc.)
+    },
+    timeout=300,
+)
+
+result = response.json()
+```
+
+The base URL is `https://api.swarms.world`. See the [API Reference](/docs/documentation/index) for all available endpoints.

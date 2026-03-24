@@ -253,7 +253,8 @@
               "docs/examples/examples/hospital-team",
               "docs/examples/examples/legal-team",
               "docs/examples/examples/icd-analysis",
-              "docs/examples/api_examples/legal_team"
+              "docs/examples/api_examples/legal_team",
+              "docs/examples/examples/seo-content-pipeline"
             ]
           },
           {
@@ -271,6 +272,16 @@
               "docs/examples/examples/pricing-cost-estimator",
               "docs/examples/examples/account-credits",
               "docs/examples/examples/auto-swarm-builder-execution-types"
+            ]
+          },
+          {
+            "group": "Migration Guides",
+            "pages": [
+              "docs/guides/migration/overview",
+              "docs/guides/migration/from-langgraph",
+              "docs/guides/migration/from-crewai",
+              "docs/guides/migration/from-autogen",
+              "docs/guides/migration/from-langchain"
             ]
           },
           {
