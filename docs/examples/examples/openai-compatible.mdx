@@ -1,0 +1,893 @@
+---
+title: 'OpenAI-Compatible Chat Completions'
+description: 'Drop-in usage of the Swarms API with the OpenAI SDK — basic completion, streaming, multi-turn chat, and vision in Python, TypeScript, Go, and Rust.'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+## What This Example Shows
+
+- Using the Swarms API as a drop-in OpenAI replacement with zero code changes beyond `base_url` and `api_key`
+- Non-streaming and streaming completions
+- Multi-turn conversations with conversation history
+- Sending images (multimodal / vision)
+- Error handling with SDK-native exception classes
+- Working examples in Python, TypeScript, Go, and Rust
+
+<Info>
+This endpoint uses the standard OpenAI request/response schema. Any existing OpenAI SDK code works by changing two config values. See the [API Reference](/docs/documentation/capabilities/openai-compatible) for the full schema.
+</Info>
+
+## Prerequisites
+
+- A Swarms API key from [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+- The OpenAI SDK for your language installed
+
+<Tabs>
+  <Tab title="Python">
+    ```bash
+    pip install openai python-dotenv
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```bash
+    npm install openai dotenv
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```bash
+    go get github.com/openai/openai-go/v3
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```bash
+    cargo add async-openai tokio futures
+    ```
+  </Tab>
+</Tabs>
+
+Set your API key as an environment variable:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+---
+
+## 1. Basic Chat Completion
+
+The simplest usage — send a message, get a response.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = OpenAI(
+        api_key=os.environ["SWARMS_API_KEY"],
+        base_url="https://api.swarms.world/v1",
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a senior financial analyst."},
+            {
+                "role": "user",
+                "content": "Summarize the key risks of investing in emerging market bonds.",
+            },
+        ],
+        max_tokens=512,
+        temperature=0.3,
+    )
+
+    print(response.choices[0].message.content)
+    print(f"\nUsage: {response.usage.prompt_tokens} in / {response.usage.completion_tokens} out")
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+    import "dotenv/config";
+
+    const client = new OpenAI({
+      apiKey: process.env.SWARMS_API_KEY,
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a senior financial analyst." },
+        {
+          role: "user",
+          content: "Summarize the key risks of investing in emerging market bonds.",
+        },
+      ],
+      max_tokens: 512,
+      temperature: 0.3,
+    });
+
+    console.log(response.choices[0].message.content);
+    console.log(
+      `\nUsage: ${response.usage?.prompt_tokens} in / ${response.usage?.completion_tokens} out`
+    );
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "context"
+        "fmt"
+        "log"
+        "os"
+
+        "github.com/openai/openai-go/v3"
+        "github.com/openai/openai-go/v3/option"
+    )
+
+    func main() {
+        client := openai.NewClient(
+            option.WithAPIKey(os.Getenv("SWARMS_API_KEY")),
+            option.WithBaseURL("https://api.swarms.world/v1"),
+        )
+
+        response, err := client.Chat.Completions.New(context.Background(),
+            openai.ChatCompletionNewParams{
+                Model: "gpt-4o",
+                Messages: []openai.ChatCompletionMessageParamUnion{
+                    openai.SystemMessage("You are a senior financial analyst."),
+                    openai.UserMessage("Summarize the key risks of investing in emerging market bonds."),
+                },
+                MaxTokens:   openai.Int(512),
+                Temperature: openai.Float(0.3),
+            },
+        )
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        fmt.Println(response.Choices[0].Message.Content)
+        fmt.Printf("\nUsage: %d in / %d out\n",
+            response.Usage.PromptTokens,
+            response.Usage.CompletionTokens,
+        )
+    }
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use async_openai::{
+        config::OpenAIConfig,
+        types::{
+            ChatCompletionRequestSystemMessageArgs,
+            ChatCompletionRequestUserMessageArgs,
+            CreateChatCompletionRequestArgs,
+        },
+        Client,
+    };
+    use std::env;
+
+    #[tokio::main]
+    async fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let config = OpenAIConfig::new()
+            .with_api_key(env::var("SWARMS_API_KEY")?)
+            .with_api_base("https://api.swarms.world/v1");
+
+        let client = Client::with_config(config);
+
+        let request = CreateChatCompletionRequestArgs::default()
+            .model("gpt-4o")
+            .messages(vec![
+                ChatCompletionRequestSystemMessageArgs::default()
+                    .content("You are a senior financial analyst.")
+                    .build()?
+                    .into(),
+                ChatCompletionRequestUserMessageArgs::default()
+                    .content("Summarize the key risks of investing in emerging market bonds.")
+                    .build()?
+                    .into(),
+            ])
+            .max_tokens(512_u32)
+            .temperature(0.3)
+            .build()?;
+
+        let response = client.chat().create(request).await?;
+        let choice = &response.choices[0];
+
+        if let Some(content) = &choice.message.content {
+            println!("{}", content);
+        }
+
+        if let Some(usage) = &response.usage {
+            println!("\nUsage: {} in / {} out",
+                usage.prompt_tokens,
+                usage.completion_tokens,
+            );
+        }
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Expected Output
+
+```
+Emerging market bonds carry several key risks:
+
+1. **Currency Risk** — Local currency bonds can lose value when the
+   issuing country's currency depreciates against the investor's home currency...
+2. **Political and Sovereign Risk** — ...
+3. **Liquidity Risk** — ...
+
+Usage: 38 in / 247 out
+```
+
+---
+
+## 2. Streaming Responses
+
+Stream the response as it's generated for a better user experience on longer outputs.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = OpenAI(
+        api_key=os.environ["SWARMS_API_KEY"],
+        base_url="https://api.swarms.world/v1",
+    )
+
+    print("Agent: ", end="", flush=True)
+
+    stream = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a creative fiction writer."},
+            {"role": "user", "content": "Write a 3-paragraph short story about a robot discovering music for the first time."},
+        ],
+        max_tokens=1024,
+        temperature=0.8,
+        stream=True,
+    )
+
+    for chunk in stream:
+        content = chunk.choices[0].delta.content
+        if content:
+            print(content, end="", flush=True)
+
+    print("\n\n--- Stream complete ---")
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+    import "dotenv/config";
+
+    const client = new OpenAI({
+      apiKey: process.env.SWARMS_API_KEY,
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    process.stdout.write("Agent: ");
+
+    const stream = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a creative fiction writer." },
+        {
+          role: "user",
+          content:
+            "Write a 3-paragraph short story about a robot discovering music for the first time.",
+        },
+      ],
+      max_tokens: 1024,
+      temperature: 0.8,
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) process.stdout.write(content);
+    }
+
+    console.log("\n\n--- Stream complete ---");
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "context"
+        "fmt"
+        "log"
+        "os"
+
+        "github.com/openai/openai-go/v3"
+        "github.com/openai/openai-go/v3/option"
+    )
+
+    func main() {
+        client := openai.NewClient(
+            option.WithAPIKey(os.Getenv("SWARMS_API_KEY")),
+            option.WithBaseURL("https://api.swarms.world/v1"),
+        )
+
+        fmt.Print("Agent: ")
+
+        stream := client.Chat.Completions.NewStreaming(context.Background(),
+            openai.ChatCompletionNewParams{
+                Model: "gpt-4o",
+                Messages: []openai.ChatCompletionMessageParamUnion{
+                    openai.SystemMessage("You are a creative fiction writer."),
+                    openai.UserMessage("Write a 3-paragraph short story about a robot discovering music for the first time."),
+                },
+                MaxTokens:   openai.Int(1024),
+                Temperature: openai.Float(0.8),
+            },
+        )
+
+        for stream.Next() {
+            chunk := stream.Current()
+            if len(chunk.Choices) > 0 {
+                fmt.Print(chunk.Choices[0].Delta.Content)
+            }
+        }
+
+        if err := stream.Err(); err != nil {
+            log.Fatal(err)
+        }
+
+        fmt.Println("\n\n--- Stream complete ---")
+    }
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use async_openai::{
+        config::OpenAIConfig,
+        types::{
+            ChatCompletionRequestSystemMessageArgs,
+            ChatCompletionRequestUserMessageArgs,
+            CreateChatCompletionRequestArgs,
+        },
+        Client,
+    };
+    use futures::StreamExt;
+    use std::env;
+
+    #[tokio::main]
+    async fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let config = OpenAIConfig::new()
+            .with_api_key(env::var("SWARMS_API_KEY")?)
+            .with_api_base("https://api.swarms.world/v1");
+
+        let client = Client::with_config(config);
+
+        let request = CreateChatCompletionRequestArgs::default()
+            .model("gpt-4o")
+            .messages(vec![
+                ChatCompletionRequestSystemMessageArgs::default()
+                    .content("You are a creative fiction writer.")
+                    .build()?
+                    .into(),
+                ChatCompletionRequestUserMessageArgs::default()
+                    .content("Write a 3-paragraph short story about a robot discovering music for the first time.")
+                    .build()?
+                    .into(),
+            ])
+            .max_tokens(1024_u32)
+            .temperature(0.8)
+            .build()?;
+
+        print!("Agent: ");
+
+        let mut stream = client.chat().create_stream(request).await?;
+
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(response) => {
+                    for choice in &response.choices {
+                        if let Some(ref content) = choice.delta.content {
+                            print!("{}", content);
+                        }
+                    }
+                }
+                Err(e) => eprintln!("\nError: {}", e),
+            }
+        }
+
+        println!("\n\n--- Stream complete ---");
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## 3. Multi-Turn Conversation (Chatbot)
+
+Build a conversational chatbot by accumulating messages across turns.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = OpenAI(
+        api_key=os.environ["SWARMS_API_KEY"],
+        base_url="https://api.swarms.world/v1",
+    )
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful coding assistant. "
+                "When the user asks a question, provide clear, concise answers with code examples."
+            ),
+        },
+    ]
+
+    # Turn 1
+    messages.append({"role": "user", "content": "How do I read a JSON file in Python?"})
+    response = client.chat.completions.create(model="gpt-4o", messages=messages)
+    assistant_reply = response.choices[0].message.content
+    messages.append({"role": "assistant", "content": assistant_reply})
+    print(f"Assistant: {assistant_reply}\n")
+
+    # Turn 2 — follows up on the first answer
+    messages.append({"role": "user", "content": "How do I handle the case where the file doesn't exist?"})
+    response = client.chat.completions.create(model="gpt-4o", messages=messages)
+    assistant_reply = response.choices[0].message.content
+    messages.append({"role": "assistant", "content": assistant_reply})
+    print(f"Assistant: {assistant_reply}\n")
+
+    # Turn 3 — references context from both prior turns
+    messages.append({"role": "user", "content": "Now combine both into a single reusable function."})
+    response = client.chat.completions.create(model="gpt-4o", messages=messages)
+    assistant_reply = response.choices[0].message.content
+    print(f"Assistant: {assistant_reply}")
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+    import "dotenv/config";
+
+    const client = new OpenAI({
+      apiKey: process.env.SWARMS_API_KEY,
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+
+    const messages: Msg[] = [
+      {
+        role: "system",
+        content:
+          "You are a helpful coding assistant. Provide clear, concise answers with code examples.",
+      },
+    ];
+
+    async function chat(userMessage: string): Promise<string> {
+      messages.push({ role: "user", content: userMessage });
+
+      const response = await client.chat.completions.create({
+        model: "gpt-4o",
+        messages,
+      });
+
+      const reply = response.choices[0].message.content ?? "";
+      messages.push({ role: "assistant", content: reply });
+      return reply;
+    }
+
+    console.log("Turn 1:", await chat("How do I read a JSON file in Python?"));
+    console.log("\nTurn 2:", await chat("How do I handle the case where the file doesn't exist?"));
+    console.log("\nTurn 3:", await chat("Now combine both into a single reusable function."));
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "context"
+        "fmt"
+        "log"
+        "os"
+
+        "github.com/openai/openai-go/v3"
+        "github.com/openai/openai-go/v3/option"
+    )
+
+    func main() {
+        client := openai.NewClient(
+            option.WithAPIKey(os.Getenv("SWARMS_API_KEY")),
+            option.WithBaseURL("https://api.swarms.world/v1"),
+        )
+
+        messages := []openai.ChatCompletionMessageParamUnion{
+            openai.SystemMessage("You are a helpful coding assistant. Provide clear, concise answers with code examples."),
+        }
+
+        questions := []string{
+            "How do I read a JSON file in Python?",
+            "How do I handle the case where the file doesn't exist?",
+            "Now combine both into a single reusable function.",
+        }
+
+        for i, q := range questions {
+            messages = append(messages, openai.UserMessage(q))
+
+            response, err := client.Chat.Completions.New(context.Background(),
+                openai.ChatCompletionNewParams{
+                    Model:    "gpt-4o",
+                    Messages: messages,
+                },
+            )
+            if err != nil {
+                log.Fatal(err)
+            }
+
+            reply := response.Choices[0].Message.Content
+            messages = append(messages, openai.AssistantMessage(reply))
+
+            fmt.Printf("Turn %d:\n%s\n\n", i+1, reply)
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use async_openai::{
+        config::OpenAIConfig,
+        types::{
+            ChatCompletionRequestMessage,
+            ChatCompletionRequestAssistantMessageArgs,
+            ChatCompletionRequestSystemMessageArgs,
+            ChatCompletionRequestUserMessageArgs,
+            CreateChatCompletionRequestArgs,
+        },
+        Client,
+    };
+    use std::env;
+
+    #[tokio::main]
+    async fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let config = OpenAIConfig::new()
+            .with_api_key(env::var("SWARMS_API_KEY")?)
+            .with_api_base("https://api.swarms.world/v1");
+
+        let client = Client::with_config(config);
+
+        let mut messages: Vec<ChatCompletionRequestMessage> = vec![
+            ChatCompletionRequestSystemMessageArgs::default()
+                .content("You are a helpful coding assistant. Provide clear, concise answers with code examples.")
+                .build()?
+                .into(),
+        ];
+
+        let questions = [
+            "How do I read a JSON file in Python?",
+            "How do I handle the case where the file doesn't exist?",
+            "Now combine both into a single reusable function.",
+        ];
+
+        for (i, question) in questions.iter().enumerate() {
+            messages.push(
+                ChatCompletionRequestUserMessageArgs::default()
+                    .content(*question)
+                    .build()?
+                    .into(),
+            );
+
+            let request = CreateChatCompletionRequestArgs::default()
+                .model("gpt-4o")
+                .messages(messages.clone())
+                .build()?;
+
+            let response = client.chat().create(request).await?;
+            let reply = response.choices[0]
+                .message
+                .content
+                .clone()
+                .unwrap_or_default();
+
+            messages.push(
+                ChatCompletionRequestAssistantMessageArgs::default()
+                    .content(reply.as_str())
+                    .build()?
+                    .into(),
+            );
+
+            println!("Turn {}:\n{}\n", i + 1, reply);
+        }
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## 4. Vision (Image Input)
+
+Send an image alongside your prompt using the multimodal content format.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = OpenAI(
+        api_key=os.environ["SWARMS_API_KEY"],
+        base_url="https://api.swarms.world/v1",
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "What is shown in this image? Describe it in detail."},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"
+                        },
+                    },
+                ],
+            }
+        ],
+        max_tokens=512,
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+    import "dotenv/config";
+
+    const client = new OpenAI({
+      apiKey: process.env.SWARMS_API_KEY,
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What is shown in this image? Describe it in detail." },
+            {
+              type: "image_url",
+              image_url: {
+                url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg",
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 512,
+    });
+
+    console.log(response.choices[0].message.content);
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "context"
+        "fmt"
+        "log"
+        "os"
+
+        "github.com/openai/openai-go/v3"
+        "github.com/openai/openai-go/v3/option"
+    )
+
+    func main() {
+        client := openai.NewClient(
+            option.WithAPIKey(os.Getenv("SWARMS_API_KEY")),
+            option.WithBaseURL("https://api.swarms.world/v1"),
+        )
+
+        response, err := client.Chat.Completions.New(context.Background(),
+            openai.ChatCompletionNewParams{
+                Model: "gpt-4o",
+                Messages: []openai.ChatCompletionMessageParamUnion{
+                    openai.UserMessage([]openai.ChatCompletionContentPartUnionParam{
+                        {
+                            OfText: &openai.ChatCompletionContentPartTextParam{
+                                Text: "What is shown in this image? Describe it in detail.",
+                            },
+                        },
+                        {
+                            OfImageURL: &openai.ChatCompletionContentPartImageParam{
+                                ImageURL: openai.ChatCompletionContentPartImageImageURLParam{
+                                    URL: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg",
+                                },
+                            },
+                        },
+                    }),
+                },
+                MaxTokens: openai.Int(512),
+            },
+        )
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        fmt.Println(response.Choices[0].Message.Content)
+    }
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use async_openai::{
+        config::OpenAIConfig,
+        types::{
+            ChatCompletionRequestMessageContentPartImage,
+            ChatCompletionRequestMessageContentPartText,
+            ChatCompletionRequestUserMessageArgs,
+            CreateChatCompletionRequestArgs,
+            ImageUrl,
+        },
+        Client,
+    };
+    use std::env;
+
+    #[tokio::main]
+    async fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let config = OpenAIConfig::new()
+            .with_api_key(env::var("SWARMS_API_KEY")?)
+            .with_api_base("https://api.swarms.world/v1");
+
+        let client = Client::with_config(config);
+
+        let request = CreateChatCompletionRequestArgs::default()
+            .model("gpt-4o")
+            .messages(vec![
+                ChatCompletionRequestUserMessageArgs::default()
+                    .content(vec![
+                        ChatCompletionRequestMessageContentPartText::from(
+                            "What is shown in this image? Describe it in detail.",
+                        )
+                        .into(),
+                        ChatCompletionRequestMessageContentPartImage::from(ImageUrl {
+                            url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg".to_string(),
+                            detail: None,
+                        })
+                        .into(),
+                    ])
+                    .build()?
+                    .into(),
+            ])
+            .max_tokens(512_u32)
+            .build()?;
+
+        let response = client.chat().create(request).await?;
+
+        if let Some(choice) = response.choices.first() {
+            if let Some(content) = &choice.message.content {
+                println!("{}", content);
+            }
+        }
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## 5. Putting It All Together — Research Assistant
+
+A complete example that combines system prompts, multi-turn conversation, and streaming to build a simple research assistant.
+
+```python
+import os
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+
+client = OpenAI(
+    api_key=os.environ["SWARMS_API_KEY"],
+    base_url="https://api.swarms.world/v1",
+)
+
+SYSTEM_PROMPT = """You are a research assistant specializing in technology trends.
+When asked about a topic:
+1. Provide a concise overview
+2. List 3-5 key developments
+3. Identify potential implications
+4. Cite timeframes where relevant
+Be specific and data-oriented. Avoid vague generalities."""
+
+messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+
+def ask(question: str) -> str:
+    """Send a question and stream the response."""
+    messages.append({"role": "user", "content": question})
+
+    stream = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        max_tokens=1024,
+        temperature=0.3,
+        stream=True,
+    )
+
+    full_response = []
+    for chunk in stream:
+        content = chunk.choices[0].delta.content
+        if content:
+            print(content, end="", flush=True)
+            full_response.append(content)
+
+    reply = "".join(full_response)
+    messages.append({"role": "assistant", "content": reply})
+    print("\n")
+    return reply
+
+
+# Research session
+print("=== Research Session: AI Chip Industry ===\n")
+
+ask("What is the current state of the AI chip market in 2025?")
+ask("Which startups are challenging NVIDIA's dominance, and what approaches are they taking?")
+ask("Based on what you've told me, which of these challengers has the strongest technical moat?")
+```
+
+---
+
+## Environment Setup
+
+Create a `.env` file in your project directory:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+## Next Steps
+
+- [API Reference](/docs/documentation/capabilities/openai-compatible) — full request/response schema and field documentation
+- [Agent Completions](/docs/documentation/capabilities/agent) — the native Swarms endpoint with tools, MCP, and multi-loop support
+- [Streaming](/docs/examples/examples/streaming) — streaming with the native Swarms agent endpoint
+- [Vision](/docs/examples/examples/vision-capabilities) — more image/multimodal examples

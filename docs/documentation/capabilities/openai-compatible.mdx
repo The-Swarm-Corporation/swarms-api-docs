@@ -1,0 +1,933 @@
+---
+title: 'OpenAI-Compatible Endpoint'
+description: 'Complete API reference for the /v1/chat/completions endpoint — a drop-in replacement for the OpenAI API that routes through Swarms agent infrastructure.'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+The Swarms API exposes an OpenAI-compatible `POST /v1/chat/completions` endpoint. If your application already uses the OpenAI SDK, you can switch to Swarms by changing two lines — the `base_url` and `api_key` — and everything else works unchanged.
+
+Under the hood, every request is routed through the full Swarms agent infrastructure: model routing, token counting, billing, and logging all apply exactly as they do for the native `/v1/agent/completions` endpoint.
+
+## Endpoint Information
+
+- **URL**: `/v1/chat/completions`
+- **Method**: `POST`
+- **Authentication**: Required (`x-api-key` header or `Authorization: Bearer <key>`)
+- **Rate Limiting**: Subject to tier-based rate limits
+
+---
+
+## Authentication
+
+Two authentication methods are supported. Both work on all Swarms API endpoints.
+
+| Method | Header | Example |
+|---|---|---|
+| API key header | `x-api-key: <key>` | `x-api-key: sk-abc123` |
+| Bearer token | `Authorization: Bearer <key>` | `Authorization: Bearer sk-abc123` |
+
+The Bearer token method is what the OpenAI SDK sends by default, so it works out of the box.
+
+<Info>
+Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+</Info>
+
+---
+
+## Request Schema
+
+### ChatCompletionRequest Object
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `model` | `string` | Yes | — | Model to use for completion (e.g. `gpt-4o`, `claude-sonnet-4-20250514`, `gpt-4o-mini`). Any model supported by the Swarms API is accepted |
+| `messages` | `List[ChatMessage]` | Yes | — | A list of messages comprising the conversation (see [ChatMessage Object](#chatmessage-object)) |
+| `temperature` | `float` | No | `0.5` | Sampling temperature (0.0 – 2.0). Lower values produce more deterministic output |
+| `max_tokens` | `integer` | No | `8192` | Maximum number of tokens to generate in the response |
+| `max_completion_tokens` | `integer` | No | — | Alternative to `max_tokens`. Takes precedence if both are set |
+| `stream` | `boolean` | No | `false` | If `true`, returns Server-Sent Events (SSE) in the OpenAI chunk format |
+| `top_p` | `float` | No | — | Nucleus sampling parameter. An alternative to temperature sampling |
+| `presence_penalty` | `float` | No | — | Penalize tokens based on whether they have appeared in the text so far |
+| `frequency_penalty` | `float` | No | — | Penalize tokens based on how frequently they appear in the text so far |
+| `n` | `integer` | No | `1` | Number of completions to generate. Only `1` is supported — requests with `n > 1` are rejected |
+| `user` | `string` | No | — | A unique identifier for the end-user, used for tracking |
+
+### ChatMessage Object
+
+Each message in the `messages` array:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `role` | `string` | Yes | One of `system`, `user`, or `assistant` |
+| `content` | `string` or `List[ContentPart]` | Yes | Text content, or an array of content parts for multimodal input |
+| `name` | `string` | No | An optional name for the participant |
+
+#### ContentPart (Multimodal)
+
+When `content` is an array, each element is a content part:
+
+**Text part:**
+```json
+{"type": "text", "text": "Describe this image."}
+```
+
+**Image part:**
+```json
+{"type": "image_url", "image_url": {"url": "https://example.com/photo.jpg"}}
+```
+
+The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:image/png;base64,...`).
+
+### Validation Rules
+
+- At least one message with `role: "user"` is required
+- `n` must be `1` — multiple completions per request are not supported (send separate requests instead)
+- Requests with zero messages or only system messages are rejected
+
+### Example Request Body
+
+```json
+{
+  "model": "gpt-4o",
+  "messages": [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "Explain quantum computing in simple terms."}
+  ],
+  "temperature": 0.5,
+  "max_tokens": 1024,
+  "stream": false
+}
+```
+
+---
+
+## Response Schema
+
+### ChatCompletionResponse Object (Non-Streaming)
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Unique completion identifier, prefixed with `chatcmpl-` |
+| `object` | `string` | Always `"chat.completion"` |
+| `created` | `integer` | Unix timestamp of when the completion was generated |
+| `model` | `string` | The model that was used (echoes back the requested model name) |
+| `choices` | `List[Choice]` | Array containing the completion result (always one element) |
+| `usage` | `CompletionUsage` | Token usage counts for billing |
+
+### Choice Object
+
+| Field | Type | Description |
+|---|---|---|
+| `index` | `integer` | Always `0` (single-choice responses) |
+| `message` | `ChatMessage` | The assistant's response with `role: "assistant"` |
+| `finish_reason` | `string` | Why the model stopped generating — `"stop"` for normal completion |
+
+### CompletionUsage Object
+
+| Field | Type | Description |
+|---|---|---|
+| `prompt_tokens` | `integer` | Number of tokens in the input (system prompt + history + task) |
+| `completion_tokens` | `integer` | Number of tokens in the generated response |
+| `total_tokens` | `integer` | Sum of `prompt_tokens` and `completion_tokens` |
+
+### Example Response
+
+```json
+{
+  "id": "chatcmpl-a1b2c3d4e5f6789012345678901",
+  "object": "chat.completion",
+  "created": 1711300000,
+  "model": "gpt-4o",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously..."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 42,
+    "completion_tokens": 128,
+    "total_tokens": 170
+  }
+}
+```
+
+---
+
+## Streaming Response Schema
+
+When `stream: true` is set, the response is returned as Server-Sent Events (SSE). Each event is a `data:` line containing a JSON chunk.
+
+### StreamChunk Object
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Same `chatcmpl-` ID shared across all chunks in the stream |
+| `object` | `string` | Always `"chat.completion.chunk"` |
+| `created` | `integer` | Unix timestamp (same across all chunks) |
+| `model` | `string` | The requested model name |
+| `choices` | `List[StreamChoice]` | Array with one element containing the delta |
+
+### StreamChoice Object
+
+| Field | Type | Description |
+|---|---|---|
+| `index` | `integer` | Always `0` |
+| `delta` | `object` | Incremental content — see stream sequence below |
+| `finish_reason` | `string` or `null` | `null` during streaming, `"stop"` on the final chunk |
+
+### Stream Sequence
+
+| Order | `delta` | `finish_reason` | Purpose |
+|---|---|---|---|
+| First chunk | `{"role": "assistant"}` | `null` | Role declaration |
+| Content chunks | `{"content": "..."}` | `null` | Incremental text content |
+| Final chunk | `{}` | `"stop"` | Signals completion |
+| Terminator | `data: [DONE]` | — | SSE stream end marker |
+
+### Example Stream
+
+```
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4o","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4o","choices":[{"index":0,"delta":{"content":"Quantum"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4o","choices":[{"index":0,"delta":{"content":" computing"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4o","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+```
+
+---
+
+## Error Response Schema
+
+Errors are returned in the standard OpenAI error format so the OpenAI SDK's built-in error classes work correctly:
+
+### Error Object
+
+| Field | Type | Description |
+|---|---|---|
+| `error.message` | `string` | Human-readable error description |
+| `error.type` | `string` | Error category (see table below) |
+| `error.code` | `string` or `null` | Machine-readable error code |
+| `error.param` | `string` or `null` | The parameter that caused the error |
+
+### Error Types
+
+| HTTP Status | `type` | When |
+|---|---|---|
+| 400 | `invalid_request_error` | Malformed request, validation failure, missing required fields |
+| 401 | `authentication_error` | Missing or invalid API key |
+| 403 | `permission_error` | Insufficient permissions or subscription tier |
+| 429 | `rate_limit_error` | Rate limit exceeded |
+| 500 | `server_error` | Internal error during agent execution |
+
+### Example Error Response
+
+```json
+{
+  "error": {
+    "message": "At least one message with role 'user' is required.",
+    "type": "invalid_request_error",
+    "code": "invalid_request",
+    "param": null
+  }
+}
+```
+
+---
+
+## Code Examples
+
+### Non-Streaming Completion
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key="your-swarms-api-key",
+        base_url="https://api.swarms.world/v1",
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "What are the key trends in renewable energy?"},
+        ],
+        max_tokens=1024,
+        temperature=0.5,
+    )
+
+    print(response.choices[0].message.content)
+    print(f"Tokens used: {response.usage.total_tokens}")
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+
+    const client = new OpenAI({
+      apiKey: "your-swarms-api-key",
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: "What are the key trends in renewable energy?" },
+      ],
+      max_tokens: 1024,
+      temperature: 0.5,
+    });
+
+    console.log(response.choices[0].message.content);
+    console.log(`Tokens used: ${response.usage?.total_tokens}`);
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "context"
+        "fmt"
+        "log"
+
+        "github.com/openai/openai-go/v3"
+        "github.com/openai/openai-go/v3/option"
+    )
+
+    func main() {
+        client := openai.NewClient(
+            option.WithAPIKey("your-swarms-api-key"),
+            option.WithBaseURL("https://api.swarms.world/v1"),
+        )
+
+        response, err := client.Chat.Completions.New(context.Background(),
+            openai.ChatCompletionNewParams{
+                Model: "gpt-4o",
+                Messages: []openai.ChatCompletionMessageParamUnion{
+                    openai.SystemMessage("You are a helpful assistant."),
+                    openai.UserMessage("What are the key trends in renewable energy?"),
+                },
+                MaxTokens: openai.Int(1024),
+                Temperature: openai.Float(0.5),
+            },
+        )
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        fmt.Println(response.Choices[0].Message.Content)
+        fmt.Printf("Tokens used: %d\n", response.Usage.TotalTokens)
+    }
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use async_openai::{
+        config::OpenAIConfig,
+        types::{
+            ChatCompletionRequestSystemMessageArgs,
+            ChatCompletionRequestUserMessageArgs,
+            CreateChatCompletionRequestArgs,
+        },
+        Client,
+    };
+
+    #[tokio::main]
+    async fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let config = OpenAIConfig::new()
+            .with_api_key("your-swarms-api-key")
+            .with_api_base("https://api.swarms.world/v1");
+
+        let client = Client::with_config(config);
+
+        let request = CreateChatCompletionRequestArgs::default()
+            .model("gpt-4o")
+            .messages(vec![
+                ChatCompletionRequestSystemMessageArgs::default()
+                    .content("You are a helpful assistant.")
+                    .build()?
+                    .into(),
+                ChatCompletionRequestUserMessageArgs::default()
+                    .content("What are the key trends in renewable energy?")
+                    .build()?
+                    .into(),
+            ])
+            .max_tokens(1024_u32)
+            .temperature(0.5)
+            .build()?;
+
+        let response = client.chat().create(request).await?;
+
+        if let Some(choice) = response.choices.first() {
+            if let Some(content) = &choice.message.content {
+                println!("{}", content);
+            }
+        }
+
+        if let Some(usage) = &response.usage {
+            println!("Tokens used: {}", usage.total_tokens);
+        }
+
+        Ok(())
+    }
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST https://api.swarms.world/v1/chat/completions \
+      -H "Authorization: Bearer your-swarms-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "gpt-4o",
+        "messages": [
+          {"role": "system", "content": "You are a helpful assistant."},
+          {"role": "user", "content": "What are the key trends in renewable energy?"}
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.5
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+### Streaming Completion
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key="your-swarms-api-key",
+        base_url="https://api.swarms.world/v1",
+    )
+
+    stream = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "Write a haiku about AI agents."}],
+        stream=True,
+    )
+
+    for chunk in stream:
+        content = chunk.choices[0].delta.content
+        if content:
+            print(content, end="", flush=True)
+    print()
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+
+    const client = new OpenAI({
+      apiKey: "your-swarms-api-key",
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    const stream = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "Write a haiku about AI agents." }],
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) process.stdout.write(content);
+    }
+    console.log();
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "context"
+        "fmt"
+        "log"
+
+        "github.com/openai/openai-go/v3"
+        "github.com/openai/openai-go/v3/option"
+    )
+
+    func main() {
+        client := openai.NewClient(
+            option.WithAPIKey("your-swarms-api-key"),
+            option.WithBaseURL("https://api.swarms.world/v1"),
+        )
+
+        stream := client.Chat.Completions.NewStreaming(context.Background(),
+            openai.ChatCompletionNewParams{
+                Model: "gpt-4o",
+                Messages: []openai.ChatCompletionMessageParamUnion{
+                    openai.UserMessage("Write a haiku about AI agents."),
+                },
+            },
+        )
+
+        for stream.Next() {
+            chunk := stream.Current()
+            if len(chunk.Choices) > 0 {
+                fmt.Print(chunk.Choices[0].Delta.Content)
+            }
+        }
+
+        if err := stream.Err(); err != nil {
+            log.Fatal(err)
+        }
+        fmt.Println()
+    }
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use async_openai::{
+        config::OpenAIConfig,
+        types::{
+            ChatCompletionRequestUserMessageArgs,
+            CreateChatCompletionRequestArgs,
+        },
+        Client,
+    };
+    use futures::StreamExt;
+
+    #[tokio::main]
+    async fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let config = OpenAIConfig::new()
+            .with_api_key("your-swarms-api-key")
+            .with_api_base("https://api.swarms.world/v1");
+
+        let client = Client::with_config(config);
+
+        let request = CreateChatCompletionRequestArgs::default()
+            .model("gpt-4o")
+            .messages(vec![
+                ChatCompletionRequestUserMessageArgs::default()
+                    .content("Write a haiku about AI agents.")
+                    .build()?
+                    .into(),
+            ])
+            .build()?;
+
+        let mut stream = client.chat().create_stream(request).await?;
+
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(response) => {
+                    for choice in &response.choices {
+                        if let Some(ref content) = choice.delta.content {
+                            print!("{}", content);
+                        }
+                    }
+                }
+                Err(e) => eprintln!("Error: {}", e),
+            }
+        }
+        println!();
+
+        Ok(())
+    }
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST https://api.swarms.world/v1/chat/completions \
+      -H "Authorization: Bearer your-swarms-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "gpt-4o",
+        "messages": [{"role": "user", "content": "Write a haiku about AI agents."}],
+        "stream": true
+      }' \
+      --no-buffer -N
+    ```
+  </Tab>
+</Tabs>
+
+### Multi-Turn Conversation
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key="your-swarms-api-key",
+        base_url="https://api.swarms.world/v1",
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a math tutor."},
+            {"role": "user", "content": "What is the derivative of x^2?"},
+            {"role": "assistant", "content": "The derivative of x^2 is 2x."},
+            {"role": "user", "content": "What about x^3?"},
+        ],
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+
+    const client = new OpenAI({
+      apiKey: "your-swarms-api-key",
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a math tutor." },
+        { role: "user", content: "What is the derivative of x^2?" },
+        { role: "assistant", content: "The derivative of x^2 is 2x." },
+        { role: "user", content: "What about x^3?" },
+      ],
+    });
+
+    console.log(response.choices[0].message.content);
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "context"
+        "fmt"
+        "log"
+
+        "github.com/openai/openai-go/v3"
+        "github.com/openai/openai-go/v3/option"
+    )
+
+    func main() {
+        client := openai.NewClient(
+            option.WithAPIKey("your-swarms-api-key"),
+            option.WithBaseURL("https://api.swarms.world/v1"),
+        )
+
+        response, err := client.Chat.Completions.New(context.Background(),
+            openai.ChatCompletionNewParams{
+                Model: "gpt-4o",
+                Messages: []openai.ChatCompletionMessageParamUnion{
+                    openai.SystemMessage("You are a math tutor."),
+                    openai.UserMessage("What is the derivative of x^2?"),
+                    openai.AssistantMessage("The derivative of x^2 is 2x."),
+                    openai.UserMessage("What about x^3?"),
+                },
+            },
+        )
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        fmt.Println(response.Choices[0].Message.Content)
+    }
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use async_openai::{
+        config::OpenAIConfig,
+        types::{
+            ChatCompletionRequestAssistantMessageArgs,
+            ChatCompletionRequestSystemMessageArgs,
+            ChatCompletionRequestUserMessageArgs,
+            CreateChatCompletionRequestArgs,
+        },
+        Client,
+    };
+
+    #[tokio::main]
+    async fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let config = OpenAIConfig::new()
+            .with_api_key("your-swarms-api-key")
+            .with_api_base("https://api.swarms.world/v1");
+
+        let client = Client::with_config(config);
+
+        let request = CreateChatCompletionRequestArgs::default()
+            .model("gpt-4o")
+            .messages(vec![
+                ChatCompletionRequestSystemMessageArgs::default()
+                    .content("You are a math tutor.")
+                    .build()?
+                    .into(),
+                ChatCompletionRequestUserMessageArgs::default()
+                    .content("What is the derivative of x^2?")
+                    .build()?
+                    .into(),
+                ChatCompletionRequestAssistantMessageArgs::default()
+                    .content("The derivative of x^2 is 2x.")
+                    .build()?
+                    .into(),
+                ChatCompletionRequestUserMessageArgs::default()
+                    .content("What about x^3?")
+                    .build()?
+                    .into(),
+            ])
+            .build()?;
+
+        let response = client.chat().create(request).await?;
+
+        if let Some(choice) = response.choices.first() {
+            if let Some(content) = &choice.message.content {
+                println!("{}", content);
+            }
+        }
+
+        Ok(())
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Error Handling
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import (
+        OpenAI,
+        APIError,
+        AuthenticationError,
+        BadRequestError,
+        PermissionDeniedError,
+        RateLimitError,
+    )
+
+    client = OpenAI(
+        api_key="your-swarms-api-key",
+        base_url="https://api.swarms.world/v1",
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Hello"}],
+        )
+        print(response.choices[0].message.content)
+    except AuthenticationError:
+        print("Missing API key (401)")
+    except PermissionDeniedError:
+        print("Invalid API key or insufficient permissions (403)")
+    except BadRequestError as e:
+        print(f"Validation error (400): {e.message}")
+    except RateLimitError:
+        print("Rate limited — back off and retry")
+    except APIError as e:
+        print(f"API error ({e.status_code}): {e.message}")
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+
+    const client = new OpenAI({
+      apiKey: "your-swarms-api-key",
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    try {
+      const response = await client.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: "Hello" }],
+      });
+      console.log(response.choices[0].message.content);
+    } catch (error) {
+      if (error instanceof OpenAI.AuthenticationError) {
+        console.error("Missing API key (401)");
+      } else if (error instanceof OpenAI.PermissionDeniedError) {
+        console.error("Invalid API key or insufficient permissions (403)");
+      } else if (error instanceof OpenAI.BadRequestError) {
+        console.error(`Validation error (400): ${error.message}`);
+      } else if (error instanceof OpenAI.RateLimitError) {
+        console.error("Rate limited — back off and retry");
+      } else if (error instanceof OpenAI.APIError) {
+        console.error(`API error (${error.status}): ${error.message}`);
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "context"
+        "errors"
+        "fmt"
+        "log"
+        "net/http"
+
+        "github.com/openai/openai-go/v3"
+        "github.com/openai/openai-go/v3/option"
+    )
+
+    func main() {
+        client := openai.NewClient(
+            option.WithAPIKey("your-swarms-api-key"),
+            option.WithBaseURL("https://api.swarms.world/v1"),
+        )
+
+        response, err := client.Chat.Completions.New(context.Background(),
+            openai.ChatCompletionNewParams{
+                Model: "gpt-4o",
+                Messages: []openai.ChatCompletionMessageParamUnion{
+                    openai.UserMessage("Hello"),
+                },
+            },
+        )
+        if err != nil {
+            var apiErr *openai.Error
+            if errors.As(err, &apiErr) {
+                switch apiErr.StatusCode {
+                case http.StatusUnauthorized:
+                    log.Fatal("Missing API key (401)")
+                case http.StatusForbidden:
+                    log.Fatal("Invalid API key or insufficient permissions (403)")
+                case http.StatusBadRequest:
+                    log.Fatalf("Validation error (400): %s", apiErr.Message)
+                case http.StatusTooManyRequests:
+                    log.Fatal("Rate limited — back off and retry")
+                default:
+                    log.Fatalf("API error (%d): %s", apiErr.StatusCode, apiErr.Message)
+                }
+            }
+            log.Fatal(err)
+        }
+
+        fmt.Println(response.Choices[0].Message.Content)
+    }
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use async_openai::{
+        config::OpenAIConfig,
+        error::OpenAIError,
+        types::{
+            ChatCompletionRequestUserMessageArgs,
+            CreateChatCompletionRequestArgs,
+        },
+        Client,
+    };
+
+    #[tokio::main]
+    async fn main() {
+        let config = OpenAIConfig::new()
+            .with_api_key("your-swarms-api-key")
+            .with_api_base("https://api.swarms.world/v1");
+
+        let client = Client::with_config(config);
+
+        let request = CreateChatCompletionRequestArgs::default()
+            .model("gpt-4o")
+            .messages(vec![
+                ChatCompletionRequestUserMessageArgs::default()
+                    .content("Hello")
+                    .build()
+                    .unwrap()
+                    .into(),
+            ])
+            .build()
+            .unwrap();
+
+        match client.chat().create(request).await {
+            Ok(response) => {
+                if let Some(choice) = response.choices.first() {
+                    if let Some(content) = &choice.message.content {
+                        println!("{}", content);
+                    }
+                }
+            }
+            Err(OpenAIError::ApiError(e)) => {
+                eprintln!("API error: {}", e.message);
+            }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+            }
+        }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## How It Maps to Swarms Internals
+
+For users already familiar with the native Swarms API, here is how the OpenAI request fields map to `AgentCompletion` and `AgentSpec`:
+
+| OpenAI Field | Swarms Equivalent | Notes |
+|---|---|---|
+| `model` | `AgentSpec.model_name` | Passed through as-is |
+| `messages` (system) | `AgentSpec.system_prompt` | Defaults to "You are a helpful assistant." if absent |
+| `messages` (last user) | `AgentCompletion.task` | The actual prompt the agent runs on |
+| `messages` (prior turns) | `AgentCompletion.history` | User and assistant messages before the final user message |
+| `messages` (image_url parts) | `AgentCompletion.img` / `imgs` | Extracted from multimodal content parts |
+| `temperature` | `AgentSpec.temperature` | Defaults to 0.5 |
+| `max_tokens` / `max_completion_tokens` | `AgentSpec.max_tokens` | `max_completion_tokens` takes precedence; defaults to 8192 |
+| `top_p` | `AgentSpec.llm_args.top_p` | Passed through to the underlying LLM |
+| `presence_penalty` | `AgentSpec.llm_args.presence_penalty` | Passed through to the underlying LLM |
+| `frequency_penalty` | `AgentSpec.llm_args.frequency_penalty` | Passed through to the underlying LLM |
+| `stream` | Route dispatch | `true` returns `StreamingResponse` with SSE; `false` returns JSON |
+
+The agent is created with `max_loops=1` (single turn, no autonomous looping) and `streaming_on=False` (the agent itself runs to completion; streaming is simulated at the HTTP layer by chunking the result).
+
+---
+
+## Supported Models
+
+The `model` field accepts any model supported by the Swarms API. Common options:
+
+| Provider | Models |
+|---|---|
+| OpenAI | `gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o3-mini` |
+| Anthropic | `claude-sonnet-4-20250514`, `claude-3-7-sonnet-latest` |
+| Groq | `groq/llama3-70b-8192`, `groq/deepseek-r1-distill-llama-70b` |
+
+For the full list, call `GET /v1/models/available` with your API key.
+
+---
+
+## Differences from the OpenAI API
+
+| Behavior | OpenAI API | Swarms API |
+|---|---|---|
+| `n > 1` | Returns multiple choices | Rejected with error — send separate requests |
+| Tool calling / function calling | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with `tools_list_dictionary` |
+| `logprobs` | Supported | Not supported |
+| Response format (`json_object`) | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with structured output |
+| Streaming | True token-by-token streaming | Simulated — the agent runs to completion, then the result is delivered in chunks |
+
+---
+
+## Billing
+
+Usage is metered and billed identically to the native `/v1/agent/completions` endpoint:
+
+- **Input tokens** are counted from the combined system prompt, conversation history, and task
+- **Output tokens** are counted from the agent's response
+- **Credits are deducted** automatically after each completion
+- The `usage` field in the response shows the exact token counts
+
+Check your balance anytime with `GET /v1/users/me/credits`.
