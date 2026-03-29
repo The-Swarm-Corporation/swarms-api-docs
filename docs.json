@@ -60,7 +60,8 @@
           {
             "group": "Agent Completions",
             "pages": [
-              "docs/documentation/capabilities/agent"
+              "docs/documentation/capabilities/agent",
+              "docs/documentation/capabilities/openai-compatible"
             ]
           },
           {
@@ -225,7 +226,8 @@
               "docs/examples/examples/agent-handoffs",
               "docs/examples/examples/sub-agent-delegation",
               "docs/examples/api_examples/agent_completion_single_agent",
-              "docs/examples/api_examples/autonomous_agent_tutorial"
+              "docs/examples/api_examples/autonomous_agent_tutorial",
+              "docs/examples/examples/openai-compatible"
             ]
           },
           {
