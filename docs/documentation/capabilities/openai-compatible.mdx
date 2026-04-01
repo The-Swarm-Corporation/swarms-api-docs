@@ -52,6 +52,7 @@ Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platfo
 | `frequency_penalty` | `float` | No | — | Penalize tokens based on how frequently they appear in the text so far |
 | `n` | `integer` | No | `1` | Number of completions to generate. Only `1` is supported — requests with `n > 1` are rejected |
 | `user` | `string` | No | — | A unique identifier for the end-user, used for tracking |
+| `max_loops` | `integer` | No | `1` | *Swarms extension.* Maximum number of agent reasoning loops. `1` = single pass (default). Higher values let the agent iterate on its own output. Pass via `extra_body` in the OpenAI SDK |
 
 ### ChatMessage Object
 
@@ -96,7 +97,8 @@ The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:imag
   ],
   "temperature": 0.5,
   "max_tokens": 1024,
-  "stream": false
+  "stream": false,
+  "max_loops": 1
 }
 ```
 
@@ -873,6 +875,80 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 
 ---
 
+## Multi-Loop Reasoning
+
+By default the agent runs a single pass (`max_loops=1`). To let the agent iterate on its own output — useful for complex reasoning, self-correction, or multi-step tasks — pass `max_loops` via the OpenAI SDK's `extra_body` parameter:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key="your-swarms-api-key",
+        base_url="https://api.swarms.world/v1",
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a rigorous analyst. Think step by step, then review and refine your answer."},
+            {"role": "user", "content": "What are the second-order effects of raising the federal funds rate by 50 basis points?"},
+        ],
+        max_tokens=2048,
+        extra_body={"max_loops": 3},
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+
+    const client = new OpenAI({
+      apiKey: "your-swarms-api-key",
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a rigorous analyst. Think step by step, then review and refine your answer." },
+        { role: "user", content: "What are the second-order effects of raising the federal funds rate by 50 basis points?" },
+      ],
+      max_tokens: 2048,
+      // @ts-expect-error — Swarms extension field
+      max_loops: 3,
+    });
+
+    console.log(response.choices[0].message.content);
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST https://api.swarms.world/v1/chat/completions \
+      -H "Authorization: Bearer your-swarms-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "gpt-4o",
+        "messages": [
+          {"role": "system", "content": "You are a rigorous analyst. Think step by step, then review and refine your answer."},
+          {"role": "user", "content": "What are the second-order effects of raising the federal funds rate by 50 basis points?"}
+        ],
+        "max_tokens": 2048,
+        "max_loops": 3
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+`max_loops` is a Swarms extension field — it is not part of the OpenAI API spec. In the Python OpenAI SDK, use `extra_body={"max_loops": N}` to pass it. In cURL or raw HTTP, include it directly in the JSON body.
+</Info>
+
+---
+
 ## How It Maps to Swarms Internals
 
 For users already familiar with the native Swarms API, here is how the OpenAI request fields map to `AgentCompletion` and `AgentSpec`:
@@ -889,9 +965,10 @@ For users already familiar with the native Swarms API, here is how the OpenAI re
 | `top_p` | `AgentSpec.llm_args.top_p` | Passed through to the underlying LLM |
 | `presence_penalty` | `AgentSpec.llm_args.presence_penalty` | Passed through to the underlying LLM |
 | `frequency_penalty` | `AgentSpec.llm_args.frequency_penalty` | Passed through to the underlying LLM |
+| `max_loops` | `AgentSpec.max_loops` | Defaults to 1. Higher values enable multi-loop reasoning |
 | `stream` | Route dispatch | `true` returns `StreamingResponse` with SSE; `false` returns JSON |
 
-The agent is created with `max_loops=1` (single turn, no autonomous looping) and `streaming_on=False` (the agent itself runs to completion; streaming is simulated at the HTTP layer by chunking the result).
+The agent is created with `max_loops` set to the requested value (defaults to `1` for single-turn) and `streaming_on=False` (the agent itself runs to completion; streaming is simulated at the HTTP layer by chunking the result).
 
 ---
 
@@ -918,6 +995,7 @@ For the full list, call `GET /v1/models/available` with your API key.
 | `logprobs` | Supported | Not supported |
 | Response format (`json_object`) | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with structured output |
 | Streaming | True token-by-token streaming | Simulated — the agent runs to completion, then the result is delivered in chunks |
+| `max_loops` | Not applicable | Swarms extension — multi-loop agent reasoning (pass via `extra_body`) |
 
 ---
 

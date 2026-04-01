@@ -11,6 +11,7 @@ import { Tabs, Tab } from 'mintlify'
 - Non-streaming and streaming completions
 - Multi-turn conversations with conversation history
 - Sending images (multimodal / vision)
+- Multi-loop agent reasoning via `max_loops`
 - Error handling with SDK-native exception classes
 - Working examples in Python, TypeScript, Go, and Rust
 
@@ -815,7 +816,104 @@ Send an image alongside your prompt using the multimodal content format.
 
 ---
 
-## 5. Putting It All Together — Research Assistant
+## 5. Multi-Loop Reasoning
+
+Use `max_loops` to let the agent iterate on its own output — useful for complex analysis, self-correction, or multi-step reasoning. Pass it via `extra_body` in the OpenAI SDK.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = OpenAI(
+        api_key=os.environ["SWARMS_API_KEY"],
+        base_url="https://api.swarms.world/v1",
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a rigorous code reviewer. "
+                    "First write a solution, then review it for bugs, "
+                    "then provide the final corrected version."
+                ),
+            },
+            {
+                "role": "user",
+                "content": "Write a Python function that finds the longest palindromic substring in a string.",
+            },
+        ],
+        max_tokens=2048,
+        extra_body={"max_loops": 3},
+    )
+
+    print(response.choices[0].message.content)
+    print(f"\nTokens: {response.usage.total_tokens}")
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+    import "dotenv/config";
+
+    const client = new OpenAI({
+      apiKey: process.env.SWARMS_API_KEY,
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a rigorous code reviewer. First write a solution, then review it for bugs, then provide the final corrected version.",
+        },
+        {
+          role: "user",
+          content: "Write a Python function that finds the longest palindromic substring in a string.",
+        },
+      ],
+      max_tokens: 2048,
+      // @ts-expect-error — Swarms extension field
+      max_loops: 3,
+    });
+
+    console.log(response.choices[0].message.content);
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST https://api.swarms.world/v1/chat/completions \
+      -H "Authorization: Bearer $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "gpt-4o",
+        "messages": [
+          {"role": "system", "content": "You are a rigorous code reviewer. First write a solution, then review it for bugs, then provide the final corrected version."},
+          {"role": "user", "content": "Write a Python function that finds the longest palindromic substring in a string."}
+        ],
+        "max_tokens": 2048,
+        "max_loops": 3
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+`max_loops` is a Swarms extension — not part of the OpenAI spec. Default is `1` (single pass). The agent runs the specified number of reasoning loops, refining its output each iteration.
+</Info>
+
+---
+
+## 6. Putting It All Together — Research Assistant
 
 A complete example that combines system prompts, multi-turn conversation, and streaming to build a simple research assistant.
 
