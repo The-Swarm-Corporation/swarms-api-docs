@@ -1,0 +1,387 @@
+---
+title: 'Usage Report'
+description: 'Retrieve daily usage breakdowns with token counts, request counts, and costs from the /v1/usage/report endpoint'
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+
+Retrieve a daily breakdown of your API usage from the `/v1/usage/report` endpoint. The report includes token consumption, request counts, and costs for each day in the requested period.
+
+<Info>
+The endpoint supports predefined periods (`day`, `week`, `month`) and custom date ranges via `start_date` and `end_date` query parameters. See the [API Reference](/docs/documentation/resources/usage-report) for the full schema.
+</Info>
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    def get_usage_report(period: str = "month") -> dict | None:
+        """Fetch a daily usage report for the given period."""
+        resp = requests.get(
+            f"{BASE_URL}/v1/usage/report",
+            headers=headers,
+            params={"period": period},
+        )
+
+        if resp.status_code == 200:
+            return resp.json()
+
+        print(f"Error: {resp.status_code} - {resp.text}")
+        return None
+
+    if __name__ == "__main__":
+        data = get_usage_report("week")
+        if data:
+            print(f"Period: {data['period']}")
+            print(f"Range: {data['start_date']} to {data['end_date']}")
+            print(f"Days with activity: {len(data['results'])}\n")
+
+            for day in data["results"]:
+                print(
+                    f"  {day['day']}: "
+                    f"cost=${day['total_cost']:.4f}, "
+                    f"in={day['input_tokens']:,}, "
+                    f"out={day['output_tokens']:,}, "
+                    f"reqs={day['request_count']}"
+                )
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://api.swarms.world";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    async function getUsageReport(period = "month") {
+        try {
+            const response = await fetch(
+                `${BASE_URL}/v1/usage/report?period=${period}`,
+                { method: "GET", headers }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log(`Period: ${data.period}`);
+            console.log(`Range: ${data.start_date} to ${data.end_date}`);
+            console.log(`Days with activity: ${data.results.length}\n`);
+
+            for (const day of data.results) {
+                console.log(
+                    `  ${day.day}: ` +
+                    `cost=$${day.total_cost.toFixed(4)}, ` +
+                    `in=${day.input_tokens.toLocaleString()}, ` +
+                    `out=${day.output_tokens.toLocaleString()}, ` +
+                    `reqs=${day.request_count}`
+                );
+            }
+
+            return data;
+        } catch (error) {
+            console.error("Error fetching usage report:", error);
+            return null;
+        }
+    }
+
+    getUsageReport("week");
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import "dotenv/config";
+
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://api.swarms.world";
+
+    if (!API_KEY) {
+      throw new Error("SWARMS_API_KEY is not set");
+    }
+
+    interface UsageReportDay {
+      day: string;
+      total_cost: number;
+      input_tokens: number;
+      output_tokens: number;
+      request_count: number;
+    }
+
+    interface UsageReportOutput {
+      results: UsageReportDay[];
+      period: string;
+      start_date: string;
+      end_date: string;
+      timestamp: string;
+    }
+
+    async function getUsageReport(
+      period: string = "month"
+    ): Promise<UsageReportOutput | null> {
+      const res = await fetch(
+        `${BASE_URL}/v1/usage/report?period=${period}`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": API_KEY,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+
+      const data = (await res.json()) as UsageReportOutput;
+      console.log(`Period: ${data.period}`);
+      console.log(`Range: ${data.start_date} to ${data.end_date}`);
+      console.log(`Days with activity: ${data.results.length}\n`);
+
+      for (const day of data.results) {
+        console.log(
+          `  ${day.day}: cost=$${day.total_cost.toFixed(4)}, ` +
+          `in=${day.input_tokens.toLocaleString()}, ` +
+          `out=${day.output_tokens.toLocaleString()}, ` +
+          `reqs=${day.request_count}`
+        );
+      }
+
+      return data;
+    }
+
+    void getUsageReport("week").catch(console.error);
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+    use reqwest::blocking::Client;
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct UsageReportDay {
+        day: String,
+        total_cost: f64,
+        input_tokens: u64,
+        output_tokens: u64,
+        request_count: u64,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct UsageReportOutput {
+        results: Vec<UsageReportDay>,
+        period: String,
+        start_date: String,
+        end_date: String,
+        timestamp: String,
+    }
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key = env::var("SWARMS_API_KEY")
+            .expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let response = client
+            .get("https://api.swarms.world/v1/usage/report?period=week")
+            .header("x-api-key", &api_key)
+            .header("Content-Type", "application/json")
+            .send()?;
+
+        let data: UsageReportOutput = response.json()?;
+
+        println!("Period: {}", data.period);
+        println!("Range: {} to {}", data.start_date, data.end_date);
+        println!("Days with activity: {}\n", data.results.len());
+
+        for day in &data.results {
+            println!(
+                "  {}: cost=${:.4}, in={}, out={}, reqs={}",
+                day.day, day.total_cost, day.input_tokens,
+                day.output_tokens, day.request_count,
+            );
+        }
+
+        Ok(())
+    }
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "encoding/json"
+        "fmt"
+        "log"
+        "net/http"
+        "os"
+    )
+
+    type UsageReportDay struct {
+        Day          string  `json:"day"`
+        TotalCost    float64 `json:"total_cost"`
+        InputTokens  int     `json:"input_tokens"`
+        OutputTokens int     `json:"output_tokens"`
+        RequestCount int     `json:"request_count"`
+    }
+
+    type UsageReportOutput struct {
+        Results   []UsageReportDay `json:"results"`
+        Period    string           `json:"period"`
+        StartDate string           `json:"start_date"`
+        EndDate   string           `json:"end_date"`
+        Timestamp string           `json:"timestamp"`
+    }
+
+    func main() {
+        apiKey := os.Getenv("SWARMS_API_KEY")
+        if apiKey == "" {
+            log.Fatal("SWARMS_API_KEY environment variable is required")
+        }
+
+        req, err := http.NewRequest("GET", "https://api.swarms.world/v1/usage/report?period=week", nil)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        req.Header.Set("x-api-key", apiKey)
+        req.Header.Set("Content-Type", "application/json")
+
+        resp, err := http.DefaultClient.Do(req)
+        if err != nil {
+            log.Fatal(err)
+        }
+        defer resp.Body.Close()
+
+        var data UsageReportOutput
+        if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+            log.Fatal(err)
+        }
+
+        fmt.Printf("Period: %s\n", data.Period)
+        fmt.Printf("Range: %s to %s\n", data.StartDate, data.EndDate)
+        fmt.Printf("Days with activity: %d\n\n", len(data.Results))
+
+        for _, day := range data.Results {
+            fmt.Printf("  %s: cost=$%.4f, in=%d, out=%d, reqs=%d\n",
+                day.Day, day.TotalCost, day.InputTokens,
+                day.OutputTokens, day.RequestCount,
+            )
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    # Last 30 days (default)
+    curl -X GET "https://api.swarms.world/v1/usage/report" \
+      -H "x-api-key: $SWARMS_API_KEY"
+
+    # Last 7 days
+    curl -X GET "https://api.swarms.world/v1/usage/report?period=week" \
+      -H "x-api-key: $SWARMS_API_KEY"
+
+    # Custom date range
+    curl -X GET "https://api.swarms.world/v1/usage/report?start_date=2026-03-01&end_date=2026-03-31" \
+      -H "x-api-key: $SWARMS_API_KEY"
+    ```
+  </Tab>
+</Tabs>
+
+## Custom Date Range
+
+Pass `start_date` and `end_date` as query parameters to query a specific window. These override the `period` parameter.
+
+```python
+def get_usage_for_march():
+    """Fetch usage for a specific month."""
+    resp = requests.get(
+        f"{BASE_URL}/v1/usage/report",
+        headers=headers,
+        params={
+            "start_date": "2026-03-01",
+            "end_date": "2026-03-31",
+        },
+    )
+
+    data = resp.json()
+    total_cost = sum(d["total_cost"] for d in data["results"])
+    total_reqs = sum(d["request_count"] for d in data["results"])
+
+    print(f"March 2026: ${total_cost:.2f} across {total_reqs:,} requests")
+```
+
+## Monitor Usage Over Time
+
+Build a simple cost tracker that alerts on high-usage days:
+
+```python
+def check_daily_spend(threshold: float = 5.0):
+    """Alert if any day in the past week exceeded a cost threshold."""
+    data = get_usage_report("week")
+    if not data:
+        return
+
+    for day in data["results"]:
+        if day["total_cost"] > threshold:
+            print(
+                f"High spend on {day['day']}: "
+                f"${day['total_cost']:.2f} "
+                f"({day['request_count']} requests)"
+            )
+
+check_daily_spend(threshold=2.0)
+```
+
+## Response Schema
+
+### UsageReportOutput
+
+| Field | Type | Description |
+|---|---|---|
+| `results` | `list` | Daily usage entries, sorted ascending by date |
+| `period` | `string` | The period applied: `day`, `week`, `month`, or `custom` |
+| `start_date` | `string` | Report start date (`YYYY-MM-DD`) |
+| `end_date` | `string` | Report end date (`YYYY-MM-DD`) |
+| `timestamp` | `string` | ISO timestamp when the report was generated |
+
+### UsageReportDay
+
+| Field | Type | Description |
+|---|---|---|
+| `day` | `string` | Date (`YYYY-MM-DD`) |
+| `total_cost` | `number` | Total cost in USD |
+| `input_tokens` | `integer` | Total input tokens consumed |
+| `output_tokens` | `integer` | Total output tokens consumed |
+| `request_count` | `integer` | Total API requests |
+
+## Related Documentation
+
+- [Usage Report API Reference](/docs/documentation/resources/usage-report) — full endpoint specification
+- [Get Credit Balance](/docs/examples/examples/account-credits) — check your current balance
+- [Pricing Details](/docs/examples/examples/pricing-details-basic) — per-operation costs
+- [Rate Limits](/docs/examples/api_examples/rate_limits) — rate limit status

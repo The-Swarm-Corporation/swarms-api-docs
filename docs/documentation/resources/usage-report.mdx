@@ -1,0 +1,108 @@
+---
+title: 'Usage Report'
+description: 'API reference for the GET /v1/usage/report endpoint — retrieve daily usage breakdowns including token counts, request counts, and costs.'
+---
+
+The Usage Report endpoint returns a daily breakdown of your API usage for a given time period. It aggregates data from transaction logs and request history, giving you visibility into token consumption, request volume, and costs.
+
+## Endpoint Information
+
+- **URL**: `/v1/usage/report`
+- **Method**: `GET`
+- **Authentication**: Required (`x-api-key` header or `Authorization: Bearer <key>`)
+- **Rate Limiting**: Subject to tier-based rate limits
+
+---
+
+## Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `period` | `string` | No | `month` | Predefined time window: `day` (last 24 hours), `week` (last 7 days), or `month` (last 30 days) |
+| `start_date` | `string` | No | — | Custom range start in `YYYY-MM-DD` format. When both `start_date` and `end_date` are provided, they override `period` |
+| `end_date` | `string` | No | — | Custom range end in `YYYY-MM-DD` format. Required when `start_date` is set |
+
+<Info>
+Custom date ranges take precedence over the `period` parameter. If you pass both `start_date`/`end_date` and `period`, the custom range is used.
+</Info>
+
+---
+
+## Response Schema
+
+### UsageReportOutput Object
+
+| Field | Type | Description |
+|---|---|---|
+| `results` | `List[UsageReportDay]` | Daily usage breakdown, sorted ascending by date |
+| `period` | `string` | The period that was applied: `day`, `week`, `month`, or `custom` |
+| `start_date` | `string` | Start date of the report (`YYYY-MM-DD`) |
+| `end_date` | `string` | End date of the report (`YYYY-MM-DD`) |
+| `timestamp` | `string` | ISO timestamp when the report was generated |
+
+### UsageReportDay Object
+
+| Field | Type | Description |
+|---|---|---|
+| `day` | `string` | Date in `YYYY-MM-DD` format |
+| `total_cost` | `number` | Total cost in USD for this day |
+| `input_tokens` | `integer` | Total input tokens consumed |
+| `output_tokens` | `integer` | Total output tokens consumed |
+| `request_count` | `integer` | Total number of API requests |
+
+### Example Response
+
+```json
+{
+  "results": [
+    {
+      "day": "2026-03-28",
+      "total_cost": 1.234567,
+      "input_tokens": 42000,
+      "output_tokens": 9800,
+      "request_count": 15
+    },
+    {
+      "day": "2026-03-29",
+      "total_cost": 0.856234,
+      "input_tokens": 28000,
+      "output_tokens": 6200,
+      "request_count": 8
+    }
+  ],
+  "period": "week",
+  "start_date": "2026-03-23",
+  "end_date": "2026-03-29",
+  "timestamp": "2026-03-29T18:30:00+00:00"
+}
+```
+
+---
+
+## Error Responses
+
+| HTTP Status | Cause |
+|---|---|
+| 400 | `start_date` is after `end_date` |
+| 401 | Missing or invalid API key |
+| 429 | Rate limit exceeded |
+| 500 | Internal error generating the report |
+
+---
+
+## How Data is Aggregated
+
+The endpoint pulls from two data sources and groups by calendar day (UTC):
+
+1. **Costs** — from the credit transaction ledger. Each credit deduction recorded during the period is summed per day.
+2. **Tokens and requests** — from API request logs. Input/output token counts are extracted from the response `usage` object logged with each completion. Every logged request increments the daily `request_count`.
+
+Days with zero activity are omitted from the results.
+
+---
+
+## Related
+
+- [Get Credit Balance](/docs/examples/examples/account-credits) — check your current credit balance
+- [Pricing Details](/docs/examples/examples/pricing-details-basic) — see per-operation costs
+- [Rate Limits](/docs/examples/api_examples/rate_limits) — check rate limit status
