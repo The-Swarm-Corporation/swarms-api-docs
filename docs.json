@@ -109,6 +109,7 @@
               "docs/documentation/resources/resources-overview",
               "docs/documentation/resources/ratelimits",
               "docs/documentation/resources/pricing",
+              "docs/documentation/resources/usage-report",
               "docs/documentation/resources/security",
               "docs/documentation/resources/response-compression",
               "docs/documentation/resources/premium-endpoints",
@@ -273,6 +274,7 @@
               "docs/examples/examples/pricing-details-basic",
               "docs/examples/examples/pricing-cost-estimator",
               "docs/examples/examples/account-credits",
+              "docs/examples/examples/usage-report",
               "docs/examples/examples/auto-swarm-builder-execution-types"
             ]
           },
