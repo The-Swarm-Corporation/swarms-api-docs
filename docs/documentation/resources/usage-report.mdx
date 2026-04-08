@@ -3,7 +3,9 @@ title: 'Usage Report'
 description: 'API reference for the GET /v1/usage/report endpoint — retrieve daily usage breakdowns including token counts, request counts, and costs.'
 ---
 
-The Usage Report endpoint returns a daily breakdown of your API usage for a given time period. It aggregates data from transaction logs and request history, giving you visibility into token consumption, request volume, and costs.
+import { Tabs, Tab } from 'mintlify'
+
+The Usage Report endpoint returns a daily breakdown of your API usage for a given time period. It aggregates data from request history, giving you visibility into token consumption, request volume, and costs.
 
 ## Endpoint Information
 
@@ -25,6 +27,243 @@ The Usage Report endpoint returns a daily breakdown of your API usage for a give
 <Info>
 Custom date ranges take precedence over the `period` parameter. If you pass both `start_date`/`end_date` and `period`, the custom range is used.
 </Info>
+
+---
+
+## Code Examples
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    # Predefined period
+    response = requests.get(
+        f"{BASE_URL}/v1/usage/report",
+        headers=headers,
+        params={"period": "week"},
+    )
+    data = response.json()
+
+    print(f"Period: {data['period']} ({data['start_date']} to {data['end_date']})")
+    for day in data["results"]:
+        print(
+            f"  {day['day']}: "
+            f"cost=${day['total_cost']:.4f}, "
+            f"in={day['input_tokens']:,}, "
+            f"out={day['output_tokens']:,}, "
+            f"reqs={day['request_count']}"
+        )
+
+    # Custom date range
+    response = requests.get(
+        f"{BASE_URL}/v1/usage/report",
+        headers=headers,
+        params={"start_date": "2026-03-01", "end_date": "2026-03-31"},
+    )
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import "dotenv/config";
+
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://api.swarms.world";
+
+    if (!API_KEY) {
+      throw new Error("SWARMS_API_KEY is not set");
+    }
+
+    interface UsageReportDay {
+      day: string;
+      total_cost: number;
+      input_tokens: number;
+      output_tokens: number;
+      request_count: number;
+    }
+
+    interface UsageReportOutput {
+      results: UsageReportDay[];
+      period: string;
+      start_date: string;
+      end_date: string;
+      timestamp: string;
+    }
+
+    const res = await fetch(
+      `${BASE_URL}/v1/usage/report?period=week`,
+      {
+        method: "GET",
+        headers: {
+          "x-api-key": API_KEY,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    }
+
+    const data = (await res.json()) as UsageReportOutput;
+
+    console.log(`Period: ${data.period} (${data.start_date} to ${data.end_date})`);
+    for (const day of data.results) {
+      console.log(
+        `  ${day.day}: ` +
+        `cost=$${day.total_cost.toFixed(4)}, ` +
+        `in=${day.input_tokens.toLocaleString()}, ` +
+        `out=${day.output_tokens.toLocaleString()}, ` +
+        `reqs=${day.request_count}`
+      );
+    }
+    ```
+  </Tab>
+  <Tab title="Rust">
+    ```rust
+    use std::env;
+    use reqwest::blocking::Client;
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct UsageReportDay {
+        day: String,
+        total_cost: f64,
+        input_tokens: u64,
+        output_tokens: u64,
+        request_count: u64,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct UsageReportOutput {
+        results: Vec<UsageReportDay>,
+        period: String,
+        start_date: String,
+        end_date: String,
+        timestamp: String,
+    }
+
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let api_key = env::var("SWARMS_API_KEY")
+            .expect("SWARMS_API_KEY environment variable is required");
+
+        let client = Client::new();
+
+        let response = client
+            .get("https://api.swarms.world/v1/usage/report?period=week")
+            .header("x-api-key", &api_key)
+            .header("Content-Type", "application/json")
+            .send()?;
+
+        let data: UsageReportOutput = response.json()?;
+
+        println!(
+            "Period: {} ({} to {})",
+            data.period, data.start_date, data.end_date,
+        );
+        for day in &data.results {
+            println!(
+                "  {}: cost=${:.4}, in={}, out={}, reqs={}",
+                day.day, day.total_cost, day.input_tokens,
+                day.output_tokens, day.request_count,
+            );
+        }
+
+        Ok(())
+    }
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+        "encoding/json"
+        "fmt"
+        "log"
+        "net/http"
+        "os"
+    )
+
+    type UsageReportDay struct {
+        Day          string  `json:"day"`
+        TotalCost    float64 `json:"total_cost"`
+        InputTokens  int     `json:"input_tokens"`
+        OutputTokens int     `json:"output_tokens"`
+        RequestCount int     `json:"request_count"`
+    }
+
+    type UsageReportOutput struct {
+        Results   []UsageReportDay `json:"results"`
+        Period    string           `json:"period"`
+        StartDate string           `json:"start_date"`
+        EndDate   string           `json:"end_date"`
+        Timestamp string           `json:"timestamp"`
+    }
+
+    func main() {
+        apiKey := os.Getenv("SWARMS_API_KEY")
+        if apiKey == "" {
+            log.Fatal("SWARMS_API_KEY environment variable is required")
+        }
+
+        req, err := http.NewRequest("GET", "https://api.swarms.world/v1/usage/report?period=week", nil)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        req.Header.Set("x-api-key", apiKey)
+        req.Header.Set("Content-Type", "application/json")
+
+        resp, err := http.DefaultClient.Do(req)
+        if err != nil {
+            log.Fatal(err)
+        }
+        defer resp.Body.Close()
+
+        var data UsageReportOutput
+        if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+            log.Fatal(err)
+        }
+
+        fmt.Printf("Period: %s (%s to %s)\n", data.Period, data.StartDate, data.EndDate)
+        for _, day := range data.Results {
+            fmt.Printf("  %s: cost=$%.4f, in=%d, out=%d, reqs=%d\n",
+                day.Day, day.TotalCost, day.InputTokens,
+                day.OutputTokens, day.RequestCount,
+            )
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    # Default period (month)
+    curl -X GET "https://api.swarms.world/v1/usage/report" \
+      -H "x-api-key: $SWARMS_API_KEY"
+
+    # Last 7 days
+    curl -X GET "https://api.swarms.world/v1/usage/report?period=week" \
+      -H "x-api-key: $SWARMS_API_KEY"
+
+    # Custom date range
+    curl -X GET "https://api.swarms.world/v1/usage/report?start_date=2026-03-01&end_date=2026-03-31" \
+      -H "x-api-key: $SWARMS_API_KEY"
+    ```
+  </Tab>
+</Tabs>
 
 ---
 
@@ -92,10 +331,7 @@ Custom date ranges take precedence over the `period` parameter. If you pass both
 
 ## How Data is Aggregated
 
-The endpoint pulls from two data sources and groups by calendar day (UTC):
-
-1. **Costs** — from the credit transaction ledger. Each credit deduction recorded during the period is summed per day.
-2. **Tokens and requests** — from API request logs. Input/output token counts are extracted from the response `usage` object logged with each completion. Every logged request increments the daily `request_count`.
+The endpoint reads from API request logs and groups entries by calendar day (UTC). For each completion log, the response `usage` object contributes `input_tokens`, `output_tokens`, and `total_cost` to that day's totals. Every logged request increments the daily `request_count`.
 
 Days with zero activity are omitted from the results.
 
