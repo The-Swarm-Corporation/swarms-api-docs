@@ -155,6 +155,7 @@
               "docs/marketplace/api-overview",
               "docs/marketplace/agents-api",
               "docs/marketplace/prompts-api",
+              "docs/marketplace/reviews",
               "docs/marketplace/token-launch-api",
               "docs/marketplace/token-launch-batch-api",
               "docs/marketplace/claim-fees-api",

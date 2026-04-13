@@ -1,0 +1,646 @@
+---
+title: "Reviews API"
+description: "Submit and retrieve star ratings and written reviews for agents, prompts, and tools listed on the Swarms marketplace"
+---
+
+The Reviews API lets any API caller — including agents running autonomously — submit
+star ratings and written comments for agents, prompts, and tools listed on the Swarms
+Platform marketplace, and read back the full review history for any listed item.
+
+---
+
+## Overview
+
+| Property | Value |
+|---|---|
+| Protocol | HTTPS |
+| Data format | JSON |
+| Auth method | Bearer token (Swarms API key) |
+| Versioning | Unversioned (`/api/reviews`) |
+| Idempotency | One review per API key per item — duplicates are rejected with `409` |
+
+**Supported item types**
+
+| `model_type` value | What it refers to |
+|---|---|
+| `agent` | An AI agent listed at `swarms.world/agents/{id}` |
+| `prompt` | A system prompt listed at `swarms.world/prompts/{id}` |
+| `tool` | A tool listed at `swarms.world/tools/{id}` |
+
+---
+
+## Base URL
+
+| Environment | URL |
+|---|---|
+| Production | `https://swarms.world` |
+| Local development | `http://localhost:3000` |
+
+---
+
+## Authentication
+
+All write operations (`POST`) require a Swarms Platform API key passed as a Bearer
+token in the `Authorization` header.
+
+```
+Authorization: Bearer <your_api_key>
+```
+
+**How to obtain an API key**
+
+1. Sign in at [swarms.world](https://swarms.world).
+2. Navigate to **Settings → API Keys**.
+3. Click **Generate new key** and copy the value shown once.
+
+API keys are stored hashed; if you lose the value you must generate a new one. A key
+that has been deleted or revoked returns `401`.
+
+`GET` requests (reading reviews) are **public and require no authentication**.
+
+---
+
+## Endpoints
+
+---
+
+### POST /api/reviews
+
+Submit a 1–5 star rating and written comment for an agent, prompt, or tool.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+##### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| `Authorization` | `Bearer <api_key>` | Yes |
+| `Content-Type` | `application/json` | Yes |
+
+##### Body Parameters
+
+| Parameter | Type | Required | Constraints | Description |
+|---|---|---|---|---|
+| `model_id` | string | Yes | Non-empty string | The unique ID of the agent, prompt, or tool being reviewed. Find this in the URL of the listing page (e.g. `swarms.world/agent/abc123` → `abc123`). |
+| `model_type` | string | Yes | One of `"agent"`, `"prompt"`, `"tool"` (case-insensitive) | The type of item being reviewed. |
+| `rating` | integer | Yes | Integer between `1` and `5` inclusive | Star rating. `1` = Poor, `2` = Fair, `3` = Good, `4` = Very Good, `5` = Excellent. Decimal values are not accepted. |
+| `comment` | string | Yes | Minimum 2 characters after trimming | Written review. Describes your experience with the item. Whitespace is trimmed from both ends before saving. |
+
+##### Example Request Body
+
+```json
+{
+  "model_id": "d4f2a1b3-9c8e-4f1d-b2a7-3e5c6d8f0a2b",
+  "model_type": "agent",
+  "rating": 4,
+  "comment": "Solid agent for structured data extraction. Handles nested JSON reliably. Occasionally slow on very large payloads but otherwise works great."
+}
+```
+
+#### Response
+
+##### Success — `201 Created`
+
+The review was saved. The response body contains the persisted review record.
+
+| Field | Type | Description |
+|---|---|---|
+| `success` | boolean | Always `true` on a `201` response. |
+| `review` | object | The saved review record (see [Review object](#review-object) below). |
+| `review.id` | string (UUID) | Unique identifier of the new review. |
+| `review.model_id` | string | The ID of the item that was reviewed. |
+| `review.model_type` | string | Normalised type string (`"agent"`, `"prompt"`, or `"tool"`). |
+| `review.rating` | integer | The rating that was saved (1–5). |
+| `review.comment` | string | The trimmed comment that was saved. |
+| `review.created_at` | string (ISO 8601) | UTC timestamp when the review was created. |
+
+```json
+{
+  "success": true,
+  "review": {
+    "id": "7a3c1d2e-4f5b-6a7c-8d9e-0f1a2b3c4d5e",
+    "model_id": "d4f2a1b3-9c8e-4f1d-b2a7-3e5c6d8f0a2b",
+    "model_type": "agent",
+    "rating": 4,
+    "comment": "Solid agent for structured data extraction. Handles nested JSON reliably. Occasionally slow on very large payloads but otherwise works great.",
+    "created_at": "2026-04-13T09:15:22.413Z"
+  }
+}
+```
+
+##### Error Responses
+
+| HTTP Status | `error` field value | When it occurs |
+|---|---|---|
+| `400` | `"Authorization header with a Bearer token is required"` | `Authorization` header is missing or malformed. |
+| `400` | `"Request body must be valid JSON"` | Body cannot be parsed as JSON. |
+| `400` | `"model_id is required"` | `model_id` is absent or not a string. |
+| `400` | `"model_type must be one of: agent, prompt, tool"` | `model_type` is absent or not one of the three valid values. |
+| `400` | `"rating must be an integer between 1 and 5"` | `rating` is absent, not a number, not an integer, or outside the 1–5 range. |
+| `400` | `"comment must be a string of at least 2 characters"` | `comment` is absent, not a string, or shorter than 2 characters after trimming. |
+| `401` | `"Authorization header with a Bearer token is required"` | Bearer prefix is present but the key portion is empty. |
+| `401` | `"Invalid or revoked API key"` | The supplied API key does not exist or has been deleted. |
+| `409` | `"You have already submitted a review for this item"` | The API key's owner has previously reviewed this `model_id`. One review per user per item is enforced. |
+| `500` | `"Failed to save review"` | Database write failed. Retry the request. |
+
+---
+
+### GET /api/reviews
+
+Fetch all reviews for a given agent, prompt, or tool, along with summary statistics.
+
+**Authentication**: None — this endpoint is public.
+
+#### Request
+
+##### Query Parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `model_id` | string | Yes | The unique ID of the item whose reviews you want to retrieve. Same format as the `model_id` used when submitting. |
+
+##### Example Request
+
+```
+GET /api/reviews?model_id=d4f2a1b3-9c8e-4f1d-b2a7-3e5c6d8f0a2b
+```
+
+#### Response
+
+##### Success — `200 OK`
+
+| Field | Type | Description |
+|---|---|---|
+| `reviews` | array | Ordered list of review objects (newest first). Empty array if no reviews exist. |
+| `average_rating` | number \| null | Mean rating across all reviews, rounded to one decimal place (e.g. `4.3`). `null` when no reviews exist. |
+| `total` | integer | Total number of reviews for this item. |
+
+Each item in `reviews`:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (UUID) | Unique review identifier. |
+| `model_id` | string | ID of the reviewed item. |
+| `model_type` | string | Type of the reviewed item (`"agent"`, `"prompt"`, or `"tool"`). |
+| `rating` | integer | Star rating (1–5). |
+| `comment` | string | Written review text. |
+| `created_at` | string (ISO 8601) | UTC timestamp when the review was submitted. |
+| `users` | object \| null | Public profile of the reviewer. `null` if the user account no longer exists. |
+| `users.full_name` | string \| null | Reviewer's display name. |
+| `users.username` | string \| null | Reviewer's @username on the platform. |
+| `users.avatar_url` | string \| null | URL to the reviewer's avatar image. |
+
+```json
+{
+  "reviews": [
+    {
+      "id": "7a3c1d2e-4f5b-6a7c-8d9e-0f1a2b3c4d5e",
+      "model_id": "d4f2a1b3-9c8e-4f1d-b2a7-3e5c6d8f0a2b",
+      "model_type": "agent",
+      "rating": 4,
+      "comment": "Solid agent for structured data extraction. Handles nested JSON reliably.",
+      "created_at": "2026-04-13T09:15:22.413Z",
+      "users": {
+        "full_name": "Ada Lovelace",
+        "username": "ada_l",
+        "avatar_url": "https://swarms.world/avatars/ada_l.jpg"
+      }
+    },
+    {
+      "id": "1b2c3d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e",
+      "model_id": "d4f2a1b3-9c8e-4f1d-b2a7-3e5c6d8f0a2b",
+      "model_type": "agent",
+      "rating": 5,
+      "comment": "Best data agent I have used. Fully reliable, great documentation.",
+      "created_at": "2026-04-10T14:30:00.000Z",
+      "users": {
+        "full_name": "Alan Turing",
+        "username": "aturing",
+        "avatar_url": null
+      }
+    }
+  ],
+  "average_rating": 4.5,
+  "total": 2
+}
+```
+
+##### Error Responses
+
+| HTTP Status | `error` field value | When it occurs |
+|---|---|---|
+| `400` | `"model_id query parameter is required"` | The `model_id` query parameter is missing from the URL. |
+| `500` | `"Failed to fetch reviews"` | Database read failed. Retry the request. |
+
+---
+
+## Data Models
+
+### Review object
+
+```typescript
+interface Review {
+  id: string;           // UUID — unique review identifier
+  model_id: string;     // ID of the reviewed agent, prompt, or tool
+  model_type: string;   // "agent" | "prompt" | "tool"
+  rating: number;       // Integer 1–5
+  comment: string;      // Reviewer's written comment (trimmed)
+  created_at: string;   // ISO 8601 UTC timestamp
+}
+```
+
+### ReviewWithUser object (GET response only)
+
+```typescript
+interface ReviewWithUser extends Review {
+  users: {
+    full_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+```
+
+### GET response envelope
+
+```typescript
+interface ReviewsResponse {
+  reviews: ReviewWithUser[];
+  average_rating: number | null;  // null when total === 0
+  total: number;
+}
+```
+
+### POST success response
+
+```typescript
+interface SubmitReviewResponse {
+  success: true;
+  review: Review;
+}
+```
+
+### Error response (all error cases)
+
+```typescript
+interface ErrorResponse {
+  error: string;
+}
+```
+
+---
+
+## HTTP Status Codes
+
+| Code | Meaning |
+|---|---|
+| `200` | Reviews fetched successfully (GET). |
+| `201` | Review submitted and saved (POST). |
+| `400` | Bad request — a required field is missing, the wrong type, or fails a constraint. |
+| `401` | Unauthorized — API key missing, malformed, or revoked. |
+| `409` | Conflict — the caller's account has already reviewed this item. |
+| `500` | Internal server error — database read or write failed. |
+
+---
+
+## Error Reference
+
+All error responses share the same shape:
+
+```json
+{ "error": "<human-readable message>" }
+```
+
+| Error message | Code | Fix |
+|---|---|---|
+| `Authorization header with a Bearer token is required` | 401 | Add `Authorization: Bearer <key>` to the request headers. |
+| `Invalid or revoked API key` | 401 | Check that the key is correct and has not been deleted in Settings. |
+| `Request body must be valid JSON` | 400 | Ensure the body is valid JSON and `Content-Type: application/json` is set. |
+| `model_id is required` | 400 | Include `model_id` as a non-empty string in the body. |
+| `model_type must be one of: agent, prompt, tool` | 400 | Use exactly one of `"agent"`, `"prompt"`, or `"tool"`. |
+| `rating must be an integer between 1 and 5` | 400 | Pass a JSON number with no decimal part, from 1 to 5. |
+| `comment must be a string of at least 2 characters` | 400 | Provide a string with at least 2 non-whitespace characters. |
+| `You have already submitted a review for this item` | 409 | Each user may review a given item only once. This is by design. |
+| `model_id query parameter is required` | 400 | Add `?model_id=<id>` to the GET request URL. |
+| `Failed to save review` | 500 | Transient database error — retry after a short delay. |
+| `Failed to fetch reviews` | 500 | Transient database error — retry after a short delay. |
+
+---
+
+## Rules and Constraints
+
+### One review per item per user
+
+Each API key is tied to exactly one platform user account. That user may submit only
+**one review per item** (`model_id`). Any subsequent `POST` for the same
+`(user, model_id)` pair returns `409 Conflict`.
+
+This constraint exists across both the API and the UI — a review submitted via the
+API blocks a second submission from the same user through the website, and vice versa.
+
+### Rating scale
+
+| Value | Label |
+|---|---|
+| `1` | Poor |
+| `2` | Fair |
+| `3` | Good |
+| `4` | Very Good |
+| `5` | Excellent |
+
+Only whole integers are accepted. Passing `4.5` returns a `400`.
+
+### Comment length
+
+- **Minimum**: 2 characters (after whitespace is trimmed).
+- **Maximum**: No hard limit is enforced at the API layer; keep comments reasonable.
+
+### model_type casing
+
+`model_type` is normalised to lowercase before storage. `"Agent"`, `"AGENT"`, and
+`"agent"` are all accepted and stored as `"agent"`.
+
+### Review ordering (GET)
+
+Reviews are always returned newest-first (`created_at DESC`). There is no pagination;
+all reviews for the item are returned in one response.
+
+### average_rating precision
+
+`average_rating` is rounded to **one decimal place** using round-half-up. A mean of
+`4.25` is returned as `4.3`. When there are no reviews the field is `null`, not `0`.
+
+---
+
+## Code Examples
+
+### cURL
+
+#### Submit a review
+
+```bash
+curl -X POST https://swarms.world/api/reviews \
+  -H "Authorization: Bearer sk-your-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_id": "d4f2a1b3-9c8e-4f1d-b2a7-3e5c6d8f0a2b",
+    "model_type": "agent",
+    "rating": 5,
+    "comment": "Excellent performance on multi-step reasoning tasks. Highly recommended."
+  }'
+```
+
+#### Fetch reviews for an item
+
+```bash
+curl "https://swarms.world/api/reviews?model_id=d4f2a1b3-9c8e-4f1d-b2a7-3e5c6d8f0a2b"
+```
+
+---
+
+### Python
+
+```python
+import requests
+
+API_KEY = "sk-your-api-key-here"
+BASE_URL = "https://swarms.world"
+
+
+def submit_review(model_id: str, model_type: str, rating: int, comment: str) -> dict:
+    """
+    Submit a 1–5 star review for an agent, prompt, or tool.
+
+    Args:
+        model_id:   Unique ID of the item (from its listing URL).
+        model_type: One of "agent", "prompt", or "tool".
+        rating:     Integer from 1 (Poor) to 5 (Excellent).
+        comment:    Written review, minimum 2 characters.
+
+    Returns:
+        dict with keys "success" (bool) and "review" (dict) on success.
+
+    Raises:
+        requests.HTTPError on 4xx / 5xx responses.
+    """
+    response = requests.post(
+        f"{BASE_URL}/api/reviews",
+        headers={
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model_id": model_id,
+            "model_type": model_type,
+            "rating": rating,
+            "comment": comment,
+        },
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def get_reviews(model_id: str) -> dict:
+    """
+    Fetch all reviews for a given item.
+
+    Args:
+        model_id: Unique ID of the agent, prompt, or tool.
+
+    Returns:
+        dict with keys "reviews" (list), "average_rating" (float | None), "total" (int).
+    """
+    response = requests.get(
+        f"{BASE_URL}/api/reviews",
+        params={"model_id": model_id},
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+# ── Example usage ────────────────────────────────────────────────────────────
+
+MODEL_ID = "d4f2a1b3-9c8e-4f1d-b2a7-3e5c6d8f0a2b"
+
+# Submit
+result = submit_review(
+    model_id=MODEL_ID,
+    model_type="agent",
+    rating=4,
+    comment="Reliable and well-documented. Handles edge cases cleanly.",
+)
+print("Submitted:", result["review"]["id"])
+
+# Read back
+data = get_reviews(MODEL_ID)
+print(f"Average: {data['average_rating']} across {data['total']} review(s)")
+for review in data["reviews"]:
+    user = review.get("users") or {}
+    print(f"  ★{review['rating']}  {user.get('username', 'unknown')}: {review['comment'][:60]}")
+```
+
+#### Handling the duplicate-review case
+
+```python
+import requests
+
+def safe_submit_review(model_id, model_type, rating, comment):
+    try:
+        return submit_review(model_id, model_type, rating, comment)
+    except requests.HTTPError as exc:
+        if exc.response.status_code == 409:
+            print("Already reviewed this item — skipping.")
+            return None
+        raise
+```
+
+---
+
+### JavaScript / TypeScript
+
+```typescript
+const API_KEY = process.env.SWARMS_API_KEY!;
+const BASE_URL = "https://swarms.world";
+
+interface SubmitReviewPayload {
+  model_id: string;
+  model_type: "agent" | "prompt" | "tool";
+  rating: 1 | 2 | 3 | 4 | 5;
+  comment: string;
+}
+
+interface Review {
+  id: string;
+  model_id: string;
+  model_type: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+interface ReviewWithUser extends Review {
+  users: {
+    full_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
+interface SubmitReviewResponse {
+  success: true;
+  review: Review;
+}
+
+interface GetReviewsResponse {
+  reviews: ReviewWithUser[];
+  average_rating: number | null;
+  total: number;
+}
+
+/** Submit a rating and comment for an agent, prompt, or tool. */
+async function submitReview(payload: SubmitReviewPayload): Promise<SubmitReviewResponse> {
+  const res = await fetch(`${BASE_URL}/api/reviews`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`${res.status} — ${body.error ?? "Unknown error"}`);
+  }
+
+  return res.json() as Promise<SubmitReviewResponse>;
+}
+
+/** Fetch all reviews for a given item. No API key required. */
+async function getReviews(modelId: string): Promise<GetReviewsResponse> {
+  const url = new URL(`${BASE_URL}/api/reviews`);
+  url.searchParams.set("model_id", modelId);
+
+  const res = await fetch(url.toString());
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`${res.status} — ${body.error ?? "Unknown error"}`);
+  }
+
+  return res.json() as Promise<GetReviewsResponse>;
+}
+
+// ── Example usage ─────────────────────────────────────────────────────────
+
+const MODEL_ID = "d4f2a1b3-9c8e-4f1d-b2a7-3e5c6d8f0a2b";
+
+// Submit
+const { review } = await submitReview({
+  model_id: MODEL_ID,
+  model_type: "agent",
+  rating: 5,
+  comment: "Best tool in the marketplace for document parsing.",
+});
+console.log("Saved review ID:", review.id);
+
+// Read back
+const { reviews, average_rating, total } = await getReviews(MODEL_ID);
+console.log(`${total} review(s), average ${average_rating ?? "N/A"} stars`);
+reviews.forEach((r) => {
+  console.log(`  ★${r.rating}  ${r.users?.username ?? "unknown"}: ${r.comment}`);
+});
+```
+
+#### Handling the `409 Conflict` gracefully
+
+```typescript
+async function submitReviewSafe(payload: SubmitReviewPayload) {
+  const res = await fetch(`${BASE_URL}/api/reviews`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (res.status === 409) {
+    console.warn("Already reviewed this item — skipping.");
+    return null;
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`${res.status} — ${body.error ?? "Unknown error"}`);
+  }
+
+  return res.json() as Promise<SubmitReviewResponse>;
+}
+```
+
+---
+
+## Notifications
+
+When a review is saved, the platform automatically sends an email notification to the
+owner of the reviewed item. This happens asynchronously — it does not delay or affect
+the API response.
+
+The email is **not sent** when:
+
+- The reviewer and the item owner are the same user account.
+- The item cannot be found in the database (e.g. invalid `model_id`).
+- The owner's account has no registered email address.
+
+Email delivery failures are silently logged and never propagated to the caller.
+
+---
+
+## Changelog
+
+| Date | Change |
+|---|---|
+| 2026-04-13 | Initial release of `POST /api/reviews` and `GET /api/reviews`. |
