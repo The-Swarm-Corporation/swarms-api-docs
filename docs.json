@@ -108,6 +108,7 @@
             "pages": [
               "docs/documentation/resources/resources-overview",
               "docs/documentation/resources/ratelimits",
+              "docs/documentation/resources/rate-limit-headers",
               "docs/documentation/resources/pricing",
               "docs/documentation/resources/usage-report",
               "docs/documentation/resources/security",
