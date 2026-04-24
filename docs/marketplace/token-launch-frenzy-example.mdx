@@ -1,0 +1,305 @@
+---
+title: "Frenzy Launch Example"
+description: "Step-by-step guide to launching a tokenized agent in Frenzy mode with 2× bonding curve fees"
+---
+
+
+This guide walks through launching a tokenized agent with `fee_selection: "frenzy"` — a mode that doubles the bonding curve fees and places your token on the Frenzy leaderboard for increased visibility.
+
+**What you need:**
+- A Swarms API key ([get one here](https://swarms.world/platform/api-keys))
+- A Solana wallet private key with at least **0.04 SOL** for transaction fees
+
+---
+
+## What is Frenzy mode?
+
+Setting `fee_selection: "frenzy"` routes your token launch through a 2× fee Jupiter API key. This:
+
+- **Doubles the bonding curve fees** collected from traders
+- **Lists your token on the Frenzy leaderboard**, giving it prominent placement for users browsing high-activity tokens
+- Has no effect on the token creation cost you pay (still ~0.04 SOL)
+
+You can combine Frenzy mode with either quote mint:
+- `"SOL"` (default) — SOL-denominated bonding curve
+- `"USDC"` — USDC-denominated bonding curve
+
+---
+
+## Quickstart
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://swarms.world/api/token/launch \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Frenzy Research Agent",
+    "description": "An AI research agent launched in Frenzy mode for maximum visibility.",
+    "ticker": "FRNZ",
+    "private_key": "[1,2,3,...]",
+    "fee_selection": "frenzy",
+    "quote_mint": "SOL"
+  }'
+```
+
+```python Python
+import os
+import requests
+
+API_KEY = os.environ["SWARMS_API_KEY"]
+PRIVATE_KEY = os.environ["SWARMS_PRIVATE_KEY"]  # base58, base64, or JSON array
+BASE_URL = "https://swarms.world"
+
+payload = {
+    "name": "Frenzy Research Agent",
+    "description": "An AI research agent launched in Frenzy mode for maximum visibility.",
+    "ticker": "FRNZ",
+    "private_key": PRIVATE_KEY,
+    "fee_selection": "frenzy",
+    "quote_mint": "SOL",
+}
+
+response = requests.post(
+    f"{BASE_URL}/api/token/launch",
+    headers={
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json=payload,
+)
+
+data = response.json()
+
+if response.ok:
+    print(f"Agent created:  {data['listing_url']}")
+    print(f"Token address:  {data['token_address']}")
+    print(f"Pool address:   {data['pool_address']}")
+else:
+    print(f"Error ({response.status_code}): {data.get('message', data.get('error'))}")
+    if "required_sol" in data:
+        print(f"  Required SOL: {data['required_sol']}  |  Your balance: {data['current_balance_sol']}")
+```
+
+```typescript TypeScript
+const API_KEY = process.env.SWARMS_API_KEY!;
+const PRIVATE_KEY = process.env.SWARMS_PRIVATE_KEY!;
+
+interface FrenzyLaunchResult {
+  success: true;
+  id: string;
+  listing_url: string;
+  tokenized: true;
+  token_address: string | null;
+  pool_address: string | null;
+}
+
+async function launchFrenzyAgent(): Promise<FrenzyLaunchResult> {
+  const response = await fetch("https://swarms.world/api/token/launch", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: "Frenzy Research Agent",
+      description: "An AI research agent launched in Frenzy mode for maximum visibility.",
+      ticker: "FRNZ",
+      private_key: PRIVATE_KEY,
+      fee_selection: "frenzy",
+      quote_mint: "SOL",
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message ?? data.error ?? "Token launch failed");
+  }
+
+  return data as FrenzyLaunchResult;
+}
+
+launchFrenzyAgent()
+  .then((res) => {
+    console.log("Agent created: ", res.listing_url);
+    console.log("Token address:", res.token_address);
+    console.log("Pool address: ", res.pool_address);
+  })
+  .catch(console.error);
+```
+
+</CodeGroup>
+
+---
+
+## With a USDC-denominated bonding curve
+
+Pass `"quote_mint": "USDC"` to price the bonding curve in USDC instead of SOL. The default market cap targets shift to `initialMarketCap: 4000 USDC` and `migrationMarketCap: 9000 USDC`.
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://swarms.world/api/token/launch \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Frenzy USDC Agent",
+    "description": "Frenzy mode with a USDC-denominated bonding curve.",
+    "ticker": "FUSD",
+    "private_key": "[1,2,3,...]",
+    "fee_selection": "frenzy",
+    "quote_mint": "USDC"
+  }'
+```
+
+```python Python
+payload = {
+    "name": "Frenzy USDC Agent",
+    "description": "Frenzy mode with a USDC-denominated bonding curve.",
+    "ticker": "FUSD",
+    "private_key": PRIVATE_KEY,
+    "fee_selection": "frenzy",
+    "quote_mint": "USDC",
+}
+
+response = requests.post(
+    f"{BASE_URL}/api/token/launch",
+    headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
+    json=payload,
+)
+data = response.json()
+if response.ok:
+    print("Listed at:", data["listing_url"])
+    print("Token:    ", data["token_address"])
+else:
+    print("Error:", data.get("message", data.get("error")))
+```
+
+```typescript TypeScript
+const response = await fetch("https://swarms.world/api/token/launch", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    name: "Frenzy USDC Agent",
+    description: "Frenzy mode with a USDC-denominated bonding curve.",
+    ticker: "FUSD",
+    private_key: PRIVATE_KEY,
+    fee_selection: "frenzy",
+    quote_mint: "USDC",
+  }),
+});
+const data = await response.json();
+console.log(response.ok ? data.listing_url : data.message);
+```
+
+</CodeGroup>
+
+---
+
+## With an image
+
+You can attach an agent icon. Pass an image URL, a base64 data URL, or upload a raw file via multipart.
+
+<CodeGroup>
+
+```python Python (image URL)
+payload = {
+    "name": "Frenzy Agent With Icon",
+    "description": "Frenzy launch with a custom agent icon.",
+    "ticker": "FICO",
+    "private_key": PRIVATE_KEY,
+    "fee_selection": "frenzy",
+    "quote_mint": "SOL",
+    "image": "https://example.com/agent-icon.png",
+}
+```
+
+```python Python (raw file upload)
+import requests, os
+
+with open("agent-icon.png", "rb") as img:
+    response = requests.post(
+        "https://swarms.world/api/token/launch",
+        headers={"Authorization": f"Bearer {os.environ['SWARMS_API_KEY']}"},
+        data={
+            "name": "Frenzy Agent With Icon",
+            "description": "Frenzy launch with a raw image upload.",
+            "ticker": "FICO",
+            "private_key": os.environ["SWARMS_PRIVATE_KEY"],
+            "fee_selection": "frenzy",
+            "quote_mint": "SOL",
+        },
+        files={"image": img},
+    )
+data = response.json()
+print(data.get("listing_url") or data.get("message"))
+```
+
+```bash cURL (raw file upload)
+curl -X POST https://swarms.world/api/token/launch \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "name=Frenzy Agent With Icon" \
+  -F "description=Frenzy launch with a raw image upload." \
+  -F "ticker=FICO" \
+  -F "private_key=[1,2,3,...]" \
+  -F "fee_selection=frenzy" \
+  -F "quote_mint=SOL" \
+  -F "image=@/path/to/agent-icon.png"
+```
+
+</CodeGroup>
+
+---
+
+## Success response
+
+```json
+{
+  "success": true,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "listing_url": "https://swarms.world/agent/550e8400-e29b-41d4-a716-446655440000",
+  "tokenized": true,
+  "token_address": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+  "pool_address": "9yZ...configKey"
+}
+```
+
+---
+
+## Common errors
+
+**Insufficient SOL (400):** The creator wallet needs at least 0.04 SOL.
+
+```json
+{
+  "error": "Insufficient SOL balance",
+  "message": "Token launch requires at least 0.04 SOL in the creator wallet. Your balance is 0.0029 SOL. Please add SOL and try again.",
+  "required_sol": 0.04,
+  "current_balance_sol": 0.0029,
+  "status_code": 400
+}
+```
+
+**Invalid API key (401):**
+
+```json
+{
+  "error": "Authentication failed",
+  "message": "Invalid or missing API key. Please check your API key and try again.",
+  "how_to_get_key": "https://swarms.world/platform/api-keys",
+  "status_code": 401
+}
+```
+
+---
+
+## See also
+
+- [Token Launch API](/docs/marketplace/token-launch-api) — Full parameter reference.
+- [Token Launch Batch API](/docs/marketplace/token-launch-batch-api) — Launch up to 50 tokens in one request.
+- [API Keys](https://swarms.world/platform/api-keys) — Create and manage your API key.

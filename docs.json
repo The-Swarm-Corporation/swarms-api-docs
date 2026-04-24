@@ -158,6 +158,7 @@
               "docs/marketplace/prompts-api",
               "docs/marketplace/reviews",
               "docs/marketplace/token-launch-api",
+              "docs/marketplace/token-launch-frenzy-example",
               "docs/marketplace/token-launch-batch-api",
               "docs/marketplace/claim-fees-api",
               "docs/marketplace/examples"
