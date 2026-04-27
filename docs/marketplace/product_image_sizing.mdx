@@ -1,0 +1,70 @@
+---
+title: Product image sizing (marketplace)
+description: Recommended product (agent/prompt) banner image sizing for the Launch page and the entity page hero.
+---
+
+## TL;DR (use this)
+
+- **Aspect ratio**: **16:9**
+- **Best resolution (recommended)**: **1920 × 1080** (Full HD)
+- **Minimum**: **1280 × 720**
+- **Max useful**: **2560 × 1440** (larger doesn’t improve the rendered result)
+- **Formats**: **WebP/AVIF** preferred, **PNG** only if you need transparency
+- **File size target**: \(\le\) **500 KB** at 1920×1080
+
+## Where the image renders
+
+### Entity page hero
+
+The marketplace entity page uses a **16:9** hero container and renders the image with `object-cover` (so any non-16:9 input will be cropped).
+
+```tsx
+<Image
+  src={imageUrl}
+  fill
+  className="rounded-xl sm:rounded-2xl object-cover"
+  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 66vw, 75vw"
+  quality={60}
+  loading="lazy"
+/>
+```
+
+Typical CSS-pixel render sizes (16:9):
+
+- **375 px viewport** → **375 × 211**
+- **768 px viewport** → **506 × 285**
+- **1280 px viewport** → **960 × 540**
+- **1440 px viewport** → **1032 × 581**
+- **1920 px viewport** → **1392 × 783**
+- **2560 px viewport** → **1872 × 1053**
+
+For 2× DPR (Retina), the browser will request roughly double the source pixels for crispness. **1920 × 1080 is the best quality/size tradeoff** for most cases.
+
+### Launch page (upload/preview)
+
+The Launch page is the upload/preview surface. The image you upload (or generate) is the same image that becomes the entity page hero, so the same **16:9 / 1920×1080** recommendation applies.
+
+## Checklist (before you upload)
+
+- **Use 16:9** (anything else will be cropped in the entity hero)
+- **Use the best resolution**: **1920 × 1080**
+- **Don’t go below**: **1280 × 720**
+- **Avoid “4K source”**: anything above **2560 × 1440** is typically wasted
+- **Export WebP/AVIF** when possible (PNG only for transparency)
+- **Keep it lightweight**: aim for \(\le\) **500 KB** at 1920×1080
+
+## Current mismatch (AI image generation)
+
+The image generator currently produces **square (1:1)** images, but the entity hero is **16:9**. When a 1:1 image is rendered with `object-cover` inside a 16:9 container, it gets cropped vertically (losing a large portion of the image).
+
+## Recommended fixes
+
+1. **Generate banners at 16:9** for the entity page hero (e.g. use a landscape 16:9 mode for banner generation).
+2. **Show the recommended dimensions in the upload UI**: “Upload **1920×1080 (16:9)** for best results.”
+3. **Optional normalization on upload**: crop/letterbox to **16:9** server-side so the hero never silently crops important content.
+
+## Why these numbers
+
+- **16:9**: the hero container is locked to 16:9; other aspect ratios will be cropped.
+- **1920 × 1080**: best practical “looks sharp” size without wasting upload bandwidth.
+- **Not 4K**: the renderer downscales and re-encodes; sourcing much larger than 2560×1440 generally doesn’t improve what users see.

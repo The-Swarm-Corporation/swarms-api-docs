@@ -176,6 +176,7 @@
             "group": "Resources",
             "pages": [
               "docs/marketplace/launch-checklist",
+              "docs/marketplace/product_image_sizing",
               "docs/marketplace/foundry"
             ]
           }
