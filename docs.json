@@ -169,6 +169,7 @@
             "pages": [
               "docs/marketplace/marketplace_examples_overview",
               "docs/marketplace/marketplace_prompt_loading",
+              "docs/marketplace/launchpad-tokenize-your-agent-tutorial",
               "docs/marketplace/marketplace_publishing_quickstart"
             ]
           },

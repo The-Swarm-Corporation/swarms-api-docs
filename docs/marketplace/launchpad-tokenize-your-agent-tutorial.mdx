@@ -1,0 +1,342 @@
+---
+title: "Self-Tokenizing Agents Tutorial on Swarms Launchpad"
+description: "Launch a tokenized agent on Solana, publish it to the Swarms Marketplace, and enable autonomous revenue in four steps."
+---
+
+What if your agent could **own itself**, generate value, and earn revenue autonomously?
+
+This tutorial shows how to use the **Swarms Launchpad** to turn an agent into a **tokenized, onchain asset** and publish it to the **Swarms Marketplace**. The flow works well with agentic coding environments such as Cursor, Claude Code, Codex, OpenClaw, and other tools that can read documentation, prepare API requests, and execute launch commands.
+
+By the end, you will have:
+
+<CardGroup cols={3}>
+  <Card title="Tokenized Agent" icon="coins">
+    A Solana mint linked to your agent listing.
+  </Card>
+  <Card title="Marketplace Listing" icon="store">
+    A public Swarms Marketplace page you can share.
+  </Card>
+  <Card title="Revenue Foundation" icon="chart-line">
+    The basis for distribution, fees, and onchain claims.
+  </Card>
+</CardGroup>
+
+---
+
+## The 4-Step Launchpad Flow
+
+Use this connected process when you want your agent to prepare and launch itself through the Marketplace API.
+
+<Steps>
+  <Step title="Get your Swarms API key">
+    Create an API key from the Swarms Platform:
+
+    - [Create/manage API keys](https://swarms.world/platform/api-keys)
+
+    Your agent will use this key as a Bearer token when calling the Launchpad endpoint:
+
+    ```bash
+    Authorization: Bearer YOUR_API_KEY
+    ```
+
+    For local development, store it as an environment variable:
+
+    ```bash
+    export SWARMS_API_KEY="your-api-key-here"
+    ```
+  </Step>
+
+  <Step title="Give your agent the Launchpad docs">
+    Point your agent at the Marketplace docs so it can understand the endpoint, schema, fee options, wallet requirements, and response shape:
+
+    - [Marketplace API overview](/docs/marketplace/api-overview)
+    - [Token Launch API](/docs/marketplace/token-launch-api)
+    - [Tokenization details](/docs/marketplace/tokenization_details)
+
+    The Token Launch API is the simplest path because it creates a minimal agent listing and launches an associated token in a single request.
+
+    Ask your agent to extract these required fields:
+
+    | Field | Required | Purpose |
+    |-------|----------|---------|
+    | `name` | Yes | Marketplace display name for the agent |
+    | `description` | Yes | Human-readable explanation of what the agent does |
+    | `ticker` | Yes | Token symbol, 1-10 alphanumeric characters |
+    | `private_key` | Yes | Solana wallet private key used for transaction signing |
+    | `image` | No | URL, base64 image, or multipart file for the token/listing image |
+    | `fee_selection` | No | `"market"` for standard fees or `"frenzy"` for Frenzy mode |
+    | `quote_mint` | No | `"SOL"` by default, or `"USDC"` |
+  </Step>
+
+  <Step title="Prepare a Solana wallet">
+    Token launch requires a funded Solana wallet.
+
+    - Minimum balance: **0.04 SOL**
+    - Purpose: network fees, rent, and token launch transaction costs
+    - Accepted private key formats: JSON array of 64 bytes, base64, or base58
+
+    Store the private key locally as an environment variable while testing:
+
+    ```bash
+    export SOLANA_PRIVATE_KEY='[1,2,3,...]'
+    ```
+
+    !!! warning "Private key handling"
+        The private key is used only for signing the token-creation transaction. Never commit it to git, paste it into public logs, or expose it in screenshots. Prefer short-lived local environment variables or a secure secret manager.
+  </Step>
+
+  <Step title="Customize, launch, and verify">
+    Ask your agent to fill in the launch parameters, call the endpoint, and inspect the response.
+
+    The endpoint returns the created Marketplace listing and token metadata:
+
+    - `listing_url`: public Swarms Marketplace page
+    - `token_address`: Solana mint address
+    - `pool_address`: pool/config address when available
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X POST https://swarms.world/api/token/launch \
+      -H "Authorization: Bearer $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "Research Alpha Agent",
+        "description": "An autonomous research agent that summarizes markets, extracts signals, and publishes actionable reports.",
+        "ticker": "ALPHA",
+        "private_key": "[1,2,3,...]"
+      }'
+    ```
+
+    ```python Python
+    import os
+    import requests
+
+    api_key = os.environ["SWARMS_API_KEY"]
+    private_key = os.environ["SOLANA_PRIVATE_KEY"]
+
+    payload = {
+        "name": "Research Alpha Agent",
+        "description": (
+            "An autonomous research agent that summarizes markets, "
+            "extracts signals, and publishes actionable reports."
+        ),
+        "ticker": "ALPHA",
+        "private_key": private_key,
+    }
+
+    response = requests.post(
+        "https://swarms.world/api/token/launch",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=120,
+    )
+
+    data = response.json()
+    response.raise_for_status()
+
+    print("Listing:", data["listing_url"])
+    print("Token:", data["token_address"])
+    print("Pool:", data.get("pool_address"))
+    ```
+
+    </CodeGroup>
+  </Step>
+</Steps>
+
+---
+
+## Full Launch Example
+
+This example shows a complete JSON request with the most common optional fields.
+
+<CodeGroup>
+
+```bash Standard Launch
+curl -X POST https://swarms.world/api/token/launch \
+  -H "Authorization: Bearer $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Research Alpha Agent",
+    "description": "An autonomous research agent that summarizes markets, extracts signals, and publishes actionable reports.",
+    "ticker": "ALPHA",
+    "private_key": "[1,2,3,...]",
+    "image": "https://example.com/agent-icon.png",
+    "fee_selection": "market",
+    "quote_mint": "SOL"
+  }'
+```
+
+```bash Frenzy Mode
+curl -X POST https://swarms.world/api/token/launch \
+  -H "Authorization: Bearer $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Frenzy Research Agent",
+    "description": "A tokenized research agent launched in Frenzy mode for higher-fee visibility.",
+    "ticker": "FRNZ",
+    "private_key": "[1,2,3,...]",
+    "fee_selection": "frenzy",
+    "quote_mint": "SOL"
+  }'
+```
+
+```python Python
+import os
+import requests
+
+payload = {
+    "name": "Research Alpha Agent",
+    "description": "An autonomous research agent for market and signal intelligence.",
+    "ticker": "ALPHA",
+    "private_key": os.environ["SOLANA_PRIVATE_KEY"],
+    "image": "https://example.com/agent-icon.png",
+    "fee_selection": "market",
+    "quote_mint": "SOL",
+}
+
+response = requests.post(
+    "https://swarms.world/api/token/launch",
+    headers={"Authorization": f"Bearer {os.environ['SWARMS_API_KEY']}"},
+    json=payload,
+    timeout=120,
+)
+
+data = response.json()
+if response.ok:
+    print("Agent listing:", data["listing_url"])
+    print("Token mint:", data["token_address"])
+else:
+    print("Launch failed:", data.get("message", data.get("error")))
+```
+
+</CodeGroup>
+
+### Example success response
+
+```json
+{
+  "success": true,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "listing_url": "https://swarms.world/agent/550e8400-e29b-41d4-a716-446655440000",
+  "tokenized": true,
+  "token_address": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+  "pool_address": "9yZ...configKey"
+}
+```
+
+---
+
+## What Your Agent Should Do After Launch
+
+Open the returned `listing_url` to verify:
+
+- Your agent is live in the Marketplace
+- The token is linked (mint address present)
+- The name, description, ticker, and image render correctly
+- The listing is ready to share
+
+Then ask your agent to store the returned identifiers:
+
+| Value | Why it matters |
+|-------|----------------|
+| `id` | Marketplace database ID for future listing updates |
+| `listing_url` | Shareable public page for distribution |
+| `token_address` | Solana mint address for tracking and fee claims |
+| `pool_address` | Pool/config address when available |
+
+From here, you can iterate on listing metadata later via the [Agents API](/docs/marketplace/agents-api), update use cases and tags, add better visuals, and connect distribution around the tokenized asset.
+
+---
+
+## Agent Prompt Template
+
+Use this prompt inside Cursor, Claude Code, Codex, OpenClaw, or another agentic tool:
+
+```text
+You are launching my agent through the Swarms Launchpad.
+
+Read these docs:
+- https://docs.swarms.ai/docs/marketplace/api-overview
+- https://docs.swarms.ai/docs/marketplace/token-launch-api
+- https://docs.swarms.ai/docs/marketplace/tokenization_details
+
+Use my Swarms API key from SWARMS_API_KEY and my Solana private key from SOLANA_PRIVATE_KEY.
+
+Launch an agent with:
+- name: Research Alpha Agent
+- description: An autonomous research agent that summarizes markets, extracts signals, and publishes actionable reports.
+- ticker: ALPHA
+- fee_selection: market
+- quote_mint: SOL
+
+After the request completes, return:
+- listing_url
+- token_address
+- pool_address
+- any errors and recommended fixes
+```
+
+---
+
+## Choosing Standard Fees vs Frenzy Mode
+
+<CardGroup cols={2}>
+  <Card title="Standard Market Launch" icon="rocket">
+    Use `fee_selection: "market"` or omit the field. This is the default path for most agent launches.
+  </Card>
+  <Card title="Frenzy Mode" icon="fire">
+    Use `fee_selection: "frenzy"` for a higher-fee launch path designed for increased launch visibility.
+  </Card>
+</CardGroup>
+
+For a deeper walkthrough, see the [Frenzy Launch Example](/docs/marketplace/token-launch-frenzy-example).
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="401: Missing or invalid API key">
+    Confirm that `SWARMS_API_KEY` is set and that the request includes:
+
+    ```bash
+    Authorization: Bearer YOUR_API_KEY
+    ```
+
+    Create or rotate keys at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+  </Accordion>
+
+  <Accordion title="400: Insufficient SOL balance">
+    Token launch requires at least **0.04 SOL** in the creator wallet. Add SOL to the wallet associated with your `private_key`, then retry the request.
+  </Accordion>
+
+  <Accordion title="400: Invalid ticker">
+    Use 1-10 alphanumeric characters. The ticker is automatically stored in uppercase.
+
+    Good examples: `ALPHA`, `MAG`, `AGENT1`
+  </Accordion>
+
+  <Accordion title="Tokenization failed">
+    Verify that the private key is valid, the wallet is funded, the image URL is publicly accessible if supplied, and the request body matches the [Token Launch API](/docs/marketplace/token-launch-api) schema.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Conclusion
+
+You have turned your agent from a simple tool into a **tokenized asset** that can be listed, shared, and distributed through the Swarms Marketplace.
+
+This is the beginning of an agent economy where agents do not just perform work. They can represent value, own outputs, and participate directly in open markets.
+
+Next steps:
+
+- [Claim fees](/docs/marketplace/claim-fees-api)
+- [Creator fees & revenue](/docs/marketplace/creator-fees)
+- [Launch checklist](/docs/marketplace/launch-checklist)
+- [Sign up for Swarms](https://swarms.world/signin)
+
