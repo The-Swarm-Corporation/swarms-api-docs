@@ -1,0 +1,146 @@
+---
+title: "Yuki Marketplace Companion"
+description: "Learn how Yuki helps users navigate the Swarms Marketplace, understand products, and get live marketplace guidance."
+---
+
+
+Yuki is the built-in AI support agent for the Swarms Marketplace. She appears throughout the marketplace experience so users can ask questions, understand listings, compare products, and find the right agents, prompts, or tools without leaving the page they are viewing.
+
+Yuki combines page awareness, product context, account context, and live marketplace data to provide timely guidance. Whether you are browsing as a guest, managing your dashboard, reviewing an agent listing, or exploring tokenized products, Yuki helps explain what you are seeing and points you to the next best action.
+
+---
+
+## Where Yuki Appears
+
+Yuki is present on the following pages:
+
+- Marketplace homepage
+- Individual agent, prompt, and tool pages
+- User profile pages
+- All platform dashboard pages (Dashboard, API Keys, Chat, Leaderboard, Account, Billing, History, Referral, Organization, Registry)
+- Launch and Support pages
+
+She does not appear on pages where she would not be relevant, such as legal pages or external routes.
+
+---
+
+## What Yuki Can See
+
+### Your Current Page
+
+Yuki always knows which page you are on. A live label in the widget header shows the current page — for example, "Marketplace", "Dashboard", "API Keys", or a specific product name like "Agent: ResearchBot". This context is active in every conversation, so you never need to explain where you are or what you are looking at.
+
+### Product Context
+
+When you are on an individual agent, prompt, or tool page, Yuki automatically loads the full details of that product, including:
+
+- Name and description
+- Tags and categories
+- Pricing and monetization model
+- Use cases
+- Dependencies and requirements
+- Creator username
+
+This means you can ask "does this agent support multi-step workflows?" or "what is this tool priced at?" and Yuki already has the answer — no copy-pasting required.
+
+### Your Account
+
+Yuki knows your login state. If you are signed in, she has access to your username, full name, and email address so her guidance is personalized to your account. If you are browsing as a guest, she knows that too and adjusts her answers accordingly.
+
+### The Full Site Map
+
+Yuki has a complete map of every page on swarms.world — public pages, platform pages, and external links. When you ask where something is or how to navigate to a feature, she returns the exact URL.
+
+### Marketplace Categories
+
+Yuki knows the full category taxonomy used across agents, prompts, and tools. She can filter recommendations and rankings by category, including:
+
+Healthcare, Education, Finance, Research, Public Safety, Marketing, Sales, Customer Support, and more.
+
+If you are looking for something specific to an industry or use case, tell her and she will narrow the results accordingly.
+
+### Live Marketplace Data
+
+Yuki has real-time read access to the Swarms Marketplace database. When a question requires current data, she queries the database directly and returns live results. She can surface:
+
+- Top-rated agents, prompts, and tools by rating
+- Best-selling products by total revenue from completed transactions
+- Highest-rated agents running Frenzy mode (dynamic, market-driven pricing)
+
+When Yuki is fetching live data, the widget shows a "Fetching marketplace data" indicator so you can see exactly when a live query is in progress. Results come back as ranked, linked lists reflecting the actual state of the marketplace at that moment.
+
+### External Resources
+
+Yuki knows and can link you to all official Swarms resources:
+
+- Documentation: docs.swarms.world
+- GitHub: github.com/kyegomez/swarms
+- Discord community: discord.gg/EamjgSaEQf
+- Twitter / X: x.com/swarms_corp
+- Book a demo: cal.com/swarms
+
+Ask her for any of these and she will give you the direct link.
+
+---
+
+## What Yuki Can Do
+
+**Answer product questions.** Ask anything about an agent, prompt, or tool you are currently viewing. Yuki has the full listing context and will give you a direct answer.
+
+**Find the right product.** Describe what you are trying to accomplish and Yuki will recommend agents, prompts, or tools that fit your workflow — filtered by category if needed.
+
+**Surface live rankings.** Ask for the highest-rated or best-selling products in any category and get a current, database-backed list.
+
+**Navigate the platform.** Ask where any feature is — API keys, billing, leaderboard, referral program, organization settings — and Yuki will give you the exact URL.
+
+**Explain how things work.** Credits, monetization models, tokenization, Frenzy pricing, publishing an agent — Yuki can walk you through any part of how the platform works.
+
+**Link to external resources.** Ask for the docs, GitHub repo, Discord, or demo booking link and she will provide it directly.
+
+**Support queries.** For issues that require human support, Yuki can direct you to the support page and help you frame your request.
+
+---
+
+## How Yuki Thinks
+
+Yuki is powered by Claude Sonnet with extended thinking enabled. Before responding, she reasons through your question internally — determining whether live data is needed, what context is relevant, and what the most useful answer looks like. For questions that require marketplace data, she fetches it in real time before generating a response.
+
+You can see her reasoning process. Each assistant message has a collapsible "Thinking" panel that shows the internal reasoning chain that produced the answer. It can be expanded or collapsed at any time.
+
+Responses stream in real time — text appears word by word as it is generated rather than arriving all at once.
+
+---
+
+## Copying Responses
+
+Every message Yuki sends has a copy button beneath it. Click it to copy the full response text to your clipboard. The button confirms the copy with a brief "Copied" indicator before returning to its default state.
+
+---
+
+## Conversation Persistence and Context Window
+
+Yuki remembers your conversation across the session. Navigating between pages, refreshing the browser, or switching tabs does not clear the thread. Your conversation history is stored locally in your browser with a stable conversation ID.
+
+**Context window:** Yuki sends the last 10 messages of your conversation to the model on each turn. In very long conversations, earlier messages will fall outside the active context and Yuki may not recall them. If you notice her losing track of something discussed much earlier, use the reset button to start a focused new thread.
+
+To start fresh at any point, use the reset button in the widget header. This clears the history and generates a new conversation ID.
+
+---
+
+## Full-Page Mode
+
+The maximize button in the widget header opens a full-page chat at `/yuki/chat` in a new tab. This is the same Yuki with the same context — just more screen space for longer conversations.
+
+---
+
+## Privacy
+
+Yuki's conversations are not stored on Swarms servers beyond what is needed to generate a response. Conversation history lives in your browser's local storage and is cleared when you reset the conversation or clear your browser data. Yuki does not have access to your payment information, private API keys, or any data outside of what is described in this document.
+
+---
+
+## Getting Started
+
+Open Yuki from the bottom right corner of any marketplace page. You do not need to configure anything or create an account. If you are logged in, she already knows who you are. If you are browsing as a guest, she is still fully functional.
+
+Start with a question about any product you are looking at, or ask her to find the best agent for a task you are working on.
