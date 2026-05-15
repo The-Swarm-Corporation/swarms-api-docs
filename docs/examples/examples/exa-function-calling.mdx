@@ -1,0 +1,261 @@
+---
+title: "Exa Function Calling Tutorial"
+description: "Use Swarms API tool calls to plan Exa searches, parse function arguments, execute the search, and return grounded results."
+---
+
+## Overview
+
+Function calling lets a Swarms agent decide which external operation your application should run. A common pattern is search-augmented research: the agent plans the search query, your code executes the search against Exa, and then you pass the results back into a follow-up agent call for synthesis.
+
+This tutorial shows the full application-side flow:
+
+- Define an Exa search tool with `tools_list_dictionary`
+- Ask the agent to call the tool instead of answering from memory
+- Parse the returned tool call from `outputs[0].content`
+- Execute the Exa API request in your own application
+- Send compact search results back to the agent for a final answer
+
+<Note>
+The Swarms API returns the tool call request. Your application is responsible for executing the external API call and deciding what data to send back for the next step.
+</Note>
+
+## Environment Setup
+
+Create a `.env` file with both API keys:
+
+```bash
+SWARMS_API_KEY=your-swarms-api-key
+EXA_API_KEY=your-exa-api-key
+```
+
+Install dependencies:
+
+```bash
+pip install requests python-dotenv
+```
+
+## Define the Exa Search Tool
+
+The tool schema should describe the action and constrain the arguments enough that your application can execute them safely.
+
+```python
+EXA_SEARCH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "search_web_with_exa",
+        "description": "Search the web with Exa and return relevant source snippets for a research question.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "A focused web search query."
+                },
+                "num_results": {
+                    "type": "integer",
+                    "description": "Number of results to return. Use 3 to 8."
+                },
+                "include_domains": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional list of domains to prioritize."
+                }
+            },
+            "required": ["query", "num_results"]
+        }
+    }
+}
+```
+
+## Step 1: Ask the Agent to Plan the Search
+
+Use a direct task that tells the agent to call the Exa tool before answering.
+
+```python
+import json
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SWARMS_API_KEY = os.environ["SWARMS_API_KEY"]
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": SWARMS_API_KEY,
+    "Content-Type": "application/json",
+}
+
+payload = {
+    "agent_config": {
+        "agent_name": "Research Search Planner",
+        "description": "Plans web searches before answering research questions.",
+        "system_prompt": (
+            "You are a research assistant. When the user asks for current or source-grounded "
+            "information, call search_web_with_exa with a focused query. Do not answer from "
+            "memory when the tool is available."
+        ),
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.1,
+        "tools_list_dictionary": [EXA_SEARCH_TOOL],
+    },
+    "task": "Find current evidence about practical enterprise uses of multi-agent AI systems.",
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/agent/completions",
+    headers=headers,
+    json=payload,
+    timeout=120,
+)
+response.raise_for_status()
+agent_result = response.json()
+print(json.dumps(agent_result, indent=2))
+```
+
+## Step 2: Parse the Tool Call
+
+When the agent chooses a tool, `outputs[0].content` is an array. Each entry contains a function name and a JSON-encoded `arguments` string.
+
+```python
+def extract_first_tool_call(agent_result: dict) -> tuple[str, dict]:
+    content = agent_result["outputs"][0]["content"]
+
+    if not isinstance(content, list) or not content:
+        raise ValueError("Agent did not return a tool call")
+
+    tool_call = content[0]
+    function_name = tool_call["function"]["name"]
+    arguments = json.loads(tool_call["function"]["arguments"])
+    return function_name, arguments
+
+
+function_name, arguments = extract_first_tool_call(agent_result)
+
+if function_name != "search_web_with_exa":
+    raise ValueError(f"Unexpected tool call: {function_name}")
+
+query = arguments["query"]
+num_results = min(max(arguments.get("num_results", 5), 1), 8)
+include_domains = arguments.get("include_domains") or []
+```
+
+## Step 3: Execute the Exa Search
+
+Run the actual Exa request from your server or application code.
+
+```python
+def run_exa_search(query: str, num_results: int, include_domains: list[str]) -> list[dict]:
+    exa_payload = {
+        "query": query,
+        "numResults": num_results,
+        "contents": {
+            "text": {
+                "maxCharacters": 1200
+            }
+        },
+    }
+
+    if include_domains:
+        exa_payload["includeDomains"] = include_domains
+
+    res = requests.post(
+        "https://api.exa.ai/search",
+        headers={
+            "x-api-key": os.environ["EXA_API_KEY"],
+            "Content-Type": "application/json",
+        },
+        json=exa_payload,
+        timeout=60,
+    )
+    res.raise_for_status()
+    data = res.json()
+
+    return [
+        {
+            "title": item.get("title"),
+            "url": item.get("url"),
+            "text": item.get("text", "")[:1200],
+        }
+        for item in data.get("results", [])
+    ]
+
+
+search_results = run_exa_search(query, num_results, include_domains)
+```
+
+## Step 4: Send Results Back for Synthesis
+
+Keep the second task compact. Include titles, URLs, and short excerpts rather than entire pages.
+
+```python
+synthesis_payload = {
+    "agent_config": {
+        "agent_name": "Grounded Research Synthesizer",
+        "description": "Synthesizes search results into a sourced answer.",
+        "system_prompt": (
+            "Use only the provided search results. Cite URLs for claims. If evidence is weak, "
+            "say what is missing."
+        ),
+        "model_name": "gpt-4o",
+        "max_loops": 1,
+        "temperature": 0.2,
+    },
+    "task": (
+        "Answer the research question using these Exa search results.\n\n"
+        f"Question: Practical enterprise uses of multi-agent AI systems\n\n"
+        f"Search results:\n{json.dumps(search_results, indent=2)}"
+    ),
+}
+
+synthesis_response = requests.post(
+    f"{BASE_URL}/v1/agent/completions",
+    headers=headers,
+    json=synthesis_payload,
+    timeout=120,
+)
+synthesis_response.raise_for_status()
+print(json.dumps(synthesis_response.json(), indent=2))
+```
+
+## Handling Text Responses
+
+Sometimes the model may answer directly instead of returning a tool call. Handle both cases explicitly:
+
+```python
+content = agent_result["outputs"][0]["content"]
+
+if isinstance(content, list):
+    print("Tool call requested")
+elif isinstance(content, str):
+    print("Agent answered directly:")
+    print(content)
+else:
+    raise TypeError(f"Unexpected content type: {type(content)}")
+```
+
+If tool use is required, strengthen the system prompt and task. For example: "Call `search_web_with_exa` before answering. If the tool is unavailable, explain that no search was performed."
+
+## Production Tips
+
+- Validate and clamp numeric arguments such as `num_results`
+- Allowlist domains when your use case requires trusted sources
+- Store raw Exa responses for debugging, but pass compact snippets back to the agent
+- Treat `function.arguments` as untrusted JSON until parsed and validated
+- Keep external API keys on your server; never expose them in frontend code
+- Add retries and clear error messages for Exa timeout or rate-limit failures
+- Include URLs in the synthesis step so final answers can cite sources
+
+## Common Errors
+
+If `outputs[0].content` is a string, the agent answered directly. Tighten the prompt and explicitly require tool use before answering.
+
+If `json.loads()` fails, log the raw `function.arguments` value and return a clear validation error. Do not pass malformed arguments into Exa.
+
+If Exa returns too much text, reduce `numResults`, lower `maxCharacters`, or summarize each result before the synthesis call. Smaller result payloads usually produce more reliable final answers.
+
+If the final answer cites no URLs, verify that each search result includes a `url` field and that the synthesis prompt requires source-grounded claims.
+
+This pattern works for any external API: define the tool, let the agent propose arguments, execute the call in your application, and feed the verified results back into Swarms for the final response.
