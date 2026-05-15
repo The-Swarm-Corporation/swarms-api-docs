@@ -1,0 +1,156 @@
+---
+title: "MCP Troubleshooting Guide"
+description: "Diagnose common MCP integration failures when connecting external tools to Swarms agents."
+---
+
+## Overview
+
+Model Context Protocol (MCP) integrations let Swarms agents call external tools, data sources, and internal services through an MCP server. When an integration fails, the issue is usually in one of four places:
+
+- The agent cannot reach the MCP server URL
+- The MCP server is reachable but does not expose the expected tools
+- The task does not give the agent enough context to choose the right tool
+- The downstream tool succeeds, but the response is too large, slow, or ambiguous
+
+This guide gives you a practical checklist for isolating those cases before you change your agent prompt or application code.
+
+## Quick Validation Checklist
+
+Before debugging agent behavior, validate the server directly:
+
+```bash
+curl -i https://your-mcp-server.example.com
+```
+
+Confirm that:
+
+- The URL is public or reachable from the Swarms API runtime
+- The endpoint uses HTTPS in production
+- The server responds within your expected timeout window
+- Authentication requirements are documented and configured
+- The MCP server exposes the tools your task expects the agent to use
+
+If your MCP server is private, running on `localhost`, or only available on a VPN, the hosted Swarms API will not be able to reach it unless you expose it through a secure public endpoint.
+
+## Common Symptoms
+
+### The Agent Ignores MCP Tools
+
+If the agent returns a general answer instead of calling MCP tools, make the task more explicit. Name the external system, the expected action, and the output format.
+
+```python
+task = (
+    "Use the MCP tools connected at mcp_url to fetch the latest customer ticket "
+    "summary. Return a table with ticket_id, priority, owner, and next_action. "
+    "Do not answer from general knowledge."
+)
+```
+
+Also check that your `system_prompt` tells the agent when tool use is required:
+
+```python
+system_prompt = (
+    "You are an operations analyst. When a task asks for live ticket, customer, "
+    "or account data, use the connected MCP tools before answering. If the MCP "
+    "server is unavailable, explain the failure and list what could not be checked."
+)
+```
+
+### The Request Times Out
+
+Timeouts usually come from slow upstream tools, large payloads, or too many tool calls in one run.
+
+Start by reducing the task scope:
+
+```python
+task = "Use the MCP server to fetch the 5 most recent open incidents and summarize them."
+```
+
+Then increase complexity gradually. If the smaller task works, add pagination, filtering, or batching on the MCP server side instead of asking the agent to retrieve everything at once.
+
+### The Agent Uses the Wrong Tool
+
+Tool names and descriptions matter. If your MCP server exposes several similar tools, give each one a narrow description. Prefer names like `get_open_invoices` or `search_customer_tickets` over generic names like `query` or `lookup`.
+
+In the task, mention the exact domain object:
+
+```python
+task = (
+    "Search customer tickets, not invoices or account records. Find tickets with "
+    "priority='urgent' and status='open', then summarize blockers."
+)
+```
+
+### The Output Is Too Verbose
+
+MCP tools often return raw records. Tell the agent what to keep and what to omit:
+
+```python
+task = (
+    "Use the MCP server to inspect the latest usage report. Return only anomalies, "
+    "probable causes, and recommended next actions. Do not include raw logs unless "
+    "they directly support a finding."
+)
+```
+
+For large datasets, the MCP server should provide filtered or summarized tools so the agent receives compact, relevant context.
+
+## Minimal Agent Configuration
+
+Use a small configuration while debugging. Add advanced settings only after the basic connection works.
+
+```python
+import os
+import requests
+
+API_KEY = os.environ["SWARMS_API_KEY"]
+BASE_URL = "https://api.swarms.world"
+
+payload = {
+    "agent_config": {
+        "agent_name": "MCP Debug Agent",
+        "description": "Validates an MCP server connection and reports tool results.",
+        "system_prompt": (
+            "Use the connected MCP tools when the task asks for live or external data. "
+            "If a tool call fails, explain the failure clearly."
+        ),
+        "model_name": "gpt-4.1",
+        "max_loops": 2,
+        "temperature": 0.2,
+        "mcp_url": "https://your-mcp-server.example.com",
+    },
+    "task": "Use the MCP server to list available operational data and summarize what can be queried.",
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/agent/completions",
+    headers={"x-api-key": API_KEY, "Content-Type": "application/json"},
+    json=payload,
+    timeout=120,
+)
+
+response.raise_for_status()
+print(response.json())
+```
+
+## Production Recommendations
+
+- Keep MCP tool responses small and structured
+- Add server-side filtering for date ranges, status values, and object IDs
+- Return clear error messages from MCP tools instead of generic exceptions
+- Avoid exposing secrets in tool descriptions, logs, or responses
+- Use separate MCP servers for unrelated domains when tool lists become crowded
+- Include source identifiers in tool results so the agent can cite where data came from
+
+## Debugging Template
+
+When reporting an MCP issue, include:
+
+- The `mcp_url` domain, without secrets or private tokens
+- The task text that failed
+- The agent configuration fields relevant to tool use
+- The expected tool or data source
+- The actual response or error summary
+- Whether the MCP server works when called directly
+
+This information lets maintainers distinguish between Swarms API behavior, MCP server availability, prompt ambiguity, and downstream service errors.
