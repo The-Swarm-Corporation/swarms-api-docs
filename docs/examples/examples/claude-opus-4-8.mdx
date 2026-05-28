@@ -1,0 +1,186 @@
+---
+title: "Claude Opus 4.8"
+description: "Run single agents and multi-agent swarms on Anthropic's strongest model via the Swarms API."
+---
+
+## What This Example Shows
+
+- How to point a single agent at Claude Opus 4.8
+- How to run a hierarchical multi-agent swarm on Opus 4.8
+- The correct model name to use (`anthropic/claude-opus-4-8`)
+- Why you should omit `temperature` for this model
+
+<Info>
+Claude Opus 4.8 is Anthropic's most capable reasoning model. It is wired into every multi-agent primitive on the Swarms platform — sequential workflows, hierarchical swarms, agent rearrange, group chats, mixture-of-agents, and more. Switching is a one-line change in your agent config.
+</Info>
+
+<Warning>
+Claude Opus 4.8 has deprecated the `temperature` parameter. Do not pass `temperature` in your `agent_config` for this model — the Swarms API will omit it automatically when the field is unset, and the provider's own default will apply. Setting `temperature` to a number will be rejected by Anthropic with a 400.
+</Warning>
+
+## Step 1: Get Your API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Sign in or create an account
+3. Generate a new API key
+4. Set it as an environment variable:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## Step 2: Install the Swarms Python Client
+
+```bash
+pip install swarms-client python-dotenv
+```
+
+## Single Agent on Claude Opus 4.8
+
+A minimal single-agent call. Note the `model_name` is the only thing that changes from any of your existing agent configs — `temperature` is intentionally absent.
+
+```python
+import json
+import os
+
+from dotenv import load_dotenv
+from swarms_client import SwarmsClient
+
+load_dotenv()
+
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+    base_url="https://api.swarms.world",
+    timeout=1000,
+)
+
+result = client.agent.run(
+    agent_config={
+        "agent_name": "Bloodwork Diagnosis Expert",
+        "description": "An expert doctor specializing in interpreting and diagnosing blood work results.",
+        "system_prompt": (
+            "You are an expert medical doctor specializing in the interpretation and diagnosis of blood work. "
+            "Your expertise includes analyzing laboratory results, identifying abnormal values, "
+            "explaining their clinical significance, and recommending next diagnostic or treatment steps. "
+            "Provide clear, evidence-based explanations and consider differential diagnoses based on blood test findings."
+        ),
+        "model_name": "anthropic/claude-opus-4-8",
+        "max_loops": 1,
+        "max_tokens": 8192,
+    },
+    task="Hemoglobin 10.2 g/dL, MCV 72 fL, ferritin 8 ng/mL — what's your diagnosis and next step?",
+)
+
+print(json.dumps(result, indent=4))
+```
+
+**What changed from a typical agent call:**
+
+| Field | Before | With Opus 4.8 |
+| --- | --- | --- |
+| `model_name` | `gpt-4o`, `claude-haiku-4-5-20251001`, etc. | `anthropic/claude-opus-4-8` |
+| `temperature` | `0.5` (or any float) | omit the field entirely |
+| Everything else | — | unchanged |
+
+## Multi-Agent Swarm on Claude Opus 4.8
+
+The same model name plugs into every multi-agent architecture. This example uses a `HierarchicalSwarm` where an auto-generated director coordinates two worker analysts — one for ETFs, one for individual stocks.
+
+```python
+import json
+import os
+
+from dotenv import load_dotenv
+from swarms_client import SwarmsClient
+
+load_dotenv()
+
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+    base_url="https://api.swarms.world",
+    timeout=1000,
+)
+
+result = client.swarms.run(
+    name="Markets Hierarchical Swarm",
+    description="Director coordinates an ETF analyst and a stocks analyst.",
+    swarm_type="HierarchicalSwarm",
+    task=(
+        "Compare the outlook for the SPY ETF and NVDA stock for the next quarter. "
+        "Highlight the strongest signal for each."
+    ),
+    max_loops=1,
+    agents=[
+        {
+            "agent_name": "ETF Analyst",
+            "description": "Analyzes broad-market and sector ETFs.",
+            "system_prompt": (
+                "You are an ETF analyst. Given a ticker, summarize the fund's "
+                "exposure, recent flows, and near-term outlook in under 200 words."
+            ),
+            "model_name": "anthropic/claude-opus-4-8",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+        {
+            "agent_name": "Stocks Analyst",
+            "description": "Analyzes individual equities.",
+            "system_prompt": (
+                "You are an equity analyst. Given a ticker, summarize the company's "
+                "fundamentals, catalysts, and near-term outlook in under 200 words."
+            ),
+            "model_name": "anthropic/claude-opus-4-8",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+    ],
+)
+
+print(json.dumps(result, indent=4))
+```
+
+<Note>
+For `HierarchicalSwarm`, you only need to define the worker agents — the director is automatically created and orchestrated by the framework. The director routes the task to each worker, collects their outputs, and synthesizes a final response.
+</Note>
+
+## Using Opus 4.8 in Other Swarm Types
+
+Every other swarm architecture takes the same `model_name`. Drop `"model_name": "anthropic/claude-opus-4-8"` into any agent inside any of these swarm configs:
+
+- `SequentialWorkflow`
+- `ConcurrentWorkflow`
+- `AgentRearrange`
+- `MixtureOfAgents`
+- `GroupChat`
+- `MajorityVoting`
+- `CouncilAsAJudge`
+- `MultiAgentRouter`
+- `HeavySwarm`
+- `LLMCouncil`
+- `DebateWithJudge`
+- `BatchedGridWorkflow`
+- `RoundRobin`
+- `PlannerWorkerSwarm`
+- `auto`
+
+## Common Pitfalls
+
+<AccordionGroup>
+  <Accordion title="500 error: '`temperature` is deprecated for this model.'">
+    You set `temperature` in your `agent_config`. Remove the field entirely — the Swarms API will then omit it from the upstream Anthropic call. If you have legacy code that always sends a float, set it to `None` and rely on the Swarms API to strip it.
+  </Accordion>
+  <Accordion title="422 error on swarm_type">
+    Use `HierarchicalSwarm` (correctly spelled). Earlier versions of the API accepted the misspelled `HiearchicalSwarm`; the current schema only accepts the correct spelling.
+  </Accordion>
+  <Accordion title="Where do I find pricing?">
+    Opus 4.8 pricing follows Anthropic's published rates and is reflected in the Swarms cost-tracking endpoints. See the [pricing page](/docs/documentation/resources/pricing) for current rates.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- Browse the [Multi-Agent Architectures](/docs/documentation/multi-agent/overview) catalog for more swarm types
+- Read the [Single Agent Overview](/docs/examples/examples/agent-overview) for the full agent config surface
+- See [Streaming](/docs/examples/examples/streaming) to stream Opus 4.8 tokens to your client in real time

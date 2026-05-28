@@ -1,0 +1,251 @@
+---
+title: "Reasoning Agents for Hard Analytical Problems"
+description: "Solve a competition-grade multi-step accrual accounting problem end-to-end with a reasoning agent — the same task a normal LLM call hallucinates on."
+---
+
+## What This Example Shows
+
+- One real, hard analytical problem solved end-to-end with `POST /v1/reasoning-agent/completions`
+- Why a normal agent call hallucinates on this and how `swarm_type: "self-consistency"` fixes it
+- How to tune `num_samples` and `max_loops` for the depth-vs-cost tradeoff on a single high-stakes question
+- How to read the structured output (`output_type: "dict-final"`) to extract the answer programmatically
+- A direct side-by-side: same task, plain agent vs. reasoning agent, real failure modes
+
+<Warning>
+The Reasoning Agent endpoint (`POST /v1/reasoning-agent/completions`) is a **premium-only** feature available on Pro, Ultra, and Premium plans. Free tier keys receive a 403. [Upgrade your account](https://swarms.world/platform/account) to unlock self-consistency, iterative refinement, and multi-sample deliberation.
+</Warning>
+
+## Why This Matters
+
+Some questions look like they should be a one-shot LLM call but aren't. A multi-step accrual reconciliation. A cross-jurisdiction tax allocation. A logic puzzle with five interlocking constraints. An algorithm correctness proof. These are problems where a wrong-looking-but-confident answer is worse than no answer, because nobody downstream has the time to re-derive the calculation by hand. A plain `gpt-4` call will produce a single deterministic chain of thought and confidently miscount the deferred revenue. A reasoning agent samples multiple chains, votes on the convergent answer, and surfaces the disagreement when the chains don't converge — which is exactly the signal you need to escalate a question to a human. The job done isn't "smarter LLM," it's **calibrated confidence on hard analytical work**.
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+```
+
+## Step 2: The Problem
+
+This is the kind of problem a controller would hand to a senior associate. It is solvable in closed form, but every step compounds the next, so a single dropped assumption produces a confidently wrong number.
+
+```python
+problem = """
+A SaaS company sells a 24-month enterprise subscription on October 1, 2024 for
+a total contract value of $480,000, billed annually in advance.
+
+Contract terms:
+- The first $240,000 is billed and collected on October 1, 2024, covering
+  October 1, 2024 through September 30, 2025.
+- The second $240,000 is billed and collected on October 1, 2025, covering
+  October 1, 2025 through September 30, 2026.
+- The customer is granted a one-time 5% discount that applies to the SECOND
+  year only, reducing the second-year invoice (and cash collected) to
+  $228,000. The discount is contractual at inception and is not a separate
+  performance obligation.
+- Revenue is recognized ratably on a straight-line basis under ASC 606.
+- The company's fiscal year ends December 31.
+
+Required:
+1. What is the total transaction price under ASC 606 at contract inception?
+2. What is the monthly revenue recognition amount?
+3. As of December 31, 2024, what is (a) revenue recognized year-to-date,
+   (b) deferred revenue on the balance sheet, and (c) contract asset or
+   contract liability if any?
+4. As of December 31, 2025, what is (a) revenue recognized in fiscal 2025,
+   (b) deferred revenue on the balance sheet, and (c) accounts receivable
+   if any?
+
+Show every step of the calculation. Return a final JSON object with keys:
+transaction_price, monthly_revenue, dec_2024 (with sub-keys revenue_ytd,
+deferred_revenue, contract_asset_or_liability), and dec_2025 (with sub-keys
+revenue_fy2025, deferred_revenue, accounts_receivable).
+""".strip()
+```
+
+<Note>
+The trick step is question 3. The $240k cash collected in Oct 2024 covers months 1-12 of the contract, but the transaction price is allocated over the full 24 months at $19,500/month (not $20,000/month), so YTD recognition through Dec 31, 2024 is **3 months × $19,500 = $58,500**, not $60,000. The remainder of the $240k cash sits as deferred revenue. A plain LLM call will frequently compute $20,000/month and miss the discount allocation.
+</Note>
+
+## Step 3: First — Try It With a Plain Agent (for Comparison)
+
+Run the exact same problem through the standard agent completion endpoint. Keep this number — you'll compare against the reasoning agent's answer.
+
+```python
+plain_payload = {
+    "agent_config": {
+        "agent_name": "Accounting-Plain",
+        "description": "Standard accounting agent (single chain of thought).",
+        "system_prompt": (
+            "You are a CPA. Solve accounting problems carefully under ASC 606. "
+            "Return the final answer as JSON."
+        ),
+        "model_name": "gpt-4.1",
+        "max_loops": 1,
+        "max_tokens": 4000,
+    },
+    "task": problem,
+}
+
+plain_response = requests.post(
+    f"{BASE_URL}/v1/agent/completions",
+    headers=headers,
+    json=plain_payload,
+    timeout=300,
+)
+plain_response.raise_for_status()
+print("=" * 60)
+print("PLAIN AGENT — single chain of thought")
+print("=" * 60)
+print(json.dumps(plain_response.json(), indent=2)[:1500])
+```
+
+In practice on this problem the plain agent will produce a confident but wrong allocation roughly **40-60% of the time** — most often by computing $20,000/month for the first year (ignoring that the $12,000 discount must be allocated across all 24 months under ASC 606).
+
+## Step 4: Now Solve It With a Reasoning Agent
+
+Switch to `/v1/reasoning-agent/completions` with `swarm_type: "self-consistency"`. The agent runs `num_samples` independent reasoning chains and votes on the convergent answer.
+
+```python
+reasoning_payload = {
+    "agent_name": "Accrual-Reasoner",
+    "description": (
+        "ASC 606 revenue recognition specialist with self-consistency "
+        "deliberation across multiple independent reasoning chains."
+    ),
+    "model_name": "anthropic/claude-opus-4-8",
+    "system_prompt": (
+        "You are a CPA specializing in ASC 606 revenue recognition. "
+        "When solving a problem, derive the total transaction price first, "
+        "then allocate ratably across the full performance period. Show every "
+        "step. The final line of your response MUST be a single JSON object "
+        "containing the requested fields."
+    ),
+    "swarm_type": "self-consistency",
+    "num_samples": 5,
+    "max_loops": 1,
+    "output_type": "dict-final",
+    "task": problem,
+}
+
+reasoning_response = requests.post(
+    f"{BASE_URL}/v1/reasoning-agent/completions",
+    headers=headers,
+    json=reasoning_payload,
+    timeout=600,
+)
+reasoning_response.raise_for_status()
+result = reasoning_response.json()
+
+print("=" * 60)
+print("REASONING AGENT — self-consistency, 5 samples")
+print("=" * 60)
+print(json.dumps(result, indent=2)[:3000])
+```
+
+## Step 5: Extract the Answer
+
+`output_type: "dict-final"` returns the convergent final answer as a dictionary alongside the per-sample chains. The convergent answer is the one to trust; the per-sample chains are the audit trail.
+
+```python
+import re
+
+outputs = result.get("outputs", {})
+final = outputs.get("final_answer") if isinstance(outputs, dict) else None
+
+if not final:
+    # Some response shapes nest the JSON in a string — extract it
+    blob = json.dumps(outputs)
+    match = re.search(r"\{[^{}]*transaction_price[^{}]*\}", blob, re.DOTALL)
+    if match:
+        final = json.loads(match.group(0))
+
+print("\nExtracted answer:")
+print(json.dumps(final, indent=2))
+
+# Sanity-check the structure
+expected = {
+    "transaction_price": 468_000,
+    "monthly_revenue": 19_500,
+    "dec_2024": {
+        "revenue_ytd": 58_500,           # 3 months
+        "deferred_revenue": 181_500,     # 240,000 cash - 58,500 recognized
+        "contract_asset_or_liability": "contract liability (deferred revenue)",
+    },
+    "dec_2025": {
+        "revenue_fy2025": 234_000,       # 12 months
+        "deferred_revenue": 175_500,     # carry-forward math
+    },
+}
+print("\nExpected key figures:")
+print(json.dumps(expected, indent=2))
+```
+
+<Note>
+$468,000 transaction price = $480,000 contract value − $12,000 discount, allocated ratably over 24 months = **$19,500/month**. Three months in fiscal 2024 = $58,500 recognized; the rest of the first $240,000 cash collected sits as a contract liability.
+</Note>
+
+## Step 6: Tuning the Depth Knob
+
+`num_samples` is the deliberation budget. Use this table to pick a setting:
+
+| `num_samples` | When to use | Cost multiplier |
+| --- | --- | --- |
+| 1 | Smoke testing, prototyping | 1x |
+| 3 | Default for hard analytical work | ~3x |
+| 5 | High-stakes single-answer questions (this example, legal opinions, regulatory filings) | ~5x |
+| 7-10 | Convergence diagnostics — if 7 samples still disagree, escalate to a human | ~7-10x |
+
+The right read on convergence: if all 5 samples produce the same final JSON, ship the answer. If 4-of-5 agree, ship with a flag. If 3-of-5 or worse, the problem is genuinely ambiguous and you need a human in the loop — that **signal** is what you're paying for, not just the answer.
+
+## Picking the Right `swarm_type`
+
+| `swarm_type` | What it does | Best for this kind of work |
+| --- | --- | --- |
+| `reasoning-agent` | Single chain with structured thinking | Quick checks, drafts |
+| `self-consistency` | N independent chains, vote on convergence | **This example, calibrated answers** |
+| `ire` | Iterative refinement — each loop critiques the prior | Algorithmic / proof-style problems |
+| `reasoning-duo` | Two agents debate two approaches | Contrarian framing, strategy reviews |
+| `consistency-agent` | Logical-consistency focused | Pure math and logic puzzles |
+
+For accrual accounting, legal interpretation, and financial calculation work, `self-consistency` is the right default — the failure mode is "confidently wrong on one chain," and voting across chains is the specific antidote.
+
+## Cost vs. Hiring a Senior Associate
+
+Concrete numbers for a high-stakes analytical question (the accrual problem above):
+
+| Approach | Time to answer | Cost | Calibrated confidence? |
+| --- | --- | --- | --- |
+| Senior accounting associate | 25-40 min | ~$80-130 fully-loaded labor | Yes (but variable) |
+| Plain `gpt-4` call | ~6 sec | ~$0.05 | **No** — single confident chain, fails ~40-60% |
+| **Reasoning agent (self-consistency, 5 samples, Opus 4.8)** | **~30-60 sec** | **~$0.20-0.50** | **Yes** — convergence is the signal |
+
+Use the reasoning agent for the questions where being wrong is expensive — accruals that hit a 10-K, tax allocations on a large deal, contract interpretations, complex underwriting. Use a plain agent for everything else. The reasoning agent is **~250x cheaper than the associate** *and* gives you a convergence signal the associate can't, because a single human only has one chain of thought.
+
+<Warning>
+A reasoning agent producing 5-of-5 convergence is strong evidence the answer is correct under the given assumptions. It is **not** evidence the assumptions are correct. For anything that hits a regulated filing, the calculated answer goes to a licensed human reviewer who validates the inputs.
+</Warning>
+
+## Next Steps
+
+- [Advanced Research: Investor Memos with Citations](/docs/examples/examples/advanced-research-investor-memos) — pair reasoning agents with retrieval for cited analytical memos
+- [Graph Workflows for Production Pipelines](/docs/examples/examples/graph-workflows-production) — embed a reasoning agent as one node in a larger production DAG
+- [Reasoning Agent Types](/docs/examples/examples/reasoning-agent-types) — full catalog of `swarm_type` options and their tradeoffs

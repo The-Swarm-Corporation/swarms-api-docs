@@ -88,7 +88,9 @@
             "group": "Batch",
             "pages": [
               "docs/examples/examples/batch-processing",
+              "docs/examples/examples/batch-agent-scale-tutorial",
               "docs/examples/examples/batch-swarm-completions",
+              "docs/examples/examples/batch-swarm-scale-tutorial",
               "docs/documentation/multi-agent/batched_grid_workflow"
             ]
           },
@@ -233,6 +235,8 @@
               "docs/examples/examples/mcp-integration",
               "docs/examples/examples/agent-handoffs",
               "docs/examples/examples/sub-agent-delegation",
+              "docs/examples/examples/claude-opus-4-8",
+              "docs/examples/examples/reasoning-agents-tutorial",
               "docs/examples/api_examples/agent_completion_single_agent",
               "docs/examples/api_examples/autonomous_agent_tutorial",
               "docs/examples/examples/openai-compatible"
@@ -249,12 +253,15 @@
               "docs/examples/examples/majority-voting",
               "docs/examples/examples/group-chat",
               "docs/examples/examples/graph-workflow",
+              "docs/examples/examples/graph-workflows-production",
               "docs/examples/examples/advanced-research",
               "docs/examples/examples/debate-with-judge",
               "docs/examples/examples/heavy-swarm",
               "docs/examples/examples/round-robin",
               "docs/examples/examples/llm-council",
-              "docs/examples/examples/council-as-judge"
+              "docs/examples/examples/council-as-judge",
+              "docs/examples/examples/auto-swarm-builder-tutorial",
+              "docs/examples/examples/tools-in-swarms"
             ]
           },
           {
@@ -264,7 +271,18 @@
               "docs/examples/examples/legal-team",
               "docs/examples/examples/icd-analysis",
               "docs/examples/api_examples/legal_team",
-              "docs/examples/examples/seo-content-pipeline"
+              "docs/examples/examples/seo-content-pipeline",
+              "docs/examples/examples/supply-chain-swarm",
+              "docs/examples/examples/etf-analysis-grid",
+              "docs/examples/examples/crypto-quant-agent",
+              "docs/examples/examples/ai-hedge-fund",
+              "docs/examples/examples/insurance-claims-triage",
+              "docs/examples/examples/real-estate-investment-memo",
+              "docs/examples/examples/clinical-case-conference",
+              "docs/examples/examples/ma-due-diligence",
+              "docs/examples/examples/intelligence-triage-pipeline",
+              "docs/examples/examples/consulting-deliverable-generator",
+              "docs/examples/examples/advanced-research-investor-memos"
             ]
           },
           {

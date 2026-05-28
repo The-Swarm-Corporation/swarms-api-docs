@@ -1,0 +1,302 @@
+---
+title: "M&A Due Diligence Swarm"
+description: "A cross-functional hierarchical swarm where a Deal Lead synthesizes Financial, Legal, Tax, and Technical findings into a single deal memo with go/no-go recommendation."
+---
+
+## What This Example Shows
+
+- A `HierarchicalSwarm` modeling a real **M&A diligence team**, not a single-discipline review
+- A Deal Lead (director) coordinating four specialist workers: Financial Analyst, Legal Counsel, Tax Counsel, and Technical Auditor
+- How the director **synthesizes** parallel findings into one structured deal memo: red flags, financial highlights, legal risks, and go / no-go / conditional
+- How to fan the same swarm across a **portfolio of targets** overnight using `/v1/swarm/batch/completions`
+- Concrete cost-per-target versus a real mid-market diligence engagement
+
+<Info>
+This example runs on premium swarm infrastructure, and the batch endpoint at the end requires a Pro / Ultra / Premium plan. Manage your plan and credits at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+</Info>
+
+## Why This Matters
+
+A mid-market M&A diligence engagement typically runs **$150,000 to $500,000+** across legal, financial, tax, and technical advisors, with partner-level attorney rates of **$800 to $1,500 per hour** and Big-Four diligence fees in similar ranges. Most of that spend goes into the **first-pass screen** — the read that decides whether the target is even worth a full diligence engagement. That first-pass screen is exactly the job this swarm does: cross-functional, structured, opinionated, and cheap enough to run on every target in your pipeline. The differentiator versus a single-discipline legal-review swarm is that **deals are killed by tax exposure, broken financials, or tech debt as often as by legal risk** — you need all four lenses simultaneously, with one synthesizer at the top.
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+```
+
+Create a `.env` file:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+Get your key at [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+## Step 2: Configure the Client
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 3: Describe the Target
+
+```python
+target_brief = """
+Target: NorthArc Logistics, Inc.
+Sector: Mid-market last-mile B2B logistics, U.S. Midwest
+Stage: Profitable, founder-owned, 12 years old
+
+Headline financials (target-provided, unaudited):
+- TTM revenue: $84M, growing 11% YoY
+- TTM EBITDA: $9.8M (11.7% margin)
+- Net working capital: $6.1M
+- Long-term debt: $14M (senior secured, 7.25% fixed)
+- Customer concentration: top 3 customers = 47% of revenue
+
+Asking price: $78M cash-free debt-free, plus working-capital peg.
+
+Strategic context:
+- Acquirer is a PE-backed national logistics roll-up at $400M revenue.
+- Two prior LOIs on the same target broke in diligence (reason unknown).
+- Founder will roll 20% equity and stay for a 2-year earnout.
+
+Known issues raised by sell-side banker:
+- Two trucks involved in 2023 multi-vehicle accident, litigation ongoing.
+- Recent state sales-tax audit closed, but federal nexus question
+  raised by acquirer's tax advisor.
+- Custom dispatch software built in-house; no vendor, two engineers
+  on payroll maintain it.
+- One union shop (one of three terminals), CBA expires in 14 months.
+
+Deliverable: structured deal memo with go / no-go / conditional
+recommendation and the three deal-breaker items to clear before LOI.
+"""
+```
+
+## Step 4: Build the Diligence Team
+
+The Deal Lead is intentionally constrained to **synthesis and a recommendation** — not redoing the workstreams. Each specialist owns one lane.
+
+```python
+payload = {
+    "name": "M&A Due Diligence Swarm",
+    "description": (
+        "Cross-functional diligence: Deal Lead synthesizes Financial, "
+        "Legal, Tax, and Technical findings into a single deal memo."
+    ),
+    "swarm_type": "HierarchicalSwarm",
+    "max_loops": 1,
+    "task": (
+        "Conduct a first-pass M&A diligence on the target below. Each "
+        "specialist should produce findings strictly within their domain. "
+        "The Deal Lead must produce a structured deal memo with: "
+        "(1) top red flags ranked by severity, (2) financial highlights "
+        "and quality-of-earnings concerns, (3) legal, tax, and technical "
+        "risks, (4) a go / no-go / conditional recommendation with the "
+        "three specific items that must be cleared before signing an LOI, "
+        "and (5) suggested valuation adjustments.\n\n"
+        f"TARGET BRIEF:\n{target_brief}"
+    ),
+    "agents": [
+        {
+            "agent_name": "Deal Lead",
+            "description": (
+                "Diligence partner. Reviews each workstream, reconciles "
+                "conflicts, and writes the single deal memo."
+            ),
+            "system_prompt": (
+                "You are the Deal Lead on this M&A engagement. You do NOT "
+                "redo the specialists' work. Your job is to: "
+                "(1) rank red flags across all four workstreams by deal "
+                "impact, (2) reconcile disagreements, (3) deliver a "
+                "go / no-go / conditional recommendation, (4) name the "
+                "three specific items that must clear before signing an "
+                "LOI, and (5) propose any valuation adjustments. Output "
+                "a structured memo. Be decisive. No hedging without "
+                "naming the specific data you would need to decide."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "coordinator",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Financial Analyst",
+            "description": "Quality of earnings, working capital, debt.",
+            "system_prompt": (
+                "You are an M&A financial analyst. Focus on quality of "
+                "earnings, working-capital normalizations, customer "
+                "concentration risk, EBITDA add-backs that are likely "
+                "to be challenged, and debt structure. Identify the top "
+                "QoE concerns and the specific schedules you would need "
+                "from the sell-side data room to clear them. Do not "
+                "comment on legal, tax, or technology matters."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Legal Counsel",
+            "description": "Corporate, litigation, employment, regulatory.",
+            "system_prompt": (
+                "You are M&A legal counsel. Focus on litigation exposure, "
+                "the union CBA expiring in 14 months, employment and "
+                "change-of-control issues, material contracts, customer "
+                "assignability, and regulatory matters. Identify the top "
+                "legal red flags and the documents you would request "
+                "first. Do not comment on financial, tax, or technical "
+                "matters."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Tax Counsel",
+            "description": "Federal, state, sales/use, structuring.",
+            "system_prompt": (
+                "You are M&A tax counsel. Focus on the federal sales-tax "
+                "nexus question, multi-state exposure for a logistics "
+                "operator, deal-structure implications (stock vs asset, "
+                "338(h)(10), F-reorg), the founder's rollover equity, "
+                "and any indemnity / escrow recommendations for tax "
+                "contingencies. Quantify exposure where possible. Do not "
+                "comment on financial, legal, or technical matters."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Technical Auditor",
+            "description": "Tech stack, key-person risk, integration.",
+            "system_prompt": (
+                "You are a technical diligence auditor. Focus on the "
+                "in-house dispatch software: key-person risk on the two "
+                "engineers, code ownership and IP assignment, scalability "
+                "to the acquirer's $400M roll-up, integration cost, and "
+                "the build-vs-buy decision post-close. Identify the top "
+                "technical risks and the artifacts you would request "
+                "(architecture docs, code review, runbooks). Do not "
+                "comment on financial, legal, or tax matters."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+    ],
+}
+```
+
+## Step 5: Run the Diligence
+
+```python
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=payload,
+    timeout=600,
+)
+
+result = response.json()
+
+for output in result.get("output", []):
+    print("=" * 60)
+    print(output["role"])
+    print("=" * 60)
+    content = output["content"]
+    if isinstance(content, list):
+        content = " ".join(str(c) for c in content)
+    print(str(content)[:600] + "...")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+<Note>
+Workers do not see each other's drafts. The Deal Lead sees every specialist output and writes the final memo. This is the right shape for first-pass diligence: independent workstreams in parallel, then one synthesizer.
+</Note>
+
+## The Cost Story
+
+| Resource | Real-world cost | This swarm |
+| --- | --- | --- |
+| Partner-level M&A attorney (first read) | $800 – $1,500 / hour | Included |
+| Quality-of-earnings work (Big-Four) | $50,000 – $150,000 | Included |
+| Tax structuring memo | $25,000 – $75,000 | Included |
+| Technical diligence (boutique) | $25,000 – $100,000 | Included |
+| **Per-target first-pass screen** | **$150K – $500K+** | **Typically a few dollars or less** |
+
+The swarm does not replace your advisors. It replaces the **decision of whether to spend $150K on advisors**. At a few dollars per run, you can screen every target your bankers send you instead of only the ones that already look interesting — which is where most missed deals hide.
+
+## Step 6: Run a Portfolio Overnight
+
+The biggest practical win of this pattern is running it as a **batch across every target in your pipeline**. Same swarm config, list of tasks, one API call. Results land in your inbox in the morning.
+
+```python
+# Three additional target briefs from your pipeline
+target_brief_2 = "Target: BlueShore Foods... [your second target]"
+target_brief_3 = "Target: Helix Industrial... [your third target]"
+
+briefs = [target_brief, target_brief_2, target_brief_3]
+
+def make_task(brief: str) -> str:
+    return (
+        "Conduct a first-pass M&A diligence on the target below. "
+        "Produce the deal memo per the swarm spec.\n\n"
+        f"TARGET BRIEF:\n{brief}"
+    )
+
+batch_payload = [{**payload, "task": make_task(b)} for b in briefs]
+
+batch_response = requests.post(
+    f"{BASE_URL}/v1/swarm/batch/completions",
+    headers=headers,
+    json=batch_payload,
+    timeout=1800,
+)
+
+for i, deal_result in enumerate(batch_response.json()):
+    print(f"\n=== TARGET {i + 1} ===")
+    print(
+        f"Cost: ${deal_result['usage']['billing_info']['total_cost']:.4f} | "
+        f"Time: {deal_result['execution_time']:.1f}s"
+    )
+```
+
+<Warning>
+The `/v1/swarm/batch/completions` endpoint is a premium feature requiring a Pro, Ultra, or Premium plan. See [Premium Endpoints](/docs/documentation/resources/premium-endpoints) and manage your plan at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+</Warning>
+
+## Differentiation From Related Examples
+
+- The [Legal Document Review Swarm](/docs/examples/examples/legal-team) is a *sequential, legal-only* contract review. This swarm is *hierarchical and cross-functional* — finance, tax, and technical specialists work alongside legal, because deals are killed by all four.
+- The [Supply Chain Hierarchical Swarm](/docs/examples/examples/supply-chain-swarm) uses the same architectural pattern in a different domain — useful as a template for any cross-functional analyst team.
+
+## Next Steps
+
+- Read [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions) for the full portfolio-mode pattern
+- Try [Claude Opus 4.8](/docs/examples/examples/claude-opus-4-8) as the model for the Deal Lead for sharper synthesis
+- Adapt to other professional-services workflows using the [Hierarchical Workflow Example](/docs/examples/examples/hierarchical-workflow)

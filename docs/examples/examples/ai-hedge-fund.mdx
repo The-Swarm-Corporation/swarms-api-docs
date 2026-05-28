@@ -1,0 +1,235 @@
+---
+title: "Build an AI Hedge Fund Research Pipeline"
+description: "A HierarchicalSwarm of a Portfolio Manager directing Fundamentals, Technicals, and Macro analysts — then scaled overnight across a full watchlist with batch completions."
+---
+
+## What This Example Shows
+
+- A `HierarchicalSwarm` with a Portfolio Manager (director) coordinating three worker analysts: Fundamentals, Technicals, and Macro
+- How to produce a structured buy/sell/hold call with a key signal for a single ticker
+- How to scale the same swarm across a 20-ticker watchlist using `/v1/swarm/batch/completions`
+- A realistic cost comparison against staffing a junior analyst team
+
+<Info>
+This tutorial uses `HierarchicalSwarm` and `/v1/swarm/batch/completions` — both included in every paid Swarms tier. For overnight batch jobs across hundreds of tickers, upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) for higher rate limits and parallel execution.
+</Info>
+
+## Why This Matters
+
+Most discretionary research desks are bottlenecked by the same thing: one analyst, one ticker at a time. A small fund's morning meeting touches maybe five names. By 9:30 AM half the watchlist has already moved without coverage. The job here is not to replace the PM's judgement — it is to put a structured, repeatable research note in front of them for every ticker on the watchlist before the open, every day. That is exactly what a hierarchical swarm of specialist analysts does cheaply and on a schedule.
+
+## Step 1: Setup
+
+Install the dependencies and grab your API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+```bash
+pip install requests python-dotenv
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Analyst Team
+
+The Portfolio Manager owns the final call. Each analyst owns a single lens — fundamentals, technicals, or macro — and writes a tight brief the PM can act on.
+
+```python
+PORTFOLIO_MANAGER_PROMPT = (
+    "You are a Portfolio Manager at a long/short equity hedge fund. "
+    "Review the briefs from your Fundamentals, Technicals, and Macro analysts. "
+    "Issue a single decision in this exact format:\n\n"
+    "TICKER: <symbol>\n"
+    "CALL: <BUY | SELL | HOLD>\n"
+    "CONVICTION: <LOW | MEDIUM | HIGH>\n"
+    "KEY SIGNAL: <one sentence on the single strongest driver of the call>\n"
+    "RISK: <one sentence on the primary risk to the thesis>\n\n"
+    "Be decisive. Do not hedge across all three analysts — pick the dominant signal."
+)
+
+FUNDAMENTALS_PROMPT = (
+    "You are a Fundamental Equity Analyst. Given a ticker, write a brief covering: "
+    "revenue growth trajectory, margin profile, FCF generation, balance sheet health, "
+    "and the single most important catalyst over the next two quarters. "
+    "Keep it under 200 words. Be specific."
+)
+
+TECHNICALS_PROMPT = (
+    "You are a Technical Analyst. Given a ticker, write a brief covering: "
+    "current trend regime, key support and resistance levels, momentum indicators "
+    "(RSI, MACD), volume profile, and a near-term target with stop. "
+    "Keep it under 200 words. Be specific."
+)
+
+MACRO_PROMPT = (
+    "You are a Macro Analyst. Given a ticker, write a brief covering: "
+    "sector positioning vs. the current rate regime, FX and commodity sensitivities, "
+    "policy and regulatory tailwinds or headwinds, and how the name behaves in a "
+    "risk-off rotation. Keep it under 200 words. Be specific."
+)
+
+
+def build_swarm_for_ticker(ticker: str) -> dict:
+    return {
+        "name": f"AI Hedge Fund Research — {ticker}",
+        "description": "Portfolio Manager directing Fundamentals, Technicals, and Macro analysts.",
+        "swarm_type": "HierarchicalSwarm",
+        "max_loops": 1,
+        "task": (
+            f"Produce a same-day research note for {ticker}. "
+            f"Each analyst writes their brief, then the Portfolio Manager issues a final call."
+        ),
+        "agents": [
+            {
+                "agent_name": "Portfolio Manager",
+                "description": "Director — synthesizes analyst briefs into a single call.",
+                "system_prompt": PORTFOLIO_MANAGER_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "coordinator",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.2,
+            },
+            {
+                "agent_name": "Fundamentals Analyst",
+                "description": "Earnings, margins, balance sheet, catalysts.",
+                "system_prompt": FUNDAMENTALS_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.4,
+            },
+            {
+                "agent_name": "Technicals Analyst",
+                "description": "Trend, levels, momentum, volume.",
+                "system_prompt": TECHNICALS_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.4,
+            },
+            {
+                "agent_name": "Macro Analyst",
+                "description": "Rates, FX, commodities, policy.",
+                "system_prompt": MACRO_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.4,
+            },
+        ],
+    }
+```
+
+## Step 3: Run One Ticker End-to-End
+
+Start with a single name — this is the loop you will scale.
+
+```python
+def run_single_ticker(ticker: str) -> dict:
+    payload = build_swarm_for_ticker(ticker)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+result = run_single_ticker("NVDA")
+
+for output in result.get("output", []):
+    print("=" * 60)
+    print(output["role"])
+    print("=" * 60)
+    content = output["content"]
+    if isinstance(content, list):
+        content = " ".join(str(c) for c in content)
+    print(str(content)[:600])
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+<Note>
+The Portfolio Manager's final output is the one you persist to your research database. The three analyst briefs are the audit trail that justifies the call — every PM signoff is fully reproducible from the inputs.
+</Note>
+
+## Step 4: Scale Across the Watchlist with Batch Completions
+
+For overnight research notes across an entire watchlist, send every ticker as one payload to `/v1/swarm/batch/completions`. The API executes the swarms in parallel and returns a list of results.
+
+```python
+WATCHLIST = [
+    "NVDA", "AAPL", "MSFT", "GOOGL", "META",
+    "AMZN", "TSLA", "AMD", "AVGO", "CRM",
+    "ORCL", "ADBE", "NFLX", "PYPL", "SHOP",
+    "UBER", "COIN", "PLTR", "SNOW", "DDOG",
+]
+
+
+def run_watchlist_batch(tickers: list[str]) -> list[dict]:
+    payload = [build_swarm_for_ticker(t) for t in tickers]
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/batch/completions",
+        headers=headers,
+        json=payload,
+        timeout=900,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+results = run_watchlist_batch(WATCHLIST)
+
+with open("morning_notes.jsonl", "w") as f:
+    for ticker, result in zip(WATCHLIST, results):
+        # Extract the Portfolio Manager's final call
+        pm_call = next(
+            (o["content"] for o in result.get("output", []) if "Portfolio Manager" in o.get("role", "")),
+            "",
+        )
+        if isinstance(pm_call, list):
+            pm_call = " ".join(str(c) for c in pm_call)
+        f.write(json.dumps({"ticker": ticker, "call": pm_call}) + "\n")
+
+total_cost = sum(r.get("usage", {}).get("billing_info", {}).get("total_cost", 0) for r in results)
+print(f"Generated {len(results)} morning notes for ${total_cost:.2f}")
+```
+
+<Info>
+Schedule this script as a cron job for 6:00 AM ET on weekdays. By the time the PM sits down with coffee, `morning_notes.jsonl` has a structured call for every ticker on the watchlist — with the analyst briefs sitting in the full response for any name they want to drill into.
+</Info>
+
+## Real Cost vs. Human Analyst
+
+| Scenario | Cost per ticker | Cost per day (20 tickers) | Annualized |
+| --- | --- | --- | --- |
+| Hierarchical swarm (4 agents, GPT-4.1) | ~$0.12 | ~$2.40 | ~$600 |
+| One junior analyst (fully loaded $150k) | — | ~$600 | $150,000 |
+| Three-analyst pod (junior + mid + senior) | — | ~$2,000 | $500,000 |
+
+The swarm is not a replacement for your PM — it is a tireless research associate that runs every night so your humans can spend their time on the calls that actually matter.
+
+## Next Steps
+
+- See [Claude Opus 4.8](/docs/examples/examples/claude-opus-4-8) to swap in Anthropic's strongest reasoning model for high-conviction names
+- Read the [ETF Analysis Grid](/docs/examples/examples/etf-analysis-grid) for the fan-out × fan-out variant when you have multiple analyst lenses and multiple universes
+- Browse the [Hierarchical Workflow Example](/docs/examples/examples/hierarchical-workflow) for the director-and-workers pattern applied to software teams

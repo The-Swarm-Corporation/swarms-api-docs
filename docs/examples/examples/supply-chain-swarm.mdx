@@ -1,0 +1,158 @@
+---
+title: "Supply Chain Hierarchical Swarm"
+description: "A hierarchical swarm of logistics, inventory, and procurement specialists coordinated by a Supply Chain Director."
+---
+
+## What This Example Shows
+
+- A `HierarchicalSwarm` applied to a real-world business analysis problem
+- A director coordinating three domain specialists (logistics, inventory, procurement)
+- How to write director and worker system prompts that compose cleanly
+
+<Info>
+This is the same hierarchical pattern as the [Hierarchical Workflow Example](/docs/examples/examples/hierarchical-workflow), applied to supply chain analysis instead of software development. Swap the worker roles and prompts to apply it to any domain — legal review, M&A due diligence, clinical case conferences, marketing campaign planning.
+</Info>
+
+## Step 1: Setup
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = os.getenv("SWARMS_BASE_URL", "https://api.swarms.world")
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Team
+
+The director sets strategy and synthesizes. Each specialist owns one functional area.
+
+```python
+payload = {
+    "name": "Supply Chain Hierarchical Swarm",
+    "description": "Director coordinates logistics, inventory, and procurement specialists.",
+    "swarm_type": "HierarchicalSwarm",
+    "max_loops": 1,
+    "task": (
+        "Analyze the current supply chain challenges facing the semiconductor "
+        "industry and provide optimization recommendations for a mid-sized "
+        "electronics manufacturer. Consider:\n"
+        "1. Current supply chain bottlenecks and disruptions\n"
+        "2. Inventory management strategies during shortages\n"
+        "3. Supplier diversification opportunities\n"
+        "4. Long-term resilience improvements"
+    ),
+    "agents": [
+        {
+            "agent_name": "Supply Chain Director",
+            "description": "Oversees strategy and synthesizes specialist outputs.",
+            "system_prompt": (
+                "You are a Supply Chain Director with extensive global experience. "
+                "Coordinate analysis across logistics, inventory, and procurement. "
+                "Identify bottlenecks, develop optimization strategies, and ensure "
+                "resilience and risk mitigation. Synthesize your team's input into "
+                "actionable strategic recommendations."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "coordinator",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Logistics Specialist",
+            "description": "Transportation and distribution optimization.",
+            "system_prompt": (
+                "You are a Logistics Specialist. Focus on transportation modes, "
+                "route planning, distribution network design, last-mile delivery, "
+                "and freight cost optimization. Provide detailed analysis with "
+                "improvement recommendations."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.4,
+        },
+        {
+            "agent_name": "Inventory Manager",
+            "description": "Stock optimization and demand forecasting.",
+            "system_prompt": (
+                "You are an Inventory Management expert. Focus on demand "
+                "forecasting, inventory optimization, safety stock, warehouse "
+                "utilization, and carrying-cost reduction. Provide data-driven "
+                "recommendations."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.4,
+        },
+        {
+            "agent_name": "Procurement Analyst",
+            "description": "Supplier management and strategic sourcing.",
+            "system_prompt": (
+                "You are a Procurement Analyst. Focus on supplier evaluation, "
+                "sourcing strategy, vendor diversification, contract negotiation, "
+                "and supplier risk assessment. Balance cost efficiency with "
+                "supply reliability."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.4,
+        },
+    ],
+}
+```
+
+## Step 3: Run the Swarm
+
+```python
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=payload,
+    timeout=300,
+)
+
+result = response.json()
+
+for output in result.get("output", []):
+    print("=" * 60)
+    print(output["role"])
+    print("=" * 60)
+    content = output["content"]
+    if isinstance(content, list):
+        content = " ".join(str(c) for c in content)
+    print(str(content)[:400] + "...")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+<Note>
+The director sees every specialist's output and writes the final synthesis. Workers do not see each other's drafts. Design your director prompt around "review, decide, recommend" — not "write a long report."
+</Note>
+
+## Adapting the Pattern
+
+Replace the three specialists to retarget the swarm:
+
+| Domain | Director | Workers |
+| --- | --- | --- |
+| **M&A due diligence** | Deal Lead | Financial Analyst, Legal Counsel, Technical Auditor |
+| **Clinical case conference** | Attending Physician | Radiologist, Pathologist, Cardiologist |
+| **Marketing campaign** | Brand Director | Copywriter, Designer, Performance Marketer |
+| **Software architecture review** | Principal Engineer | Backend Engineer, Database Engineer, Security Engineer |
+
+Everything else — the request shape, the response shape, the billing — stays identical.

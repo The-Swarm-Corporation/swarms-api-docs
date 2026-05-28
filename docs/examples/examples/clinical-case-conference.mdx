@@ -1,0 +1,271 @@
+---
+title: "Clinical Case Conference Swarm"
+description: "A multi-specialty tumor-board-style swarm where an Attending Physician synthesizes Radiology, Pathology, Cardiology, and Hospitalist input into a single treatment plan."
+---
+
+## What This Example Shows
+
+- A `HierarchicalSwarm` configured as a virtual **tumor board / case conference**
+- An Attending Physician (director) coordinating four specialist workers: Radiologist, Pathologist, Cardiologist, and Hospitalist
+- How the director **synthesizes** independent specialist opinions into one differential diagnosis, workup plan, and treatment recommendation
+- Concrete cost-per-case versus a real-world in-person multi-specialty consult
+- The difference between this pattern and a generic hospital staff swarm (the worker roster here is *physicians-only*, focused on diagnostic synthesis rather than nursing workflow)
+
+<Info>
+This example runs on premium swarm infrastructure. You will need an active Swarms account with available credits to execute it. Manage credits and plans at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+</Info>
+
+<Warning>
+**Medical disclaimer**: This example is for development and research purposes only. Output from this swarm is **not** a substitute for clinical judgment and **must not** be used for direct clinical decision-making without review by a licensed physician. The Swarms API is not a medical device, is not HIPAA-attested by default, and provides no diagnostic warranty.
+</Warning>
+
+## Why This Matters
+
+A real multi-disciplinary case conference (oncology tumor board, complex-cardiology rounds, MDT meeting) requires four to six specialists in the same room for an hour — easily **$1,500 to $2,500 per case** in loaded physician time, before scheduling delays. The job to be done is not "answer a medical question." It is **structured synthesis across specialties** so the attending walks out with one defensible plan. The hierarchical swarm replicates exactly that shape: parallel specialist opinions, then a director who decides. You spend cents, you wait under a minute, and you get an artifact you can hand to a licensed reviewer.
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+```
+
+Create a `.env` file:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+```
+
+Get your key at [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+## Step 2: Configure the Case Conference
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 3: Define the Patient Case
+
+This is the kind of multi-system presentation a single-specialist agent would underperform on — exactly the case worth taking to a board.
+
+```python
+patient_case = """
+Patient: 62-year-old female, never-smoker
+
+Chief Complaint: 8 weeks of progressive right-upper-quadrant discomfort,
+20-lb unintentional weight loss, intermittent low-grade fevers.
+
+Imaging:
+- CT chest/abdomen/pelvis with contrast: 4.2 cm hypodense mass in
+  segment VII of the liver with arterial-phase enhancement and
+  washout. Three sub-cm pulmonary nodules in the right lower lobe.
+  No lymphadenopathy.
+- MRI liver: lesion is T2-hyperintense with restricted diffusion,
+  no clear capsule. Background liver is non-cirrhotic.
+
+Pathology (core-needle biopsy of liver lesion):
+- Poorly differentiated carcinoma. CK7+, CK20-, TTF-1 weak focal+,
+  Hep-Par1 negative, CDX2 negative. Ki-67 ~ 45%.
+
+Labs:
+- AFP 6 ng/mL, CEA 3.1 ng/mL, CA 19-9 42 U/mL
+- LFTs: AST 64, ALT 71, ALP 220, total bilirubin 1.0
+- CBC: Hgb 10.8, MCV 88, platelets 410
+- Troponin negative; BNP 380 pg/mL
+- ECG: sinus tachycardia at 104, no ischemic changes
+
+Cardiac history:
+- Hypertension, HFpEF (EF 55%), prior NSTEMI 2 years ago, on
+  aspirin + atorvastatin + metoprolol.
+
+Performance status: ECOG 1.
+"""
+```
+
+## Step 4: Build the Swarm
+
+The director's prompt is intentionally framed around **review, decide, and produce a single structured artifact** — not "write everything you know." Specialists each own one lane.
+
+```python
+payload = {
+    "name": "Clinical Case Conference Swarm",
+    "description": (
+        "Virtual tumor board: attending physician synthesizes radiology, "
+        "pathology, cardiology, and hospitalist input into a single plan."
+    ),
+    "swarm_type": "HierarchicalSwarm",
+    "max_loops": 1,
+    "task": (
+        "Conduct a virtual multi-specialty case conference on the patient "
+        "below. Each specialist should give an opinion limited to their "
+        "domain. The attending must produce a final structured note with: "
+        "(1) ranked differential diagnosis with reasoning, (2) recommended "
+        "next workup with rationale, (3) initial treatment plan including "
+        "cardiac-safety considerations, and (4) open questions for the "
+        "treating team.\n\n"
+        f"CASE:\n{patient_case}"
+    ),
+    "agents": [
+        {
+            "agent_name": "Attending Physician",
+            "description": (
+                "Conference chair. Reviews specialist input, decides, "
+                "and produces the single integrated plan."
+            ),
+            "system_prompt": (
+                "You are the Attending Physician chairing a multi-disciplinary "
+                "case conference. You do NOT re-do the specialists' work. "
+                "Your job is to: (1) reconcile disagreements between "
+                "specialists, (2) commit to a ranked differential, "
+                "(3) order the next workup, (4) propose initial therapy "
+                "with explicit cardiac-safety considerations given the "
+                "patient's HFpEF and prior NSTEMI, and (5) list open "
+                "questions for the treating team. Be decisive. Output a "
+                "structured plan, not an essay."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "coordinator",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Radiologist",
+            "description": "Body imaging specialist.",
+            "system_prompt": (
+                "You are a board-certified diagnostic radiologist with "
+                "abdominal-imaging fellowship training. Given the CT and "
+                "MRI descriptions, characterize the dominant liver lesion "
+                "(LI-RADS where applicable), comment on the pulmonary "
+                "nodules, and propose the single most informative next "
+                "imaging study. Stay in your lane: do not propose "
+                "treatment. Be concise."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Pathologist",
+            "description": "Anatomic and molecular pathology specialist.",
+            "system_prompt": (
+                "You are an anatomic pathologist with experience in "
+                "hepatobiliary and metastatic-of-unknown-primary cases. "
+                "Given the IHC panel, interpret the lineage of the "
+                "carcinoma, list the most likely primary sites in ranked "
+                "order, and propose additional stains or molecular tests "
+                "(NGS panel, specific markers) that would narrow it "
+                "further. Do not propose treatment."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Cardiologist",
+            "description": "Cardio-oncology and HFpEF specialist.",
+            "system_prompt": (
+                "You are a cardiologist with cardio-oncology experience. "
+                "Given this patient's HFpEF, prior NSTEMI, and current "
+                "BNP and tachycardia, assess cardiac risk for the likely "
+                "upcoming systemic therapies (platinum doublets, "
+                "anthracyclines, immune checkpoint inhibitors, targeted "
+                "agents). Recommend baseline cardiac workup and any "
+                "drug-class restrictions or monitoring requirements. Do "
+                "not stage the cancer or pick the regimen."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Hospitalist",
+            "description": "Internal medicine generalist and care coordinator.",
+            "system_prompt": (
+                "You are a hospitalist. Your job is the whole-patient "
+                "view: nutrition (20-lb weight loss), anemia workup "
+                "(Hgb 10.8), elevated ALP, performance-status trajectory, "
+                "supportive care, and care-coordination handoffs. Flag "
+                "anything that should be addressed before oncologic "
+                "therapy begins. Do not duplicate the specialists' work."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+    ],
+}
+```
+
+## Step 5: Run the Conference
+
+```python
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=payload,
+    timeout=600,
+)
+
+result = response.json()
+
+for output in result.get("output", []):
+    print("=" * 60)
+    print(output["role"])
+    print("=" * 60)
+    content = output["content"]
+    if isinstance(content, list):
+        content = " ".join(str(c) for c in content)
+    print(str(content)[:600] + "...")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+<Note>
+Workers do not see each other's drafts — they each respond to the original task. The Attending Physician sees every specialist output and writes the final synthesis. This is the right shape for a case conference: independent opinions first, then one decision-maker.
+</Note>
+
+## The Cost Story
+
+A real multi-specialty case conference is one of the most expensive things a hospital does:
+
+| Resource | Real-world cost | This swarm |
+| --- | --- | --- |
+| Radiologist read + second opinion | $150 – $500 per study | Included |
+| Pathology IHC interpretation | $200 – $600 per case | Included |
+| Cardio-oncology consult | $400 – $800 per visit | Included |
+| Hospitalist coordination time | $150 – $300 per case | Included |
+| Tumor board attending time (1 hr) | $400 – $700 | Included |
+| **Per-case total (human team)** | **$1,300 – $2,900** | **Typically under $1.00** |
+
+The point is not that the swarm replaces these clinicians. The point is that you can pre-screen, triage, and draft the conference note for the **same cost as a cup of coffee**, then put the licensed reviewer in the role they actually add value in: deciding.
+
+## Differentiation From Related Examples
+
+- The [Hospital Medical Team Swarm](/docs/examples/examples/hospital-team) models a *bedside care team* (doctor + nurses + assistant) focused on intake and nursing tasks. This swarm models a *case conference of physicians-only* focused on diagnostic synthesis on a complex case.
+- The [ICD-10 Medical Analysis Swarm](/docs/examples/examples/icd-analysis) is a concurrent workflow for coding-level analysis. This swarm is hierarchical and produces a treatment plan, not codes.
+
+## Next Steps
+
+- Try [Claude Opus 4.8](/docs/examples/examples/claude-opus-4-8) as the model for the Attending Physician for stronger synthesis
+- Adapt the worker roster for the [Supply Chain Hierarchical Swarm](/docs/examples/examples/supply-chain-swarm) pattern in any other domain
+- Run a portfolio of cases overnight using [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions)

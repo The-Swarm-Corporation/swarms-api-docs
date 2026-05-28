@@ -1,0 +1,256 @@
+---
+title: "McKinsey-Style Consulting Deliverable Generator"
+description: "A HierarchicalSwarm that takes a client brief and produces a slide-by-slide market-entry deck outline — industry analysis, customer research, competitor landscape, financial model, and a partner-ready recommendation."
+---
+
+## What This Example Shows
+
+- A `HierarchicalSwarm` modeling a small consulting team: Engagement Director plus four senior workers
+- Four specialist workers — Industry Analyst, Customer Researcher, Competitor Analyst, Financial Modeler — each owning one function of the engagement
+- A director prompt that forces the final output into a slide-by-slide deck outline with chart callouts and a Pyramid-Principle recommendation
+- How to run the same engagement across a portfolio of clients in one call via `/v1/swarm/batch/completions`
+
+<Info>
+**Premium tier features used.** `HierarchicalSwarm` is available on every plan, but production workloads benefit from the Pro, Ultra, and Premium tiers (`/v1/swarm/batch/completions`, longer runs, higher concurrency). Upgrade or manage your plan at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+</Info>
+
+## Why This Matters
+
+A first-cut market entry analysis at a top consultancy is six weeks of two associates, an EM, and partial partner time — call it $200k–$500k of fees before the client sees a single slide. The actual analytic work in that first cut is bounded: size the market, map the competitors, profile the customer, sketch the unit economics, write a recommendation. This swarm does the full first cut in minutes so the partner can spend Friday afternoon arguing about the recommendation, not formatting slides.
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Engagement Team
+
+Four workers each own one chapter of the deck. The Engagement Director sees every worker's output and is told, very explicitly, to produce a slide-by-slide outline — not a memo.
+
+```python
+def build_engagement(client_brief: str) -> dict:
+    return {
+        "name": "Consulting-Deliverable-Generator",
+        "description": (
+            "Hierarchical engagement: Engagement Director coordinates four "
+            "specialists and produces a partner-ready slide deck outline."
+        ),
+        "swarm_type": "HierarchicalSwarm",
+        "task": client_brief,
+        "max_loops": 1,
+        "agents": [
+            {
+                "agent_name": "Engagement Director",
+                "description": "Senior partner-level lead. Synthesizes all worker outputs into a slide-by-slide deck.",
+                "system_prompt": (
+                    "You are the Engagement Director on a market-entry study. You have "
+                    "four specialists reporting to you: an Industry Analyst, a Customer "
+                    "Researcher, a Competitor Analyst, and a Financial Modeler.\n\n"
+                    "Your job is NOT to write a memo. Your job is to produce a "
+                    "partner-ready slide-by-slide deck outline using the Pyramid "
+                    "Principle (answer first, then supporting structure). Use this "
+                    "exact format for every slide:\n\n"
+                    "SLIDE N: <title>\n"
+                    "  Headline (governing thought, one sentence):\n"
+                    "  Body (3-5 bullets, MECE):\n"
+                    "  Chart / exhibit callout: <what visual goes here>\n"
+                    "  Source: <which specialist(s) supplied this>\n\n"
+                    "Required slides, in order:\n"
+                    "  1. Title slide\n"
+                    "  2. Executive summary (the answer)\n"
+                    "  3. Context & client question\n"
+                    "  4. Market sizing (TAM/SAM/SOM)\n"
+                    "  5. Customer landscape & unmet need\n"
+                    "  6. Competitor landscape (2x2 or matrix)\n"
+                    "  7. Unit economics & financial model summary\n"
+                    "  8. Strategic options considered\n"
+                    "  9. Recommendation\n"
+                    " 10. Risks & mitigations\n"
+                    " 11. 90-day implementation roadmap\n"
+                    " 12. Appendix index\n\n"
+                    "The Recommendation slide must give a clear ENTER / ENTER-PARTNERED / "
+                    "WAIT / PASS verdict with the two strongest supporting reasons and "
+                    "the single largest risk."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "coordinator",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Industry Analyst",
+                "description": "Sizes the market and profiles industry structure.",
+                "system_prompt": (
+                    "You are a senior industry analyst. For the client's target market: "
+                    "estimate TAM, SAM, and SOM with named assumptions; describe value "
+                    "chain and economics; identify regulatory regime; flag the three "
+                    "structural trends most likely to move the market over the next "
+                    "five years. Cite the type of source you would pull each number "
+                    "from (e.g., 'FDIC Call Reports', 'SBA loan data') even if you "
+                    "estimate from prior knowledge. Be quantitative."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.4,
+            },
+            {
+                "agent_name": "Customer Researcher",
+                "description": "Profiles target customers, segments, and unmet needs.",
+                "system_prompt": (
+                    "You are a senior customer research lead. Segment the target "
+                    "customer base into 3-4 archetypes with named attributes (size, "
+                    "vertical, sophistication, geography). For each segment: estimate "
+                    "size, willingness to pay, top three jobs-to-be-done, and the "
+                    "single largest unmet need today. Identify which segment is the "
+                    "best beachhead and why."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.4,
+            },
+            {
+                "agent_name": "Competitor Analyst",
+                "description": "Maps the competitive landscape and identifies whitespace.",
+                "system_prompt": (
+                    "You are a senior competitor analyst. Identify the top 5-8 "
+                    "competitors the client will face, including incumbents and "
+                    "challengers. For each: business model, served segment, "
+                    "estimated share, key strength, key weakness. Position them on "
+                    "a 2x2 of your choosing (state the axes explicitly) and "
+                    "identify the whitespace the client could occupy. Call out any "
+                    "competitor whose response could realistically kill the entry."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Financial Modeler",
+                "description": "Builds the unit-economics and three-year P&L sketch.",
+                "system_prompt": (
+                    "You are a senior financial modeler. Produce a defensible "
+                    "first-cut model: unit economics (revenue per customer, gross "
+                    "margin, CAC, payback period), three-year P&L sketch with stated "
+                    "assumptions, capital required to reach breakeven, and the two "
+                    "or three assumptions that most move the answer. Identify the "
+                    "single most important sensitivity and state which way it cuts."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.3,
+            },
+        ],
+    }
+```
+
+<Note>
+For `HierarchicalSwarm` you only define the workers and the coordinator — the framework handles the routing, output collection, and synthesis pass. The director sees every worker's output before producing the final deck.
+</Note>
+
+## Step 3: Run the Engagement
+
+The client brief is the only input. Replace it with whatever your client actually asked for.
+
+```python
+client_brief = (
+    "We are a mid-market regional bank with $14B in assets, headquartered in "
+    "the Southeast U.S. Our retail and CRE books are mature. Our board is "
+    "asking us to evaluate whether to enter SMB lending (loans of $50k-$2M to "
+    "businesses with under $25M revenue) as a third growth pillar. Build us a "
+    "market-entry analysis: should we enter, how, and what would it take?"
+)
+
+payload = build_engagement(client_brief)
+
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=payload,
+    timeout=300,
+)
+
+result = response.json()
+
+for output in result.get("output", []):
+    print("=" * 60)
+    print(output["role"])
+    print("=" * 60)
+    content = output["content"]
+    if isinstance(content, list):
+        content = " ".join(str(c) for c in content)
+    print(str(content)[:600] + "...\n")
+
+usage = result.get("usage", {})
+billing = usage.get("billing_info", {})
+print(f"\nTotal cost: ${billing.get('total_cost', 0):.4f}")
+print(f"Execution time: {result.get('execution_time', 'n/a')}s")
+```
+
+The Engagement Director's output is your deck outline — a slide-by-slide structure an associate can drop into PowerPoint or a partner can edit directly. The individual worker outputs become your appendix and your supporting workbooks.
+
+## Step 4: Scale to a Portfolio of Clients
+
+Boutiques and corporate strategy teams routinely run the same study shape against a portfolio: every regional bank in a watchlist, every PE portfolio company evaluating an adjacent market, every market a multinational is screening for entry. Use `/v1/swarm/batch/completions` to run the same engagement template against each brief in one call.
+
+```python
+client_briefs = [
+    "Mid-market regional bank evaluating SMB lending entry — see prior brief.",
+    "$3B AUM PE firm evaluating a roll-up in U.S. veterinary clinics.",
+    "European industrial OEM evaluating direct-to-consumer entry in North America.",
+    # ...add as many as you need
+]
+
+batch_payload = [build_engagement(b) for b in client_briefs]
+
+batch_response = requests.post(
+    f"{BASE_URL}/v1/swarm/batch/completions",
+    headers=headers,
+    json=batch_payload,
+    timeout=1800,
+)
+
+decks = batch_response.json()
+print(f"Decks produced: {len(decks)}")
+```
+
+<Note>
+The batch endpoint is Pro/Ultra/Premium-only. See [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions) for the full reference.
+</Note>
+
+## Cost vs. a Real Engagement
+
+<Info>
+**Real numbers.** A first-cut market-entry analysis at a top-tier consultancy typically runs **$200k–$500k**: two associates and an engagement manager for four to six weeks, plus partial partner time at roughly $800/hour. A four-analyst week alone is on the order of $250k in billables. The swarm above runs the same first-cut analysis end-to-end for **under $5 per deck**, finishes in minutes instead of weeks, and produces a slide-by-slide outline a partner can edit directly. The partner is still the partner — the swarm just removes the four weeks of associate-level synthesis that used to sit between the question and the recommendation.
+</Info>
+
+## Next Steps
+
+- [Supply Chain Hierarchical Swarm](/docs/examples/examples/supply-chain-swarm) — same `HierarchicalSwarm` pattern applied to operations work
+- [Hierarchical Workflow Example](/docs/examples/examples/hierarchical-workflow) — the underlying pattern, with a software-team example
+- [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions) — fan the engagement template across a portfolio of clients

@@ -1,0 +1,223 @@
+---
+title: "Auto Swarm Builder: Describe a Goal, Get a Swarm"
+description: "Skip the agent-design work — write what you want in natural language and let the Auto Swarm Builder compose the team. Four concrete use cases."
+---
+
+## What This Example Shows
+
+- The "describe-it-and-go" workflow: natural language in, a fully composed multi-agent swarm out
+- Four real use cases that each produce a different team shape from a one-line goal
+- How to point a single endpoint at competitive teardowns, content pipelines, financial diligence, and security reviews
+- Why this is the right starting point when you don't yet know which swarm architecture you need
+
+<Warning>
+**Premium-only endpoint.** `/v1/auto-swarm-builder/completions` is restricted to Pro, Ultra, and Premium subscribers. Free-tier keys will get a 403. [Upgrade your account](https://swarms.world/platform/account) to unlock autonomous swarm composition.
+</Warning>
+
+## Why This Matters
+
+Most teams stall at the same step: "I know what I want — write a competitive teardown of these five companies — but I don't know which swarm type to pick or how to write the four agent prompts." The Auto Swarm Builder removes that step. You describe the job in plain English; it decides how many agents to spawn, what each one specializes in, what swarm architecture they should run under, and then it executes the result. The pattern below is the same regardless of domain — what changes is the one-line `task` you write.
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+```
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+
+def auto_swarm(name: str, description: str, task: str, max_loops: int = 1) -> dict:
+    payload = {
+        "name": name,
+        "description": description,
+        "max_loops": max_loops,
+        "model_name": "gpt-4.1",
+        "task": task,
+    }
+    response = requests.post(
+        f"{BASE_URL}/v1/auto-swarm-builder/completions",
+        headers=headers,
+        json=payload,
+        timeout=600,
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+That single helper is everything you need. The next four sections are just different `task` strings.
+
+## Use Case 1: Competitive Teardown
+
+You want a head-to-head analysis of five competitors. You do not want to hand-write five analyst prompts.
+
+```python
+result = auto_swarm(
+    name="Competitive Teardown Swarm",
+    description="Multi-angle competitive analysis of a set of companies.",
+    task=(
+        "Produce a competitive teardown comparing Stripe, Adyen, Checkout.com, "
+        "Block, and Marqeta. For each, cover: target customer, pricing model, "
+        "differentiation, and the single biggest threat to their position. "
+        "End with a 5x5 head-to-head matrix and a 'who wins which segment' summary."
+    ),
+)
+print(json.dumps(result, indent=2))
+```
+
+<Info>
+Behind the scenes the builder typically produces a coordinator-plus-specialists shape for this kind of task — one specialist per company or one per analysis dimension. You don't need to specify either; the task description is enough.
+</Info>
+
+## Use Case 2: Content Pipeline From a Single Brief
+
+A marketer wants an entire piece of content produced from a one-line brief, not just a draft.
+
+```python
+result = auto_swarm(
+    name="Content Pipeline Swarm",
+    description="Brief in, publish-ready piece out.",
+    task=(
+        "Produce a publish-ready 1,500-word blog post on 'how mid-market CFOs "
+        "should think about AI agent ROI in 2026.' Include: an SEO-optimized "
+        "title and meta description, an executive summary, three concrete "
+        "case studies (real or representative), a skeptic's counter-argument "
+        "with rebuttal, and a 5-bullet CFO-ready takeaway box. Output in "
+        "markdown ready for a CMS paste."
+    ),
+)
+print(json.dumps(result, indent=2))
+```
+
+The builder will commonly spin up a researcher, a strategist, a writer, and an editor — but you don't define them. You define the deliverable.
+
+## Use Case 3: Investment Memo From a Ticker
+
+A junior analyst wants a first-draft memo on a company without orchestrating a hierarchical swarm by hand.
+
+```python
+result = auto_swarm(
+    name="Investment Memo Swarm",
+    description="Generate a board-ready investment memo from a single ticker.",
+    task=(
+        "Produce a board-ready investment memo on PLTR (Palantir Technologies). "
+        "Sections: 1) Business model and revenue mix, 2) Competitive moat and "
+        "key competitors, 3) Financial health (revenue growth, margins, cash), "
+        "4) Top 5 risks with mitigations, 5) Buy/Hold/Sell recommendation with "
+        "a 12-month price view. Cite the specific metrics that drive each "
+        "conclusion. Maximum 1,200 words."
+    ),
+    max_loops=2,
+)
+print(json.dumps(result, indent=2))
+```
+
+<Note>
+Use `max_loops=2` (or higher) when you want the swarm to critique and refine its own draft before returning. For a single-pass output, leave it at `1`.
+</Note>
+
+## Use Case 4: Security Review of a Proposed Architecture
+
+An engineering lead has a design doc and wants a structured threat model without standing up a security team.
+
+```python
+result = auto_swarm(
+    name="Architecture Security Review Swarm",
+    description="Threat-model a proposed system from a written description.",
+    task=(
+        "Threat-model this proposed architecture: a multi-tenant SaaS that "
+        "ingests customer data via signed S3 uploads, processes it through a "
+        "FastAPI service backed by Postgres, and exposes results via a "
+        "React SPA. Auth is via Auth0 with per-tenant RBAC. Identify the top "
+        "10 threats using STRIDE categories, rank each by likelihood and "
+        "impact, and propose a concrete mitigation. End with a prioritized "
+        "two-week remediation plan."
+    ),
+)
+print(json.dumps(result, indent=2))
+```
+
+## Parsing the Response
+
+The shape varies slightly by `execution_type`, but the consistent pattern is:
+
+```python
+def show_result(result: dict) -> None:
+    print(f"Job ID: {result.get('job_id')}")
+    print(f"Status: {result.get('status')}")
+
+    outputs = result.get("outputs") or result.get("output") or {}
+    print("\n--- Swarm Output ---")
+    print(json.dumps(outputs, indent=2)[:2000])
+
+    usage = result.get("usage") or {}
+    cost = usage.get("token_cost") or usage.get("billing_info", {}).get("total_cost")
+    if cost is not None:
+        print(f"\nCost: ${cost}")
+
+
+show_result(result)
+```
+
+If you want to inspect the generated agents instead of just the final output, call the [Auto Swarm Builder Execution Types](/docs/examples/examples/auto-swarm-builder-execution-types) endpoint and pick `return-agents` or `return-agents-objects`.
+
+## When to Reach for This
+
+| Scenario | Hand-built swarm | **Auto Swarm Builder** |
+| --- | --- | --- |
+| You know the exact agent roles and prompts | Best fit | Overkill |
+| You have a one-line goal and a deadline | Days of design work | **One POST** |
+| You want consistent structure across many domains | You must template each | **One endpoint, N tasks** |
+| You're prototyping a new workflow | Slow to iterate | **Iterate by editing prose** |
+| You're handing the system to non-engineers | They can't write prompts | **They can write a goal** |
+
+## The Cost Math
+
+Pricing varies by model, agent count, and `max_loops` — these are illustrative ranges.
+
+| Workload | Human equivalent | **Auto Swarm Builder** |
+| --- | --- | --- |
+| Competitive teardown of 5 companies | Analyst, 1-2 days, ~$1,200 | ~$1-3 per run, minutes |
+| 1,500-word researched blog post | Freelancer, 1 day, ~$500 | ~$0.50-2 per run, minutes |
+| Investment memo from a ticker | Junior analyst, 4 hours, ~$400 | ~$1-3 per run, minutes |
+| STRIDE threat model | Security consultant, 1 day, ~$2,000 | ~$1-3 per run, minutes |
+
+<Warning>
+**A single Auto Swarm Builder run typically costs $1-$3 and finishes in minutes. The human equivalent for any of the four use cases above is $400-$2,000 and at least half a day of someone's calendar.** The endpoint exists so you stop paying that cost for tasks where a structured first draft is what you actually needed.
+</Warning>
+
+## Common Pitfalls
+
+<AccordionGroup>
+  <Accordion title="The swarm picked a different architecture than I expected">
+    The builder optimizes for the task description, not for a swarm type you had in mind. If you need a specific architecture (sequential, hierarchical, group chat, etc.), wire it up directly via `/v1/swarm/completions` and skip the builder. The builder is for "I don't know" cases.
+  </Accordion>
+  <Accordion title="403 error">
+    The endpoint is premium-only. Confirm your account tier on [https://swarms.world/platform/account](https://swarms.world/platform/account) — Pro, Ultra, or Premium is required.
+  </Accordion>
+  <Accordion title="Output structure looks different on a second run">
+    The builder generates new agents each call, which can shift the output schema. If you need stable downstream parsing, pin the design once and switch to a hand-built swarm. Use the builder as a design assistant; productionize the result.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- [Auto Swarm Builder Execution Types](/docs/examples/examples/auto-swarm-builder-execution-types) to inspect or extract the generated agents
+- [Supply Chain Hierarchical Swarm](/docs/examples/examples/supply-chain-swarm) for a hand-built hierarchical swarm you can model after a builder output
+- [Multi-Agent Router](/docs/examples/examples/multi-agent-router) when you want the builder's `return-swarm-router-config` shape running in production

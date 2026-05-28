@@ -1,0 +1,204 @@
+---
+title: "Insurance Claims Triage at Scale"
+description: "Run a single specialized agent across 10,000 claim rows in parallel using /v1/agent/batch/completions — coverage match, fraud signal, and payout estimate per row."
+---
+
+## What This Example Shows
+
+- How to map a pandas DataFrame of insurance claims into the batch payload shape
+- How to call `/v1/agent/batch/completions` with thousands of independent rows
+- A structured-output prompt that returns coverage match, fraud signal, and a payout estimate
+- How to write the results back to the original DataFrame in one merge
+- A real cost comparison against a human claims-adjuster floor
+
+<Info>
+This tutorial uses `/v1/agent/batch/completions` — the highest-throughput endpoint on the platform. For sustained batches above 1,000 rows or production SLAs, upgrade to Pro or Premium at [https://swarms.world/platform/account](https://swarms.world/platform/account) for the parallel-execution and rate-limit headroom you need.
+</Info>
+
+## Why This Matters
+
+Claims triage is the single largest cost center in P&C insurance ops. Every incoming claim has to be read, classified, checked against the policy, scored for fraud, and routed — and 80% of them are routine. Adjusters spend most of their day on the boring 80% and run out of bandwidth for the complex 20% that actually need a human. The job is to take that 80% off the floor: a single specialized agent, called once per claim, ten thousand at a time, with structured output your downstream systems can act on directly. The batch endpoint is the perfect fit — every claim is independent, compute per row is small, and the work parallelizes trivially.
+
+## Step 1: Setup
+
+```bash
+pip install requests pandas python-dotenv
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+```python
+import json
+import os
+from typing import Any
+
+import pandas as pd
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+if not API_KEY:
+    raise ValueError("SWARMS_API_KEY environment variable is required")
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Triage Agent
+
+One agent, one job: read a claim, return structured JSON. The prompt is built around the exact downstream schema your claims system needs.
+
+```python
+TRIAGE_SYSTEM_PROMPT = (
+    "You are a senior P&C insurance claims triage specialist. "
+    "Given a claim record and the relevant policy summary, you output a STRICT JSON "
+    "object with exactly these keys and nothing else:\n\n"
+    "{\n"
+    '  "coverage_match": "COVERED" | "PARTIAL" | "NOT_COVERED",\n'
+    '  "coverage_rationale": "<one sentence citing the policy clause>",\n'
+    '  "fraud_signal": "LOW" | "MEDIUM" | "HIGH",\n'
+    '  "fraud_indicators": ["<short bullet>", "..."],\n'
+    '  "payout_estimate_usd": <integer>,\n'
+    '  "payout_rationale": "<one sentence>",\n'
+    '  "recommended_action": "AUTO_APPROVE" | "ADJUSTER_REVIEW" | "SIU_REFERRAL" | "DENY"\n'
+    "}\n\n"
+    "Be conservative on fraud — only HIGH if multiple indicators align. "
+    "Auto-approve only when coverage is COVERED, fraud is LOW, and payout is under $5,000. "
+    "Output JSON only. No prose."
+)
+
+
+def build_agent_payload(claim_row: dict) -> dict:
+    """Map one claim row into the agent batch payload shape."""
+    task = (
+        "POLICY SUMMARY:\n"
+        f"{claim_row['policy_summary']}\n\n"
+        "CLAIM RECORD:\n"
+        f"Claim ID: {claim_row['claim_id']}\n"
+        f"Policyholder: {claim_row['policyholder']}\n"
+        f"Loss Type: {claim_row['loss_type']}\n"
+        f"Date of Loss: {claim_row['date_of_loss']}\n"
+        f"Reported Amount: ${claim_row['reported_amount']}\n"
+        f"Description: {claim_row['description']}\n"
+        f"Prior Claims (12mo): {claim_row['prior_claims_12mo']}\n"
+    )
+    return {
+        "agent_config": {
+            "agent_name": "Claims Triage Specialist",
+            "system_prompt": TRIAGE_SYSTEM_PROMPT,
+            "model_name": "gpt-4.1",
+            "max_tokens": 1024,
+            "temperature": 0.1,
+        },
+        "task": task,
+    }
+```
+
+## Step 3: Load the Claims CSV
+
+A realistic claims feed lives in a database or warehouse — this example uses a CSV but the shape is identical.
+
+```python
+# Example schema: claim_id, policyholder, policy_summary, loss_type,
+# date_of_loss, reported_amount, description, prior_claims_12mo
+claims_df = pd.read_csv("claims_inbox.csv")
+
+print(f"Loaded {len(claims_df)} claims for triage")
+```
+
+<Note>
+For 10,000 rows the batch endpoint handles execution in parallel server-side. You do not need to thread the requests on your end — submit the list and wait.
+</Note>
+
+## Step 4: Submit Claims in Chunks
+
+Submit in chunks of 500 to keep individual request bodies manageable and to make retries cheap if a single chunk fails.
+
+```python
+def run_batch(payloads: list[dict]) -> list[dict]:
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/batch/completions",
+        headers=headers,
+        json=payloads,
+        timeout=900,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(f"Batch failed: {response.status_code} — {response.text[:300]}")
+    return response.json()
+
+
+def triage_dataframe(df: pd.DataFrame, chunk_size: int = 500) -> pd.DataFrame:
+    all_results: list[dict[str, Any]] = []
+    for start in range(0, len(df), chunk_size):
+        chunk = df.iloc[start : start + chunk_size]
+        payloads = [build_agent_payload(row.to_dict()) for _, row in chunk.iterrows()]
+        print(f"Submitting rows {start}..{start + len(chunk) - 1}")
+        results = run_batch(payloads)
+        all_results.extend(results)
+    return pd.DataFrame(all_results)
+
+
+raw_results = triage_dataframe(claims_df)
+```
+
+## Step 5: Parse and Merge Results Back
+
+The agent returns strict JSON in its output — parse it, expand into columns, and join back on `claim_id`.
+
+```python
+def extract_decision(result_row: dict) -> dict:
+    """Pull the JSON decision out of the agent response."""
+    # The batch response carries the agent's text output under 'outputs' or 'output'
+    # depending on schema version. Handle both.
+    text = result_row.get("outputs") or result_row.get("output") or ""
+    if isinstance(text, list):
+        # Sometimes a list of message dicts — take the last assistant content
+        for item in reversed(text):
+            if isinstance(item, dict) and item.get("role") in ("assistant", "Claims Triage Specialist"):
+                text = item.get("content", "")
+                break
+    if isinstance(text, list):
+        text = " ".join(str(c) for c in text)
+    try:
+        return json.loads(str(text).strip())
+    except json.JSONDecodeError:
+        return {
+            "coverage_match": "PARSE_ERROR",
+            "fraud_signal": "PARSE_ERROR",
+            "payout_estimate_usd": 0,
+            "recommended_action": "ADJUSTER_REVIEW",
+        }
+
+
+decisions = pd.DataFrame(
+    [extract_decision(r) for r in raw_results.to_dict(orient="records")]
+)
+decisions["claim_id"] = claims_df["claim_id"].values
+
+triaged = claims_df.merge(decisions, on="claim_id", how="left")
+triaged.to_csv("claims_triaged.csv", index=False)
+
+print(triaged["recommended_action"].value_counts())
+```
+
+<Info>
+The result is a single CSV your claims system can ingest directly. Auto-approve rows close the loop without a human ever opening them. Adjuster-review rows land in the queue with structured context already attached. SIU referrals carry the fraud indicators the investigator needs on day one.
+</Info>
+
+## Real Cost vs. Human Adjuster Floor
+
+| Scenario | Cost per claim | Cost per 10,000 claims | Throughput |
+| --- | --- | --- | --- |
+| Batch triage agent (GPT-4.1) | ~$0.015 | ~$150 | minutes |
+| One claims adjuster (fully loaded ~$95k, ~25 claims/day) | ~$15 | ~$150,000 | 400 days |
+| Outsourced BPO triage floor | ~$3–$8 | ~$30,000–$80,000 | days |
+
+You are not eliminating the adjuster floor — you are taking the routine 80% off their plate so the remaining 20% gets the attention it actually needs. That is a 100x cost reduction on the boring half of the work and faster cycle times on the half that matters.
+
+## Next Steps
+
+- See the [AI Hedge Fund pipeline](/docs/examples/examples/ai-hedge-fund) for a multi-agent hierarchical variant when each row needs more than one specialist lens
+- Read the [Real Estate Investment Memo Swarm](/docs/examples/examples/real-estate-investment-memo) for a hierarchical-swarm pattern applied to memos rather than rows
+- Browse [Batch Agent Completions](/docs/examples/examples/batch-agent) for the underlying batch endpoint mechanics

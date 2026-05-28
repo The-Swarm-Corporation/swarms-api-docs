@@ -1,0 +1,226 @@
+---
+title: "Real Estate Investment Memo Swarm"
+description: "A HierarchicalSwarm that turns a property address and ask price into a one-page institutional investment memo — comps, market context, and financing — directed by an Investment Director."
+---
+
+## What This Example Shows
+
+- A `HierarchicalSwarm` with an Investment Director coordinating three worker analysts: Comps, Macro, and Financing
+- How to feed a property address plus an ask price as the swarm task
+- How to extract the Director's final memo as the deliverable
+- A real cost comparison against a broker's analyst writing the same memo
+
+<Info>
+This tutorial uses `HierarchicalSwarm` — the same primitive used by institutional research desks. To run memos on dozens of properties per day or wire this into a Slack bot for your acquisitions team, upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+</Info>
+
+## Why This Matters
+
+Real estate investment committees move slowly because the analyst floor moves slowly. Every deal — even a "let's pass on this one" deal — eats two days of an associate's time to produce a baseline memo: comps from the MLS or CoStar, a paragraph on the submarket, two financing scenarios, and a recommendation. Most of those memos end in a pass. The job is to push the trivial-no and trivial-yes deals through to a decision in minutes so the associate's deep work stays focused on the maybes. A hierarchical swarm with three specialists and a Director does exactly that, and the output reads like an associate wrote it.
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Memo Team
+
+The Director writes the final one-pager. The three workers each produce one section the Director will weave together.
+
+```python
+INVESTMENT_DIRECTOR_PROMPT = (
+    "You are the Investment Director at a real estate private equity shop. "
+    "You receive briefs from your Comps Analyst, Macro Analyst, and Financing Analyst. "
+    "Write a single one-page investment memo in this exact structure:\n\n"
+    "PROPERTY: <address>\n"
+    "ASK: $<price>\n\n"
+    "1. RECOMMENDATION: <PURSUE | PASS | PURSUE AT LOWER PRICE>\n"
+    "2. THESIS: <three sentences on why>\n"
+    "3. COMPS SUMMARY: <two sentences synthesizing the Comps brief>\n"
+    "4. MARKET CONTEXT: <two sentences synthesizing the Macro brief>\n"
+    "5. FINANCING: <two sentences synthesizing the Financing brief>\n"
+    "6. KEY RISKS: <three bullets>\n"
+    "7. NEXT STEPS: <one sentence — site visit, LOI, decline>\n\n"
+    "Be decisive. The committee reads the recommendation line first."
+)
+
+COMPS_ANALYST_PROMPT = (
+    "You are a Real Estate Comps Analyst. Given a property address and an ask price, "
+    "produce a brief covering: three recent comparable transactions in the same submarket "
+    "(estimated based on your knowledge of the area), price per square foot, cap rate range, "
+    "and whether the ask is at, above, or below market. "
+    "If you do not have specific transaction data, state the typical price-per-sf and cap-rate "
+    "range for that property type and submarket. Keep it under 200 words."
+)
+
+MACRO_ANALYST_PROMPT = (
+    "You are a Real Estate Macro Analyst. Given a property address, produce a brief covering: "
+    "submarket fundamentals (population growth, employment, vacancy), the relevant "
+    "interest-rate environment, supply pipeline, and the 18-month demand outlook for the "
+    "property type. Keep it under 200 words."
+)
+
+FINANCING_ANALYST_PROMPT = (
+    "You are a Real Estate Financing Analyst. Given a property and an ask price, produce a brief "
+    "covering: two realistic capital-stack options (e.g. 65% LTV agency senior + sponsor equity "
+    "vs. 75% LTV bridge + preferred equity), prevailing interest-rate ranges, estimated "
+    "DSCR at stabilized NOI, and the equity check required for each. Keep it under 200 words."
+)
+
+
+def build_memo_swarm(address: str, ask_price: int, property_type: str) -> dict:
+    return {
+        "name": "Real Estate Investment Memo",
+        "description": "Investment Director coordinating Comps, Macro, and Financing analysts.",
+        "swarm_type": "HierarchicalSwarm",
+        "max_loops": 1,
+        "task": (
+            f"Produce an institutional investment memo for the following deal:\n\n"
+            f"PROPERTY ADDRESS: {address}\n"
+            f"PROPERTY TYPE: {property_type}\n"
+            f"ASK PRICE: ${ask_price:,}\n\n"
+            "Each analyst writes their brief. The Investment Director then writes the final "
+            "one-page memo with a clear recommendation."
+        ),
+        "agents": [
+            {
+                "agent_name": "Investment Director",
+                "description": "Director — writes the final one-page memo.",
+                "system_prompt": INVESTMENT_DIRECTOR_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "coordinator",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Comps Analyst",
+                "description": "Comparable transactions and pricing.",
+                "system_prompt": COMPS_ANALYST_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.4,
+            },
+            {
+                "agent_name": "Macro Analyst",
+                "description": "Submarket fundamentals and demand outlook.",
+                "system_prompt": MACRO_ANALYST_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.4,
+            },
+            {
+                "agent_name": "Financing Analyst",
+                "description": "Capital stack, leverage, and DSCR.",
+                "system_prompt": FINANCING_ANALYST_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.4,
+            },
+        ],
+    }
+```
+
+## Step 3: Run the Memo for One Property
+
+Paste in any deal that hits your inbox. Address, ask, property type — that is the entire input the swarm needs.
+
+```python
+def generate_memo(address: str, ask_price: int, property_type: str) -> dict:
+    payload = build_memo_swarm(address, ask_price, property_type)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+result = generate_memo(
+    address="1200 Brickell Avenue, Miami, FL 33131",
+    ask_price=48_500_000,
+    property_type="Class A multifamily (212 units, built 2019)",
+)
+
+for output in result.get("output", []):
+    print("=" * 60)
+    print(output["role"])
+    print("=" * 60)
+    content = output["content"]
+    if isinstance(content, list):
+        content = " ".join(str(c) for c in content)
+    print(str(content)[:800])
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+## Step 4: Extract Just the Final Memo
+
+For your acquisitions pipeline you only want the Director's one-pager — the analyst briefs are the audit trail.
+
+```python
+def extract_director_memo(result: dict) -> str:
+    for output in result.get("output", []):
+        role = output.get("role", "")
+        if "Investment Director" in role or "Director" in role:
+            content = output["content"]
+            if isinstance(content, list):
+                content = " ".join(str(c) for c in content)
+            return str(content)
+    return ""
+
+
+memo = extract_director_memo(result)
+print("\n--- COMMITTEE-READY MEMO ---\n")
+print(memo)
+
+# Persist it
+with open("memo_1200_brickell.md", "w") as f:
+    f.write(memo)
+```
+
+<Note>
+Wire this into a Slack slash command (`/memo <address> <ask>`) and your acquisitions team gets a committee-ready one-pager in under a minute. The analyst briefs sit in the full response if anyone needs to audit a specific section.
+</Note>
+
+## Real Cost vs. Analyst-Written Memo
+
+| Scenario | Cost per memo | Turnaround | Cost per 100 deals screened |
+| --- | --- | --- | --- |
+| Investment Memo Swarm (4 agents, GPT-4.1) | ~$0.20 | ~60 seconds | ~$20 |
+| Junior analyst writing the memo (fully loaded $120k) | ~$700 | 1–2 days | ~$70,000 |
+| Outsourced underwriting shop | ~$300–$500 | 3–5 days | ~$30,000–$50,000 |
+
+You are not replacing the deal team — you are letting them screen 10x more deals before committing analyst hours, and giving the IC a structured starting point on every name that does make it through.
+
+## Next Steps
+
+- See the [AI Hedge Fund pipeline](/docs/examples/examples/ai-hedge-fund) for the same hierarchical pattern applied to equity research with an overnight batch step
+- Read the [Supply Chain Hierarchical Swarm](/docs/examples/examples/supply-chain-swarm) to see the same director-and-workers shape applied to ops
+- Browse [Hierarchical Workflow Example](/docs/examples/examples/hierarchical-workflow) for the canonical hierarchical pattern and prompt design tips

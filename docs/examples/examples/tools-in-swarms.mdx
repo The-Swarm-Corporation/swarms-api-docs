@@ -1,0 +1,138 @@
+---
+title: "Function Tools in Multi-Agent Swarms"
+description: "Attach OpenAI-style function tools to agents inside a multi-agent swarm."
+---
+
+## What This Example Shows
+
+- How to pass `tools_dictionary` on a per-agent basis inside a swarm
+- How the same tool schema can be shared across multiple worker agents
+- A `ConcurrentWorkflow` of two financial analysts that both call a structured `search_topic` tool
+
+<Info>
+Every multi-agent architecture on Swarms accepts the same per-agent `tools_dictionary`. The pattern below works identically for `SequentialWorkflow`, `HierarchicalSwarm`, `AgentRearrange`, `GroupChat`, `MixtureOfAgents`, and the rest — only the `swarm_type` changes.
+</Info>
+
+## Step 1: Setup
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define a Shared Tool Schema
+
+Tools follow the OpenAI function-call schema. Define it once and reuse across agents.
+
+```python
+SEARCH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "search_topic",
+        "description": (
+            "Conduct an in-depth search on a specified topic, generating a "
+            "comprehensive array of highly detailed search queries."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "depth": {
+                    "type": "integer",
+                    "description": (
+                        "Level of thoroughness, 1 (superficial) to 3 (deep)."
+                    ),
+                },
+                "detailed_queries": {
+                    "type": "array",
+                    "description": "Specific search queries for the topic.",
+                    "items": {"type": "string"},
+                },
+            },
+            "required": ["depth", "detailed_queries"],
+        },
+    },
+}
+```
+
+## Step 3: Build the Swarm
+
+Two analysts run concurrently, each equipped with the same tool. Each agent independently decides when to call `search_topic`.
+
+```python
+def run_financial_swarm() -> dict:
+    payload = {
+        "name": "Financial Analysis Swarm",
+        "description": "Two analysts research markets in parallel using a shared search tool.",
+        "swarm_type": "ConcurrentWorkflow",
+        "max_loops": 1,
+        "task": "What are the best ETFs and index funds for AI and tech?",
+        "agents": [
+            {
+                "agent_name": "Market Analyst",
+                "description": "Analyzes market trends.",
+                "system_prompt": "You are a financial analyst expert.",
+                "model_name": "openai/gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.5,
+                "tools_dictionary": [SEARCH_TOOL],
+            },
+            {
+                "agent_name": "Economic Forecaster",
+                "description": "Predicts economic trends.",
+                "system_prompt": "You are an expert in economic forecasting.",
+                "model_name": "gpt-4o",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 8192,
+                "temperature": 0.5,
+                "tools_dictionary": [SEARCH_TOOL],
+            },
+        ],
+        "output_type": "dict",
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    return response.json()
+```
+
+## Step 4: Run It
+
+```python
+result = run_financial_swarm()
+print(json.dumps(result, indent=2))
+```
+
+<Note>
+Tools are scoped per-agent, not per-swarm. You can give each worker its own toolset — for example, the Market Analyst could get a `search_topic` tool while the Economic Forecaster gets a different `fetch_macro_data` tool. The swarm orchestrator does not need to know about either.
+</Note>
+
+## Reuse the Pattern
+
+To switch to a different swarm topology, only `swarm_type` changes:
+
+| Goal | `swarm_type` |
+| --- | --- |
+| Run analysts in parallel | `ConcurrentWorkflow` |
+| Chain them one after the other | `SequentialWorkflow` |
+| Have a director synthesize their output | `HierarchicalSwarm` |
+| Route the task to whichever analyst fits | `MultiAgentRouter` |
+| Vote on the best answer | `MajorityVoting` |
+
+The `tools_dictionary` on each agent stays exactly the same.

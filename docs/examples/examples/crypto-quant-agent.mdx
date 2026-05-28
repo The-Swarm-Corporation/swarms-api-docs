@@ -1,0 +1,118 @@
+---
+title: "Crypto Quant Agent"
+description: "A domain-specific single agent for quantitative cryptocurrency market analysis."
+---
+
+## What This Example Shows
+
+- A focused single-agent build for a specialized domain (crypto quant analysis)
+- How to write a long, structured `system_prompt` that constrains output to quantitative reasoning
+- How to wire the agent up to live market data via MCP (optional)
+
+<Info>
+This is the same pattern as the [Single Agent Overview](/docs/examples/examples/agent-overview), specialized for crypto. The same shape extends to any analyst domain — credit risk, equity research, intelligence triage, claims review.
+</Info>
+
+## Step 1: Setup
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Agent
+
+The `system_prompt` is where domain expertise lives. Be specific about responsibilities and the kind of reasoning you want.
+
+```python
+def run_crypto_analyst(task: str) -> dict:
+    payload = {
+        "agent_config": {
+            "agent_name": "Crypto Quant Analyst",
+            "description": (
+                "Quantitative analyst specializing in cryptocurrency markets "
+                "and trading strategies."
+            ),
+            "system_prompt": (
+                "You are a Crypto Quant Analyst with deep expertise in "
+                "quantitative analysis of cryptocurrency markets. Analyze crypto "
+                "market data, identify trading patterns, calculate risk metrics, "
+                "and develop data-driven trading strategies.\n\n"
+                "Key responsibilities:\n"
+                "- Perform technical analysis on cryptocurrency price movements\n"
+                "- Calculate volatility, correlation, and risk metrics\n"
+                "- Identify market trends and trading opportunities\n"
+                "- Analyze trading volumes and market liquidity\n"
+                "- Provide quantitative insights for portfolio management\n"
+                "- Suggest risk-adjusted trading strategies\n\n"
+                "Always support your analysis with quantitative data and "
+                "statistical reasoning. Consider market cap, trading volume, "
+                "price volatility, asset correlation, and technical indicators."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.3,
+        },
+        "task": task,
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=120,
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+## Step 3: Run It
+
+```python
+if __name__ == "__main__":
+    result = run_crypto_analyst("Analyze Bitcoin (BTC).")
+    print(json.dumps(result, indent=2))
+```
+
+## Adding Live Market Data via MCP
+
+To give the agent access to real-time market data, attach an MCP server URL. Any OKX/Binance/CoinGecko MCP server works as long as it exposes the right tools.
+
+```python
+"agent_config": {
+    # ...existing fields...
+    "mcp_url": "http://your-okx-mcp:8001/sse",
+}
+```
+
+See [MCP Integration](/docs/examples/examples/mcp-integration) for a full walkthrough of MCP wiring and tool discovery.
+
+<Note>
+The `temperature: 0.3` setting is intentional. Analytical and quantitative agents benefit from low-temperature outputs — they should be consistent and deterministic. Creative agents (copywriters, ideators) want higher temperatures. Pick the temperature to match the *kind of reasoning* you need, not the difficulty of the task.
+</Note>
+
+## Build Your Own Domain Agent
+
+Replace the `system_prompt` and `task` to retarget:
+
+| Domain | system_prompt focus | Suggested temperature |
+| --- | --- | --- |
+| **Credit risk** | Default probability, debt service ratios, covenant analysis | 0.2 |
+| **Equity research** | DCF, multiples, peer comp, catalysts | 0.3 |
+| **Threat intel triage** | IOCs, attribution, severity scoring | 0.2 |
+| **Claims review** | Coverage match, fraud signals, payout calc | 0.2 |
+| **Marketing copy** | Tone, hook, CTA variants | 0.8 |
+
+Everything else stays the same — same API, same response shape, same billing.
