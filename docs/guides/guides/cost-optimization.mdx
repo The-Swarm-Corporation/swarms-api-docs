@@ -1,0 +1,338 @@
+---
+title: "Cost Optimization: Mixing Models for 5x Savings"
+description: "A strategic guide to cutting Swarms API spend by tiering models, gating expensive agents behind cheap classifiers, batching overnight for the 50% night-mode discount, and capping the only two settings that actually move the bill."
+---
+
+## What This Guide Covers
+
+- Why one-size-fits-all model selection is the wrong default for any production swarm
+- Four concrete cost patterns you can drop into existing pipelines without re-architecting
+- The 50% night-mode discount window on batch endpoints and how to claim it
+- A reproducible cost table comparing naive (all-flagship) to a tiered + batch + night-mode setup
+- The two configuration levers (`max_tokens` and `max_loops`) that quietly drive most of your spend
+
+<Info>
+The goal of this guide is not to make your agents cheaper at the expense of quality. It is to put your most expensive model only where it changes the answer — and to use cheaper models, batch endpoints, and the night-mode window everywhere else.
+</Info>
+
+## Why This Matters
+
+Most production Swarms bills look the same when you trace them: one or two agents do work that genuinely requires a flagship model (synthesis, hard reasoning, final write-up) and three or four agents do work a cheaper model would handle identically (classification, extraction, formatting, routing). Running every agent on the flagship is the default — and the default is wrong. The job to be done is not "use the best model." It is "produce a defensible artifact at the lowest cost-per-unit-of-quality." The patterns below are the levers that move that ratio, in priority order.
+
+## The Cost-Capability Trade-Off
+
+Anthropic and OpenAI both publish three rough tiers, and the ratios are roughly the same across providers:
+
+| Tier | Anthropic | OpenAI | Use For |
+| --- | --- | --- | --- |
+| Cheap | Haiku family | `gpt-4o-mini`, `gpt-4.1-mini` | Triage, classification, extraction, routing, formatting |
+| Mid | Sonnet family | `gpt-4o`, `gpt-4.1` | Most analysis, most worker agents, drafts |
+| Flagship | `anthropic/claude-opus-4-8` | (top OpenAI reasoning tier) | Synthesis, final judgments, multi-step reasoning, the agent that signs the memo |
+
+As a rule of thumb across providers, cheap-tier input is roughly an order of magnitude cheaper than flagship input, and cheap-tier output is several times cheaper than flagship output. Exact ratios shift with each release — but the gap is always wide enough that misallocating tiers is the single biggest unforced error in production swarms.
+
+The mental model: **default to mid-tier for workers, drop to cheap-tier for anything that classifies or extracts, promote to flagship only where the answer changes.**
+
+## Pattern 1: Tiered Models in a Single Swarm
+
+In a `HierarchicalSwarm`, the director synthesizes — that's the agent that benefits from a flagship model. The workers each own a narrow lane and rarely need the same horsepower. Mix tiers in one swarm config:
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+payload = {
+    "name": "Tiered Hierarchical Swarm",
+    "description": "Flagship director, cheap-tier workers.",
+    "swarm_type": "HierarchicalSwarm",
+    "max_loops": 1,
+    "task": (
+        "Produce an investment brief on the semiconductor sector: "
+        "key catalysts, top three risks, and a one-line outlook."
+    ),
+    "agents": [
+        {
+            "agent_name": "Director",
+            "description": "Synthesizes worker output into the final brief.",
+            "system_prompt": (
+                "You are the director. You do NOT redo the workers' "
+                "research. You reconcile, decide, and produce one clean "
+                "structured brief."
+            ),
+            "model_name": "anthropic/claude-opus-4-8",
+            "role": "coordinator",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            # Note: temperature intentionally omitted for Opus 4.8
+        },
+        {
+            "agent_name": "Catalysts Worker",
+            "description": "Lists the near-term sector catalysts.",
+            "system_prompt": (
+                "List the three most important near-term catalysts for "
+                "the semiconductor sector. One sentence each."
+            ),
+            "model_name": "gpt-4o-mini",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 1024,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Risks Worker",
+            "description": "Lists the top sector risks.",
+            "system_prompt": (
+                "List the three most important risks to the semiconductor "
+                "sector over the next two quarters. One sentence each."
+            ),
+            "model_name": "gpt-4o-mini",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 1024,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Outlook Worker",
+            "description": "Drafts a one-line outlook for the director to refine.",
+            "system_prompt": (
+                "Write a single one-line outlook for the semiconductor "
+                "sector over the next two quarters."
+            ),
+            "model_name": "gpt-4o-mini",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 256,
+            "temperature": 0.3,
+        },
+    ],
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=payload,
+    timeout=300,
+)
+print(json.dumps(response.json(), indent=2))
+```
+
+The workers do bounded, low-creativity research at cheap-tier prices. The director gets the flagship model where its synthesis ability actually matters. Three cheap workers + one flagship director usually beats four flagship agents on both cost and quality, because the cheap workers are forced to stay narrow.
+
+<Note>
+When the flagship in the config is `anthropic/claude-opus-4-8`, do not set `temperature`. See [Claude Opus 4.8](/docs/examples/examples/claude-opus-4-8) for the full rationale — Anthropic's API will reject the request if `temperature` is supplied.
+</Note>
+
+## Pattern 2: Two-Pass Filtering
+
+Most production workloads are heavily skewed: 70-90% of incoming items don't need the expensive analyst. A cheap classifier agent decides whether the expensive one runs at all. This is the highest-ROI pattern in this guide for any high-volume queue (support tickets, claim triage, document review, lead scoring).
+
+```python
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+
+def classify(item_text: str) -> str:
+    """Cheap classifier. Returns 'escalate' or 'auto-resolve'."""
+    payload = {
+        "agent_config": {
+            "agent_name": "Triage Classifier",
+            "description": "Decides if an item needs an expensive analyst.",
+            "system_prompt": (
+                "You are a triage classifier. Read the item and answer with "
+                "exactly one word: 'escalate' if it requires expert analysis "
+                "(novel issue, regulatory risk, dollar amount over $10k, "
+                "VIP customer) or 'auto-resolve' if it is routine. "
+                "Output one word only."
+            ),
+            "model_name": "gpt-4o-mini",
+            "max_loops": 1,
+            "max_tokens": 8,
+            "temperature": 0.0,
+        },
+        "task": item_text,
+    }
+    r = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=60,
+    )
+    return r.json().get("outputs", "").strip().lower()
+
+
+def expensive_analyst(item_text: str) -> dict:
+    """Expensive flagship analyst. Only runs on escalated items."""
+    payload = {
+        "agent_config": {
+            "agent_name": "Senior Analyst",
+            "description": "Deep analysis for escalated items only.",
+            "system_prompt": (
+                "You are a senior analyst. Produce a structured analysis "
+                "with: summary, key risks, recommended action, and "
+                "uncertainty notes."
+            ),
+            "model_name": "anthropic/claude-opus-4-8",
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+        "task": item_text,
+    }
+    r = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    return r.json()
+
+
+def process(item_text: str) -> dict:
+    decision = classify(item_text)
+    if "escalate" in decision:
+        return {"path": "expensive", "result": expensive_analyst(item_text)}
+    return {"path": "cheap", "result": {"decision": "auto-resolve"}}
+```
+
+If 80% of items auto-resolve at cheap-tier prices and only 20% reach the flagship, your effective cost-per-item collapses by roughly 4x against a naive "everything goes to the flagship" setup — without sacrificing quality on the items that mattered.
+
+## Pattern 3: Batch Endpoints + Night Mode
+
+The Swarms platform applies a **50% night-time discount** on input and output token costs for traffic processed between **8 PM and 6 AM Pacific** (`America/Los_Angeles`). The discount is implemented in `calculate_swarm_cost` — see `api/utils.py` — and applies to billed token costs (the per-agent fixed component is unaffected). The platform decides the discount based on the server clock when the work is processed, so the way you capture it is to **send the work during that window**, typically via the batch endpoints.
+
+Two endpoints matter here:
+
+- `/v1/agent/batch/completions` — array of single-agent jobs in one request
+- `/v1/swarm/batch/completions` — array of multi-agent swarm jobs in one request
+
+The shape is the same: each item is a full request body, identical to what you'd send to the non-batch endpoint.
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+# Build a queue of single-agent jobs to run overnight.
+agent_batch = [
+    {
+        "agent_config": {
+            "agent_name": "Earnings Summarizer",
+            "description": "One-paragraph earnings summary.",
+            "system_prompt": (
+                "Summarize the company's latest quarter in one paragraph. "
+                "Include revenue YoY, EPS, and one forward-looking item."
+            ),
+            "model_name": "gpt-4o-mini",
+            "max_loops": 1,
+            "max_tokens": 512,
+            "temperature": 0.2,
+        },
+        "task": f"Summarize {ticker} most recent earnings release.",
+    }
+    for ticker in ["AAPL", "MSFT", "NVDA", "META", "AMZN", "GOOGL"]
+]
+
+response = requests.post(
+    f"{BASE_URL}/v1/agent/batch/completions",
+    headers=headers,
+    json=agent_batch,
+    timeout=600,
+)
+
+results = response.json()
+for item in results:
+    print(item)
+```
+
+To actually claim the discount, schedule the job. A simple `cron` entry on a Pacific-time host is enough; for cloud schedulers, anchor on `America/Los_Angeles` and fire any time between 8 PM and 6 AM:
+
+```cron
+# Run nightly batch at 9:00 PM Pacific
+0 21 * * * /usr/bin/python3 /opt/jobs/run_overnight_batch.py
+```
+
+<Info>
+Night-mode is a 50% discount on **token costs**, not on the per-agent base charge. For token-heavy swarms (long inputs, long outputs) it cuts the bill roughly in half. For very short calls dominated by the per-agent fixed cost, the effective savings is smaller. Larger jobs benefit more.
+</Info>
+
+## Pattern 4: Cap Tokens and Loops
+
+`max_tokens` and `max_loops` are the most direct, least glamorous, most effective levers in your config. Most production swarms ship with both set carelessly high "just in case." That's where the silent spend hides.
+
+Conservative defaults that work in production:
+
+| Agent role | `max_tokens` | `max_loops` | Notes |
+| --- | --- | --- | --- |
+| Classifier / triage | 16 - 64 | 1 | One-word or short-label outputs |
+| Extraction (fields from a doc) | 512 - 1024 | 1 | Structured output, bounded |
+| Worker doing one analysis lane | 2048 - 4096 | 1 | Most swarm workers live here |
+| Synthesizer / director | 4096 - 8192 | 1 - 2 | Only raise loops if the task is genuinely iterative |
+| Long-form research memo | 8192 | 1 | Higher is rarely the right answer; chain agents instead |
+
+**The two rules**:
+
+1. **Default `max_loops` to 1.** Raise it only when you have evidence a single pass underperforms. Each additional loop multiplies cost roughly linearly and helps less than chaining a fresh agent.
+2. **Set `max_tokens` close to what the agent should actually produce.** A classifier with `max_tokens=4096` is paying for headroom it will never use, plus the long-tail risk of the model going long. Bound it.
+
+## Real-World Numbers
+
+Take a realistic production workload: an investment-research team running 500 single-agent summaries plus 50 multi-agent deep-dive swarms per day. The naive setup runs everything on a flagship model, in the middle of the business day, with generous `max_tokens` and `max_loops`. The optimized setup applies all four patterns above.
+
+Assume rough per-million-token costs of flagship ~$15 input / $75 output, mid-tier ~$3 input / $15 output, cheap ~$0.30 input / $1.20 output. (Use these for relative scale; check your provider's published rates for current values.)
+
+| Workload | Naive (all flagship, peak hours) | Optimized (tiered + batch + night) |
+| --- | --- | --- |
+| 500 single-agent summaries × ~600 input / ~300 output tokens | ~$15.75/day | Cheap-tier + night mode: ~$0.36/day |
+| 50 deep-dive swarms × 4 agents × ~2k input / ~1.5k output | ~$28.50/day | Director-only flagship, workers cheap, batched at night: ~$5.10/day |
+| **Total daily** | **~$44.25** | **~$5.46** |
+| **Effective multiplier** | — | **~8x cheaper** |
+
+The savings come from four stacked decisions: (1) the 80% of work that didn't need a flagship model didn't get one, (2) the workers in the swarm dropped from flagship to cheap-tier, (3) `max_tokens` was set close to the actual output length, and (4) the whole pipeline ran during the night-mode window. Any one of them in isolation saves money. Stacked, they consistently produce a 5-10x reduction on real workloads.
+
+<Warning>
+These numbers are illustrative. Your actual ratio depends on the cheap-tier hit rate of your classifier (Pattern 2), the input/output mix of your specific prompts, and current published provider rates. Treat the table as the right shape, not the right absolute number, and measure your own workload.
+</Warning>
+
+## A Checklist Before You Ship
+
+Run this list against any swarm config heading to production:
+
+- Does every agent need the model it's currently using? Demote any worker whose job is classification, extraction, or formatting.
+- Is `max_tokens` bounded close to the expected output length on every agent?
+- Is `max_loops` set to 1 unless you have measured that more loops change the answer?
+- Could a cheap classifier filter the queue before the expensive agent runs (Pattern 2)?
+- Can the workload run overnight on `/v1/agent/batch/completions` or `/v1/swarm/batch/completions` for the 50% night discount (Pattern 3)?
+- Have you confirmed the flagship agent is reserved for the role that genuinely benefits — synthesis, final judgment, the agent whose output is the artifact?
+
+## Next Steps
+
+- Scale single-agent workloads with [Batch Agent Completions](/docs/examples/examples/batch-agent-scale-tutorial)
+- Run many swarms in one request with [Batch Swarm Completions](/docs/examples/examples/batch-swarm-scale-tutorial)
+- See the tiered hierarchical pattern end-to-end in the [Hierarchical Workflow Example](/docs/examples/examples/hierarchical-workflow)

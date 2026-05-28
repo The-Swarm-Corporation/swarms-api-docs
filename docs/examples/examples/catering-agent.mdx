@@ -1,0 +1,250 @@
+---
+title: "Catering Discovery Agent"
+description: "A single-agent build for event catering discovery — strict JSON output, web search enabled, and structured vendor recommendations ready to feed into an outreach pipeline."
+---
+
+## What This Example Shows
+
+- A focused single-agent build for a real applied domain — event catering discovery
+- A strict, behaviorally-scoped `system_prompt` that pins the agent to structured JSON output
+- The `search_enabled` flag for live vendor lookups with citations
+- How to parse the structured response and surface it to an end user
+- A cost callout: a single API call vs. hiring a catering consultant for an event
+
+<Info>
+This is the same pattern as the [Single Agent Overview](/docs/examples/examples/agent-overview), specialized for an applied vertical. The domain expertise lives entirely in the `system_prompt` — everything else is the standard agent payload.
+</Info>
+
+## Why This Matters
+
+Event planners spend two to four hours on the first cut of catering research — pulling up review sites, comparing menus, checking dietary accommodations, hunting for current contact info, then formatting it all into a shortlist their stakeholders can scan. The job is mechanical and structured: find vendors that match a brief, surface the same fields for each one, flag what's unverified, and produce a ready-to-send outreach message. That's a single-agent job with web search and a strict output contract. The agent below is "Caterly" — it takes a catering brief, runs verified web lookups, and returns a structured vendor list plus a draft outreach message in one call.
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+```
+
+```python
+import json
+import os
+from typing import Any, Dict, Optional
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+```
+
+## Step 2: Write the Strict System Prompt
+
+The system prompt is the contract. It tells the agent (1) what role it plays, (2) what behavioral rules to follow, (3) what fields each vendor must include, and (4) what to do when information is unverifiable. Every line below earns its place — drop one and the output drifts.
+
+```python
+SYSTEM_PROMPT = """
+You are Caterly — a professional event catering discovery assistant. Your task is to find, evaluate, and recommend caterers that best match a user's event requirements. Always prioritize accuracy, transparency, and user-safety.
+
+Behavior rules:
+1. Ask only necessary clarifying questions (if absolutely needed) — otherwise assume missing common defaults (guest_count=50, budget_per_person=$30, date=flexible).
+2. When search_enabled is true, perform web lookups and verify vendor contact and availability information; include citation for each vendor where possible.
+3. For each recommended caterer, provide: name, short description, service types, price per person or range, contact info, menu highlights, dietary accommodations, travel/fee considerations, and a confidence rating with explanation.
+4. Quote prices clearly and compute total estimated event cost = guest_count * price_per_person + service/travel fees.
+5. Provide a "next steps" checklist and a ready-to-send caterer outreach message.
+6. If asked to make bookings, provide only a booking proposal — never execute payments or contact vendors unless a tool is explicitly connected.
+7. Never invent contact data — mark unverifiable items explicitly as "unverified".
+8. If a vendor is unavailable, offer alternatives or timeline adjustments.
+9. Output structured JSON followed by a short human summary.
+"""
+```
+
+<Note>
+Rule 7 is the load-bearing one. Without an explicit "never invent contact data" instruction, the model will happily hallucinate a plausible-sounding phone number for any restaurant it has weak data on. The `"unverified"` marker gives downstream code a stable signal to drop or re-verify before any outreach goes out.
+</Note>
+
+## Step 3: Build the Agent Payload
+
+The `search_enabled` flag is what turns Caterly from a vibes-only recommender into a web-grounded one. Setting it both at the top level of the payload and inside `agent_config` ensures the agent and the platform both authorize the search calls.
+
+```python
+def create_agent_payload(task: str, search_enabled: bool = True) -> Dict[str, Any]:
+    return {
+        "agent_config": {
+            "agent_name": "Caterly - Event Catering Discovery Assistant",
+            "description": (
+                "Professional event catering discovery assistant that finds, "
+                "evaluates, and recommends caterers matching your event "
+                "requirements. Provides detailed vendor information including "
+                "pricing, dietary accommodations, contact details, menu "
+                "highlights, and ready-to-send outreach messages. Performs web "
+                "searches to verify vendor availability and contact information "
+                "when enabled."
+            ),
+            "system_prompt": SYSTEM_PROMPT,
+            "model_name": "gpt-4.1",
+            "max_tokens": 3000,
+            "temperature": 0.5,
+            "role": "worker",
+            "max_loops": 1,
+            "search_enabled": search_enabled,
+            "tool_call_summary": True,
+            "dynamic_temperature_enabled": True,
+        },
+        "task": task,
+        "search_enabled": search_enabled,
+    }
+```
+
+## Step 4: Call the Endpoint
+
+```python
+def run_caterly(task: str, search_enabled: bool = True) -> Dict[str, Any]:
+    payload = create_agent_payload(task, search_enabled=search_enabled)
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+## Step 5: Extract the Structured Response
+
+The agent returns a JSON block followed by a short human-readable summary (per Rule 9). Pull the JSON for downstream automation; keep the summary for the end-user UI.
+
+```python
+def extract_content_from_outputs(outputs: Any) -> str:
+    """Extract text content from the various output shapes the API returns."""
+    if outputs is None:
+        return ""
+    if isinstance(outputs, str):
+        return outputs
+    if isinstance(outputs, list):
+        parts = []
+        for item in outputs:
+            if isinstance(item, dict):
+                content = item.get("content") or item.get("text") or item.get("message")
+                if content:
+                    parts.append(str(content))
+            elif isinstance(item, str):
+                parts.append(item)
+        return "\n\n".join(parts) if parts else str(outputs)
+    if isinstance(outputs, dict):
+        return str(
+            outputs.get("content")
+            or outputs.get("text")
+            or outputs.get("message")
+            or json.dumps(outputs, indent=2)
+        )
+    return str(outputs)
+
+
+def split_json_and_summary(content: str) -> Dict[str, Optional[str]]:
+    """Caterly emits JSON first, then a human summary. Split them."""
+    import re
+
+    match = re.search(r"\{[\s\S]*\}", content)
+    raw_json = match.group(0) if match else None
+    parsed: Optional[Any] = None
+    summary = content
+    if raw_json:
+        try:
+            parsed = json.loads(raw_json)
+            summary = content.replace(raw_json, "").strip()
+        except json.JSONDecodeError:
+            parsed = None
+    return {"json": parsed, "summary": summary}
+```
+
+## Step 6: Run It End to End
+
+```python
+if __name__ == "__main__":
+    task = (
+        "Find 5 caterers for a 70 person event in Mission, San Francisco. "
+        "Prioritize a pizza caterer that can deliver to the event location. "
+        "For each vendor, provide name, address, phone number, email, "
+        "website, and a brief description of their services. Compute the "
+        "total estimated event cost for each option."
+    )
+
+    result = run_caterly(task, search_enabled=True)
+
+    content = extract_content_from_outputs(result.get("outputs", ""))
+    parsed = split_json_and_summary(content)
+
+    print("\n=== STRUCTURED VENDORS ===")
+    if parsed["json"]:
+        print(json.dumps(parsed["json"], indent=2))
+    else:
+        print("(no JSON block found — model drifted from the contract)")
+
+    print("\n=== HUMAN SUMMARY ===")
+    print(parsed["summary"])
+
+    usage = result.get("usage", {})
+    print(f"\nTokens: {usage.get('total_tokens', 0)}  "
+          f"Cost: ${usage.get('total_cost', 0):.4f}")
+```
+
+## Production Notes
+
+<AccordionGroup>
+  <Accordion title="Always validate the JSON before acting on it">
+    The model is good at the contract but not perfect. Wrap your downstream automation in a JSON-schema validation step — reject the response and re-run with stricter instructions if a required field is missing. Never feed unvalidated agent output directly into a transactional outreach pipeline.
+  </Accordion>
+  <Accordion title="Treat 'unverified' fields as if they don't exist">
+    Rule 7 in the system prompt is the safety net. When you parse the response, drop or re-verify any field marked `"unverified"` before it lands in a CRM or outreach tool. A hallucinated phone number that gets dialed is worse than no phone number at all.
+  </Accordion>
+  <Accordion title="Lower the temperature if you need more determinism">
+    `temperature: 0.5` is tuned for menu creativity and outreach copy. If you want the same brief to return the same vendor list across runs, drop to `0.2` and accept slightly drier prose in exchange.
+  </Accordion>
+  <Accordion title="Pair with a verifier agent for high-stakes events">
+    For weddings, corporate conferences, or anything where a wrong vendor recommendation has real downside, run Caterly as the first node in a two-agent [Sequential Workflow](/docs/examples/examples/sequential-swarm-example) — Caterly proposes, a stricter verifier agent re-checks vendor availability against the same data sources.
+  </Accordion>
+</AccordionGroup>
+
+## Cost vs. Hiring a Consultant
+
+A back-of-envelope comparison for a single 70-person event:
+
+| Approach | Time | Cost |
+| --- | --- | --- |
+| Hiring an event catering consultant | 2-4 hours of consultant time | $300-$800 retainer plus 10-15% vendor commission |
+| In-house planner doing the research manually | 2-4 hours of planner time | ~$80-$160 in loaded labor cost |
+| **Caterly via the Swarms API** | **~30-60 seconds** | **~$0.05-$0.20 per query** |
+
+For a venue or events agency running ten briefs a week, that's a four-figure monthly saving on the lookup step alone — and Caterly's structured JSON is ready to feed into your outreach automation without manual cleanup.
+
+<Note>
+Per-query cost varies with task complexity and `max_tokens`. The numbers above assume a typical 5-vendor brief with web search enabled.
+</Note>
+
+## Build Your Own Domain Agent
+
+Swap the `SYSTEM_PROMPT` and `task` to retarget Caterly's shape to any "find, evaluate, recommend" domain:
+
+| Domain | system_prompt focus | Suggested temperature |
+| --- | --- | --- |
+| **Wedding photographers** | Style match, package tiers, availability windows, sample portfolio | 0.5 |
+| **Corporate AV rental** | Equipment specs, setup/teardown logistics, insurance | 0.3 |
+| **Event venues** | Capacity, accessibility, parking, ADA, AV included | 0.4 |
+| **B2B vendor sourcing** | RFP fit, MSA terms, SOC2 status, references | 0.2 |
+| **Personal services (mover, cleaner)** | Service area, licensed/insured, hourly rate, availability | 0.4 |
+
+Everything else — payload shape, response handling, billing — stays identical.
+
+## Next Steps
+
+- [Crypto Quant Agent](/docs/examples/examples/crypto-quant-agent) — same single-agent pattern specialized for cryptocurrency market analysis
+- [Single Agent Overview](/docs/examples/examples/agent-overview) — the full `agent_config` surface and every supported field
+- [MCP Integration](/docs/examples/examples/mcp-integration) — wire Caterly to a custom vendor-database MCP server instead of generic web search

@@ -1,0 +1,414 @@
+---
+title: "Graph Workflow Edge Formats Reference"
+description: "Every supported edge syntax for the Swarms Graph Workflow endpoint — dict form, dict with metadata, two-element list, three-element list — with side-by-side examples building the same DAG."
+---
+
+## What This Example Shows
+
+- All four edge syntaxes the Graph Workflow endpoint actually parses
+- Side-by-side examples where each format produces the same three-agent DAG
+- How to express multi-target (fan-out) edges and conditional gating
+- A summary table for picking the right format for the job
+- One end-to-end runnable workflow that mixes formats in a single `edges` array
+
+<Warning>
+The Graph Workflow endpoint (`POST /v1/graph-workflow/completions`) is a premium-only feature available on Pro, Ultra, and Premium plans. Free-tier keys receive a 403. [Upgrade your account](https://swarms.world/platform/account) to run production DAGs.
+</Warning>
+
+## Why This Matters
+
+Most teams adopt Graph Workflow with one edge format in mind — usually the dict form `{"source": "A", "target": "B"}` — then run into friction when their DAG grows or when ops needs to tag specific edges. The API accepts four interchangeable formats: two dict forms and two list forms, with metadata available on either. Pick the right one for the job and your edges file stays scannable; pick the wrong one and your diff reviewers cry. This reference walks every format end to end against the same target DAG so you can see the trade-offs in one place, and shows how to compose multi-target fan-outs and prompt-level conditional gating without inventing a syntax the API doesn't actually support.
+
+## Step 1: Setup
+
+Install dependencies and load your API key.
+
+```bash
+pip install requests python-dotenv
+```
+
+```python
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+```
+
+## Step 2: Define the Shared Agent Pool
+
+Every example below reuses the same three-agent pool so only the edges change between formats.
+
+```python
+agents = [
+    {
+        "agent_name": "Agent1",
+        "description": "First agent in the workflow",
+        "system_prompt": "You are Agent 1. Process the initial task.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "Agent2",
+        "description": "Second agent in the workflow",
+        "system_prompt": "You are Agent 2. Process data from Agent 1.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "Agent3",
+        "description": "Third agent in the workflow",
+        "system_prompt": "You are Agent 3. Process data from Agent 2.",
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "max_loops": 1,
+    },
+]
+```
+
+The baseline target DAG for the first four formats is the same linear pipeline:
+
+```text
+[Agent1] --> [Agent2] --> [Agent3]
+```
+
+## Step 3: Format 1 — Dict Form
+
+The canonical and most common format. Each edge is a dictionary with explicit `source` and `target` keys. Verbose but extremely readable in code reviews — most production codebases standardize on this.
+
+```python
+edges_dict = [
+    {"source": "Agent1", "target": "Agent2"},
+    {"source": "Agent2", "target": "Agent3"},
+]
+
+workflow_input = {
+    "name": "Edge-Format-1-Dict",
+    "description": "Linear pipeline declared with explicit dict edges.",
+    "agents": agents,
+    "edges": edges_dict,
+    "entry_points": ["Agent1"],
+    "end_points": ["Agent3"],
+    "max_loops": 1,
+    "task": "Process a simple task through a three-agent pipeline.",
+    "auto_compile": True,
+    "verbose": False,
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=300,
+)
+response.raise_for_status()
+print(response.json().get("status"))
+```
+
+## Step 4: Format 2 — Dict with Metadata
+
+The dict form plus an optional `metadata` field — a free-form dictionary you can attach to any edge for routing hints, priority labels, telemetry tags, retry policies, or downstream business rules. The metadata travels with the edge through the compiler.
+
+```python
+edges_dict_metadata = [
+    {
+        "source": "Agent1",
+        "target": "Agent2",
+        "metadata": {
+            "priority": "high",
+            "data_type": "processed_data",
+        },
+    },
+    {
+        "source": "Agent2",
+        "target": "Agent3",
+        "metadata": {
+            "priority": "high",
+            "data_type": "processed_data",
+            "audit_tag": "regulated",
+        },
+    },
+]
+
+workflow_input = {
+    "name": "Edge-Format-2-Dict-Metadata",
+    "description": "Linear pipeline with metadata attached to every edge.",
+    "agents": agents,
+    "edges": edges_dict_metadata,
+    "entry_points": ["Agent1"],
+    "end_points": ["Agent3"],
+    "max_loops": 1,
+    "task": "Process a simple task through a three-agent pipeline with edge metadata.",
+    "auto_compile": True,
+    "verbose": False,
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=300,
+)
+response.raise_for_status()
+print(response.json().get("status"))
+```
+
+<Note>
+Metadata keys are unconstrained — use whatever your ops or audit tooling expects. Common patterns: `priority`, `retry_on_failure`, `audit_tag`, `data_type`, `timeout`, `cost_center`. See [Tagging Graph Workflow Edges with Metadata](/docs/examples/examples/graph-workflow-metadata) for the full production playbook.
+</Note>
+
+## Step 5: Format 3 — Two-Element List
+
+The most terse format the API accepts. Each edge is a two-element list (or tuple) of `[source, target]`. Best for short pipelines and quick scripts where you want the graph to read like a list of arrows.
+
+```python
+edges_list = [
+    ["Agent1", "Agent2"],
+    ["Agent2", "Agent3"],
+]
+
+workflow_input = {
+    "name": "Edge-Format-3-List",
+    "description": "Linear pipeline declared with two-element list edges.",
+    "agents": agents,
+    "edges": edges_list,
+    "entry_points": ["Agent1"],
+    "end_points": ["Agent3"],
+    "max_loops": 1,
+    "task": "Process a simple task through a three-agent pipeline.",
+    "auto_compile": True,
+    "verbose": False,
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=300,
+)
+response.raise_for_status()
+print(response.json().get("status"))
+```
+
+<Info>
+Tuples work identically to lists in Python — `("Agent1", "Agent2")` and `["Agent1", "Agent2"]` both serialize to the same JSON array and the API treats them the same. Pick the one your codebase already uses for graph edges elsewhere.
+</Info>
+
+## Step 6: Format 4 — Three-Element List with Metadata
+
+The list form's metadata variant. Add a third element holding the metadata dictionary. Same expressive power as the dict-with-metadata form, fewer characters per edge — at the cost of positional readability.
+
+```python
+edges_list_metadata = [
+    ["Agent1", "Agent2", {"priority": "high", "data_type": "processed_data"}],
+    ["Agent2", "Agent3", {"priority": "high", "audit_tag": "regulated"}],
+]
+
+workflow_input = {
+    "name": "Edge-Format-4-List-Metadata",
+    "description": "Linear pipeline with metadata on three-element list edges.",
+    "agents": agents,
+    "edges": edges_list_metadata,
+    "entry_points": ["Agent1"],
+    "end_points": ["Agent3"],
+    "max_loops": 1,
+    "task": "Process a simple task through a three-agent pipeline with metadata.",
+    "auto_compile": True,
+    "verbose": False,
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=300,
+)
+response.raise_for_status()
+print(response.json().get("status"))
+```
+
+## Step 7: Multi-Target (Fan-Out) Edges
+
+There is no dedicated multi-target syntax in the API — you express a fan-out by writing one edge per downstream target, all sharing the same source. The compiler builds the parallel branches and runs them concurrently. This is the same expressive power as a hypothetical `"A -> [B, C]"` shorthand, just stated explicitly.
+
+```python
+# Agent1 fans out to Agent2 and Agent3 in parallel.
+edges_fanout = [
+    {"source": "Agent1", "target": "Agent2"},
+    {"source": "Agent1", "target": "Agent3"},
+]
+
+workflow_input = {
+    "name": "Edge-Format-Fan-Out",
+    "description": "Fan-out from one source to two parallel downstream targets.",
+    "agents": agents,
+    "edges": edges_fanout,
+    "entry_points": ["Agent1"],
+    "end_points": ["Agent2", "Agent3"],
+    "max_loops": 1,
+    "task": "Send the same input to two downstream agents in parallel.",
+    "auto_compile": True,
+    "verbose": False,
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=300,
+)
+response.raise_for_status()
+print(response.json().get("status"))
+```
+
+The same trick scales — N edges with the same `source` produce an N-way fan-out, and N edges with the same `target` produce an N-way fan-in. The full DAG is just a list of pairwise edges; structure emerges from the edge set.
+
+## Step 8: Conditional Edges via Prompt-Level Gating
+
+The Graph Workflow endpoint does not expose a schema-level `condition` field on edges — every declared edge fires when its upstream node completes. To implement a conditional path, encode the gate in the downstream node's prompt:
+
+```python
+gated_agents = [
+    {
+        "agent_name": "Triage",
+        "description": "Decides whether to escalate or pass through.",
+        "system_prompt": (
+            "You are a triage agent. Inspect the input and output exactly one "
+            "token at the end of your response: `ESCALATE` if the situation "
+            "warrants escalation, otherwise `PASS`. Be conservative — only "
+            "escalate on clear signals."
+        ),
+        "model_name": "gpt-4.1",
+        "max_tokens": 1500,
+        "temperature": 0.1,
+        "max_loops": 1,
+    },
+    {
+        "agent_name": "HumanEscalation",
+        "description": "Drafts an escalation note for a human operator.",
+        "system_prompt": (
+            "You receive an upstream Triage agent's output. If the upstream "
+            "output ends with `PASS`, respond with the single token `SKIPPED` "
+            "and stop. If it ends with `ESCALATE`, draft a 3-bullet escalation "
+            "note for a human operator."
+        ),
+        "model_name": "gpt-4.1",
+        "max_tokens": 1500,
+        "temperature": 0.2,
+        "max_loops": 1,
+    },
+]
+
+gated_edges = [
+    {"source": "Triage", "target": "HumanEscalation"},
+]
+```
+
+The `HumanEscalation` node runs every time, but produces a `SKIPPED` no-op when the upstream emits `PASS`. Downstream consumers (or a final synthesis node) check for `SKIPPED` and ignore the branch. See [Graph Workflows for Production Pipelines](/docs/examples/examples/graph-workflows-production) for the full SKIP-gating pattern in a real DAG.
+
+## Step 9: Mix Formats in One Workflow
+
+The compiler accepts heterogeneous edges in the same `edges` array. Sketch the trunk of the graph with the list form and switch to dict-with-metadata for the edges ops actually cares about.
+
+```python
+edges_mixed = [
+    ["Agent1", "Agent2"],  # list form for a routine link
+    {
+        "source": "Agent2",
+        "target": "Agent3",
+        "metadata": {
+            "audit_tag": "regulatory",
+            "priority": "high",
+        },
+    },  # dict-with-metadata for the regulated step
+]
+
+workflow_input = {
+    "name": "Edge-Format-Mixed",
+    "description": "Mixed-format edges in a single workflow.",
+    "agents": agents,
+    "edges": edges_mixed,
+    "entry_points": ["Agent1"],
+    "end_points": ["Agent3"],
+    "max_loops": 1,
+    "task": "Process a simple task through a three-agent pipeline.",
+    "auto_compile": True,
+    "verbose": False,
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=headers,
+    json=workflow_input,
+    timeout=300,
+)
+response.raise_for_status()
+print(response.json().get("status"))
+```
+
+## Step 10: Read the Per-Node Output
+
+Regardless of which edge format you submit, the response shape is identical. Outputs are keyed by `agent_name`.
+
+```python
+result = response.json()
+
+outputs = result.get("outputs", {})
+for name in ["Agent1", "Agent2", "Agent3"]:
+    if name in outputs:
+        print(f"\n[{name}]")
+        print(str(outputs[name])[:300])
+
+usage = result.get("usage", {})
+print(f"\nTotal cost: ${usage.get('token_cost', 0):.4f}")
+print(f"Total tokens: {usage.get('total_tokens', 0)}")
+```
+
+## Choosing the Right Format
+
+| Format | Best for | Pros | Cons |
+| --- | --- | --- | --- |
+| **Dict form** `{"source": ..., "target": ...}` | Most production codebases | Explicit, lints cleanly, easy to refactor | Verbose for large graphs |
+| **Dict with metadata** | Edges that need routing hints, audit labels, or retry policy | Carries ops and business context with the edge | Most verbose; only worth it when you consume the metadata |
+| **Two-element list** `[source, target]` | Sketches, quick scripts, dense edge lists | Fewest characters; reads like an arrow | No metadata; positional — typo-prone |
+| **Three-element list** `[source, target, metadata]` | Dense edge lists where most edges need a tag | Compact metadata variant | Positional; less self-documenting than dict form |
+| **Multi-target fan-out** | One upstream feeding many parallel downstreams | Pure composition — no new syntax | Verbose for very wide fan-outs |
+| **Conditional gating** | Skipping branches based on upstream signal | No new syntax; pure prompt engineering | Downstream node still consumes tokens to emit `SKIPPED` |
+
+<Info>
+A common production convention: use the two-element list inside `if __name__ == "__main__"` smoke tests, the dict form in committed pipeline modules, and dict-with-metadata only on edges that participate in audit, retry, or routing logic.
+</Info>
+
+## Common Pitfalls
+
+<AccordionGroup>
+  <Accordion title="400 error: `Invalid edge format`">
+    The API expects each edge to be a dict, an `EdgeSpec`, or a list/tuple of length 2+. Strings like `"Agent1 -> Agent2"` are not parsed and will fail validation. If you want a terse syntax, use the two-element list.
+  </Accordion>
+  <Accordion title="400 error: `source node '...' does not exist`">
+    Every edge's `source` and `target` must match an `agent_name` in the `agents` array exactly. Watch for whitespace, casing, and trailing punctuation — the comparison is exact.
+  </Accordion>
+  <Accordion title="A downstream node never runs">
+    Check that the downstream node appears as the `target` of at least one edge whose `source` actually executes. A node with no incoming edge and no entry in `entry_points` will never fire.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- [Tagging Graph Workflow Edges with Metadata](/docs/examples/examples/graph-workflow-metadata) — production patterns for routing hints, telemetry tags, and audit labels
+- [Graph Workflows for Production Pipelines](/docs/examples/examples/graph-workflows-production) — a fan-out/fan-in SDR enrichment DAG using the dict form end to end
+- [Graph Workflow Example](/docs/examples/examples/graph-workflow) — additional DAG shapes including localization and code review

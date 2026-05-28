@@ -1,0 +1,205 @@
+---
+title: "Conversation History (Multi-Turn Agents)"
+description: "Build chatbots and research assistants that remember earlier turns by threading the history field through /v1/agent/completions."
+---
+
+## What This Example Shows
+
+- How to pass prior turns to an agent using the `history` field on `/v1/agent/completions`
+- The exact `{role, content}` message shape the API expects
+- How to thread the assistant's reply back into the next request to keep context
+- A worked support-chatbot loop across three turns
+- The most common mistake — silently dropping context — and how to avoid it
+
+<Info>
+The Swarms API is stateless. Each call to `/v1/agent/completions` starts a fresh agent. To get multi-turn behavior, *you* carry the conversation: send every prior `user` and `assistant` message back on the `history` field of the next request.
+</Info>
+
+## Why This Matters
+
+Most real products — support chatbots, multi-turn research assistants, onboarding flows, interactive analysts — only feel useful once the agent remembers earlier turns. Without that, your user has to re-state their problem on every message. The `history` parameter is the single foundational primitive that turns a one-shot completion into a real conversation, and threading it correctly is the difference between an agent that feels alive and one that feels amnesiac.
+
+## Step 1: Setup
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+
+def build_agent_config():
+    return {
+        "agent_name": "Customer Support Agent",
+        "description": "A friendly e-commerce customer support agent that helps with orders, returns, and refunds.",
+        "system_prompt": (
+            "You are a helpful customer support agent for an online retailer. "
+            "Greet customers warmly, ask for the information you need to help "
+            "(order number, email on file, etc.), remember details the customer "
+            "has already shared earlier in the conversation, and walk them through "
+            "next steps clearly and concisely."
+        ),
+        "model_name": "gpt-4.1",
+        "max_loops": 1,
+        "max_tokens": 2048,
+    }
+
+
+def call_agent(task: str, history: list | None = None) -> dict:
+    """Send one turn to /v1/agent/completions, optionally threading history."""
+    payload = {
+        "agent_config": build_agent_config(),
+        "task": task,
+    }
+    if history:
+        payload["history"] = history
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=120,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def extract_reply(result: dict) -> str:
+    """Pull the assistant's final text out of an AgentCompletion response.
+
+    The /v1/agent/completions response shape is:
+        {"job_id": ..., "outputs": [...], "usage": {...}, ...}
+    where `outputs` is a list of {"role": ..., "content": ...} dicts. We want
+    the last assistant message — i.e. the last entry whose role is not "user".
+    """
+    outputs = result.get("outputs")
+    if isinstance(outputs, list):
+        for item in reversed(outputs):
+            if not isinstance(item, dict):
+                continue
+            role = (item.get("role") or "").lower()
+            if role in ("user", "system"):
+                continue
+            content = item.get("content")
+            if isinstance(content, list):
+                return " ".join(str(c) for c in content)
+            if content:
+                return str(content)
+    # Fall back to whatever the API returned — print raw so you can inspect it.
+    return json.dumps(outputs, indent=2) if outputs is not None else json.dumps(result, indent=2)
+```
+
+## Step 2: Turn 1 — Greeting (No History)
+
+The first turn has no prior context, so `history` is omitted. The agent answers from a clean slate.
+
+```python
+turn_1_task = "Hi there!"
+
+turn_1_result = call_agent(task=turn_1_task)
+turn_1_reply = extract_reply(turn_1_result)
+
+print("USER:     ", turn_1_task)
+print("ASSISTANT:", turn_1_reply)
+```
+
+The agent greets the customer back and likely asks how it can help — standard opening turn, nothing to remember yet.
+
+<Note>
+The Swarms API accepts `history` as a list of `{role, content}` dicts. Valid roles are `"user"` and `"assistant"`. The `system_prompt` lives in `agent_config` — do NOT prepend a `{"role": "system", ...}` message into `history`.
+</Note>
+
+## Step 3: Turn 2 — "Where is my order?"
+
+Append the previous user message and assistant reply into `history`, then send the next user message as the new `task`.
+
+```python
+history = [
+    {"role": "user", "content": turn_1_task},
+    {"role": "assistant", "content": turn_1_reply},
+]
+
+turn_2_task = "Where is my order? It was supposed to arrive yesterday."
+
+turn_2_result = call_agent(task=turn_2_task, history=history)
+turn_2_reply = extract_reply(turn_2_result)
+
+print("USER:     ", turn_2_task)
+print("ASSISTANT:", turn_2_reply)
+```
+
+Because turn 1 is in `history`, the agent treats this as a continuation of an ongoing chat rather than a brand-new session — it doesn't re-greet, and it can reference the earlier hello if relevant.
+
+## Step 4: Turn 3 — "Actually, I want a refund"
+
+The customer pivots. Append turn 2 to `history`, then ask for a refund. With the full thread in context, the agent connects the refund request to the missing-order complaint from turn 2 instead of treating it as a fresh, unrelated request.
+
+```python
+history.extend([
+    {"role": "user", "content": turn_2_task},
+    {"role": "assistant", "content": turn_2_reply},
+])
+
+turn_3_task = "Actually, forget the tracking — I just want a refund."
+
+turn_3_result = call_agent(task=turn_3_task, history=history)
+turn_3_reply = extract_reply(turn_3_result)
+
+print("USER:     ", turn_3_task)
+print("ASSISTANT:", turn_3_reply)
+```
+
+By turn 3 the agent has the full conversational arc — greeting, missing-order complaint, pivot to refund — and can route the customer to the refund flow while citing the original order issue as the reason. Without `history`, it would ask "refund for what?" and the customer would have to start over.
+
+## Step 5: Wrap It in a Reusable Chat Loop
+
+The full pattern collapses into a tiny REPL you can drop into a CLI, a webhook handler, or a websocket session.
+
+```python
+def chat_loop():
+    history: list[dict] = []
+    print("Support Assistant ready. Type 'quit' to exit.\n")
+    while True:
+        user_msg = input("You: ").strip()
+        if user_msg.lower() in {"quit", "exit"}:
+            break
+        result = call_agent(task=user_msg, history=history or None)
+        reply = extract_reply(result)
+        print(f"Assistant: {reply}\n")
+        history.append({"role": "user", "content": user_msg})
+        history.append({"role": "assistant", "content": reply})
+
+
+if __name__ == "__main__":
+    chat_loop()
+```
+
+<Warning>
+**Common mistake — losing context by overwriting instead of appending.** The most frequent bug we see is sending only the *latest* user/assistant pair as `history`, or rebuilding `history` from scratch each turn. The agent then loses everything before that pair. `history` is a transcript of the whole conversation so far; you append to it every turn, you do not replace it. If your bot suddenly "forgets" what the user said three messages ago, this is almost always the cause.
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="Should I include the latest user `task` inside `history`?">
+    No. Send the new turn as `task` and put only the *prior* turns in `history`. The API stitches them together internally. Putting the current question in both places will duplicate it in the model's view.
+  </Accordion>
+  <Accordion title="How long can `history` get before I should trim?">
+    It scales with the model's context window. For long sessions, periodically summarize older turns into a single `assistant` message and keep only the last N raw turns verbatim — same pattern as any other chat application.
+  </Accordion>
+  <Accordion title="Can I persist history across processes?">
+    Yes. `history` is just JSON. Store it in your database keyed by session/user ID and rehydrate it on the next request. The Swarms API holds no server-side session state for `/v1/agent/completions`.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- [Single Agent Overview](/docs/examples/examples/agent-overview) — the full `agent_config` surface, including tools and vision
+- [Streaming Responses](/docs/examples/examples/streaming) — stream the assistant's reply token-by-token while still threading history
+- [Sub-Agent Delegation](/docs/examples/examples/sub-agent-delegation) — let a conversational agent hand off specialist sub-tasks mid-thread

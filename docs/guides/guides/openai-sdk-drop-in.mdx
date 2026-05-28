@@ -1,0 +1,299 @@
+---
+title: "Drop-In Migration from OpenAI SDK to Swarms"
+description: "You already have an OpenAI client. Change a base_url and you get multi-agent for free — then upgrade to /v1/swarm/completions when you want full orchestration. A strategic migration narrative."
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+## What This Covers
+
+- The two-line migration: pointing your existing `openai` Python client at Swarms with no other code changes
+- Why bearer-token auth works the same as `x-api-key` — your existing OpenAI auth pattern transfers
+- The optional upgrade path: when to graduate from `/v1/chat/completions` (single model) to `/v1/swarm/completions` (multi-agent swarm)
+- Realistic before/after architecture for an existing OpenAI-backed app
+- What you don't have to throw away — streaming, history, vision, retries
+
+## Why This Matters
+
+Most teams already have an `openai` client wired into production. Logging, retries, observability, prompt versioning, evaluation — all of it sits behind that one SDK call. The switching cost of "rewrite to a new SDK" is what keeps teams locked into single-model architectures even when their problems demand a swarm. The Swarms API removes that cost: it speaks the OpenAI ChatCompletion protocol on `/v1/chat/completions` and accepts either `x-api-key` or `Authorization: Bearer <key>` — meaning your existing OpenAI SDK code becomes a Swarms client by changing **two strings**. From there, you can graduate one endpoint at a time to multi-agent without rewriting the layers around it.
+
+This guide is the migration narrative, not a feature tour. For the feature tour, see [OpenAI-Compatible Chat Completions](/docs/examples/examples/openai-compatible).
+
+## The Two-Line Migration
+
+Here is the code you already have:
+
+<Tabs>
+  <Tab title="Before — vanilla OpenAI">
+    ```python
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = OpenAI(
+        api_key=os.environ["OPENAI_API_KEY"],
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a senior financial analyst."},
+            {"role": "user",   "content": "What are the top risks in EM bonds right now?"},
+        ],
+        max_tokens=512,
+        temperature=0.3,
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+  <Tab title="After — pointing at Swarms">
+    ```python
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = OpenAI(
+        api_key=os.environ["SWARMS_API_KEY"],
+        base_url="https://api.swarms.world/v1",   # <-- the only structural change
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a senior financial analyst."},
+            {"role": "user",   "content": "What are the top risks in EM bonds right now?"},
+        ],
+        max_tokens=512,
+        temperature=0.3,
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+</Tabs>
+
+That's the entire migration for the basic case. The request shape, response shape, streaming protocol, error classes, and SDK methods are identical. Your retry middleware, your prompt-template layer, your token-counting telemetry — none of it has to change.
+
+## Authentication: Bearer Token Works Too
+
+The OpenAI SDK injects `Authorization: Bearer <key>` automatically. Swarms accepts both that header and the `x-api-key` header that the rest of the Swarms docs reference — they're equivalent, and the platform falls back from one to the other server-side. This means:
+
+- Your **OpenAI SDK code** keeps using `Authorization: Bearer` (transparently — you don't see it)
+- Your **`requests`-style code** can keep using `x-api-key` (matches every other guide)
+- Mixed codebases work without translating between auth schemes
+
+```python
+# Both of these authenticate the same request to Swarms.
+
+# Style 1: OpenAI SDK (uses Authorization: Bearer under the hood)
+client = OpenAI(api_key=os.environ["SWARMS_API_KEY"], base_url="https://api.swarms.world/v1")
+
+# Style 2: raw requests with x-api-key
+headers = {"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"}
+
+# Style 3: raw requests with bearer — also accepted
+headers_bearer = {"Authorization": f"Bearer {os.environ['SWARMS_API_KEY']}", "Content-Type": "application/json"}
+```
+
+If your existing OpenAI integration uses bearer tokens because that's what the SDK does, you don't have to change anything. If you're hand-rolling HTTP calls and want to match the Swarms doc convention, use `x-api-key`. Either is fine.
+
+## What You Keep For Free
+
+The Swarms `/v1/chat/completions` endpoint is a faithful OpenAI ChatCompletion. The following continue to work, unmodified, after the base-url swap:
+
+- **Streaming** (`stream=True` — token-by-token deltas)
+- **System / user / assistant messages**, including full multi-turn history
+- **Vision / image input** via the multimodal `content` array
+- **Standard error classes** from the SDK (`openai.RateLimitError`, `openai.APIStatusError`, etc.)
+- **`usage` accounting** in the response — prompt/completion/total token counts
+- **`max_tokens`, `temperature`, `top_p`, `presence_penalty`, `frequency_penalty`** all forwarded
+
+A worked example reusing the SDK exactly as you'd use it against OpenAI:
+
+```python
+import os
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+
+client = OpenAI(
+    api_key=os.environ["SWARMS_API_KEY"],
+    base_url="https://api.swarms.world/v1",
+)
+
+# Streaming, multi-turn, vision, error-handling — all unchanged from OpenAI.
+stream = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "You are a meticulous code reviewer."},
+        {"role": "user", "content": "Review this function for edge cases: def divide(a, b): return a / b"},
+    ],
+    stream=True,
+    max_tokens=1024,
+)
+
+for chunk in stream:
+    delta = chunk.choices[0].delta.content
+    if delta:
+        print(delta, end="", flush=True)
+```
+
+## The First Free Upgrade: `max_loops`
+
+The Swarms endpoint adds **one** non-OpenAI parameter you can pass through `extra_body`: `max_loops`. It tells the agent to iterate on its own output — think "self-review and refine" without you writing the orchestration. This is the first piece of multi-agent thinking you can adopt without leaving the `chat.completions` shape.
+
+```python
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "Write a solution, then critique it, then output the corrected version."},
+        {"role": "user",   "content": "Implement longest_palindromic_substring(s: str) -> str."},
+    ],
+    max_tokens=2048,
+    extra_body={"max_loops": 3},   # <-- self-iterate three times before returning
+)
+```
+
+`max_loops` defaults to `1` (single pass — identical to OpenAI behavior). Bumping it to 2 or 3 is often the cheapest quality win on hard reasoning tasks. For the full reference see [OpenAI-Compatible Chat Completions](/docs/examples/examples/openai-compatible).
+
+---
+
+## The Strategic Upgrade: `/v1/swarm/completions`
+
+The `chat.completions` shape is a single conversation with a single agent. That's the right tool for many calls, but the reason teams come to Swarms is that some calls need to be **a coordinated team of specialised agents** — a researcher, an analyst, a critic, a synthesizer. The OpenAI protocol doesn't have a vocabulary for that. Swarms does, on its native `/v1/swarm/completions` endpoint.
+
+The decision is per-endpoint: keep using `chat.completions` for chat-shaped calls, and route the calls that need orchestration to `swarm/completions`. You don't migrate everything at once.
+
+### When to upgrade an endpoint
+
+Upgrade to `/v1/swarm/completions` when any of these are true:
+
+- The prompt has more than one *role* baked into it (e.g. "first research X, then critique it, then summarise")
+- You're already doing your own agent orchestration in application code (function-calling loops, sub-agent dispatch)
+- The output quality is bottlenecked on a single model trying to do too much in one pass
+- You need parallel work — concurrent research across multiple angles — combined into one answer
+
+### Side-by-side: the same job, two endpoints
+
+<Tabs>
+  <Tab title="OpenAI-compatible (single agent)">
+    ```python
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = OpenAI(
+        api_key=os.environ["SWARMS_API_KEY"],
+        base_url="https://api.swarms.world/v1",
+    )
+
+    # One model, one pass. Cheap, fast, fine for simple analysis.
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a strategy analyst. Research, analyse, and recommend."},
+            {"role": "user",   "content": "Should a Series-B SaaS company enter the German market?"},
+        ],
+        max_tokens=2048,
+        extra_body={"max_loops": 2},  # self-iterate once for quality
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+  <Tab title="Swarm-native (multi-agent)">
+    ```python
+    import os
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY  = os.environ["SWARMS_API_KEY"]
+    BASE_URL = "https://api.swarms.world"
+
+    # x-api-key OR Authorization: Bearer — pick whichever matches your stack
+    headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+    # Four specialist agents, one synthesizer, run as a sequential workflow.
+    # Each agent is cheaper and tighter than the single generalist above —
+    # the synthesizer is where you spend the token budget.
+    payload = {
+        "name": "German Market Entry Analysis",
+        "swarm_type": "SequentialWorkflow",
+        "task": "Should a Series-B SaaS company enter the German market?",
+        "agents": [
+            {
+                "agent_name": "Market Researcher",
+                "system_prompt": "Surface 3 key facts about the German SaaS market.",
+                "model_name": "gpt-4o-mini",
+                "max_tokens": 768,
+            },
+            {
+                "agent_name": "Competitive Analyst",
+                "system_prompt": "Identify the top 3 incumbents and their moats.",
+                "model_name": "gpt-4o-mini",
+                "max_tokens": 768,
+            },
+            {
+                "agent_name": "Risk Analyst",
+                "system_prompt": "List the top 3 entry risks and mitigations.",
+                "model_name": "gpt-4o-mini",
+                "max_tokens": 768,
+            },
+            {
+                "agent_name": "Director (Synthesizer)",
+                "system_prompt": "Read the three briefings. Produce a go/no-go memo.",
+                "model_name": "gpt-4o",
+                "max_tokens": 3072,
+            },
+        ],
+    }
+
+    resp = requests.post(f"{BASE_URL}/v1/swarm/completions", headers=headers, json=payload)
+    print(resp.json()["output"])
+    ```
+  </Tab>
+</Tabs>
+
+The point is **you can keep the left-hand call exactly where it is** while introducing the right-hand call for the analyses that actually need multi-agent reasoning. The two endpoints live side-by-side in the same app, behind the same API key.
+
+---
+
+## A Migration Plan You Can Actually Run
+
+A pragmatic week-one migration for a team currently on OpenAI:
+
+1. **Day 1.** Add a `SWARMS_API_KEY` to your secrets. Duplicate your OpenAI client construction into a `swarms_client` that differs only in `api_key` and `base_url`. Ship to staging behind a feature flag.
+2. **Day 2.** Move your *least-critical* chat.completions endpoint to `swarms_client`. Confirm logs, retries, token counting, and streaming all behave. Diff the response on a few hundred prompts against the OpenAI baseline.
+3. **Day 3.** Identify the **one** endpoint in your product that does the most prompt engineering — the long, multi-section system prompt with "first do X, then Y, then Z". This is the one that wants to be a swarm. Cut it over to `/v1/swarm/completions` with 3–5 agents.
+4. **Day 4.** Add the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) patterns to that swarm — tier the workers, compress the handoffs.
+5. **Day 5.** Schedule the batch / overnight pieces of your pipeline against the [Night-Mode discount](/docs/guides/guides/night-mode-pricing-strategy). Audit `discount_active` to confirm.
+
+After that, the rest is per-endpoint at your pace. You don't have to migrate everything to claim the wins.
+
+## What You Don't Have To Throw Away
+
+- Your OpenAI SDK and any wrappers around it
+- Your retry / circuit-breaker middleware
+- Your token-counting and cost-tracking telemetry
+- Your prompt-versioning system
+- Your evaluation harness (the response shape is identical)
+- Your streaming UI code
+- Your `Authorization: Bearer` auth flow
+
+What you gain is an upgrade path that doesn't require a rewrite to take — you adopt multi-agent endpoint-by-endpoint, paying only for the ones that actually need it.
+
+## Next Steps
+
+- [OpenAI-Compatible Chat Completions](/docs/examples/examples/openai-compatible) — full feature reference for the drop-in endpoint (streaming, vision, multi-turn, multi-loop) with TypeScript, Go, and Rust examples
+- [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) — once you're on `/v1/swarm/completions`, this is the architecture that gets your bill down
+- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — 50% off tokens 8 PM – 6 AM Pacific, schedule your batches accordingly

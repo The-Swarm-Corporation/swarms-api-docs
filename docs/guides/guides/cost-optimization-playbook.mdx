@@ -1,0 +1,309 @@
+---
+title: "Cost Optimization Playbook"
+description: "Cut multi-agent swarm bills 2–5× by tiering models, compressing context with structured tool outputs, and reserving frontier models for synthesis."
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+## What This Covers
+
+- Why the dominant cost driver in a swarm is **token volume**, not raw per-token price
+- A tiered architecture pattern: cheap triage and extraction workers feeding an expensive director
+- A `tools_dictionary` recipe that compresses upstream context into structured handoffs
+- Before/after numbers on a 5-agent business-research swarm using the live Swarms pricing model
+- A checklist to apply on every swarm you ship
+
+## Why This Matters
+
+Multi-agent systems blow up budgets in a way single-agent systems don't: every agent re-reads the running context, every worker emits prose that becomes input tokens for the next worker, and a careless director that asks five reasoning agents to "give me everything you know" can 10× a bill without improving the answer. Swarms charges a uniform `$6.50` per 1M input tokens and `$18.50` per 1M output tokens on swarm completions — so the lever that actually moves the needle is **how much text travels through the pipeline**, not which logo is on the model card. This playbook is the architecture pattern we use internally and recommend to teams running production research, RAG, and analyst workflows.
+
+## The Pricing Reality
+
+Swarm completions on Swarms are priced uniformly:
+
+| Component | Rate |
+| --- | --- |
+| Input tokens | `$6.50 / 1M` |
+| Output tokens | `$18.50 / 1M` |
+| Per-agent fee | `$0.01` per agent per run |
+| Overnight discount | `50% off` token costs, 8 PM – 6 AM Pacific |
+
+Picking `claude-haiku` over `claude-opus` does **not** lower the per-token rate — the Swarms platform abstracts the model and bills you a flat blended price. The win comes from two architectural moves:
+
+1. **Cheap workers emit terser outputs.** Configure `max_tokens` aggressively on triage and extraction agents (512–1,024) and reserve large budgets (4,096–8,192) for the synthesis agent that actually needs to reason.
+2. **Structured handoffs compress context.** A worker that returns a 200-token JSON summary instead of a 5,000-token essay shrinks every downstream agent's input bill proportionally.
+
+<Info>
+The per-agent fee is small ($0.01) but stacks: a 10-agent swarm is `$0.10` of non-discountable overhead per run, on top of token costs. Prune agents that don't contribute distinct value.
+</Info>
+
+---
+
+## The Anti-Pattern: All-Frontier, Verbose Workers
+
+Here is the swarm most teams ship first. Five reasoning-grade workers, all with high `max_tokens`, all producing long-form prose that the next agent has to re-read.
+
+```python
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+# Anti-pattern: every agent is a frontier-class generalist with a huge
+# token budget. The 5th agent ends up re-reading ~25k input tokens.
+verbose_swarm = {
+    "name": "Market Entry Analysis (Verbose)",
+    "description": "All-frontier verbose swarm",
+    "swarm_type": "SequentialWorkflow",
+    "task": "Analyze a SaaS company entering the German mid-market. Cover market, ops, finance, risk, and synthesis.",
+    "agents": [
+        {
+            "agent_name": "Market Researcher",
+            "system_prompt": "You are a senior market analyst. Be thorough and exhaustive.",
+            "model_name": "gpt-4o",
+            "max_tokens": 6144,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Operations Strategist",
+            "system_prompt": "You are an ops strategist. Detail every workstream.",
+            "model_name": "gpt-4o",
+            "max_tokens": 6144,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Financial Analyst",
+            "system_prompt": "You are a financial analyst. Walk through the model in full.",
+            "model_name": "gpt-4o",
+            "max_tokens": 6144,
+            "temperature": 0.2,
+        },
+        {
+            "agent_name": "Risk Analyst",
+            "system_prompt": "You are a risk lead. Enumerate every risk in detail.",
+            "model_name": "gpt-4o",
+            "max_tokens": 6144,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Synthesizer",
+            "system_prompt": "Combine the above into a final memo.",
+            "model_name": "gpt-4o",
+            "max_tokens": 8192,
+            "temperature": 0.4,
+        },
+    ],
+}
+
+resp = requests.post(f"{BASE_URL}/v1/swarm/completions", headers=headers, json=verbose_swarm)
+print(resp.json()["usage"])
+```
+
+### What this run actually costs
+
+A realistic single execution of this swarm produces something like:
+
+- Input tokens: ~30,000 (each downstream agent re-reads upstream prose)
+- Output tokens: ~12,000 (each worker fills its 6k–8k ceiling)
+- Agents: 5
+
+```
+input_cost  = (30_000 / 1_000_000) * 6.50 = $0.1950
+output_cost = (12_000 / 1_000_000) * 18.50 = $0.2220
+agent_cost  = 5 * 0.01 = $0.05
+total       = $0.467 per run
+```
+
+At 500 runs/day this is **$233.50/day** — and almost none of the cost is producing decision-relevant signal. The first four agents are warming up the synthesis agent.
+
+---
+
+## The Pattern: Tiered Workers + Compressed Handoffs
+
+The fix is two changes:
+
+1. **Force each worker to emit a structured summary**, not a long memo, via a tight `max_tokens` and a system prompt that asks for JSON-shaped output.
+2. **Reserve the high-token budget for the final synthesizer**, which is the only agent the user actually reads.
+
+```python
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+# tools_dictionary: a strict output schema each worker must conform to.
+# When the next agent reads its predecessor's output, it reads ~150 tokens
+# of clean JSON instead of 1,000+ tokens of prose.
+WORKER_SCHEMA = """
+Return your analysis ONLY as compact JSON with this shape, no prose:
+{
+  "headline":     "<one sentence>",
+  "key_facts":    ["<fact>", "<fact>", "<fact>"],
+  "open_questions": ["<question>", "<question>"],
+  "confidence":   "<low|medium|high>"
+}
+"""
+
+tiered_swarm = {
+    "name": "Market Entry Analysis (Tiered)",
+    "description": "Cheap-worker / frontier-director swarm",
+    "swarm_type": "SequentialWorkflow",
+    "task": "Analyze a SaaS company entering the German mid-market. Cover market, ops, finance, risk, and synthesis.",
+    "agents": [
+        {
+            "agent_name": "Market Triage",
+            "system_prompt": "Surface the top 3 market facts a director needs.\n" + WORKER_SCHEMA,
+            "model_name": "gpt-4o-mini",
+            "max_tokens": 768,
+            "temperature": 0.2,
+        },
+        {
+            "agent_name": "Ops Triage",
+            "system_prompt": "Surface the 3 most material operational risks.\n" + WORKER_SCHEMA,
+            "model_name": "gpt-4o-mini",
+            "max_tokens": 768,
+            "temperature": 0.2,
+        },
+        {
+            "agent_name": "Finance Triage",
+            "system_prompt": "Pull 3 financial constraints a director must know.\n" + WORKER_SCHEMA,
+            "model_name": "gpt-4o-mini",
+            "max_tokens": 768,
+            "temperature": 0.1,
+        },
+        {
+            "agent_name": "Risk Triage",
+            "system_prompt": "List the 3 highest-severity risks with mitigations.\n" + WORKER_SCHEMA,
+            "model_name": "gpt-4o-mini",
+            "max_tokens": 768,
+            "temperature": 0.2,
+        },
+        {
+            "agent_name": "Director (Synthesizer)",
+            "system_prompt": (
+                "You are a senior strategy director. You will receive four JSON "
+                "briefings from your analysts. Read them carefully and produce a "
+                "decision-ready memo: recommendation, rationale, go/no-go, and "
+                "the next 3 actions. This is the only output the user reads."
+            ),
+            "model_name": "gpt-4o",
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+    ],
+}
+
+resp = requests.post(f"{BASE_URL}/v1/swarm/completions", headers=headers, json=tiered_swarm)
+print(resp.json()["usage"])
+```
+
+### What this run actually costs
+
+- Input tokens: ~8,000 (workers see only the task; director sees four ~150-token JSON briefings instead of four essays)
+- Output tokens: ~4,500 (workers cap at ~600 each, director gets the 4k it needs)
+- Agents: 5
+
+```
+input_cost  = (8_000 / 1_000_000) * 6.50  = $0.0520
+output_cost = (4_500 / 1_000_000) * 18.50 = $0.0833
+agent_cost  = 5 * 0.01 = $0.05
+total       = $0.185 per run
+```
+
+At 500 runs/day: **$92.50/day** — a **~2.5× reduction** from $233.50/day with the same agent count and the same quality of final memo, because the only output the user reads is the director's.
+
+<Info>
+Run the same swarm overnight (8 PM – 6 AM Pacific) and the token costs drop another 50% — total falls to roughly **$0.118/run** or **$59/day**. See the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide.
+</Info>
+
+---
+
+## Compressing Even Harder: The `tools_dictionary` Pattern
+
+The biggest savings come from forcing workers to emit structured, machine-shaped output. A `tools_dictionary` is just an explicit schema you bake into the system prompt — the worker's prose is replaced by a contract.
+
+```python
+TRIAGE_TOOL = {
+    "name": "extract_signal",
+    "description": "Pull only the fields the downstream director needs.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "headline":       {"type": "string"},
+            "evidence":       {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+            "blockers":       {"type": "array", "items": {"type": "string"}, "maxItems": 2},
+            "confidence":     {"type": "string", "enum": ["low", "medium", "high"]}
+        },
+        "required": ["headline", "evidence", "confidence"]
+    }
+}
+
+triage_prompt = f"""
+You are a triage analyst. Read the task. Return ONLY a JSON object matching
+this contract — no explanation, no markdown, no prose before or after:
+
+{TRIAGE_TOOL}
+
+If a field is unknown, return an empty list or "low" confidence. Do not
+invent. Do not exceed the maxItems caps.
+"""
+```
+
+Use that `triage_prompt` as the `system_prompt` for every worker. The downstream director's input shrinks from ~4,000 tokens of essays to ~600 tokens of strict JSON — a **6×+ input-token reduction** at the synthesis step alone.
+
+---
+
+## The Checklist
+
+Before you ship a swarm to production, walk this list:
+
+1. **Cap worker `max_tokens` at the smallest budget that still answers the question.** Most extraction/triage agents work fine at 512–1,024.
+2. **Reserve the large `max_tokens` budget for the synthesizer only.** That's the one the user reads.
+3. **Force structured output from workers.** JSON schema or `tools_dictionary`. Prose-to-prose handoffs are where bills go to die.
+4. **Prune redundant agents.** Two analysts saying overlapping things is two `$0.01` fees plus their output tokens for no signal gain.
+5. **Run batch and back-office workloads overnight.** 50% off tokens for jobs that don't need a sub-second response — see the [night-mode guide](/docs/guides/guides/night-mode-pricing-strategy).
+6. **Measure, don't guess.** Read `response["usage"]["billing_info"]["cost_breakdown"]` after every run. The token counts tell you exactly which agent is bloated.
+
+## Reading Your Usage Block
+
+Every swarm completion response includes a `usage` block you can grep for:
+
+```python
+resp = requests.post(f"{BASE_URL}/v1/swarm/completions", headers=headers, json=tiered_swarm)
+usage = resp.json()["usage"]
+billing = usage["billing_info"]
+
+print(f"Input tokens:  {usage['input_tokens']}")
+print(f"Output tokens: {usage['output_tokens']}")
+print(f"Agent fee:     ${billing['cost_breakdown']['agent_cost']}")
+print(f"Input cost:    ${billing['cost_breakdown']['input_token_cost']}")
+print(f"Output cost:   ${billing['cost_breakdown']['output_token_cost']}")
+print(f"Night discount applied: {billing['discount_active']}")
+print(f"Total cost:    ${billing['total_cost']}")
+```
+
+If `input_token_cost` is larger than `output_token_cost`, you have a context-compression problem — a worker is dumping too much prose into the next agent. Fix the schema, not the model.
+
+## Next Steps
+
+- [Estimate Costs from Pricing Details](/docs/examples/examples/pricing-cost-estimator) — pre-flight calculator that uses the live `/v1/usage/costs` rates
+- [Pricing Details (Basic)](/docs/examples/examples/pricing-details-basic) — the unified pricing model reference
+- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — schedule overnight batches for 50% off tokens

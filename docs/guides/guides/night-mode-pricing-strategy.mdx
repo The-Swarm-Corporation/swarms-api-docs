@@ -1,0 +1,346 @@
+---
+title: "Night-Mode Pricing: 50% Off Overnight Batch Workflows"
+description: "Move batch swarms and overnight pipelines into the 8 PM – 6 AM Pacific window for a 50% discount on swarm-completion token costs. Includes scheduling recipes with cron and Airflow."
+---
+
+import { Tabs, Tab } from 'mintlify'
+
+## What This Covers
+
+- The exact window the discount applies to (8 PM – 6 AM **America/Los_Angeles**) and what it covers
+- Realistic monthly savings: a team running 1,000 swarm jobs/day at daytime rates vs. overnight rates
+- A drop-in cron recipe for scheduling overnight batch swarms from any server
+- An Airflow DAG pattern for production-grade overnight orchestration
+- The two failure modes to watch: timezone drift and on-the-boundary jobs
+
+## Why This Matters
+
+The single highest-ROI cost lever the Swarms API offers is its overnight discount: **swarm-completion input and output tokens are billed at 50% between 8 PM and 6 AM Pacific time**. For any workload that doesn't need sub-second turnaround — overnight reports, daily research digests, RAG-index refreshes, training-data generation, backfills, evaluation suites — this is free money you collect by changing *when* the job runs, not *what* the job runs. A team spending $10,000/month on swarm jobs that could shift to the overnight window saves roughly **$4,500/month** with zero code-quality tradeoff. This guide makes that shift mechanical.
+
+## How the Discount Works
+
+The discount is applied server-side, in `api/utils.py` ([line 128](https://github.com/kyegomez/swarms-api)). When a swarm completion finishes, the billing function checks the current hour in `America/Los_Angeles`:
+
+```python
+# Excerpt from api/utils.py — the billing path
+california_tz = pytz.timezone("America/Los_Angeles")
+current_time = datetime.now(california_tz)
+is_night_time = current_time.hour >= 20 or current_time.hour < 6  # 8 PM to 6 AM
+
+if is_night_time:
+    input_token_cost *= pricing.night_time_discount   # 0.50 = 50% off
+    output_token_cost *= pricing.night_time_discount  # 0.50 = 50% off
+```
+
+**What's discounted:**
+
+- `swarm_completions_input_cost_per_1m` — full 50% off
+- `swarm_completions_output_cost_per_1m` — full 50% off
+
+**What's NOT discounted:**
+
+- `swarm_completions_agent_cost` — the `$0.01` per-agent fee is billed full price
+
+For most production workloads the per-agent fee is a rounding error, but for high-fan-out heavy swarms with 20+ agents per job, it stays linear. Your savings ceiling on token costs is exactly 50%; agent-fee savings are 0%.
+
+<Info>
+The check is on **the time the run finishes**, in Pacific. A job that starts at 5:55 AM and finishes at 6:02 AM PT will be billed at the **daytime** rate. Schedule batches to land cleanly inside the window — see "Scheduling on the Boundary" below.
+</Info>
+
+## The Monthly Math
+
+Take a realistic mid-sized team: 1,000 swarm jobs per day, each averaging:
+
+- 5 agents
+- 6,000 input tokens
+- 3,000 output tokens
+
+### Daytime baseline (jobs run during business hours)
+
+Per-job cost:
+
+```
+input_cost  = (6_000  / 1_000_000) * 6.50  = $0.0390
+output_cost = (3_000  / 1_000_000) * 18.50 = $0.0555
+agent_cost  = 5 * 0.01                       = $0.0500
+total/run                                   = $0.1445
+```
+
+Per day: `$0.1445 * 1,000 = $144.50`
+Per 30-day month: **$4,335.00**
+
+### Overnight: same workload, scheduled 8 PM – 6 AM PT
+
+Per-job cost:
+
+```
+input_cost  = $0.0390 * 0.50 = $0.0195
+output_cost = $0.0555 * 0.50 = $0.02775
+agent_cost  = $0.0500         (NOT discounted)
+total/run                    = $0.09725
+```
+
+Per day: `$0.09725 * 1,000 = $97.25`
+Per 30-day month: **$2,917.50**
+
+### Savings
+
+**$4,335 – $2,917.50 = $1,417.50/month** saved by shifting the same workload into the overnight window. Annualized: **$17,010**. Zero code changes to the agents themselves — just *when* they run.
+
+For larger workloads the savings scale linearly until the agent-fee floor dominates. At 10,000 jobs/day this same calculation yields **$14,175/month** in savings.
+
+## Verifying the Discount in Your Response
+
+Every swarm completion response includes a `discount_active` flag. Check it programmatically to confirm your scheduling actually landed in the window:
+
+```python
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+resp = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json={
+        "name": "Nightly Research Digest",
+        "swarm_type": "SequentialWorkflow",
+        "task": "Summarize today's developments in AI infrastructure.",
+        "agents": [
+            {"agent_name": "Scanner",     "model_name": "gpt-4o-mini", "max_tokens": 1024},
+            {"agent_name": "Synthesizer", "model_name": "gpt-4o",      "max_tokens": 2048},
+        ],
+    },
+)
+
+billing = resp.json()["usage"]["billing_info"]
+print(f"Discount active:    {billing['discount_active']}")
+print(f"Discount type:      {billing['discount_type']}")
+print(f"Discount percent:   {billing['discount_percentage']}%")
+print(f"Total cost (USD):   ${billing['total_cost']}")
+```
+
+If `discount_active` is `False` on a job you scheduled for overnight, your cron or worker timezone is wrong — see the troubleshooting section below.
+
+---
+
+## Scheduling Recipe 1: System cron
+
+The simplest possible setup. Add this to your crontab and you're done. Note that **cron schedules are interpreted in the system's local time** — be deliberate about which timezone your server runs in.
+
+```bash
+# /etc/crontab — assumes the host is set to America/Los_Angeles
+# Run the nightly batch at 9:00 PM Pacific, safely inside the discount window
+0 21 * * *   /usr/bin/python3 /opt/jobs/run_nightly_batch.py >> /var/log/nightly.log 2>&1
+```
+
+If your server runs in UTC (common on cloud VMs), convert explicitly:
+
+```bash
+# UTC server: 9 PM PT = 04:00 UTC (PST) / 03:00 UTC (PDT). Pick one and stick to it,
+# OR use the more robust env-based form below:
+CRON_TZ=America/Los_Angeles
+0 21 * * *   /usr/bin/python3 /opt/jobs/run_nightly_batch.py >> /var/log/nightly.log 2>&1
+```
+
+`CRON_TZ` is supported by Vixie cron and systemd timers — it makes your schedule survive DST shifts without manual adjustment.
+
+The batch script itself is the same swarm call you'd write at any other time. The discount is applied server-side based on when the request hits the API, not on any flag you set.
+
+```python
+# /opt/jobs/run_nightly_batch.py
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+# A batch of overnight reports — each one independently swarmed.
+JOBS = [
+    {"name": "EU Market Digest",    "task": "Summarize today's EU SaaS funding announcements."},
+    {"name": "US Macro Digest",     "task": "Summarize today's US macro data releases."},
+    {"name": "Crypto Flow Digest",  "task": "Summarize today's notable on-chain flows."},
+]
+
+AGENT_SPECS = [
+    {"agent_name": "Scanner",     "model_name": "gpt-4o-mini", "max_tokens": 1024},
+    {"agent_name": "Synthesizer", "model_name": "gpt-4o",      "max_tokens": 2048},
+]
+
+for job in JOBS:
+    resp = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json={
+            "name": job["name"],
+            "swarm_type": "SequentialWorkflow",
+            "task": job["task"],
+            "agents": AGENT_SPECS,
+        },
+        timeout=300,
+    )
+    billing = resp.json()["usage"]["billing_info"]
+    print(f"[{job['name']}] discount_active={billing['discount_active']} total=${billing['total_cost']}")
+```
+
+---
+
+## Scheduling Recipe 2: Airflow DAG
+
+For teams already running Airflow, this is the production-grade pattern. The DAG runs once per night at 9 PM PT, fans out to N batch jobs in parallel via `batch_swarm_completions`, and writes a cost-discount audit so you can prove the 50% landed.
+
+```python
+# dags/nightly_swarm_batch.py
+from __future__ import annotations
+
+import os
+import pendulum
+import requests
+from airflow.decorators import dag, task
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+HEADERS = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+JOBS = [
+    {"name": "EU Market Digest",   "task": "Summarize today's EU SaaS funding announcements."},
+    {"name": "US Macro Digest",    "task": "Summarize today's US macro data releases."},
+    {"name": "Crypto Flow Digest", "task": "Summarize today's notable on-chain flows."},
+]
+
+AGENT_SPECS = [
+    {"agent_name": "Scanner",     "model_name": "gpt-4o-mini", "max_tokens": 1024},
+    {"agent_name": "Synthesizer", "model_name": "gpt-4o",      "max_tokens": 2048},
+]
+
+
+@dag(
+    dag_id="nightly_swarm_batch",
+    schedule="0 21 * * *",                           # 9 PM in the DAG's TZ
+    start_date=pendulum.datetime(2025, 1, 1, tz="America/Los_Angeles"),
+    catchup=False,
+    tags=["swarms", "overnight", "discount"],
+)
+def nightly_swarm_batch():
+
+    @task
+    def submit_batch():
+        """Send all jobs in a single batch request — one round trip,
+        Swarms parallelises server-side."""
+        payload = [
+            {
+                "name": job["name"],
+                "swarm_type": "SequentialWorkflow",
+                "task": job["task"],
+                "agents": AGENT_SPECS,
+            }
+            for job in JOBS
+        ]
+        resp = requests.post(
+            f"{BASE_URL}/v1/swarm/batch/completions",
+            headers=HEADERS,
+            json=payload,
+            timeout=600,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    @task
+    def audit_discount(batch_result: dict):
+        """Fail the DAG run loudly if the discount didn't land — catches
+        misconfigured schedulers before they cost you a month of full-price runs."""
+        failures = []
+        for item in batch_result.get("results", []):
+            usage = item.get("usage", {})
+            billing = usage.get("billing_info", {})
+            if not billing.get("discount_active"):
+                failures.append(item.get("swarm_name", "<unnamed>"))
+        if failures:
+            raise RuntimeError(
+                f"Overnight discount did not apply to: {failures}. "
+                f"Check scheduler timezone (must run between 8 PM and 6 AM Pacific)."
+            )
+        return f"OK — all {len(batch_result.get('results', []))} runs got the 50% discount."
+
+    audit_discount(submit_batch())
+
+
+nightly_swarm_batch()
+```
+
+The `audit_discount` task is the bit most teams forget. Without it, a daylight-savings change or a quiet timezone reconfiguration can move your overnight job back into the daytime band and you won't notice until the invoice arrives.
+
+---
+
+## Scheduling on the Boundary
+
+The discount window is `hour >= 20 or hour < 6` in Pacific. Two practical implications:
+
+1. **5:59 AM PT is still discounted; 6:00 AM PT is not.** If your job is long-running, start it earlier so it finishes inside the window.
+2. **8:00 PM PT is the earliest discounted moment.** A job that starts at 7:55 PM lands at the full-price rate.
+
+Give yourself a buffer. Schedule starts at **9 PM PT** (one hour past the boundary) and target completion **by 5 AM PT** (one hour before the boundary closes). That gives you eight clean hours of discount and protects against DST-driven hour shifts.
+
+```python
+# Pre-flight check: refuse to submit if we're inside the boundary buffer
+from datetime import datetime
+import pytz
+
+def in_discount_window(buffer_minutes: int = 15) -> bool:
+    """True iff we're at least `buffer_minutes` inside the 8 PM – 6 AM PT window."""
+    pt = pytz.timezone("America/Los_Angeles")
+    now = datetime.now(pt)
+    minute_of_day = now.hour * 60 + now.minute
+    window_start = 20 * 60 + buffer_minutes        # 8:15 PM
+    window_end   = 6 * 60 - buffer_minutes         # 5:45 AM
+    return minute_of_day >= window_start or minute_of_day < window_end
+
+if not in_discount_window():
+    raise SystemExit("Not safely inside the discount window — aborting overnight batch.")
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `discount_active: false` on a job you scheduled overnight | Scheduler ran in UTC/local-server-time, not Pacific | Set `CRON_TZ=America/Los_Angeles` or convert in your DAG |
+| Discount lands on some runs in the batch but not others | Long-running job crossed the 6 AM boundary | Start earlier; cap batch size so all runs finish before 5 AM PT |
+| Discount applied but bill barely changed | Agent fee dominates (heavy-swarm pattern with many agents) | Token costs are 50% off; the `$0.01 * num_agents` fee is not. Prune agents per the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) |
+| Daylight savings broke the schedule | Cron is using a fixed UTC offset that no longer matches PT | Use `CRON_TZ=America/Los_Angeles` (or Airflow's `tz=...`) — these handle DST |
+
+## When NOT to Use Night Mode
+
+Night-mode is a batch-economics play. Don't shoehorn the following into the overnight window — the user-experience cost outweighs the discount:
+
+- Interactive chat or assistant traffic — users want answers now
+- Webhook-driven agent runs where the upstream caller is blocking
+- Realtime fraud / moderation / classification pipelines
+- Anything where a 6-hour latency would break a contract
+
+Use it for everything else: backfills, analyst digests, RAG-index refreshes, evaluation suites, content pre-generation, model-comparison sweeps, and bulk research jobs.
+
+## Next Steps
+
+- [Batch Swarm Scale Tutorial](/docs/examples/examples/batch-swarm-scale-tutorial) — full batch-swarm scaling patterns to pair with night-mode
+- [Batch Agent Scale Tutorial](/docs/examples/examples/batch-agent-scale-tutorial) — batching individual agent completions
+- [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) — pair night-mode with a tiered architecture for compounding savings

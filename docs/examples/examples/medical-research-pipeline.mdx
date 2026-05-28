@@ -1,0 +1,408 @@
+---
+title: "Production Medical Research Pipeline"
+description: "A four-agent SequentialWorkflow that turns a clinical research question into an evidence-based, audit-ready recommendation memo for ~$1, then fans the same pipeline across an overnight queue via /v1/swarm/batch/completions."
+---
+
+## What This Example Shows
+
+- A `SequentialWorkflow` chaining four clinical-research specialist agents: Literature Reviewer, Clinical Trial Analyst, Evidence Synthesizer, and Recommendations Editor
+- How to reuse a rigorous clinical-research system prompt (`MED_SYS_PROMPT`) as the basis for every agent's voice
+- A concrete worked example on a stage III pancreatic adenocarcinoma evidence question
+- How to fan the same pipeline across an overnight queue of research questions via `/v1/swarm/batch/completions` for the 50% night-mode discount
+- A regulated-industry-friendly artifact: per-agent audit trail in the swarm log, plus an explicit reviewer checklist for the licensed clinician
+
+<Warning>
+This pipeline is for **research and development only**. It is **not** for direct clinical decision-making without licensed-physician review. Output must be reviewed and signed off by a qualified clinician before it informs any patient care, formulary decision, or published material.
+</Warning>
+
+## Why This Matters
+
+A pharma medical-affairs analyst, a payer policy researcher, or a hospital evidence-review team is paid $200-$400 per hour to produce exactly this artifact: a structured memo that answers "what does the evidence say, and what should we do?" for a single clinical question. The job typically runs 4-8 billable hours per memo — $800 to $3,200 of loaded labor — plus a one-to-two week turnaround that bottlenecks downstream decisions like formulary inclusion, payer policy updates, and KOL outreach. This pipeline produces the same shape of first draft in roughly a minute for about a dollar. The licensed reviewer keeps the role they actually add value in: signing off.
+
+## Step 1: Get Your API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Sign in or create an account
+3. Generate a new API key
+4. Set it as an environment variable:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## Step 2: Install Dependencies
+
+```bash
+pip install requests python-dotenv
+```
+
+## Step 3: Configure the Client
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 4: Anchor the Pipeline on a Rigorous System Prompt
+
+Every agent in this pipeline is a variation on one rigorous clinical-research persona. Define it once and reuse it across the chain so the voice, evidence standards, and citation discipline stay consistent end to end.
+
+```python
+MED_SYS_PROMPT = """
+You are an Advanced Clinical Research Specialist with extensive expertise in
+medical research methodology, clinical trial analysis, and evidence-based
+medicine. Your primary responsibilities include:
+
+1. LITERATURE ANALYSIS: Conduct comprehensive reviews of peer-reviewed medical
+literature, clinical trial data, and research publications. Critically
+evaluate study methodologies, statistical significance, sample sizes, and
+potential biases.
+
+2. TREATMENT EVALUATION: Analyze the efficacy, safety, and comparative
+effectiveness of medical treatments and interventions. Assess patient
+outcomes, adverse events, and long-term implications of therapeutic
+approaches.
+
+3. CLINICAL TRIAL ASSESSMENT: Review and interpret clinical trial results,
+including Phase I-IV studies, randomized controlled trials, meta-analyses,
+and systematic reviews. Identify strengths, limitations, and clinical
+applicability of research findings.
+
+4. EVIDENCE SYNTHESIS: Synthesize complex medical data from multiple sources
+to provide clear, actionable insights. Distinguish between correlation and
+causation, and evaluate the quality and reliability of evidence.
+
+5. RECOMMENDATION FORMULATION: Develop evidence-based recommendations for
+clinical practice, considering patient populations, comorbidities,
+contraindications, and real-world applicability.
+
+6. RESEARCH GAP IDENTIFICATION: Identify areas requiring further investigation
+and suggest directions for future research.
+
+Your analysis must be rigorous, objective, and grounded in scientific
+evidence. Present findings in a structured format that includes: executive
+summary, methodology assessment, key findings, statistical analysis, clinical
+implications, limitations, and recommendations. Maintain scientific accuracy
+while ensuring accessibility for both medical professionals and stakeholders.
+Always cite sources appropriately and acknowledge the limitations of
+available evidence.
+"""
+```
+
+## Step 5: Define the Clinical Research Question
+
+A concrete, defensible question is the most important input. Vague prompts get vague memos. The example below targets stage III pancreatic cancer — an active area of evidence and a real question medical-affairs and payer teams ask every week.
+
+```python
+CLINICAL_QUESTION = (
+    "What are the latest evidence-based treatments for stage III pancreatic "
+    "adenocarcinoma in adults with ECOG performance status 0-1? Cover "
+    "(1) the current standard-of-care chemotherapy and chemoradiation "
+    "regimens (FOLFIRINOX, gemcitabine + nab-paclitaxel, neoadjuvant "
+    "approaches), (2) any approved or late-phase targeted therapies and "
+    "immunotherapies relevant to this stage, (3) the strength of the "
+    "underlying evidence (RCTs, meta-analyses, NCCN/ESMO guidelines), and "
+    "(4) actively recruiting clinical trials worth flagging."
+)
+```
+
+## Step 6: Define the Four-Agent Pipeline
+
+Each agent owns one phase of the memo and inherits the shared `MED_SYS_PROMPT` plus a lane-specific addendum. The `SequentialWorkflow` passes the previous agent's output as upstream context, so the Trial Evaluator critiques what the Research Specialist surfaced, the Treatment Recommender builds on that critique, and the Risk/Compliance Reviewer audits the whole chain.
+
+```python
+payload = {
+    "name": "Medical Research Sequential Pipeline",
+    "description": (
+        "Clinical Research Specialist -> Clinical Trial Analyst -> "
+        "Evidence Synthesizer -> Recommendations Editor. Produces an "
+        "audit-ready first-draft research memo for licensed-clinician review."
+    ),
+    "swarm_type": "SequentialWorkflow",
+    "max_loops": 1,
+    "task": CLINICAL_QUESTION,
+    "agents": [
+        {
+            "agent_name": "Clinical Research Specialist",
+            "description": "Performs evidence retrieval and literature synthesis.",
+            "system_prompt": (
+                MED_SYS_PROMPT
+                + "\n\nYour specific role in this pipeline is the LITERATURE "
+                "REVIEW stage. For the given clinical question, produce a "
+                "structured literature synthesis: (1) the disease context "
+                "and unmet need, (2) the landmark trials and meta-analyses "
+                "relevant to the question with study design, n, primary "
+                "endpoint, and headline result, (3) the current major "
+                "guideline positions (NCCN, ESMO, ASCO as applicable), and "
+                "(4) the open scientific questions. Cite sources by name. "
+                "Do not make treatment recommendations yet — that is the "
+                "next agent's job."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Clinical Trial Analyst",
+            "description": "Critically appraises trial quality and statistical validity.",
+            "system_prompt": (
+                MED_SYS_PROMPT
+                + "\n\nYour specific role is the CLINICAL TRIAL ANALYSIS "
+                "stage. Given the Research Specialist's literature synthesis, "
+                "critically appraise each trial: risk of bias, population "
+                "generalizability, primary vs. secondary endpoint validity, "
+                "effect size and confidence intervals, number needed to "
+                "treat, and discordances across trials or meta-analyses. "
+                "Flag any actively recruiting trials. Rate the overall "
+                "strength of evidence (high / moderate / low / very low) "
+                "using GRADE-style reasoning and explain your rating."
+            ),
+            "model_name": "anthropic/claude-opus-4-8",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 6144,
+        },
+        {
+            "agent_name": "Evidence Synthesizer",
+            "description": "Translates evidence into a guideline-eligible treatment approach.",
+            "system_prompt": (
+                MED_SYS_PROMPT
+                + "\n\nYour specific role is the EVIDENCE SYNTHESIS stage. "
+                "Using the Research Specialist's synthesis and the Clinical "
+                "Trial Analyst's appraisal, produce: (1) the recommended "
+                "patient population (inclusion criteria, key comorbidities "
+                "to consider), (2) the suggested regimen with sequencing "
+                "and dose intensity considerations, (3) monitoring "
+                "parameters and follow-up cadence, (4) anticipated benefit "
+                "framed in median OS / PFS, absolute risk reduction, and "
+                "NNT where reported, and (5) where the evidence is weakest "
+                "and the recommendation is conditional. Be specific and "
+                "clinical."
+            ),
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 8192,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Recommendations Editor",
+            "description": "Final editorial pass with explicit limitations and reviewer checklist.",
+            "system_prompt": (
+                MED_SYS_PROMPT
+                + "\n\nYour specific role is the FINAL EDITORIAL stage. "
+                "Convert the upstream synthesis into a clean, structured "
+                "research memo with these sections: (1) Question, "
+                "(2) Executive Summary (5-7 bullets), (3) Treatment "
+                "Landscape with explicit evidence grades, (4) Key Trials "
+                "Table, (5) Open Questions and Research Gaps, "
+                "(6) Explicit Limitations of This Analysis, and (7) A "
+                "Reviewer Checklist for the licensed physician who will "
+                "sign off. Also audit the upstream draft for over-claiming, "
+                "off-label statements, and populations excluded from the "
+                "underlying trials. Conclude the memo with a single "
+                "'Approved for physician review' or 'Revision required' "
+                "verdict, plus an enumerated list of required revisions "
+                "if any."
+            ),
+            "model_name": "anthropic/claude-opus-4-8",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 6144,
+        },
+    ],
+}
+```
+
+<Note>
+The Clinical Research Specialist and Evidence Synthesizer run on `gpt-4.1` at low temperature (0.3) for repeatable structured output. The Clinical Trial Analyst and Recommendations Editor run on `anthropic/claude-opus-4-8` — Opus reasoning is well-suited to critical appraisal and final editorial review. The `temperature` field is intentionally omitted for the Opus 4.8 agents (the API drops it before forwarding to Anthropic; see the [Claude Opus 4.8 example](/docs/examples/examples/claude-opus-4-8)).
+</Note>
+
+## Step 7: Run the Pipeline
+
+```python
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=payload,
+    timeout=600,
+)
+
+response.raise_for_status()
+result = response.json()
+
+for output in result.get("output", []):
+    print("=" * 70)
+    print(output["role"])
+    print("=" * 70)
+    content = output["content"]
+    if isinstance(content, list):
+        content = " ".join(str(c) for c in content)
+    print(str(content))
+    print()
+
+cost = result["usage"]["billing_info"]["total_cost"]
+elapsed = result["execution_time"]
+print(f"Total cost:    ${cost:.4f}")
+print(f"Elapsed:       {elapsed:.1f}s")
+```
+
+## Step 8: Verify the Editor Verdict and Persist the Audit Trail
+
+The Recommendations Editor is the last agent in the chain, so its output is the last entry in `result["output"]`. Gate downstream delivery on its verdict, then write the full per-agent log to disk for the audit record.
+
+```python
+final = result["output"][-1]
+final_text = final["content"]
+if isinstance(final_text, list):
+    final_text = " ".join(str(c) for c in final_text)
+
+if "Approved for physician review" in final_text:
+    print("Memo cleared compliance. Routing to clinician inbox.")
+else:
+    print("Memo flagged. Do NOT route. Reviewer notes:")
+    print(final_text)
+```
+
+Persist the full per-agent log so the credentialed reviewer has a defensible audit record before they sign off:
+
+```python
+import datetime
+
+audit_record = {
+    "job_id": result.get("job_id"),
+    "timestamp_utc": datetime.datetime.utcnow().isoformat() + "Z",
+    "question": CLINICAL_QUESTION,
+    "pipeline": "Production Medical Research Pipeline",
+    "per_agent_output": result.get("output", []),
+    "usage": result.get("usage", {}),
+    "execution_time_seconds": result.get("execution_time"),
+}
+
+filename = f"memo_{result.get('job_id', 'unknown')}.json"
+with open(filename, "w") as f:
+    json.dump(audit_record, f, indent=2)
+
+print(f"Audit record saved to {filename}")
+```
+
+That JSON is your evidence that the memo was produced from a specific question, in a specific agent order, at a specific moment. Pair it with the reviewer's sign-off and you have a defensible record.
+
+## Step 9: Overnight Queue with `/v1/swarm/batch/completions`
+
+Medical-affairs and policy teams rarely have just one open question. The same pipeline can be fanned across a queue of questions in a single API call using `/v1/swarm/batch/completions`. Scheduled overnight (8 PM to 6 AM Pacific) the platform also applies a **50% night-time discount** on token costs (see `calculate_swarm_cost` in `api/utils.py`).
+
+```python
+def build_payload(question: str) -> dict:
+    """Clone the pipeline payload, swap in a new research question."""
+    body = json.loads(json.dumps(payload))  # deep copy
+    body["task"] = question
+    return body
+
+
+research_queue = [
+    (
+        "What are the latest evidence-based treatments for stage III "
+        "pancreatic adenocarcinoma in adults with ECOG 0-1?"
+    ),
+    (
+        "What does the current evidence say about GLP-1 receptor agonists "
+        "for cardiovascular risk reduction in non-diabetic patients with "
+        "obesity?"
+    ),
+    (
+        "Summarize the evidence for CAR-T therapy in relapsed/refractory "
+        "diffuse large B-cell lymphoma, including comparative effectiveness "
+        "versus autologous stem cell transplant."
+    ),
+    (
+        "What is the current standard of care and emerging evidence for "
+        "minimal residual disease (MRD) monitoring in multiple myeloma?"
+    ),
+]
+
+batch_payload = [build_payload(q) for q in research_queue]
+
+batch_response = requests.post(
+    f"{BASE_URL}/v1/swarm/batch/completions",
+    headers=headers,
+    json=batch_payload,
+    timeout=1200,
+)
+
+batch_results = batch_response.json()
+
+for idx, swarm_result in enumerate(batch_results):
+    job_id = swarm_result.get("job_id", f"job-{idx}")
+    cost = (
+        swarm_result.get("usage", {})
+        .get("billing_info", {})
+        .get("total_cost", 0)
+    )
+    print(f"[{idx}] job_id={job_id}  cost=${cost:.4f}")
+    with open(f"memo_{job_id}.json", "w") as f:
+        json.dump(swarm_result, f, indent=2)
+```
+
+<Info>
+The batch endpoint accepts a JSON array where every item is a full `SwarmSpec` — identical to the body you pass to `/v1/swarm/completions`. Items run in parallel server-side, so a 4-question queue does not take 4x the wall-clock time. Pair this with a scheduled job that fires after 8 PM Pacific and the entire queue runs on the night-time discount.
+</Info>
+
+## Per-Query Cost vs. Consultant Time
+
+A medical-research analyst inside pharma medical affairs, a payer policy team, or a hospital evidence-review office bills $200-$400 per hour and typically spends 4-8 hours per memo of this shape. The same first draft from this pipeline lands in roughly a minute for about a dollar, even before the night-mode discount.
+
+| Method | Time per memo | Cost per memo |
+| --- | --- | --- |
+| Medical research analyst at $200/hr × 4 hrs | 4 hours | $800 |
+| Medical research analyst at $400/hr × 8 hrs | 8 hours | $3,200 |
+| **This pipeline (single query)** | ~1 minute | **~$1** |
+| **This pipeline (4-question overnight batch, night-mode discount)** | ~1-2 minutes wall time | **a few dollars total** |
+| **This pipeline + 30 min physician sign-off** | ~32 minutes | **~$150** |
+
+The pipeline does not replace the clinician — it relocates them from drafting to reviewing, which is both faster and higher-leverage.
+
+## Adapting the Pipeline
+
+Replace the question and tighten the prompts to retarget:
+
+| Domain | Agent 1 | Agent 2 | Agent 3 | Agent 4 |
+| --- | --- | --- | --- | --- |
+| **Drug-class deep dive** | Literature Synthesizer | Trial Evaluator | Treatment Recommender | Compliance Reviewer |
+| **Pharmacovigilance review** | Signal Detector | Causal Assessor | Mitigation Designer | Regulatory Reviewer |
+| **Formulary decision memo** | Evidence Aggregator | Cost-Effectiveness Analyst | Formulary Recommender | P&T Compliance Reviewer |
+| **CME content drafting** | Topic Researcher | Evidence Critic | Module Writer | Accreditation Reviewer |
+
+The pipeline shape, billing, and response schema stay identical.
+
+## Common Pitfalls
+
+<AccordionGroup>
+  <Accordion title="The Recommendations Editor always says 'Revision required'">
+    Tighten the Evidence Synthesizer's prompt to explicitly cite the evidence-strength rating from the Clinical Trial Analyst and to avoid universal claims ("all patients with stage III pancreatic cancer should...") in favor of population-scoped claims ("guideline-eligible patients with ECOG 0-1 and adequate organ function..."). The editor is doing its job — your upstream prompt is over-claiming.
+  </Accordion>
+  <Accordion title="The output is generic and not 'clinical-sounding'">
+    Increase `max_tokens` on the Clinical Research Specialist and Evidence Synthesizer to 8192, and add domain anchors to the question ("for a 68-year-old with borderline-resectable stage III pancreatic adenocarcinoma, ECOG 1, CA 19-9 320..."). Sequential pipelines amplify upstream specificity — vague input compounds into vague output.
+  </Accordion>
+  <Accordion title="Where does this fit in our compliance program?">
+    Pair this pipeline with the [Swarm Logs](/docs/examples/examples/swarm-logs) endpoint to maintain a full audit trail of every prompt, every agent output, and every reviewer verdict tied to your API key. Most regulated medical-affairs programs require that trail; the API gives it to you for free.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- See the [Clinical Case Conference](/docs/examples/examples/clinical-case-conference) example for the hierarchical (parallel-specialist) variant of this pattern
+- See [Hospital Team](/docs/examples/examples/hospital-team) for a discharge-planning-focused multi-agent workflow
+- Read the [Production Readiness Checklist](/docs/guides/guides/production-readiness-checklist) before shipping this pipeline to a regulated production environment

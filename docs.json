@@ -237,6 +237,8 @@
               "docs/examples/examples/sub-agent-delegation",
               "docs/examples/examples/claude-opus-4-8",
               "docs/examples/examples/reasoning-agents-tutorial",
+              "docs/examples/examples/conversation-history",
+              "docs/examples/examples/auto-generate-agent",
               "docs/examples/api_examples/agent_completion_single_agent",
               "docs/examples/api_examples/autonomous_agent_tutorial",
               "docs/examples/examples/openai-compatible"
@@ -261,7 +263,10 @@
               "docs/examples/examples/llm-council",
               "docs/examples/examples/council-as-judge",
               "docs/examples/examples/auto-swarm-builder-tutorial",
-              "docs/examples/examples/tools-in-swarms"
+              "docs/examples/examples/tools-in-swarms",
+              "docs/examples/examples/swarm-streaming",
+              "docs/examples/examples/graph-workflow-edge-formats",
+              "docs/examples/examples/graph-workflow-metadata"
             ]
           },
           {
@@ -282,7 +287,9 @@
               "docs/examples/examples/ma-due-diligence",
               "docs/examples/examples/intelligence-triage-pipeline",
               "docs/examples/examples/consulting-deliverable-generator",
-              "docs/examples/examples/advanced-research-investor-memos"
+              "docs/examples/examples/advanced-research-investor-memos",
+              "docs/examples/examples/catering-agent",
+              "docs/examples/examples/medical-research-pipeline"
             ]
           },
           {
@@ -319,7 +326,12 @@
               "docs/guides/guides/first",
               "docs/guides/guides/exa-web-search",
               "docs/guides/guides/x402_agents",
-              "docs/guides/guides/agdp"
+              "docs/guides/guides/agdp",
+              "docs/guides/guides/cost-optimization-playbook",
+              "docs/guides/guides/night-mode-pricing-strategy",
+              "docs/guides/guides/openai-sdk-drop-in",
+              "docs/guides/guides/production-observability",
+              "docs/guides/guides/production-readiness-checklist"
             ]
           }
         ]

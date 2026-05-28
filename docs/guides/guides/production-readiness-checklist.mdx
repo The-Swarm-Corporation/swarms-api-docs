@@ -1,0 +1,331 @@
+---
+title: "Production Readiness Checklist"
+description: "The terse, opinionated checklist for shipping the Swarms API to production: rate limits, idempotency, retries, error handling, cost monitoring, batch endpoints, and a copy-paste wrapper that does all of it."
+---
+
+## What This Covers
+
+- The non-negotiables before you put the Swarms API on the critical path of a production system
+- Rate-limit, retry, idempotency, and error-handling defaults that match how the API actually behaves
+- A single Python wrapper that bundles retry-with-backoff, a budget cap, and post-run log verification
+- The right endpoints to use for offline / batch workloads
+- When to upgrade to the premium tier
+
+## Why This Matters
+
+The first 80% of any API integration is happy-path code. The last 20% — the part that decides whether you get paged at 3am — is rate-limit handling, retries on transient failures, budget guardrails, and an audit trail. This guide is the terse checklist for that last 20%, written for SREs and senior engineers who already know what exponential backoff is and just want the production-correct defaults for this specific API.
+
+## The Checklist
+
+### Rate Limits
+
+- [ ] Read the `X-RateLimit-Remaining-Minute` and `X-RateLimit-Remaining-Day` headers on **every** response and log them
+- [ ] On `429`, honor the `Retry-After` header verbatim — don't substitute your own value
+- [ ] Throttle proactively when `Remaining-Minute / Limit-Minute < 0.1` rather than waiting for the 429
+- [ ] If you're hitting limits regularly, upgrade to premium (2,000/min, 100,000/day) before re-engineering
+- [ ] Reference: [Rate Limit Headers](/docs/documentation/resources/rate-limit-headers), [Rate Limits](/docs/documentation/resources/ratelimits)
+
+### Idempotency and Request IDs
+
+- [ ] Generate a client-side request ID (UUID v4) for every submit and persist it alongside the payload
+- [ ] Use the request ID as the join key when you later reconcile against `/v1/swarm/logs`
+- [ ] Treat retries as idempotent only if you've established the original request never succeeded — a 5xx or a timeout is not proof of non-execution
+
+### Retry Policy
+
+- [ ] Retry on `5xx`, connection errors, and read timeouts. **Never** retry on `4xx` other than `429`
+- [ ] Use exponential backoff with full jitter: `sleep = random.uniform(0, base * 2**attempt)`
+- [ ] Cap at 4–5 attempts. Beyond that, the underlying issue isn't transient
+- [ ] On `429`, use `Retry-After` instead of your computed backoff
+
+### Structured Error Handling
+
+- [ ] Always check `response.status_code` and raise on non-2xx — do not blindly `response.json()`
+- [ ] Capture the request ID, `X-RateLimit-*` headers, status code, response body, and elapsed time on every error
+- [ ] Distinguish "API rejected the request" (4xx) from "API never saw it" (network) — they require different remediation
+- [ ] Log the failed payload's `swarm_type` and per-agent `model_name` for debugging
+
+### Cost Monitoring
+
+- [ ] Before any batch run, call `/v1/account/credits` and refuse to submit if `total_credits < estimated_cost * 1.5`
+- [ ] After every run, persist `result["usage"]["billing_info"]["total_cost"]` to your warehouse keyed by request ID
+- [ ] Run a daily cron against `/v1/usage/report` and alert on day-over-day cost > 2x the trailing 7-day mean
+- [ ] Set hard budget caps in your wrapper — a runaway loop should fail fast, not bleed credits
+- [ ] Reference: [Production Observability](/docs/guides/guides/production-observability), [Usage Report](/docs/examples/examples/usage-report), [Get Credit Balance](/docs/examples/examples/account-credits)
+
+### Batch Endpoints for Offline Workloads
+
+- [ ] If you're submitting more than ~20 requests in a tight loop, switch to the batch endpoints
+- [ ] Use batch for backfills, evaluation sweeps, nightly report generation — anything where latency-per-row is not the goal
+- [ ] References: [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions), [Batch Processing](/docs/examples/examples/batch-processing)
+
+### Premium Tier Thresholds
+
+Upgrade to premium when **any** of these are true. The premium tier is $100/month and gives you 20x the per-minute, 200x the per-hour, and 83x the per-day quota — and 10x the per-agent token budget.
+
+- [ ] You hit a `429` more than once per day in production
+- [ ] You need to run more than 1,200 requests per day
+- [ ] Any single agent needs `max_tokens > 200,000`
+- [ ] Reference: [Premium Endpoints](/docs/documentation/resources/premium-endpoints)
+
+### Audit and Compliance
+
+- [ ] Daily export of `/v1/swarm/logs` to your own log lake (S3, BigQuery, etc.)
+- [ ] Pin `model_name` per agent. Do not let your code "pick a model" at runtime in regulated workloads
+- [ ] For regulated workloads, set `temperature=0` (or omit it on Opus 4.8) and `max_loops=1` for reproducibility
+
+## The Wrapper
+
+One file. Drop it in. It does retry-with-backoff that honors `Retry-After`, a hard budget cap, request-ID tagging, and post-run log verification.
+
+```python
+import logging
+import os
+import random
+import time
+import uuid
+from dataclasses import dataclass
+from typing import Any, Optional
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+HEADERS = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+log = logging.getLogger("swarms.prod")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+
+@dataclass
+class RunResult:
+    request_id: str
+    ok: bool
+    status_code: int
+    cost: float
+    elapsed: float
+    body: Any
+    rate_limit: dict
+
+
+class BudgetExceeded(RuntimeError):
+    pass
+
+
+class ProductionClient:
+    """Production wrapper around the Swarms /v1/swarm/completions endpoint.
+
+    Features:
+      - Retry-with-backoff that honors Retry-After on 429s.
+      - Hard per-call and cumulative budget caps.
+      - Pre-flight credit check.
+      - Per-request UUID for correlation against /v1/swarm/logs.
+      - Rate-limit header capture on every response.
+    """
+
+    def __init__(
+        self,
+        per_call_budget: float = 5.00,
+        cumulative_budget: float = 50.00,
+        max_retries: int = 4,
+        base_backoff: float = 1.5,
+        request_timeout: float = 600.0,
+    ):
+        self.per_call_budget = per_call_budget
+        self.cumulative_budget = cumulative_budget
+        self.cumulative_spend = 0.0
+        self.max_retries = max_retries
+        self.base_backoff = base_backoff
+        self.request_timeout = request_timeout
+
+    # ---- pre-flight ----
+
+    def credits_remaining(self) -> float:
+        r = requests.get(f"{BASE_URL}/v1/account/credits", headers=HEADERS, timeout=10)
+        r.raise_for_status()
+        return float(r.json().get("total_credits", 0))
+
+    def assert_credits(self, required: float):
+        available = self.credits_remaining()
+        if available < required:
+            raise BudgetExceeded(
+                f"Insufficient credits: have ${available:.2f}, need ${required:.2f}"
+            )
+
+    # ---- core call ----
+
+    def run(self, payload: dict, request_id: Optional[str] = None) -> RunResult:
+        rid = request_id or str(uuid.uuid4())
+
+        # Pre-flight: refuse if we've already blown the cumulative budget.
+        if self.cumulative_spend >= self.cumulative_budget:
+            raise BudgetExceeded(
+                f"Cumulative budget ${self.cumulative_budget:.2f} exceeded "
+                f"(spent ${self.cumulative_spend:.2f})."
+            )
+
+        # Tag the payload so we can find it in logs later.
+        payload = {**payload, "name": payload.get("name", "untitled") + f" [{rid[:8]}]"}
+
+        last_error = None
+        for attempt in range(self.max_retries + 1):
+            t0 = time.monotonic()
+            try:
+                resp = requests.post(
+                    f"{BASE_URL}/v1/swarm/completions",
+                    headers=HEADERS,
+                    json=payload,
+                    timeout=self.request_timeout,
+                )
+            except (requests.ConnectionError, requests.Timeout) as e:
+                last_error = e
+                self._sleep_backoff(attempt)
+                log.warning("network error, attempt=%s rid=%s err=%s", attempt, rid, e)
+                continue
+
+            elapsed = time.monotonic() - t0
+            rl = {k: v for k, v in resp.headers.items() if k.lower().startswith("x-ratelimit")}
+
+            # 429: honor Retry-After exactly.
+            if resp.status_code == 429:
+                wait = int(resp.headers.get("Retry-After", "30"))
+                log.warning("429 rid=%s retry-after=%ss", rid, wait)
+                time.sleep(wait)
+                continue
+
+            # 5xx: retry with backoff.
+            if 500 <= resp.status_code < 600:
+                log.warning("%s rid=%s attempt=%s body=%s",
+                            resp.status_code, rid, attempt, resp.text[:200])
+                self._sleep_backoff(attempt)
+                last_error = RuntimeError(f"{resp.status_code}: {resp.text[:200]}")
+                continue
+
+            # 4xx (other than 429): permanent. Do not retry.
+            if 400 <= resp.status_code < 500:
+                log.error("4xx rid=%s status=%s body=%s",
+                          rid, resp.status_code, resp.text[:500])
+                return RunResult(
+                    request_id=rid, ok=False, status_code=resp.status_code,
+                    cost=0.0, elapsed=elapsed, body=resp.text, rate_limit=rl,
+                )
+
+            # 2xx: parse, enforce per-call budget, return.
+            body = resp.json()
+            cost = float(body.get("usage", {}).get("billing_info", {}).get("total_cost", 0))
+            if cost > self.per_call_budget:
+                log.error("rid=%s exceeded per-call budget: $%.4f > $%.2f",
+                          rid, cost, self.per_call_budget)
+            self.cumulative_spend += cost
+
+            log.info(
+                "OK rid=%s cost=$%.4f elapsed=%.1fs min=%s/%s",
+                rid, cost, elapsed,
+                rl.get("X-RateLimit-Remaining-Minute"), rl.get("X-RateLimit-Limit-Minute"),
+            )
+
+            return RunResult(
+                request_id=rid, ok=True, status_code=resp.status_code,
+                cost=cost, elapsed=elapsed, body=body, rate_limit=rl,
+            )
+
+        raise RuntimeError(f"rid={rid} exhausted {self.max_retries} retries: {last_error}")
+
+    def _sleep_backoff(self, attempt: int):
+        # Exponential backoff with full jitter.
+        sleep = random.uniform(0, self.base_backoff * (2 ** attempt))
+        time.sleep(sleep)
+
+    # ---- post-flight ----
+
+    def verify_in_logs(self, request_id: str) -> bool:
+        """Confirm the request landed in /v1/swarm/logs (audit-trail check)."""
+        r = requests.get(f"{BASE_URL}/v1/swarm/logs", headers=HEADERS, timeout=30)
+        r.raise_for_status()
+        marker = request_id[:8]
+        for entry in r.json().get("logs", []):
+            data = entry.get("data") or {}
+            name = data.get("name") or entry.get("name") or ""
+            if marker in name:
+                return True
+        return False
+```
+
+### Using the Wrapper
+
+```python
+client = ProductionClient(per_call_budget=2.00, cumulative_budget=20.00)
+
+# Pre-flight: refuse to start if we don't have enough credit headroom.
+client.assert_credits(required=client.cumulative_budget * 1.5)
+
+payload = {
+    "name": "Nightly Research Sweep",
+    "swarm_type": "SequentialWorkflow",
+    "max_loops": 1,
+    "task": "Summarize today's macro-market developments.",
+    "agents": [
+        {
+            "agent_name": "Macro Analyst",
+            "system_prompt": "You are a senior macro analyst...",
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.2,
+        },
+    ],
+}
+
+result = client.run(payload)
+print(f"request_id={result.request_id} cost=${result.cost:.4f} ok={result.ok}")
+
+# Post-flight: confirm the audit trail is intact.
+if not client.verify_in_logs(result.request_id):
+    log.warning("rid=%s did not appear in /v1/swarm/logs", result.request_id)
+```
+
+<Note>
+The wrapper tags every request's `name` with the first 8 characters of the UUID so the log-verification step has something to match on. The Swarms API does not (today) accept arbitrary client-side IDs, so name-tagging is the pragmatic correlation strategy.
+</Note>
+
+## Operational Defaults Cheat Sheet
+
+| Setting | Production default | Why |
+| --- | --- | --- |
+| Retries on 5xx / timeout | 4, full-jitter exponential backoff, base 1.5s | Catches transient infra without DOS'ing yourself |
+| Retries on 429 | Honor `Retry-After` literally | The server knows when its window resets; you don't |
+| Retries on 4xx (not 429) | **Zero** | Your request is malformed; retrying won't fix it |
+| Per-call budget | $2–$5 | High enough for most swarms, low enough to catch runaway loops |
+| Cumulative budget | Scale to job size, hard cap | Prevents a bad config from emptying your account |
+| Credit safety margin | 1.5x estimated cost | Covers retries and minor cost variance |
+| Request timeout | 600s | Long swarms run for minutes; 60s is too aggressive |
+| `temperature` (regulated) | 0 (or omit on Opus 4.8) | Reproducibility for audit |
+| `max_loops` per agent | 1 unless you have a reason | Reduces blast radius of misbehavior |
+
+## Common Pitfalls
+
+<AccordionGroup>
+  <Accordion title="Retrying on 401 / 422">
+    Don't. The API returned a deterministic rejection — your auth header is wrong, or your payload schema is wrong. Retries just burn time and rate-limit budget. Fix the request.
+  </Accordion>
+  <Accordion title="Backoff without jitter">
+    If every client retries on the same exponential schedule, you get a thundering herd the moment the rate-limit window resets. Always use full jitter: `sleep = random.uniform(0, base * 2**attempt)`.
+  </Accordion>
+  <Accordion title="No budget cap in code">
+    A misconfigured loop or a runaway hierarchical swarm can spend hundreds of dollars in minutes. The per-call and cumulative budget checks in the wrapper above are the cheapest insurance you'll buy this quarter.
+  </Accordion>
+  <Accordion title="Treating /v1/swarm/logs as real-time">
+    Logs are durable, not instantaneous. The verify-in-logs check above is for after-the-fact audit, not for inline correlation. Don't block your hot path on it.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- Read [Production Observability](/docs/guides/guides/production-observability) for the dashboard and audit-trail layer that sits on top of this wrapper
+- Read [Rate Limit Headers](/docs/documentation/resources/rate-limit-headers) for the exact header schema and tier thresholds
+- Read [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions) before sending more than ~20 requests in a tight loop
