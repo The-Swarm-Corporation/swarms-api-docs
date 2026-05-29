@@ -49,7 +49,7 @@ headers = {
 | `agent_name` | `string` | Yes | - | Unique name identifying the agent (used as node ID) |
 | `description` | `string` | No | `null` | Description of the agent's purpose and capabilities |
 | `system_prompt` | `string` | No | `null` | Initial instruction or context provided to the agent |
-| `model_name` | `string` | No | `"gpt-4.1"` | AI model to use (e.g., "gpt-4o", "gpt-4o-mini", "claude-sonnet-4-20250514") |
+| `model_name` | `string` | No | `"gpt-4.1"` | AI model to use (e.g., "gpt-4.1", "gpt-4.1-mini", "claude-sonnet-4-20250514") |
 | `max_tokens` | `integer` | No | `8192` | Maximum number of tokens the agent can generate |
 | `temperature` | `float` | No | `0.5` | Randomness control (0.0-1.0, lower = more deterministic) |
 | `role` | `string` | No | `"worker"` | Agent's role within the swarm |
@@ -736,7 +736,7 @@ async def run_vision_workflow():
             "agent_name": "ImageAnalyzer",
             "description": "Analyzes images and extracts visual information",
             "system_prompt": "You are an expert image analyst. Analyze images and extract detailed visual information.",
-            "model_name": "gpt-4o",  # Vision-capable model
+            "model_name": "gpt-4.1",  # Vision-capable model
             "max_tokens": 4000,
             "temperature": 0.3,
             "max_loops": 1,
@@ -869,9 +869,9 @@ if __name__ == "__main__":
 6. **Token Management:** Monitor token usage through the `usage` field in responses to optimize costs and stay within limits.
 
 7. **Model Selection:** Choose appropriate models based on task requirements:
-   - For vision tasks: Use vision-capable models like `gpt-4o`
+   - For vision tasks: Use vision-capable models like `gpt-4.1`
    - For complex reasoning: Use models like `claude-sonnet-4-20250514`
-   - For cost efficiency: Use `gpt-4o-mini` for simpler tasks
+   - For cost efficiency: Use `gpt-4.1-mini` for simpler tasks
 
 8. **Workflow Compilation:** Keep `auto_compile` enabled (default) for optimal performance, unless you need to debug workflow structure.
 

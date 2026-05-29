@@ -49,7 +49,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Pro Advocate",
         "description": "Argues in favor of the proposition with evidence-based reasoning",
         "system_prompt": "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.5
       },
@@ -57,7 +57,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Con Advocate",
         "description": "Argues against the proposition with evidence-based reasoning",
         "system_prompt": "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.5
       },
@@ -65,7 +65,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Impartial Judge",
         "description": "Evaluates arguments from both sides and provides synthesis",
         "system_prompt": "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.3
       }
@@ -98,7 +98,7 @@ swarm_config = {
             "agent_name": "Pro Advocate",
             "description": "Argues in favor of the proposition with evidence-based reasoning",
             "system_prompt": "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.5
         },
@@ -106,7 +106,7 @@ swarm_config = {
             "agent_name": "Con Advocate",
             "description": "Argues against the proposition with evidence-based reasoning",
             "system_prompt": "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.5
         },
@@ -114,7 +114,7 @@ swarm_config = {
             "agent_name": "Impartial Judge",
             "description": "Evaluates arguments from both sides and provides synthesis",
             "system_prompt": "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.3
         }
@@ -156,7 +156,7 @@ const swarmConfig = {
             agent_name: "Pro Advocate",
             description: "Argues in favor of the proposition with evidence-based reasoning",
             system_prompt: "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.5
         },
@@ -164,7 +164,7 @@ const swarmConfig = {
             agent_name: "Con Advocate",
             description: "Argues against the proposition with evidence-based reasoning",
             system_prompt: "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.5
         },
@@ -172,7 +172,7 @@ const swarmConfig = {
             agent_name: "Impartial Judge",
             description: "Evaluates arguments from both sides and provides synthesis",
             system_prompt: "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.3
         }
@@ -242,7 +242,7 @@ func main() {
                 AgentName:    "Pro Advocate",
                 Description:  "Argues in favor of the proposition with evidence-based reasoning",
                 SystemPrompt: "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.5,
             },
@@ -250,7 +250,7 @@ func main() {
                 AgentName:    "Con Advocate",
                 Description:  "Argues against the proposition with evidence-based reasoning",
                 SystemPrompt: "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.5,
             },
@@ -258,7 +258,7 @@ func main() {
                 AgentName:    "Impartial Judge",
                 Description:  "Evaluates arguments from both sides and provides synthesis",
                 SystemPrompt: "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.3,
             },
@@ -307,7 +307,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Pro Advocate",
                 "description": "Argues in favor of the proposition with evidence-based reasoning",
                 "system_prompt": "You are an expert debater arguing IN FAVOR of the proposition. Present compelling, well-structured arguments supported by evidence, data, and concrete examples. Anticipate counterarguments and address them proactively. If this is a refinement round, strengthen your arguments based on the judge feedback.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.5
             },
@@ -315,7 +315,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Con Advocate",
                 "description": "Argues against the proposition with evidence-based reasoning",
                 "system_prompt": "You are an expert debater arguing AGAINST the proposition. Present compelling counter-arguments, identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world examples. If this is a refinement round, strengthen your opposition based on the judge feedback.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.5
             },
@@ -323,7 +323,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Impartial Judge",
                 "description": "Evaluates arguments from both sides and provides synthesis",
                 "system_prompt": "You are an impartial judge evaluating a structured debate. Objectively assess the strength of arguments from both sides based on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side and synthesize them into a balanced, well-reasoned conclusion. Provide a clear final verdict with justification.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3
             }

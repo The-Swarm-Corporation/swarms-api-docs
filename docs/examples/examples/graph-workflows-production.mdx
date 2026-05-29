@@ -277,11 +277,11 @@ Concrete numbers from a real SDR team enriching 1,000 leads per week:
 
 | Approach | Time per lead | Cost per lead | Engineering owned |
 | --- | --- | --- | --- |
-| Manual SDR research (LinkedIn + Crunchbase + news) | 18-25 min | ~$22 in SDR time | None |
-| Custom async orchestration in-house (Lambda + Step Functions + LLM glue) | ~6-8 sec | ~$0.03 in API + ~$0.005 in infra | 2 engineers, ~$300k/yr to maintain |
-| **Graph Workflow endpoint** | **~3-5 sec** | **~$0.02-$0.04 in API** | **None — declared in JSON** |
+| Manual SDR research (LinkedIn + Crunchbase + news) | 18-25 min | ~\$22 in SDR time | None |
+| Custom async orchestration in-house (Lambda + Step Functions + LLM glue) | ~6-8 sec | ~\$0.03 in API + ~\$0.005 in infra | 2 engineers, ~\$300k/yr to maintain |
+| **Graph Workflow endpoint** | **~3-5 sec** | **~\$0.02-\$0.04 in API** | **None — declared in JSON** |
 
-Math: 1,000 leads/week at $22 manual vs. ~$0.03 on the endpoint is **$22,000/week saved** (~$1.1M/year), before counting the engineering team you don't need to staff for the DIY path. The pipeline goes live in a day instead of a quarter.
+Math: 1,000 leads/week at \$22 manual vs. ~\$0.03 on the endpoint is **\$22,000/week saved** (~\$1.1M/year), before counting the engineering team you don't need to staff for the DIY path. The pipeline goes live in a day instead of a quarter.
 
 <Warning>
 Per-lead cost will vary with model choice and token volume — `gpt-4.1` on five short nodes is the cheap path; swap to `anthropic/claude-opus-4-8` if your synthesizer needs deeper reasoning.

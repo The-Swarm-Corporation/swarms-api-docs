@@ -82,7 +82,7 @@ revenue_fy2025, deferred_revenue, accounts_receivable).
 ```
 
 <Note>
-The trick step is question 3. The $240k cash collected in Oct 2024 covers months 1-12 of the contract, but the transaction price is allocated over the full 24 months at $19,500/month (not $20,000/month), so YTD recognition through Dec 31, 2024 is **3 months × $19,500 = $58,500**, not $60,000. The remainder of the $240k cash sits as deferred revenue. A plain LLM call will frequently compute $20,000/month and miss the discount allocation.
+The trick step is question 3. The \$240k cash collected in Oct 2024 covers months 1-12 of the contract, but the transaction price is allocated over the full 24 months at \$19,500/month (not \$20,000/month), so YTD recognition through Dec 31, 2024 is **3 months × \$19,500 = \$58,500**, not \$60,000. The remainder of the \$240k cash sits as deferred revenue. A plain LLM call will frequently compute \$20,000/month and miss the discount allocation.
 </Note>
 
 ## Step 3: First — Try It With a Plain Agent (for Comparison)
@@ -118,7 +118,7 @@ print("=" * 60)
 print(json.dumps(plain_response.json(), indent=2)[:1500])
 ```
 
-In practice on this problem the plain agent will produce a confident but wrong allocation roughly **40-60% of the time** — most often by computing $20,000/month for the first year (ignoring that the $12,000 discount must be allocated across all 24 months under ASC 606).
+In practice on this problem the plain agent will produce a confident but wrong allocation roughly **40-60% of the time** — most often by computing \$20,000/month for the first year (ignoring that the \$12,000 discount must be allocated across all 24 months under ASC 606).
 
 ## Step 4: Now Solve It With a Reasoning Agent
 
@@ -200,7 +200,7 @@ print(json.dumps(expected, indent=2))
 ```
 
 <Note>
-$468,000 transaction price = $480,000 contract value − $12,000 discount, allocated ratably over 24 months = **$19,500/month**. Three months in fiscal 2024 = $58,500 recognized; the rest of the first $240,000 cash collected sits as a contract liability.
+\$468,000 transaction price = \$480,000 contract value − \$12,000 discount, allocated ratably over 24 months = **\$19,500/month**. Three months in fiscal 2024 = \$58,500 recognized; the rest of the first \$240,000 cash collected sits as a contract liability.
 </Note>
 
 ## Step 6: Tuning the Depth Knob
@@ -234,9 +234,9 @@ Concrete numbers for a high-stakes analytical question (the accrual problem abov
 
 | Approach | Time to answer | Cost | Calibrated confidence? |
 | --- | --- | --- | --- |
-| Senior accounting associate | 25-40 min | ~$80-130 fully-loaded labor | Yes (but variable) |
-| Plain `gpt-4` call | ~6 sec | ~$0.05 | **No** — single confident chain, fails ~40-60% |
-| **Reasoning agent (self-consistency, 5 samples, Opus 4.8)** | **~30-60 sec** | **~$0.20-0.50** | **Yes** — convergence is the signal |
+| Senior accounting associate | 25-40 min | ~\$80-130 fully-loaded labor | Yes (but variable) |
+| Plain `gpt-4` call | ~6 sec | ~\$0.05 | **No** — single confident chain, fails ~40-60% |
+| **Reasoning agent (self-consistency, 5 samples, Opus 4.8)** | **~30-60 sec** | **~\$0.20-0.50** | **Yes** — convergence is the signal |
 
 Use the reasoning agent for the questions where being wrong is expensive — accruals that hit a 10-K, tax allocations on a large deal, contract interpretations, complex underwriting. Use a plain agent for everything else. The reasoning agent is **~250x cheaper than the associate** *and* gives you a convergence signal the associate can't, because a single human only has one chain of thought.
 

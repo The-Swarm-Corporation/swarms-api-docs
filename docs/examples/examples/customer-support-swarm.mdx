@@ -1,0 +1,520 @@
+---
+title: "Build a Customer Support Swarm — Triage, Reply, Escalate"
+description: "A HierarchicalSwarm that classifies every inbound ticket, drafts a customer-ready reply, and routes the risky ones to a human — wired to Intercom or Zendesk in under an afternoon."
+---
+
+## What This Example Shows
+
+- A `HierarchicalSwarm` with a Triage Manager routing tickets to one of five specialists: Billing, Technical, Account, Product Liaison, Retention
+- A Quality Reviewer agent that scores every draft for tone and confidence, then sets an escalation flag
+- A complete `/v1/swarm/completions` call for a realistic ticket — subject, body, and suggested next action returned as a structured reply
+- A Flask webhook that catches new Intercom conversations, runs the swarm, and either auto-replies via the Intercom REST API or drops the ticket into a human queue
+- A `/v1/swarm/batch/completions` pattern for clearing a 500-ticket overnight backlog for under \$10
+- The cost math: ~\$0.02 per ticket vs. ~\$1.50 for a fully loaded tier-1 agent
+
+<Info>
+This tutorial uses `HierarchicalSwarm` and `/v1/swarm/batch/completions` — both included on every paid Swarms tier. For production-volume webhook traffic and overnight batches above a few thousand tickets, upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) for the parallel execution and rate-limit headroom you need.
+</Info>
+
+## Why This Matters
+
+A fully loaded tier-1 support agent runs ~\$50K/yr and clears about 30 tickets a day. A swarm running on this stack handles 30,000 tickets a day for under \$200. The job is not to fire the support team — it is to put a customer-ready, on-brand drafted reply in front of your humans so they approve-and-send in five seconds instead of writing from scratch in five minutes. That single shift takes your team from drowning in queue to ahead of SLA, and it does the boring 80% of tickets autonomously so the humans get their afternoon back for the cases that actually need them. Every SaaS company on Earth has this problem and almost none of them have shipped a real fix.
+
+## The Architecture
+
+```
+                       Incoming Ticket
+                              |
+                              v
+                    +-------------------+
+                    |  Triage Manager   |   <- classifies + routes
+                    |   (coordinator)   |
+                    +-------------------+
+                              |
+        +---------------+-----+-----+---------------+--------------+
+        |               |           |               |              |
+        v               v           v               v              v
+   +---------+    +-----------+ +---------+   +-----------+  +-----------+
+   | Billing |    | Technical | | Account |   |  Product  |  | Retention |
+   |Specialist|   |  Support  | | Manager |   |  Liaison  |  |Specialist |
+   +---------+    +-----------+ +---------+   +-----------+  +-----------+
+        |               |           |               |              |
+        +---------------+-----+-----+---------------+--------------+
+                              |
+                              v
+                    +-------------------+
+                    | Quality Reviewer  |   <- tone + confidence + escalate
+                    +-------------------+
+                              |
+                +-------------+--------------+
+                |                            |
+                v                            v
+         Auto-send reply              Human review queue
+         (Intercom REST)              (escalation flag = true)
+```
+
+## Step 1: Setup
+
+Install the dependencies and grab your API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+```bash
+pip install requests flask python-dotenv
+export SWARMS_API_KEY="your-api-key-here"
+export INTERCOM_ACCESS_TOKEN="your-intercom-token-here"
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+INTERCOM_TOKEN = os.getenv("INTERCOM_ACCESS_TOKEN")
+BASE_URL = "https://api.swarms.world"
+
+if not API_KEY:
+    raise ValueError("SWARMS_API_KEY environment variable is required")
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Triage + Specialist + Quality Team
+
+Seven agents. The Triage Manager owns routing. Each specialist drafts a customer-ready reply in a strict format the Quality Reviewer can grade. The Quality Reviewer decides whether the draft auto-sends or goes to a human.
+
+```python
+TRIAGE_PROMPT = (
+    "You are the Triage Manager for a SaaS customer support team. "
+    "Given an inbound ticket, you do two things:\n\n"
+    "1. Classify the ticket into exactly ONE of these categories:\n"
+    "   - BILLING (invoices, refunds, plan changes, payment failures)\n"
+    "   - TECHNICAL (bugs, errors, integrations, performance, API issues)\n"
+    "   - ACCOUNT (login, SSO, seats, permissions, org settings)\n"
+    "   - PRODUCT (feature requests, how-do-I, roadmap questions)\n"
+    "   - RETENTION (cancellation, downgrade intent, churn signals, frustration)\n\n"
+    "2. Delegate to the matching specialist with a one-paragraph briefing that "
+    "extracts the customer's name, plan tier, account ID if present, and the "
+    "single thing they need.\n\n"
+    "Be decisive. Never assign to more than one specialist. If the ticket spans "
+    "categories, pick the dominant one and note the secondary in the briefing."
+)
+
+SPECIALIST_OUTPUT_FORMAT = (
+    "Your reply MUST follow this exact format:\n\n"
+    "SUBJECT: <re: original subject>\n"
+    "BODY:\n"
+    "<the customer-ready reply, signed off as the support team>\n"
+    "SUGGESTED_NEXT_ACTION: <one line — e.g. 'refund $49 via Stripe', "
+    "'create JIRA bug', 'no action needed', 'schedule retention call'>\n"
+    "INTERNAL_NOTES: <one line for the human reviewer — context that does NOT go to the customer>\n\n"
+    "Tone: warm, direct, no corporate filler. Never apologize more than once. "
+    "Never promise timelines you can't keep. Always reference the original ticket ID."
+)
+
+BILLING_PROMPT = (
+    "You are a Billing Specialist. Customers come to you for invoices, refunds, "
+    "plan changes, payment failures, and proration questions. You know Stripe, "
+    "annual vs. monthly mechanics, dunning, and ACH timing. "
+    "Draft a reply that resolves the issue or names the exact next step. "
+    f"{SPECIALIST_OUTPUT_FORMAT}"
+)
+
+TECHNICAL_PROMPT = (
+    "You are a Technical Support Engineer. Customers come to you with bugs, "
+    "error messages, API issues, integration failures, and performance problems. "
+    "Ask for logs, request IDs, and reproduction steps only when truly needed — "
+    "default to giving the answer if the ticket already contains enough signal. "
+    f"{SPECIALIST_OUTPUT_FORMAT}"
+)
+
+ACCOUNT_PROMPT = (
+    "You are an Account Manager handling login, SSO, seat management, permissions, "
+    "and organization settings. You know SAML, SCIM, role hierarchies, and the "
+    "common reasons a user is locked out. Be direct and unblock the customer. "
+    f"{SPECIALIST_OUTPUT_FORMAT}"
+)
+
+PRODUCT_PROMPT = (
+    "You are a Product Liaison handling feature requests, how-do-I questions, "
+    "and roadmap inquiries. Acknowledge the request, point to existing docs or "
+    "workarounds, and capture the request cleanly in INTERNAL_NOTES so product "
+    "can triage it later. Never commit to ship dates. "
+    f"{SPECIALIST_OUTPUT_FORMAT}"
+)
+
+RETENTION_PROMPT = (
+    "You are a Retention Specialist. The customer is signaling cancellation, "
+    "downgrade, or serious frustration. Your job is NOT to argue them out of it — "
+    "it is to acknowledge the friction, name a concrete path to fix it, and offer "
+    "the right save play (pause, downgrade tier, credit, success call) for the "
+    "situation. If the case is already lost, write a clean offboarding reply. "
+    f"{SPECIALIST_OUTPUT_FORMAT}"
+)
+
+QUALITY_REVIEWER_PROMPT = (
+    "You are the Quality Reviewer. You read the specialist's drafted reply and "
+    "the original ticket, then return a STRICT JSON object with these keys only:\n\n"
+    "{\n"
+    '  "final_subject": "<the subject line to send>",\n'
+    '  "final_body": "<the body to send, edited for tone if needed>",\n'
+    '  "suggested_next_action": "<carried through from the specialist>",\n'
+    '  "category": "BILLING | TECHNICAL | ACCOUNT | PRODUCT | RETENTION",\n'
+    '  "confidence": <float 0.0-1.0>,\n'
+    '  "escalate_to_human": <true | false>,\n'
+    '  "escalation_reason": "<one sentence, or empty string>"\n'
+    "}\n\n"
+    "Escalate to a human if ANY of the following are true:\n"
+    "- Confidence below 0.75\n"
+    "- Refund amount mentioned exceeds $200\n"
+    "- Any mention of legal action, GDPR, HIPAA, SOC2, data breach, or media\n"
+    "- Customer is on Enterprise tier\n"
+    "- Retention category with HIGH churn signal\n"
+    "- Reply contains a commitment to a timeline or dollar amount the AI cannot verify\n\n"
+    "Output JSON only. No prose, no markdown fences."
+)
+
+
+def build_support_swarm(ticket_payload: str) -> dict:
+    return {
+        "name": "Customer Support Swarm",
+        "description": "Triage Manager routing to specialists with a Quality Reviewer gate.",
+        "swarm_type": "HierarchicalSwarm",
+        "max_loops": 1,
+        "task": ticket_payload,
+        "agents": [
+            {
+                "agent_name": "Triage Manager",
+                "description": "Coordinator — classifies the ticket and delegates to the right specialist.",
+                "system_prompt": TRIAGE_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "coordinator",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.1,
+            },
+            {
+                "agent_name": "Billing Specialist",
+                "description": "Invoices, refunds, plan changes, payment failures.",
+                "system_prompt": BILLING_PROMPT,
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Technical Support Engineer",
+                "description": "Bugs, errors, API, integrations, performance.",
+                "system_prompt": TECHNICAL_PROMPT,
+                "model_name": "claude-haiku-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Account Manager",
+                "description": "Login, SSO, seats, permissions, org settings.",
+                "system_prompt": ACCOUNT_PROMPT,
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Product Liaison",
+                "description": "Feature requests, how-do-I, roadmap.",
+                "system_prompt": PRODUCT_PROMPT,
+                "model_name": "grok-4",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Retention Specialist",
+                "description": "Cancellation, downgrade intent, churn signals.",
+                "system_prompt": RETENTION_PROMPT,
+                "model_name": "claude-haiku-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Quality Reviewer",
+                "description": "Final tone, confidence, and escalation gate.",
+                "system_prompt": QUALITY_REVIEWER_PROMPT,
+                "model_name": "claude-opus-4-8",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.0,
+            },
+        ],
+    }
+```
+
+<Note>
+The Triage Manager runs on `gpt-4.1` because misrouting cascades into the wrong specialist and burns the whole pipeline. Specialists run on `gpt-4.1-mini` — they are doing template-shaped writing and the cost difference is what makes \$0.02/ticket possible. The Quality Reviewer goes back to `gpt-4.1` because the escalation decision is load-bearing.
+</Note>
+
+## Step 3: Process a Single Ticket
+
+Build a realistic ticket, post it to `/v1/swarm/completions`, and pull the Quality Reviewer's JSON out of the response.
+
+```python
+TICKET = """
+TICKET ID: TICK-48219
+CUSTOMER: Maria Chen (maria@northwindlogistics.com)
+PLAN: Growth ($299/mo, 14 months active)
+CHANNEL: Email
+SUBJECT: Charged twice for October — please refund
+
+BODY:
+Hi team,
+
+I just noticed two charges of $299 on October 3rd from Swarms. One was the
+regular monthly renewal and the other looks like a duplicate. My card ending
+in 4242 was hit twice. Can you refund the duplicate and confirm the next
+billing date? This is the second time this has happened — last time was in
+July and Sarah on your team fixed it within an hour.
+
+I'd appreciate a quick turnaround, we're closing our quarter.
+
+Thanks,
+Maria
+"""
+
+
+def run_support_swarm(ticket: str) -> dict:
+    payload = build_support_swarm(ticket)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def extract_quality_review(swarm_result: dict) -> dict:
+    """Pull the Quality Reviewer's JSON out of the swarm response."""
+    for output in swarm_result.get("output", []):
+        if "Quality Reviewer" in output.get("role", ""):
+            content = output["content"]
+            if isinstance(content, list):
+                content = " ".join(str(c) for c in content)
+            text = str(content).strip()
+            # Strip optional markdown fences if the model added them
+            if text.startswith("```"):
+                text = text.strip("`")
+                if text.startswith("json"):
+                    text = text[4:]
+            try:
+                return json.loads(text.strip())
+            except json.JSONDecodeError:
+                return {
+                    "escalate_to_human": True,
+                    "escalation_reason": "Quality Reviewer output failed to parse",
+                    "confidence": 0.0,
+                    "final_body": "",
+                }
+    return {"escalate_to_human": True, "escalation_reason": "No reviewer output", "confidence": 0.0}
+
+
+result = run_support_swarm(TICKET)
+review = extract_quality_review(result)
+
+print(json.dumps(review, indent=2))
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+The Quality Reviewer's JSON is the single object your application needs. `escalate_to_human` is the only field that decides what happens next — every downstream branch reads from there.
+
+## Step 4: Wire It to Intercom (or Zendesk) via Webhook
+
+Drop the swarm behind a Flask webhook. Intercom POSTs every new conversation to your endpoint, you run the swarm, and you either reply via the Intercom REST API or assign the conversation to a human teammate based on the escalation flag.
+
+```python
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+INTERCOM_BASE = "https://api.intercom.io"
+INTERCOM_HEADERS = {
+    "Authorization": f"Bearer {INTERCOM_TOKEN}",
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+    "Intercom-Version": "2.11",
+}
+
+# Set this to the teammate ID of your human escalation queue / team inbox
+HUMAN_QUEUE_TEAMMATE_ID = os.getenv("INTERCOM_HUMAN_QUEUE_ID")
+
+
+def post_intercom_reply(conversation_id: str, body: str) -> dict:
+    """Send a public reply to an Intercom conversation as the support bot."""
+    url = f"{INTERCOM_BASE}/conversations/{conversation_id}/reply"
+    response = requests.post(
+        url,
+        headers=INTERCOM_HEADERS,
+        json={
+            "message_type": "comment",
+            "type": "admin",
+            "admin_id": os.getenv("INTERCOM_BOT_ADMIN_ID"),
+            "body": body,
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def assign_to_human_queue(conversation_id: str, internal_note: str) -> dict:
+    """Leave an internal note with the swarm's draft, then assign to the human team."""
+    url = f"{INTERCOM_BASE}/conversations/{conversation_id}/parts"
+    requests.post(
+        url,
+        headers=INTERCOM_HEADERS,
+        json={
+            "message_type": "note",
+            "type": "admin",
+            "admin_id": os.getenv("INTERCOM_BOT_ADMIN_ID"),
+            "body": internal_note,
+        },
+        timeout=30,
+    )
+    assign_url = f"{INTERCOM_BASE}/conversations/{conversation_id}/parts"
+    response = requests.post(
+        assign_url,
+        headers=INTERCOM_HEADERS,
+        json={
+            "message_type": "assignment",
+            "type": "admin",
+            "admin_id": os.getenv("INTERCOM_BOT_ADMIN_ID"),
+            "assignee_id": HUMAN_QUEUE_TEAMMATE_ID,
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+@app.post("/webhook/intercom")
+def intercom_webhook():
+    payload = request.get_json(force=True)
+
+    # Intercom sends conversation.user.created for new inbound conversations
+    if payload.get("topic") != "conversation.user.created":
+        return jsonify({"status": "ignored"}), 200
+
+    conv = payload["data"]["item"]
+    conversation_id = conv["id"]
+    customer_email = conv["source"]["author"].get("email", "unknown")
+    subject = conv["source"].get("subject", "(no subject)")
+    body = conv["source"]["body"]
+
+    ticket_payload = (
+        f"TICKET ID: {conversation_id}\n"
+        f"CUSTOMER: {customer_email}\n"
+        f"SUBJECT: {subject}\n\n"
+        f"BODY:\n{body}\n"
+    )
+
+    swarm_result = run_support_swarm(ticket_payload)
+    review = extract_quality_review(swarm_result)
+
+    if review.get("escalate_to_human"):
+        internal_note = (
+            f"<b>Swarm draft (NOT sent — escalated)</b><br>"
+            f"<b>Reason:</b> {review.get('escalation_reason', 'unknown')}<br>"
+            f"<b>Confidence:</b> {review.get('confidence', 0.0):.2f}<br>"
+            f"<b>Category:</b> {review.get('category', 'unknown')}<br>"
+            f"<b>Suggested action:</b> {review.get('suggested_next_action', '')}<br><br>"
+            f"<b>Draft body:</b><br>{review.get('final_body', '')}"
+        )
+        assign_to_human_queue(conversation_id, internal_note)
+        return jsonify({"status": "escalated", "review": review}), 200
+
+    post_intercom_reply(conversation_id, review["final_body"])
+    return jsonify({"status": "auto_replied", "review": review}), 200
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
+```
+
+<Info>
+For Zendesk, swap the Intercom calls for the equivalent endpoints — `POST /api/v2/tickets/{id}/comments` for the reply and `PUT /api/v2/tickets/{id}.json` with `{"ticket": {"assignee_id": <human_id>}}` for the escalation. The swarm layer does not change.
+</Info>
+
+## Step 5: Batch Mode for Existing Backlog
+
+When the team comes back from a long weekend with 500 tickets stacked up, you do not run the webhook 500 times — you fan them out through `/v1/swarm/batch/completions` and clear the queue overnight.
+
+```python
+def clear_backlog(tickets: list[str], chunk_size: int = 100) -> list[dict]:
+    """Run the support swarm across a list of tickets via batch completions."""
+    all_reviews: list[dict] = []
+    total_cost = 0.0
+    for start in range(0, len(tickets), chunk_size):
+        chunk = tickets[start : start + chunk_size]
+        payloads = [build_support_swarm(t) for t in chunk]
+        print(f"Submitting tickets {start}..{start + len(chunk) - 1}")
+        response = requests.post(
+            f"{BASE_URL}/v1/swarm/batch/completions",
+            headers=headers,
+            json=payloads,
+            timeout=1800,
+        )
+        response.raise_for_status()
+        results = response.json()
+        for r in results:
+            all_reviews.append(extract_quality_review(r))
+            total_cost += r.get("usage", {}).get("billing_info", {}).get("total_cost", 0)
+    print(f"Cleared {len(all_reviews)} tickets for ${total_cost:.2f}")
+    return all_reviews
+
+
+# backlog is your list of raw ticket strings from Intercom export, Zendesk dump, etc.
+# reviews = clear_backlog(backlog)
+# auto_send = [r for r in reviews if not r.get("escalate_to_human")]
+# human_queue = [r for r in reviews if r.get("escalate_to_human")]
+```
+
+A 500-ticket backlog at this swarm shape runs about \$10 end-to-end and finishes in the time it takes to refill the coffee pot. The auto-send list goes straight to Intercom, the human queue lands in your inbox with the draft and escalation reason already attached.
+
+## Real Cost vs. Tier-1 Support
+
+| Scenario | Cost per ticket | Cost per month (10K tickets) | Throughput |
+| --- | --- | --- | --- |
+| Customer support swarm (gpt-4.1 + 4.1-mini) | ~\$0.02 | ~\$200 | minutes per batch |
+| Tier-1 agent (fully loaded ~\$50k, ~30/day) | ~\$1.50 | ~\$15,000 | bounded by headcount |
+| BPO outsourced floor | ~\$0.80–\$2.50 | ~\$8,000–\$25,000 | hours to days |
+
+Your humans are not gone — they are reviewing the 10-20% of tickets the Quality Reviewer flagged, plus the ones that came back with follow-up questions. The swarm took the 30,000 routine tickets off their plate, which is the entire point. A tier-1 floor of ten people now does the work of a floor of fifty, with shorter response times and a fully auditable trail per ticket.
+
+## Guardrails
+
+These rules belong in code, not in the prompt — the prompt is a soft constraint, the code is hard.
+
+- **Never auto-send for refunds above $X.** Hard-cap it. Read the dollar amount out of `suggested_next_action` with a regex and force escalation if it exceeds your finance team's pre-approved threshold.
+- **Never auto-send for legal, compliance, or media topics.** Match on keywords (`lawsuit`, `attorney`, `GDPR`, `HIPAA`, `breach`, `press`, `journalist`) and force escalation regardless of confidence.
+- **Always include the original ticket ID in the reply.** Customers reference it, your support team searches by it, your audit log requires it. The specialist prompts include it but verify in code before sending.
+- **Rate-limit auto-replies per customer.** If you have already auto-sent two replies on a thread, the third one is escalated by default — a customer who is still responding usually needs a human.
+- **Log every swarm decision.** Persist the Quality Reviewer JSON, the specialist who drafted, and the model usage to your warehouse. The first time you debate "is the swarm getting better or worse," that table is the only thing that matters.
+- **Run a shadow week before going live.** Send every ticket through the swarm, drop every result into an internal note, never auto-send. Your support leads grade a sample of 200 drafts. Ship when the approval rate clears the bar you set.
+
+## Next Steps
+
+- See the [Hierarchical Workflow Example](/docs/examples/examples/hierarchical-workflow) for the director-and-workers pattern in more depth
+- Read [Tools in Swarms](/docs/examples/examples/tools-in-swarms) to give the Billing Specialist a real Stripe refund tool and the Technical Engineer a real log-search tool
+- Browse [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions) for the underlying batch endpoint mechanics and rate-limit guidance

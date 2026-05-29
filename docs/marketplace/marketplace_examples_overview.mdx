@@ -52,7 +52,7 @@ from swarms import Agent
 # Load a prompt from the marketplace
 # The prompt ID is found in the URL: https://swarms.world/prompt/{prompt-id}
 agent = Agent(
-    model_name="gpt-4o-mini",
+    model_name="gpt-4.1-mini",
     marketplace_prompt_id="75fc0d28-b0d0-4372-bc04-824aa388b7d2",  # From URL or metadata section
     max_loops=1,
 )
@@ -76,7 +76,7 @@ from swarms import Agent
 agent = Agent(
     agent_name="My-Specialized-Agent",
     agent_description="Expert agent for specific tasks",
-    model_name="gpt-4o-mini",
+    model_name="gpt-4.1-mini",
     publish_to_marketplace=True,  # Enable publishing
     # ... additional configuration
 )

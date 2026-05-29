@@ -14,7 +14,7 @@ AutoGen models multi-agent collaboration as a **conversation** — agents exchan
 | `GroupChatManager(groupchat, llm_config)` | Managed by the API |
 | `agent.initiate_chat(recipient, message)` | `POST` request with `task` field |
 | `ConversableAgent` | Any agent with `system_prompt` |
-| `llm_config = {"model": "gpt-4o", "api_key": ...}` | `"model_name": "gpt-4o"` on agent spec |
+| `llm_config = {"model": "gpt-4.1", "api_key": ...}` | `"model_name": "gpt-4.1"` on agent spec |
 | `max_consecutive_auto_reply` | `max_loops` on agent spec |
 | `is_termination_msg` | Handled by workflow `max_loops` |
 | `code_execution_config` | `"tools": ["code_interpreter"]` on agent spec |
@@ -38,7 +38,7 @@ graph LR
 ```python
 import autogen
 
-config_list = [{"model": "gpt-4o", "api_key": "sk-..."}]
+config_list = [{"model": "gpt-4.1", "api_key": "sk-..."}]
 
 assistant = autogen.AssistantAgent(
     name="assistant",
@@ -73,7 +73,7 @@ result = requests.post(
         "agent_name": "assistant",
         "system_prompt": "You are a helpful AI assistant.",
         "task": "Explain the difference between supervised and unsupervised learning.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.5,
     },
@@ -113,7 +113,7 @@ graph TD
 ```python
 import autogen
 
-config_list = [{"model": "gpt-4o", "api_key": "sk-..."}]
+config_list = [{"model": "gpt-4.1", "api_key": "sk-..."}]
 llm_config = {"config_list": config_list, "cache_seed": 42}
 
 coder = autogen.AssistantAgent(
@@ -172,21 +172,21 @@ result = requests.post(
             {
                 "agent_name": "Coder",
                 "system_prompt": "You are an expert software engineer. Write clean, efficient, well-documented code.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3,
             },
             {
                 "agent_name": "Code_Reviewer",
                 "system_prompt": "You are a senior code reviewer. Review code for bugs, edge cases, and best practices. Provide specific, actionable feedback.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2,
             },
             {
                 "agent_name": "Product_Manager",
                 "system_prompt": "You are a product manager. Ensure solutions meet business requirements, are maintainable, and deliver real user value.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3,
             },
@@ -228,7 +228,7 @@ graph LR
 ```python
 import autogen
 
-config_list = [{"model": "gpt-4o", "api_key": "sk-..."}]
+config_list = [{"model": "gpt-4.1", "api_key": "sk-..."}]
 
 assistant = autogen.AssistantAgent(
     name="assistant",
@@ -263,7 +263,7 @@ result = requests.post(
         "agent_name": "coding_assistant",
         "system_prompt": "You are an expert programmer. Write correct, efficient Python code and explain what it does.",
         "task": "Write a Python script that calculates the first 20 Fibonacci numbers.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "tools": ["code_interpreter"],
         "max_loops": 1,
         "temperature": 0.2,
@@ -300,7 +300,7 @@ graph TD
 ```python
 import autogen
 
-config_list = [{"model": "gpt-4o", "api_key": "sk-..."}]
+config_list = [{"model": "gpt-4.1", "api_key": "sk-..."}]
 
 pro_agent = autogen.AssistantAgent(
     name="Pro_AI",
@@ -347,21 +347,21 @@ result = requests.post(
             {
                 "agent_name": "Pro_AI",
                 "system_prompt": "You argue FOR AI replacing most human jobs in the next 20 years. Present compelling evidence, statistics, and historical precedents.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.6,
             },
             {
                 "agent_name": "Con_AI",
                 "system_prompt": "You argue AGAINST AI replacing most human jobs. Present economic theory, counterexamples, and evidence for human adaptability.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.6,
             },
             {
                 "agent_name": "Judge",
                 "system_prompt": "You are a neutral judge and critical thinker. After both sides present their arguments, evaluate the quality of evidence, logical coherence, and give a balanced, reasoned verdict.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3,
             },
@@ -385,7 +385,7 @@ AutoGen requires per-agent `llm_config` dicts with API keys and model lists. The
 ```python
 config_list = [
     {
-        "model": "gpt-4o",
+        "model": "gpt-4.1",
         "api_key": os.environ["OPENAI_API_KEY"],
         "base_url": "https://api.openai.com/v1",
     }
@@ -412,7 +412,7 @@ agent = autogen.AssistantAgent(
 {
     "agent_name": "my_agent",
     "system_prompt": "...",
-    "model_name": "gpt-4o",
+    "model_name": "gpt-4.1",
     "temperature": 0.7,
     "max_tokens": 2000,
     "max_loops": 1,

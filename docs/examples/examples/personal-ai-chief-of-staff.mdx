@@ -1,0 +1,327 @@
+---
+title: "Build Your Personal AI Chief of Staff with Gmail, Calendar, and Notion"
+description: "Wire one conversational Swarms agent into Gmail, Google Calendar, and Notion via MCP — and get an AI Chief of Staff that runs your day for under $1."
+---
+
+## What This Example Shows
+
+- Plugging three live MCP servers (Gmail, Google Calendar, Notion) into a single agent via the `mcp_url` array
+- Carrying conversation history across a full day so the agent remembers what you talked about at 9am when you ping it again at 4pm
+- Sub-agent delegation: a main Chief of Staff that hands off to specialists (Inbox Triager, Meeting Prep, Notion Logger) when it's time to do real work
+- Structured outputs for clean calendar slots and Notion rows
+- An idiomatic Python CLI loop you can paste into a terminal and start using today
+- A cron-style 7am inbox digest you can deploy as your morning routine
+
+<Info>
+Grab a free Swarms API key at [swarms.world](https://swarms.world). The Gmail, Google Calendar, and Notion MCP servers shown here are **pluggable** — point `mcp_url` at any hosted MCP endpoint that exposes those tools (Composio, Zapier MCP, Pipedream, your own). If you're new to MCP, start with [MCP Integration](/docs/examples/examples/mcp-integration).
+</Info>
+
+## Why This Matters
+
+A great Chief of Staff does three things: triages your inbox so you only see what matters, runs your calendar so you never double-book or miss prep, and keeps your second brain (Notion) up to date so context never falls through the cracks. An AI Chief of Staff does the same job in roughly 50 lines of Python, runs you about \$0.20/day in API spend, and doesn't need a 1:1. The trick is wiring one conversational agent into the three tools a real CoS actually lives in — and letting it remember everything you said earlier in the day.
+
+## The Architecture
+
+```
+                          You (CLI / Slack / iMessage)
+                                     |
+                                     v
+                       +---------------------------+
+                       |   Main Chief of Staff     |
+                       |   (claude-sonnet-4.5)     |
+                       |   + conversation_history  |
+                       +---------------------------+
+                          |          |          |
+                          |   MCP tools attached:
+                          |   - Gmail
+                          |   - Google Calendar
+                          |   - Notion
+                          |
+                          | delegates to sub-agents when work gets specialized
+                          v
+          +-----------------+-----------------+-----------------+
+          |                 |                 |                 |
+          v                 v                 v                 v
+  +---------------+ +---------------+ +---------------+
+  | Inbox Triager | | Meeting Prep  | | Notion Logger |
+  | (haiku-4.5)   | | (gpt-4.1-mini)| | (haiku-4.5)   |
+  +---------------+ +---------------+ +---------------+
+```
+
+The main CoS is the only agent you ever talk to. It decides when a request needs a specialist and delegates. The sub-agents inherit access to the MCP tools they need and return structured results back to the main agent, which then talks back to you in plain English.
+
+## Step 1: Setup
+
+You'll need four environment variables. The three MCP URLs are hosted endpoints **you control** — either via a provider like Composio/Pipedream/Zapier MCP or your own server. Each one exposes a different toolset to the agent.
+
+```bash
+export SWARMS_API_KEY="sk-..."
+export GMAIL_MCP_URL="https://mcp.composio.dev/gmail/<your-account-id>"
+export GCAL_MCP_URL="https://mcp.composio.dev/googlecalendar/<your-account-id>"
+export NOTION_MCP_URL="https://mcp.composio.dev/notion/<your-account-id>"
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+GMAIL_MCP_URL = os.getenv("GMAIL_MCP_URL")
+GCAL_MCP_URL = os.getenv("GCAL_MCP_URL")
+NOTION_MCP_URL = os.getenv("NOTION_MCP_URL")
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Three Sub-Agents
+
+Each sub-agent is tightly scoped to one job. Keep the system prompts short — these aren't generalists, they're specialists the main CoS calls when it needs work done.
+
+```python
+INBOX_TRIAGER = {
+    "agent_name": "Inbox-Triager",
+    "description": "Classifies and summarizes recent Gmail messages into priority buckets.",
+    "system_prompt": (
+        "You triage Gmail. For each message you read, classify it as "
+        "URGENT, FOLLOW-UP, FYI, or NOISE. Summarize the actually-important "
+        "ones in one line each, with sender and subject. Skip newsletters, "
+        "calendar invites, and notifications unless they require a response. "
+        "Return a compact digest grouped by priority bucket."
+    ),
+    "model_name": "claude-haiku-4.5",
+    "max_loops": "auto",
+    "mcp_url": GMAIL_MCP_URL,
+}
+
+MEETING_PREP = {
+    "agent_name": "Meeting-Prep",
+    "description": "Pulls upcoming calendar events and drafts a prep brief.",
+    "system_prompt": (
+        "You prepare the user for upcoming meetings. Read the next 24-72 hours "
+        "of calendar events, identify the attendees, and produce a one-paragraph "
+        "brief per meeting: who, what it's about, what to bring or decide, and "
+        "any obvious recent email thread context. When asked, email the brief "
+        "to the user."
+    ),
+    "model_name": "gpt-4.1-mini",
+    "max_loops": "auto",
+    "mcp_url": [GCAL_MCP_URL, GMAIL_MCP_URL],
+}
+
+NOTION_LOGGER = {
+    "agent_name": "Notion-Logger",
+    "description": "Appends structured notes and updates to Notion pages and databases.",
+    "system_prompt": (
+        "You write to Notion. When the user mentions a deal, person, or project, "
+        "find the right page or database row and append a structured note with "
+        "today's date. Do not create duplicates — search first. Keep notes "
+        "concise and factual; one bullet per fact."
+    ),
+    "model_name": "claude-haiku-4.5",
+    "max_loops": "auto",
+    "mcp_url": NOTION_MCP_URL,
+}
+```
+
+<Note>
+Sub-agents inherit `max_loops="auto"` so they can call MCP tools repeatedly until the task is done — read a thread, then reply; search Notion, then append. The main CoS doesn't need to micromanage them.
+</Note>
+
+## Step 3: Wire Up the Main Chief of Staff Agent
+
+The main agent gets all three MCP servers attached *and* a roster of the three sub-agents under `agents`. It uses `claude-sonnet-4.5` because the orchestration model matters most — it's the one deciding when to delegate vs. just answer.
+
+```python
+def build_cos_config():
+    return {
+        "agent_name": "Chief-of-Staff",
+        "description": (
+            "Personal Chief of Staff with live access to Gmail, Google Calendar, "
+            "and Notion. Delegates specialized work to a team of sub-agents."
+        ),
+        "system_prompt": (
+            "You are the user's personal Chief of Staff. You have live access to "
+            "their Gmail, Google Calendar, and Notion via MCP tools, and you can "
+            "delegate to three specialist sub-agents: Inbox-Triager, Meeting-Prep, "
+            "and Notion-Logger.\n\n"
+            "Rules:\n"
+            "- Default to action. If the user says 'schedule X', schedule it; "
+            "  don't ask which calendar unless there's genuine ambiguity.\n"
+            "- Delegate when the work is bulk or specialized. A single 'reply to "
+            "  Sarah' you handle yourself. 'Triage my inbox' goes to Inbox-Triager.\n"
+            "- Remember context from earlier in the conversation. If the user "
+            "  mentioned the Acme deal at 9am, that's the same Acme at 4pm.\n"
+            "- For calendar slots, return them as structured ISO datetimes.\n"
+            "- Talk like a competent human CoS, not a chatbot. No 'I'd be happy to'."
+        ),
+        "model_name": "claude-sonnet-4.5",
+        "max_loops": "auto",
+        "max_tokens": 8192,
+        "temperature": 0.2,
+        "mcp_url": [GMAIL_MCP_URL, GCAL_MCP_URL, NOTION_MCP_URL],
+        "agents": [INBOX_TRIAGER, MEETING_PREP, NOTION_LOGGER],
+    }
+
+
+def call_cos(task: str, history: list | None = None) -> dict:
+    payload = {"agent_config": build_cos_config(), "task": task}
+    if history:
+        payload["history"] = history
+
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def extract_reply(result: dict) -> str:
+    outputs = result.get("outputs")
+    if isinstance(outputs, list):
+        for item in reversed(outputs):
+            if not isinstance(item, dict):
+                continue
+            role = (item.get("role") or "").lower()
+            if role in ("user", "system"):
+                continue
+            content = item.get("content")
+            if isinstance(content, list):
+                return " ".join(str(c) for c in content)
+            if content:
+                return str(content)
+    return json.dumps(outputs or result, indent=2)
+```
+
+## Step 4: The CLI Loop with Conversation History
+
+This is the part you'll actually use. A tiny REPL that accumulates messages across turns so the CoS remembers everything you said today.
+
+```python
+def cos_repl():
+    history: list[dict] = []
+    print("Chief of Staff online. Ctrl-C to quit.\n")
+    while True:
+        try:
+            user_msg = input("you > ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not user_msg:
+            continue
+
+        result = call_cos(task=user_msg, history=history or None)
+        reply = extract_reply(result)
+        print(f"cos > {reply}\n")
+
+        history.append({"role": "user", "content": user_msg})
+        history.append({"role": "assistant", "content": reply})
+
+
+if __name__ == "__main__":
+    cos_repl()
+```
+
+Three real interactions, all in the same session, all relying on history:
+
+```
+you > what did Sarah email me about yesterday?
+
+cos > Sarah Chen sent two threads yesterday. The big one is the Q3 partnership
+      proposal — she's asking for a call this week to walk through the revised
+      terms (she dropped the rev-share ask from 30% to 22%). The other is a
+      quick heads-up that she'll be OOO Friday. Want me to propose times for
+      the call?
+
+you > yeah, schedule contract review with Sarah Thursday after 3
+
+cos > Booked. Thursday 3:30-4:30pm with Sarah Chen, titled "Q3 Partnership —
+      Contract Review." Invite sent to sarah@acmecorp.com with the revised
+      terms PDF from yesterday's thread attached. Calendar link is in your
+      inbox.
+
+you > add a note to the Acme deal in notion: they want net-60 terms
+
+cos > Logged. Appended to "Acme Corp — Q3 Partnership" in your Deals database
+      under today's date: "Acme requested net-60 payment terms (vs. our
+      standard net-30). Surfaced during contract review prep, 5/28."
+```
+
+Notice what's happening:
+- Turn 1: the CoS delegates inbox reading to **Inbox-Triager**, then summarizes.
+- Turn 2: the CoS calls **Google Calendar MCP** directly (single action, no delegation needed), pulls Sarah's email from history, attaches the PDF.
+- Turn 3: "Acme" is never disambiguated — the CoS knows it's Sarah Chen's company from the prior two turns and delegates to **Notion-Logger** to find the right database row.
+
+<Warning>
+The Swarms API is stateless. The CoS only "remembers" because you're threading `history` on every request. If you stop appending, it forgets — same as any other multi-turn agent. See [Conversation History](/docs/examples/examples/conversation-history) for the full pattern.
+</Warning>
+
+## Step 5: Deploy It as a Daily 7AM Inbox Digest
+
+The CLI is great for the day-to-day. The real flex is letting your CoS proactively brief you before you've even opened your laptop. Drop this into a cron job at 7am and you'll get a digest email every morning.
+
+```python
+# digest.py — run via cron: 0 7 * * * /usr/bin/python3 /path/to/digest.py
+
+def morning_digest():
+    payload = {
+        "agent_config": build_cos_config(),
+        "task": (
+            "It's 7am. Run my morning routine:\n"
+            "1. Delegate to Inbox-Triager: read the last 18 hours of email and "
+            "   give me the URGENT and FOLLOW-UP buckets only.\n"
+            "2. Delegate to Meeting-Prep: brief me on every meeting today and "
+            "   tomorrow morning.\n"
+            "3. Compose the combined digest as a single email, subject "
+            "   \"Morning Brief — <today's date>\", and send it to me via Gmail.\n"
+            "Be terse. I'm reading this with one eye open."
+        ),
+    }
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=600,
+    )
+    response.raise_for_status()
+    print(extract_reply(response.json()))
+
+
+if __name__ == "__main__":
+    morning_digest()
+```
+
+Schedule it:
+
+```bash
+crontab -e
+# add: 0 7 * * * /usr/bin/python3 /Users/you/cos/digest.py >> /tmp/cos.log 2>&1
+```
+
+That's it. Your inbox lands in your inbox, with the noise stripped out, before your coffee is done.
+
+## What You Just Built
+
+About 50 lines of Python, three MCP URLs, and you now have:
+
+- An always-on Chief of Staff that lives in your terminal (or wherever you wire the loop next — Slack, iMessage, a web app)
+- Continuity across the entire day via conversation history
+- Specialist sub-agents that handle the heavy lifting (inbox triage, meeting prep, Notion logging) without you ever having to name them
+- A 7am morning brief delivered to your real inbox, automatically
+
+It's a 50-line replacement for a \$90K/yr executive assistant — minus the calendar tetris frustration, the back-and-forth scheduling threads, and the part where they need to sleep. Costs roughly \$0.20/day to run at moderate volume.
+
+## Next Steps
+
+- [MCP Integration](/docs/examples/examples/mcp-integration) — full reference for `mcp_url`, `mcp_configs`, auth headers, and multi-server setups
+- [Sub-Agent Delegation](/docs/examples/examples/sub-agent-delegation) — how the main agent dynamically picks and runs specialists
+- [Conversation History](/docs/examples/examples/conversation-history) — the exact `history` shape and the mistakes to avoid when threading multi-turn context

@@ -19,7 +19,7 @@ LangChain provides Python building blocks — `LLMChain`, `AgentExecutor`, LCEL 
 | `chain.batch([input1, input2])` | `ConcurrentWorkflow` or batch endpoint |
 | `ConversationBufferMemory` | Stateless; manage conversation history externally |
 | `Tool(name, func, description)` | `"tools"` array with built-in tool names |
-| `ChatOpenAI(model="gpt-4o")` | `"model_name": "gpt-4o"` on agent spec |
+| `ChatOpenAI(model="gpt-4.1")` | `"model_name": "gpt-4.1"` on agent spec |
 
 ---
 
@@ -42,7 +42,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-llm = ChatOpenAI(model="gpt-4o", temperature=0.5)
+llm = ChatOpenAI(model="gpt-4.1", temperature=0.5)
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", "You are a helpful assistant that explains complex topics simply."),
@@ -67,7 +67,7 @@ result = requests.post(
         "agent_name": "explainer",
         "system_prompt": "You are a helpful assistant that explains complex topics simply.",
         "task": "How does transformer attention work?",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.5,
     },
@@ -100,7 +100,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-4.1")
 
 research_prompt = ChatPromptTemplate.from_messages([
     ("system", "You are a research specialist. Research the topic thoroughly."),
@@ -139,14 +139,14 @@ result = requests.post(
             {
                 "agent_name": "Researcher",
                 "system_prompt": "You are a research specialist. Research the given topic thoroughly and return detailed findings with key facts, current developments, and important context.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3,
             },
             {
                 "agent_name": "Summarizer",
                 "system_prompt": "You are a skilled summarizer. Read the research provided and produce a clear, concise 3-paragraph summary that captures the essential points.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4,
             },
@@ -189,7 +189,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-4.1")
 
 pros_chain = (
     ChatPromptTemplate.from_template("List the pros of {topic}") | llm | StrOutputParser()
@@ -231,21 +231,21 @@ result = requests.post(
             {
                 "agent_name": "pros_analyst",
                 "system_prompt": "You analyze ONLY the pros and benefits of the given topic. List them clearly with brief explanations.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4,
             },
             {
                 "agent_name": "cons_analyst",
                 "system_prompt": "You analyze ONLY the cons and drawbacks of the given topic. List them clearly with brief explanations.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4,
             },
             {
                 "agent_name": "examples_analyst",
                 "system_prompt": "You provide ONLY real-world examples and case studies related to the given topic. Be specific with company names and outcomes.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3,
             },
@@ -287,7 +287,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.tools import tool
 
-llm = ChatOpenAI(model="gpt-4o", temperature=0)
+llm = ChatOpenAI(model="gpt-4.1", temperature=0)
 search = TavilySearchResults(max_results=3)
 
 @tool
@@ -323,7 +323,7 @@ result = requests.post(
         "agent_name": "research_assistant",
         "system_prompt": "You are a helpful research assistant. Use available tools to find accurate, up-to-date information.",
         "task": "What is the current population of Japan?",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "tools": ["browser"],
         "max_loops": 3,
         "temperature": 0.2,
@@ -356,7 +356,7 @@ graph LR
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
-llm = ChatOpenAI(model="gpt-4o", streaming=True)
+llm = ChatOpenAI(model="gpt-4.1", streaming=True)
 prompt = ChatPromptTemplate.from_template("Tell me a short story about {topic}")
 chain = prompt | llm
 
@@ -377,7 +377,7 @@ with requests.post(
         "agent_name": "storyteller",
         "system_prompt": "You are a creative storyteller.",
         "task": "Tell me a short story about a robot learning to paint.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.7,
         "stream": True,
@@ -423,7 +423,7 @@ result = requests.post(
         "agent_name": "python_expert",
         "system_prompt": "You are an expert Python developer. Always respond clearly and concisely in English.",
         "task": "What is a decorator?",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.3,
     },
@@ -450,7 +450,7 @@ class Sentiment(BaseModel):
     score: float = Field(description="confidence score 0-1")
     reasoning: str = Field(description="brief explanation")
 
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-4.1")
 structured_llm = llm.with_structured_output(Sentiment)
 
 result = structured_llm.invoke("I absolutely love this product!")
@@ -469,7 +469,7 @@ result = requests.post(
         "agent_name": "sentiment_analyzer",
         "system_prompt": "You are a sentiment analysis model. Always respond with valid JSON only.",
         "task": "Analyze the sentiment of: 'I absolutely love this product!'",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.1,
         "response_format": {"type": "json_object"},
@@ -497,7 +497,7 @@ from langchain.chains import ConversationChain
 from langchain_openai import ChatOpenAI
 
 memory = ConversationBufferMemory()
-chain = ConversationChain(llm=ChatOpenAI(model="gpt-4o"), memory=memory)
+chain = ConversationChain(llm=ChatOpenAI(model="gpt-4.1"), memory=memory)
 
 chain.predict(input="Hi, my name is Alice.")
 chain.predict(input="What is my name?")
@@ -522,7 +522,7 @@ def chat(user_message: str) -> str:
             "agent_name": "conversational_agent",
             "system_prompt": "You are a friendly conversational assistant. Use the conversation history provided to give contextually aware responses.",
             "task": f"Conversation so far:\n{context}\n\nRespond to the last user message.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.5,
         },

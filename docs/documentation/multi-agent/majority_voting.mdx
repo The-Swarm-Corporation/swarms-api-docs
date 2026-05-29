@@ -42,7 +42,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Marketing Expert",
         "description": "Evaluates marketing effectiveness and messaging",
         "system_prompt": "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.3
       },
@@ -50,7 +50,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Technical Reviewer",
         "description": "Reviews technical accuracy and claims",
         "system_prompt": "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.2
       },
@@ -58,7 +58,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Legal Compliance",
         "description": "Checks for legal and compliance issues",
         "system_prompt": "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.1
       },
@@ -66,7 +66,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Brand Guardian",
         "description": "Ensures brand consistency and voice",
         "system_prompt": "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.4
       }
@@ -99,7 +99,7 @@ swarm_config = {
             "agent_name": "Marketing Expert",
             "description": "Evaluates marketing effectiveness and messaging",
             "system_prompt": "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.3
         },
@@ -107,7 +107,7 @@ swarm_config = {
             "agent_name": "Technical Reviewer",
             "description": "Reviews technical accuracy and claims",
             "system_prompt": "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.2
         },
@@ -115,7 +115,7 @@ swarm_config = {
             "agent_name": "Legal Compliance",
             "description": "Checks for legal and compliance issues",
             "system_prompt": "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.1
         },
@@ -123,7 +123,7 @@ swarm_config = {
             "agent_name": "Brand Guardian",
             "description": "Ensures brand consistency and voice",
             "system_prompt": "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.4
         }
@@ -168,7 +168,7 @@ const swarmConfig = {
             agent_name: "Marketing Expert",
             description: "Evaluates marketing effectiveness and messaging",
             system_prompt: "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.3
         },
@@ -176,7 +176,7 @@ const swarmConfig = {
             agent_name: "Technical Reviewer",
             description: "Reviews technical accuracy and claims",
             system_prompt: "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.2
         },
@@ -184,7 +184,7 @@ const swarmConfig = {
             agent_name: "Legal Compliance",
             description: "Checks for legal and compliance issues",
             system_prompt: "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.1
         },
@@ -192,7 +192,7 @@ const swarmConfig = {
             agent_name: "Brand Guardian",
             description: "Ensures brand consistency and voice",
             system_prompt: "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.4
         }
@@ -262,7 +262,7 @@ func main() {
                 AgentName:    "Marketing Expert",
                 Description:  "Evaluates marketing effectiveness and messaging",
                 SystemPrompt: "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.3,
             },
@@ -270,7 +270,7 @@ func main() {
                 AgentName:    "Technical Reviewer",
                 Description:  "Reviews technical accuracy and claims",
                 SystemPrompt: "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.2,
             },
@@ -278,7 +278,7 @@ func main() {
                 AgentName:    "Legal Compliance",
                 Description:  "Checks for legal and compliance issues",
                 SystemPrompt: "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.1,
             },
@@ -286,7 +286,7 @@ func main() {
                 AgentName:    "Brand Guardian",
                 Description:  "Ensures brand consistency and voice",
                 SystemPrompt: "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.4,
             },
@@ -335,7 +335,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Marketing Expert",
                 "description": "Evaluates marketing effectiveness and messaging",
                 "system_prompt": "You are a marketing expert. Assess marketing content for effectiveness, clarity, and appeal to target audiences. Vote YES if the content is ready for publication, NO if it needs revision.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3
             },
@@ -343,7 +343,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Technical Reviewer",
                 "description": "Reviews technical accuracy and claims",
                 "system_prompt": "You are a technical reviewer. Assess the technical accuracy of claims and ensure they are substantiated. Vote YES if claims are accurate, NO if they are exaggerated or unsubstantiated.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2
             },
@@ -351,7 +351,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Legal Compliance",
                 "description": "Checks for legal and compliance issues",
                 "system_prompt": "You are a legal compliance expert. Review content for potential legal issues, compliance concerns, and regulatory requirements. Vote YES if content is compliant, NO if there are legal concerns.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.1
             },
@@ -359,7 +359,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Brand Guardian",
                 "description": "Ensures brand consistency and voice",
                 "system_prompt": "You are a brand guardian. Ensure content aligns with brand voice, values, and positioning. Vote YES if content fits the brand, NO if it needs brand alignment adjustments.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4
             }

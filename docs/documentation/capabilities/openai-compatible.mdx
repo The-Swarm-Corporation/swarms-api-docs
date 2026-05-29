@@ -3,7 +3,6 @@ title: 'OpenAI-Compatible Endpoint'
 description: 'Complete API reference for the /v1/chat/completions endpoint — a drop-in replacement for the OpenAI API that routes through Swarms agent infrastructure.'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 The Swarms API exposes an OpenAI-compatible `POST /v1/chat/completions` endpoint. If your application already uses the OpenAI SDK, you can switch to Swarms by changing two lines — the `base_url` and `api_key` — and everything else works unchanged.
 
@@ -41,7 +40,7 @@ Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platfo
 
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `model` | `string` | Yes | — | Model to use for completion (e.g. `gpt-4o`, `claude-sonnet-4-20250514`, `gpt-4o-mini`). Any model supported by the Swarms API is accepted |
+| `model` | `string` | Yes | — | Model to use for completion (e.g. `gpt-4.1`, `claude-sonnet-4-20250514`, `gpt-4.1-mini`). Any model supported by the Swarms API is accepted |
 | `messages` | `List[ChatMessage]` | Yes | — | A list of messages comprising the conversation (see [ChatMessage Object](#chatmessage-object)) |
 | `temperature` | `float` | No | `0.5` | Sampling temperature (0.0 – 2.0). Lower values produce more deterministic output |
 | `max_tokens` | `integer` | No | `8192` | Maximum number of tokens to generate in the response |
@@ -90,7 +89,7 @@ The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:imag
 
 ```json
 {
-  "model": "gpt-4o",
+  "model": "gpt-4.1",
   "messages": [
     {"role": "system", "content": "You are a helpful assistant."},
     {"role": "user", "content": "Explain quantum computing in simple terms."}
@@ -140,7 +139,7 @@ The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:imag
   "id": "chatcmpl-a1b2c3d4e5f6789012345678901",
   "object": "chat.completion",
   "created": 1711300000,
-  "model": "gpt-4o",
+  "model": "gpt-4.1",
   "choices": [
     {
       "index": 0,
@@ -195,13 +194,13 @@ When `stream: true` is set, the response is returned as Server-Sent Events (SSE)
 ### Example Stream
 
 ```
-data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4o","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4.1","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
 
-data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4o","choices":[{"index":0,"delta":{"content":"Quantum"},"finish_reason":null}]}
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4.1","choices":[{"index":0,"delta":{"content":"Quantum"},"finish_reason":null}]}
 
-data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4o","choices":[{"index":0,"delta":{"content":" computing"},"finish_reason":null}]}
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4.1","choices":[{"index":0,"delta":{"content":" computing"},"finish_reason":null}]}
 
-data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4o","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300000,"model":"gpt-4.1","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
 
 data: [DONE]
 ```
@@ -261,7 +260,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
     )
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "What are the key trends in renewable energy?"},
@@ -284,7 +283,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
     });
 
     const response = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         { role: "system", content: "You are a helpful assistant." },
         { role: "user", content: "What are the key trends in renewable energy?" },
@@ -318,7 +317,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 
         response, err := client.Chat.Completions.New(context.Background(),
             openai.ChatCompletionNewParams{
-                Model: "gpt-4o",
+                Model: "gpt-4.1",
                 Messages: []openai.ChatCompletionMessageParamUnion{
                     openai.SystemMessage("You are a helpful assistant."),
                     openai.UserMessage("What are the key trends in renewable energy?"),
@@ -357,7 +356,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
         let client = Client::with_config(config);
 
         let request = CreateChatCompletionRequestArgs::default()
-            .model("gpt-4o")
+            .model("gpt-4.1")
             .messages(vec![
                 ChatCompletionRequestSystemMessageArgs::default()
                     .content("You are a helpful assistant.")
@@ -394,7 +393,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
       -H "Authorization: Bearer your-swarms-api-key" \
       -H "Content-Type: application/json" \
       -d '{
-        "model": "gpt-4o",
+        "model": "gpt-4.1",
         "messages": [
           {"role": "system", "content": "You are a helpful assistant."},
           {"role": "user", "content": "What are the key trends in renewable energy?"}
@@ -419,7 +418,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
     )
 
     stream = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[{"role": "user", "content": "Write a haiku about AI agents."}],
         stream=True,
     )
@@ -441,7 +440,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
     });
 
     const stream = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [{ role: "user", content: "Write a haiku about AI agents." }],
       stream: true,
     });
@@ -474,7 +473,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 
         stream := client.Chat.Completions.NewStreaming(context.Background(),
             openai.ChatCompletionNewParams{
-                Model: "gpt-4o",
+                Model: "gpt-4.1",
                 Messages: []openai.ChatCompletionMessageParamUnion{
                     openai.UserMessage("Write a haiku about AI agents."),
                 },
@@ -516,7 +515,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
         let client = Client::with_config(config);
 
         let request = CreateChatCompletionRequestArgs::default()
-            .model("gpt-4o")
+            .model("gpt-4.1")
             .messages(vec![
                 ChatCompletionRequestUserMessageArgs::default()
                     .content("Write a haiku about AI agents.")
@@ -551,7 +550,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
       -H "Authorization: Bearer your-swarms-api-key" \
       -H "Content-Type: application/json" \
       -d '{
-        "model": "gpt-4o",
+        "model": "gpt-4.1",
         "messages": [{"role": "user", "content": "Write a haiku about AI agents."}],
         "stream": true
       }' \
@@ -573,7 +572,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
     )
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": "You are a math tutor."},
             {"role": "user", "content": "What is the derivative of x^2?"},
@@ -595,7 +594,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
     });
 
     const response = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         { role: "system", content: "You are a math tutor." },
         { role: "user", content: "What is the derivative of x^2?" },
@@ -628,7 +627,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 
         response, err := client.Chat.Completions.New(context.Background(),
             openai.ChatCompletionNewParams{
-                Model: "gpt-4o",
+                Model: "gpt-4.1",
                 Messages: []openai.ChatCompletionMessageParamUnion{
                     openai.SystemMessage("You are a math tutor."),
                     openai.UserMessage("What is the derivative of x^2?"),
@@ -667,7 +666,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
         let client = Client::with_config(config);
 
         let request = CreateChatCompletionRequestArgs::default()
-            .model("gpt-4o")
+            .model("gpt-4.1")
             .messages(vec![
                 ChatCompletionRequestSystemMessageArgs::default()
                     .content("You are a math tutor.")
@@ -723,7 +722,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4.1",
             messages=[{"role": "user", "content": "Hello"}],
         )
         print(response.choices[0].message.content)
@@ -750,7 +749,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 
     try {
       const response = await client.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [{ role: "user", content: "Hello" }],
       });
       console.log(response.choices[0].message.content);
@@ -792,7 +791,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 
         response, err := client.Chat.Completions.New(context.Background(),
             openai.ChatCompletionNewParams{
-                Model: "gpt-4o",
+                Model: "gpt-4.1",
                 Messages: []openai.ChatCompletionMessageParamUnion{
                     openai.UserMessage("Hello"),
                 },
@@ -842,7 +841,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
         let client = Client::with_config(config);
 
         let request = CreateChatCompletionRequestArgs::default()
-            .model("gpt-4o")
+            .model("gpt-4.1")
             .messages(vec![
                 ChatCompletionRequestUserMessageArgs::default()
                     .content("Hello")
@@ -890,7 +889,7 @@ By default the agent runs a single pass (`max_loops=1`). To let the agent iterat
     )
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": "You are a rigorous analyst. Think step by step, then review and refine your answer."},
             {"role": "user", "content": "What are the second-order effects of raising the federal funds rate by 50 basis points?"},
@@ -912,7 +911,7 @@ By default the agent runs a single pass (`max_loops=1`). To let the agent iterat
     });
 
     const response = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         { role: "system", content: "You are a rigorous analyst. Think step by step, then review and refine your answer." },
         { role: "user", content: "What are the second-order effects of raising the federal funds rate by 50 basis points?" },
@@ -931,7 +930,7 @@ By default the agent runs a single pass (`max_loops=1`). To let the agent iterat
       -H "Authorization: Bearer your-swarms-api-key" \
       -H "Content-Type: application/json" \
       -d '{
-        "model": "gpt-4o",
+        "model": "gpt-4.1",
         "messages": [
           {"role": "system", "content": "You are a rigorous analyst. Think step by step, then review and refine your answer."},
           {"role": "user", "content": "What are the second-order effects of raising the federal funds rate by 50 basis points?"}
@@ -978,7 +977,7 @@ The `model` field accepts any model supported by the Swarms API. Common options:
 
 | Provider | Models |
 |---|---|
-| OpenAI | `gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o3-mini` |
+| OpenAI | `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o3-mini` |
 | Anthropic | `claude-sonnet-4-20250514`, `claude-3-7-sonnet-latest` |
 | Groq | `groq/llama3-70b-8192`, `groq/deepseek-r1-distill-llama-70b` |
 

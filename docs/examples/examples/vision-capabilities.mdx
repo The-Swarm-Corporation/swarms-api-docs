@@ -3,7 +3,6 @@ title: 'Vision Capabilities'
 description: 'Enable agents to process and analyze images for visual understanding'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 
 The Swarms API supports vision-enabled agents that can analyze and understand images. This guide shows you how to send a base64-encoded image to an agent and ask it to identify the location.
@@ -117,7 +116,7 @@ Now that you have your API key and base64-encoded image, you can send it to the 
             "agent_name": "Vision Analyst",
             "description": "AI agent with image analysis capabilities",
             "system_prompt": "You are a vision analyst that can identify and describe images accurately.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 2048,
             "temperature": 0.5
         },
@@ -160,7 +159,7 @@ Now that you have your API key and base64-encoded image, you can send it to the 
                 agent_name: "Vision Analyst",
                 description: "AI agent with image analysis capabilities",
                 system_prompt: "You are a vision analyst that can identify and describe images accurately.",
-                model_name: "gpt-4o",
+                model_name: "gpt-4.1",
                 max_tokens: 2048,
                 temperature: 0.5
             },
@@ -199,7 +198,7 @@ Now that you have your API key and base64-encoded image, you can send it to the 
           \"agent_name\": \"Vision Analyst\",
           \"description\": \"AI agent with image analysis capabilities\",
           \"system_prompt\": \"You are a vision analyst that can identify and describe images accurately.\",
-          \"model_name\": \"gpt-4o\",
+          \"model_name\": \"gpt-4.1\",
           \"max_tokens\": 2048,
           \"temperature\": 0.5
         },
@@ -277,7 +276,7 @@ payload = {
         "agent_name": "Vision Analyst",
         "description": "AI agent with image analysis capabilities",
         "system_prompt": "You are a vision analyst that can identify and describe images accurately.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 2048,
         "temperature": 0.5
     },
@@ -315,8 +314,8 @@ All images must be base64-encoded strings. The API automatically detects the ima
 
 Not all models support vision. Use these models for image analysis:
 
-- **gpt-4o**: Best for complex visual analysis
-- **gpt-4o-mini**: Cost-effective for basic vision tasks
+- **gpt-4.1**: Best for complex visual analysis
+- **gpt-4.1-mini**: Cost-effective for basic vision tasks
 - **claude-sonnet-4-20250514**: High-quality vision understanding
 
 ## Best Practices
@@ -348,10 +347,10 @@ Vision tasks consume additional tokens based on image resolution:
 - **Solution**: Resize the image to under 4096x4096 pixels or reduce quality
 
 **Issue**: "Model doesn't support vision"
-- **Solution**: Use gpt-4o, gpt-4o-mini, or claude-sonnet-4-20250514
+- **Solution**: Use gpt-4.1, gpt-4.1-mini, or claude-sonnet-4-20250514
 
 **Issue**: "High token usage"
-- **Solution**: Reduce image resolution or use gpt-4o-mini for basic tasks
+- **Solution**: Reduce image resolution or use gpt-4.1-mini for basic tasks
 
 ### Error Handling
 

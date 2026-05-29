@@ -40,7 +40,7 @@ def review_legal_document(document_text: str) -> dict:
                 "agent_name": "Document Parser",
                 "description": "Extracts key information from legal documents",
                 "system_prompt": "You are a legal document parser. Extract: document type, parties involved, key dates, financial terms, and obligations for each party.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2
             },
@@ -48,7 +48,7 @@ def review_legal_document(document_text: str) -> dict:
                 "agent_name": "Risk Analyst",
                 "description": "Identifies potential legal risks",
                 "system_prompt": "You are a legal risk analyst. Based on the parsed document, identify HIGH, MEDIUM, and LOW risk items. Explain each risk and suggest mitigations.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3
             },
@@ -56,7 +56,7 @@ def review_legal_document(document_text: str) -> dict:
                 "agent_name": "Compliance Checker",
                 "description": "Verifies regulatory compliance",
                 "system_prompt": "You are a compliance specialist. Review the document and risk analysis to check regulatory compliance (GDPR, industry regulations). Provide a compliance score (1-10).",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2
             },
@@ -64,7 +64,7 @@ def review_legal_document(document_text: str) -> dict:
                 "agent_name": "Summary Generator",
                 "description": "Creates executive summary",
                 "system_prompt": "You are an executive assistant. Create a 2-minute read summary with: document overview, key terms, top 3 risks, compliance status, and recommendation (Sign/Negotiate/Reject).",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4
             }

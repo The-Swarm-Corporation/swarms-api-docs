@@ -41,7 +41,7 @@ graph LR
 from crewai import Agent, Task, Crew, Process
 from langchain_openai import ChatOpenAI
 
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-4.1")
 
 researcher = Agent(
     role="Senior Research Analyst",
@@ -105,7 +105,7 @@ result = requests.post(
                     "Conduct comprehensive research and return a detailed report with key findings, "
                     "trends, and implications."
                 ),
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3,
             },
@@ -116,7 +116,7 @@ result = requests.post(
                     "Your goal is to craft compelling content on tech advancements. "
                     "Using the research provided, write a 500-word blog post formatted in markdown."
                 ),
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.6,
             },
@@ -161,20 +161,20 @@ graph TD
 from crewai import Agent, Task, Crew, Process
 from langchain_openai import ChatOpenAI
 
-manager_llm = ChatOpenAI(model="gpt-4o")
+manager_llm = ChatOpenAI(model="gpt-4.1")
 
 analyst = Agent(
     role="Data Analyst",
     goal="Analyze financial data and extract key metrics",
     backstory="Expert in financial modeling and data interpretation.",
-    llm=ChatOpenAI(model="gpt-4o"),
+    llm=ChatOpenAI(model="gpt-4.1"),
 )
 
 writer = Agent(
     role="Report Writer",
     goal="Write clear financial reports",
     backstory="Specialist in translating complex data into readable reports.",
-    llm=ChatOpenAI(model="gpt-4o"),
+    llm=ChatOpenAI(model="gpt-4.1"),
 )
 
 analysis_task = Task(
@@ -222,7 +222,7 @@ result = requests.post(
                     "Analyze the provided financial data and extract key performance indicators, "
                     "growth metrics, and trends. Return a structured KPI report."
                 ),
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2,
             },
@@ -233,7 +233,7 @@ result = requests.post(
                     "clear, readable reports. Using the analysis provided, write a 300-word "
                     "executive summary suitable for C-suite readers."
                 ),
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4,
             },
@@ -277,7 +277,7 @@ researcher = Agent(
     goal="Find latest market data on electric vehicles",
     backstory="Expert market researcher with access to real-time data.",
     tools=[search_tool, web_tool],
-    llm=ChatOpenAI(model="gpt-4o"),
+    llm=ChatOpenAI(model="gpt-4.1"),
 )
 
 task = Task(
@@ -307,7 +307,7 @@ result = requests.post(
             "Return a comprehensive market research report with data and sources."
         ),
         "task": "Research the current electric vehicle market trends, top players, and growth forecasts.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "tools": ["browser"],
         "max_loops": 1,
         "temperature": 0.3,
@@ -331,7 +331,7 @@ Agent(
     role="Senior Data Scientist",
     goal="Build accurate predictive models",
     backstory="PhD in statistics with 8 years of ML experience at Fortune 500 companies.",
-    llm=ChatOpenAI(model="gpt-4o"),
+    llm=ChatOpenAI(model="gpt-4.1"),
     verbose=True,
     allow_delegation=False,
     max_iter=3,
@@ -349,7 +349,7 @@ Agent(
         "models. Approach every problem methodically, show your reasoning, and always "
         "validate your assumptions."
     ),
-    "model_name": "gpt-4o",
+    "model_name": "gpt-4.1",
     "max_loops": 3,       # replaces max_iter
     "temperature": 0.2,
 }
@@ -395,7 +395,7 @@ Task(
         "Return a structured report with each factor, its impact estimate, and "
         "a recommended retention strategy."
     ),
-    "model_name": "gpt-4o",
+    "model_name": "gpt-4.1",
     "max_loops": 1,
     "temperature": 0.2,
 }

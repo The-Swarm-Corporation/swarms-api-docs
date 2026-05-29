@@ -3,7 +3,6 @@ title: 'Available Models'
 description: 'Discover and explore all available AI models supported by the Swarms API'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 
 Get a comprehensive list of all AI models available through the Swarms API. This endpoint provides information about supported models from various providers including OpenAI, Anthropic, Groq, and others.
@@ -98,7 +97,7 @@ The `/v1/models/available` endpoint returns all models currently supported by th
     # {
     #   "success": true,
     #   "models": {
-    #     "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+    #     "openai": ["gpt-4.1", "gpt-4.1-mini", "gpt-4-turbo"],
     #     "anthropic": ["claude-sonnet-4-20250514", "claude-haiku-3.5"],
     #     "groq": ["llama-3.1-70b", "mixtral-8x7b"]
     #   }
@@ -116,8 +115,8 @@ The models endpoint returns a structured response with information about all ava
   "success": true,
   "models": {
     "openai": [
-      "gpt-4o",
-      "gpt-4o-mini",
+      "gpt-4.1",
+      "gpt-4.1-mini",
       "gpt-4-turbo",
       "gpt-4",
       "gpt-3.5-turbo"
@@ -150,9 +149,9 @@ The models endpoint returns a structured response with information about all ava
     ```python
     # Best for creative writing, brainstorming, content generation
     recommended_models = [
-        "gpt-4o",                    # Most capable, balanced performance
+        "gpt-4.1",                    # Most capable, balanced performance
         "claude-sonnet-4-20250514", # Excellent for creative tasks
-        "gpt-4o-mini"               # Fast and cost-effective
+        "gpt-4.1-mini"               # Fast and cost-effective
     ]
     ```
   </Tab>
@@ -160,7 +159,7 @@ The models endpoint returns a structured response with information about all ava
     ```python
     # Best for analysis, reasoning, complex problem-solving
     recommended_models = [
-        "gpt-4o",                    # Superior reasoning capabilities
+        "gpt-4.1",                    # Superior reasoning capabilities
         "claude-sonnet-4-20250514", # Strong analytical performance
         "gpt-4-turbo"               # Good balance of speed and capability
     ]
@@ -170,7 +169,7 @@ The models endpoint returns a structured response with information about all ava
     ```python
     # Best for quick responses, simple tasks, cost optimization
     recommended_models = [
-        "gpt-4o-mini",              # Fastest and most cost-effective
+        "gpt-4.1-mini",              # Fastest and most cost-effective
         "llama-3.1-8b-instant",     # Very fast inference
         "claude-haiku-3.5"         # Fast with good quality
     ]
@@ -185,16 +184,16 @@ The models endpoint returns a structured response with information about all ava
     ```python
     # Models that support image analysis
     vision_models = [
-        "gpt-4o",           # Best vision capabilities
+        "gpt-4.1",           # Best vision capabilities
         "gpt-4-turbo",      # Good vision support
-        "gpt-4o-mini"      # Basic vision support
+        "gpt-4.1-mini"      # Basic vision support
     ]
 
     # Example: Vision-enabled agent
     payload = {
         "agent_config": {
             "agent_name": "Vision Analyst",
-            "model_name": "gpt-4o",  # Vision-capable model
+            "model_name": "gpt-4.1",  # Vision-capable model
             "max_tokens": 2048
         },
         "task": "Describe this image in detail",
@@ -206,8 +205,8 @@ The models endpoint returns a structured response with information about all ava
     ```python
     # Models that support streaming responses
     streaming_models = [
-        "gpt-4o",
-        "gpt-4o-mini",
+        "gpt-4.1",
+        "gpt-4.1-mini",
         "claude-sonnet-4-20250514",
         "claude-haiku-3.5"
     ]
@@ -216,7 +215,7 @@ The models endpoint returns a structured response with information about all ava
     payload = {
         "agent_config": {
             "agent_name": "Streaming Writer",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "streaming_on": True,  # Enable streaming
             "max_tokens": 2048
         },
@@ -228,7 +227,7 @@ The models endpoint returns a structured response with information about all ava
     ```python
     # Models with large context windows
     large_context_models = [
-        "gpt-4o",                    # 128k+ tokens
+        "gpt-4.1",                    # 128k+ tokens
         "claude-sonnet-4-20250514", # 200k+ tokens
         "gpt-4-turbo",             # 128k tokens
     ]
@@ -237,7 +236,7 @@ The models endpoint returns a structured response with information about all ava
     payload = {
         "agent_config": {
             "agent_name": "Document Analyst",
-            "model_name": "gpt-4o",  # Large context
+            "model_name": "gpt-4.1",  # Large context
             "max_tokens": 4096
         },
         "task": "Analyze this 50-page document and provide insights"
@@ -262,29 +261,29 @@ The models endpoint returns a structured response with information about all ava
         # Get available models first
         models_data = get_available_models()
         if not models_data or not models_data.get("success"):
-            return "gpt-4o-mini"  # Fallback
+            return "gpt-4.1-mini"  # Fallback
 
         available_models = models_data.get("models", {})
 
         # Model selection logic
         if task_type == "creative":
             if priority == "quality":
-                return "gpt-4o" if "gpt-4o" in available_models.get("openai", []) else "claude-sonnet-4-20250514"
+                return "gpt-4.1" if "gpt-4.1" in available_models.get("openai", []) else "claude-sonnet-4-20250514"
             elif priority == "speed":
-                return "gpt-4o-mini" if "gpt-4o-mini" in available_models.get("openai", []) else "claude-haiku-3.5"
+                return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models.get("openai", []) else "claude-haiku-3.5"
             else:  # balanced
-                return "gpt-4o-mini"
+                return "gpt-4.1-mini"
 
         elif task_type == "analytical":
-            return "gpt-4o" if "gpt-4o" in available_models.get("openai", []) else "claude-sonnet-4-20250514"
+            return "gpt-4.1" if "gpt-4.1" in available_models.get("openai", []) else "claude-sonnet-4-20250514"
 
         elif task_type == "fast":
-            return "gpt-4o-mini" if "gpt-4o-mini" in available_models.get("openai", []) else "llama-3.1-8b-instant"
+            return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models.get("openai", []) else "llama-3.1-8b-instant"
 
         elif task_type == "vision":
-            return "gpt-4o" if "gpt-4o" in available_models.get("openai", []) else "gpt-4-turbo"
+            return "gpt-4.1" if "gpt-4.1" in available_models.get("openai", []) else "gpt-4-turbo"
 
-        return "gpt-4o-mini"  # Default fallback
+        return "gpt-4.1-mini"  # Default fallback
 
     # Example usage
     best_model = select_best_model("creative", "quality")
@@ -297,32 +296,32 @@ The models endpoint returns a structured response with information about all ava
         // Model selection logic for JavaScript
         const modelPreferences = {
             creative: {
-                quality: ["gpt-4o", "claude-sonnet-4-20250514"],
-                speed: ["gpt-4o-mini", "claude-haiku-3.5"],
-                balanced: ["gpt-4o-mini"],
-                cost: ["gpt-4o-mini", "llama-3.1-8b-instant"]
+                quality: ["gpt-4.1", "claude-sonnet-4-20250514"],
+                speed: ["gpt-4.1-mini", "claude-haiku-3.5"],
+                balanced: ["gpt-4.1-mini"],
+                cost: ["gpt-4.1-mini", "llama-3.1-8b-instant"]
             },
             analytical: {
-                quality: ["gpt-4o", "claude-sonnet-4-20250514"],
+                quality: ["gpt-4.1", "claude-sonnet-4-20250514"],
                 speed: ["gpt-4-turbo"],
-                balanced: ["gpt-4o"],
-                cost: ["gpt-4o-mini"]
+                balanced: ["gpt-4.1"],
+                cost: ["gpt-4.1-mini"]
             },
             fast: {
-                quality: ["gpt-4o-mini"],
-                speed: ["gpt-4o-mini", "llama-3.1-8b-instant"],
-                balanced: ["gpt-4o-mini"],
-                cost: ["gpt-4o-mini", "llama-3.1-8b-instant"]
+                quality: ["gpt-4.1-mini"],
+                speed: ["gpt-4.1-mini", "llama-3.1-8b-instant"],
+                balanced: ["gpt-4.1-mini"],
+                cost: ["gpt-4.1-mini", "llama-3.1-8b-instant"]
             },
             vision: {
-                quality: ["gpt-4o"],
-                speed: ["gpt-4o-mini"],
-                balanced: ["gpt-4o"],
+                quality: ["gpt-4.1"],
+                speed: ["gpt-4.1-mini"],
+                balanced: ["gpt-4.1"],
                 cost: ["gpt-4-turbo"]
             }
         };
 
-        const candidates = modelPreferences[taskType]?.[priority] || ["gpt-4o-mini"];
+        const candidates = modelPreferences[taskType]?.[priority] || ["gpt-4.1-mini"];
         return candidates[0]; // Return first preference
     }
 
@@ -337,8 +336,8 @@ The models endpoint returns a structured response with information about all ava
 
 | Model | Context Window | Best For | Speed | Cost |
 |-------|---------------|----------|-------|------|
-| `gpt-4o` | 128k+ | Complex reasoning, vision | Medium | High |
-| `gpt-4o-mini` | 128k+ | General purpose, fast tasks | Fast | Low |
+| `gpt-4.1` | 128k+ | Complex reasoning, vision | Medium | High |
+| `gpt-4.1-mini` | 128k+ | General purpose, fast tasks | Fast | Low |
 | `claude-sonnet-4-20250514` | 200k+ | Creative writing, analysis | Medium | High |
 | `claude-haiku-3.5` | 200k+ | Fast responses | Fast | Low |
 | `llama-3.1-70b` | 128k | Complex tasks | Medium | Medium |
@@ -354,11 +353,11 @@ The models endpoint returns a structured response with information about all ava
         Select optimal model based on task complexity and budget
         """
         if task_complexity == "low":
-            return "gpt-4o-mini" if budget_constraint == "strict" else "llama-3.1-8b-instant"
+            return "gpt-4.1-mini" if budget_constraint == "strict" else "llama-3.1-8b-instant"
         elif task_complexity == "medium":
-            return "gpt-4o-mini" if budget_constraint == "strict" else "gpt-4o"
+            return "gpt-4.1-mini" if budget_constraint == "strict" else "gpt-4.1"
         else:  # high complexity
-            return "claude-sonnet-4-20250514" if budget_constraint == "flexible" else "gpt-4o"
+            return "claude-sonnet-4-20250514" if budget_constraint == "flexible" else "gpt-4.1"
 
     # Example usage
     model = optimize_model_selection("high", "flexible")
@@ -370,20 +369,20 @@ The models endpoint returns a structured response with information about all ava
     function optimizeModelSelection(taskComplexity, budgetConstraint) {
         const optimizationMatrix = {
             low: {
-                strict: "gpt-4o-mini",
+                strict: "gpt-4.1-mini",
                 flexible: "llama-3.1-8b-instant"
             },
             medium: {
-                strict: "gpt-4o-mini",
-                flexible: "gpt-4o"
+                strict: "gpt-4.1-mini",
+                flexible: "gpt-4.1"
             },
             high: {
-                strict: "gpt-4o",
+                strict: "gpt-4.1",
                 flexible: "claude-sonnet-4-20250514"
             }
         };
 
-        return optimizationMatrix[taskComplexity]?.[budgetConstraint] || "gpt-4o-mini";
+        return optimizationMatrix[taskComplexity]?.[budgetConstraint] || "gpt-4.1-mini";
     }
 
     // Example usage

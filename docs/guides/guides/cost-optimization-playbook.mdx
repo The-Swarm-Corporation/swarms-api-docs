@@ -3,7 +3,6 @@ title: "Cost Optimization Playbook"
 description: "Cut multi-agent swarm bills 2–5× by tiering models, compressing context with structured tool outputs, and reserving frontier models for synthesis."
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 ## What This Covers
 
@@ -34,7 +33,7 @@ Picking `claude-haiku` over `claude-opus` does **not** lower the per-token rate 
 2. **Structured handoffs compress context.** A worker that returns a 200-token JSON summary instead of a 5,000-token essay shrinks every downstream agent's input bill proportionally.
 
 <Info>
-The per-agent fee is small ($0.01) but stacks: a 10-agent swarm is `$0.10` of non-discountable overhead per run, on top of token costs. Prune agents that don't contribute distinct value.
+The per-agent fee is small (\$0.01) but stacks: a 10-agent swarm is `$0.10` of non-discountable overhead per run, on top of token costs. Prune agents that don't contribute distinct value.
 </Info>
 
 ---
@@ -69,35 +68,35 @@ verbose_swarm = {
         {
             "agent_name": "Market Researcher",
             "system_prompt": "You are a senior market analyst. Be thorough and exhaustive.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 6144,
             "temperature": 0.3,
         },
         {
             "agent_name": "Operations Strategist",
             "system_prompt": "You are an ops strategist. Detail every workstream.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 6144,
             "temperature": 0.3,
         },
         {
             "agent_name": "Financial Analyst",
             "system_prompt": "You are a financial analyst. Walk through the model in full.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 6144,
             "temperature": 0.2,
         },
         {
             "agent_name": "Risk Analyst",
             "system_prompt": "You are a risk lead. Enumerate every risk in detail.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 6144,
             "temperature": 0.3,
         },
         {
             "agent_name": "Synthesizer",
             "system_prompt": "Combine the above into a final memo.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 8192,
             "temperature": 0.4,
         },
@@ -123,7 +122,7 @@ agent_cost  = 5 * 0.01 = $0.05
 total       = $0.467 per run
 ```
 
-At 500 runs/day this is **$233.50/day** — and almost none of the cost is producing decision-relevant signal. The first four agents are warming up the synthesis agent.
+At 500 runs/day this is **\$233.50/day** — and almost none of the cost is producing decision-relevant signal. The first four agents are warming up the synthesis agent.
 
 ---
 
@@ -171,28 +170,28 @@ tiered_swarm = {
         {
             "agent_name": "Market Triage",
             "system_prompt": "Surface the top 3 market facts a director needs.\n" + WORKER_SCHEMA,
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "max_tokens": 768,
             "temperature": 0.2,
         },
         {
             "agent_name": "Ops Triage",
             "system_prompt": "Surface the 3 most material operational risks.\n" + WORKER_SCHEMA,
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "max_tokens": 768,
             "temperature": 0.2,
         },
         {
             "agent_name": "Finance Triage",
             "system_prompt": "Pull 3 financial constraints a director must know.\n" + WORKER_SCHEMA,
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "max_tokens": 768,
             "temperature": 0.1,
         },
         {
             "agent_name": "Risk Triage",
             "system_prompt": "List the 3 highest-severity risks with mitigations.\n" + WORKER_SCHEMA,
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "max_tokens": 768,
             "temperature": 0.2,
         },
@@ -204,7 +203,7 @@ tiered_swarm = {
                 "decision-ready memo: recommendation, rationale, go/no-go, and "
                 "the next 3 actions. This is the only output the user reads."
             ),
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 4096,
             "temperature": 0.3,
         },
@@ -228,10 +227,10 @@ agent_cost  = 5 * 0.01 = $0.05
 total       = $0.185 per run
 ```
 
-At 500 runs/day: **$92.50/day** — a **~2.5× reduction** from $233.50/day with the same agent count and the same quality of final memo, because the only output the user reads is the director's.
+At 500 runs/day: **\$92.50/day** — a **~2.5× reduction** from \$233.50/day with the same agent count and the same quality of final memo, because the only output the user reads is the director's.
 
 <Info>
-Run the same swarm overnight (8 PM – 6 AM Pacific) and the token costs drop another 50% — total falls to roughly **$0.118/run** or **$59/day**. See the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide.
+Run the same swarm overnight (8 PM – 6 AM Pacific) and the token costs drop another 50% — total falls to roughly **\$0.118/run** or **\$59/day**. See the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide.
 </Info>
 
 ---

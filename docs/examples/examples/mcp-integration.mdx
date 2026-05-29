@@ -3,7 +3,6 @@ title: 'MCP Integration'
 description: 'Integrate Model Context Protocol servers for external data access and tools'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 
 The Swarms API supports Model Context Protocol (MCP) integration, allowing agents to connect to external servers and access additional tools, data sources, and capabilities beyond the base API.
@@ -33,7 +32,7 @@ MCP integration enables agents to access external databases, APIs, and tools thr
             "agent_name": "Data Analyst with MCP",
             "description": "Data analyst with access to external databases",
             "system_prompt": "You are a data analyst with access to external data sources through MCP.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 4096,
             "temperature": 0.5,
             "mcp_url": "https://github.com/mcp"  # Your MCP server URL
@@ -66,7 +65,7 @@ MCP integration enables agents to access external databases, APIs, and tools thr
             agent_name: "Financial Analyst",
             description: "Financial analyst with real-time market data access",
             system_prompt: "You are a financial analyst with access to real-time market data through MCP.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_tokens: 4096,
             temperature: 0.3,
             mcp_url: "https://your-mcp-server.com/financial-data"
@@ -95,7 +94,7 @@ MCP integration enables agents to access external databases, APIs, and tools thr
       -d '{
         "agent_config": {
           "agent_name": "Data Analyst with MCP",
-          "model_name": "gpt-4o",
+          "model_name": "gpt-4.1",
           "max_tokens": 4096,
           "temperature": 0.5,
           "mcp_url": "http://localhost:8001/sse"
@@ -164,7 +163,7 @@ payload = {
         "agent_name": "Multi-Source Analyst",
         "description": "Analyst with access to multiple data sources",
         "system_prompt": "You have access to multiple MCP servers for comprehensive analysis.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 8192,
         "mcp_configs": [
             {
@@ -189,7 +188,7 @@ payload = {
         "agent_name": "Advanced MCP Agent",
         "description": "Agent with advanced MCP configuration",
         "system_prompt": "You are connected to an MCP server with advanced capabilities.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 4096,
         "mcp_config": {
             "url": "http://localhost:8001/sse",
@@ -213,7 +212,7 @@ payload = {
         "agent_name": "Database Analyst",
         "description": "SQL database integration specialist",
         "system_prompt": "You can query databases and analyze structured data.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "mcp_url": "http://localhost:8001/sse"
     },
     "task": "Analyze sales data from the past quarter and identify top performing products."
@@ -227,7 +226,7 @@ payload = {
         "agent_name": "Financial Analyst",
         "description": "Real-time financial data analysis",
         "system_prompt": "You analyze financial markets and provide investment insights.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "mcp_url": "https://api.marketdata.com/mcp"
     },
     "task": "Analyze the current stock prices and provide buy/sell recommendations."
@@ -241,7 +240,7 @@ payload = {
         "agent_name": "API Integrator",
         "description": "External API integration specialist",
         "system_prompt": "You can call external APIs and integrate third-party services.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "mcp_url": "http://localhost:8003/sse"
     },
     "task": "Fetch weather data and provide travel recommendations based on current conditions."
@@ -259,7 +258,7 @@ payload = {
 
 ## Cost Considerations
 
-- **MCP Calls**: $0.10 per MCP call
+- **MCP Calls**: \$0.10 per MCP call
 - **Token Usage**: Additional tokens for MCP tool interactions
 - **Server Costs**: Costs associated with running your MCP server
 

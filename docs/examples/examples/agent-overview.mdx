@@ -3,7 +3,6 @@ title: "Single Agent Overview"
 description: "Learn how to create and run single AI agents for specific tasks using the Swarms API."
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 ## What This Example Shows
 
@@ -76,7 +75,7 @@ print(json.dumps(result, indent=4))
             agent_name: "Bloodwork Diagnosis Expert",
             description: "An expert doctor specializing in interpreting and diagnosing blood work results.",
             system_prompt: "You are an expert medical doctor specializing in the interpretation and diagnosis of blood work. Your expertise includes analyzing laboratory results, identifying abnormal values, explaining their clinical significance, and recommending next diagnostic or treatment steps.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             max_tokens: 1000,
             temperature: 0.5
@@ -106,7 +105,7 @@ print(json.dumps(result, indent=4))
           "agent_name": "Bloodwork Diagnosis Expert",
           "description": "An expert doctor specializing in interpreting and diagnosing blood work results.",
           "system_prompt": "You are an expert medical doctor specializing in blood work interpretation.",
-          "model_name": "gpt-4o",
+          "model_name": "gpt-4.1",
           "max_loops": 1,
           "max_tokens": 1000,
           "temperature": 0.5

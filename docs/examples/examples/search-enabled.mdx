@@ -3,7 +3,6 @@ title: 'Search-Enabled Agents'
 description: 'Agents with web search capabilities for real-time information retrieval'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 
 The Swarms API supports search-enabled agents that can access real-time web information using integrated search capabilities. This allows agents to provide up-to-date answers and research current topics.
@@ -33,7 +32,7 @@ Enable web search by setting `"search_enabled": true` to access current informat
             "agent_name": "Research Assistant",
             "description": "AI assistant with web search capabilities",
             "system_prompt": "You are a research assistant that can search the web for current information.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 4096,
             "temperature": 0.7
         },
@@ -66,7 +65,7 @@ Enable web search by setting `"search_enabled": true` to access current informat
             agent_name: "News Analyst",
             description: "Current events and news analysis specialist",
             system_prompt: "You are a news analyst who researches current events and provides analysis.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_tokens: 4096,
             temperature: 0.6
         },
@@ -94,7 +93,7 @@ Enable web search by setting `"search_enabled": true` to access current informat
       -d '{
         "agent_config": {
           "agent_name": "Research Assistant",
-          "model_name": "gpt-4o",
+          "model_name": "gpt-4.1",
           "max_tokens": 4096,
           "temperature": 0.7
         },
@@ -124,7 +123,7 @@ payload = {
         "agent_name": "Current Events Researcher",
         "description": "Specializes in current events and breaking news",
         "system_prompt": "You research current events and provide factual summaries.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 2048
     },
     "task": "Summarize the latest developments in climate change policy.",
@@ -139,7 +138,7 @@ payload = {
         "agent_name": "Market Researcher",
         "description": "Market trends and competitive analysis",
         "system_prompt": "You analyze market trends and provide competitive intelligence.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 4096
     },
     "task": "What are the current market trends in electric vehicles?",
@@ -154,7 +153,7 @@ payload = {
         "agent_name": "Technical Researcher",
         "description": "Research latest technical developments",
         "system_prompt": "You research technical topics and explain complex concepts.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 4096
     },
     "task": "What are the latest advancements in machine learning algorithms?",
@@ -169,7 +168,7 @@ payload = {
         "agent_name": "Product Researcher",
         "description": "Product reviews and comparisons",
         "system_prompt": "You research products and provide detailed comparisons.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 2048
     },
     "task": "Compare the latest smartphones from different manufacturers.",
@@ -186,7 +185,7 @@ payload = {
         "agent_name": "Fact Checker",
         "description": "Verifies information with reliable sources",
         "system_prompt": "You verify facts and cite reliable sources.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 2048
     },
     "task": "Verify the accuracy of recent claims about renewable energy adoption rates.",
@@ -201,7 +200,7 @@ payload = {
         "agent_name": "Recent News Analyst",
         "description": "Focuses on the most recent information",
         "system_prompt": "You prioritize the most recent and relevant information.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 2048
     },
     "task": "What are the most recent developments in space exploration from the past week?",
@@ -218,7 +217,7 @@ payload = {
         "agent_name": "Research Conversationalist",
         "description": "Maintains context while researching",
         "system_prompt": "You maintain conversation context while researching current information.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 4096
     },
     "task": "Based on our previous discussion about AI, what are the latest regulatory developments?",

@@ -3,7 +3,6 @@ title: 'Streaming Responses'
 description: 'Real-time streaming responses for immediate agent feedback'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 
 <Info>
@@ -39,7 +38,7 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
             "agent_name": "Creative Writer",
             "description": "A creative writing specialist",
             "system_prompt": "You are a creative writer who specializes in storytelling.",
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "max_tokens": 2048,
             "temperature": 0.8,
             "streaming_on": True
@@ -84,7 +83,7 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
             agent_name: "Creative Writer",
             description: "A creative writing specialist",
             system_prompt: "You are a creative writer who specializes in storytelling.",
-            model_name: "gpt-4o-mini",
+            model_name: "gpt-4.1-mini",
             max_tokens: 2048,
             temperature: 0.8,
             streaming_on: true
@@ -139,7 +138,7 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
       -d '{
         "agent_config": {
           "agent_name": "Creative Writer",
-          "model_name": "gpt-4o-mini",
+          "model_name": "gpt-4.1-mini",
           "max_tokens": 2048,
           "temperature": 0.8,
           "streaming_on": true

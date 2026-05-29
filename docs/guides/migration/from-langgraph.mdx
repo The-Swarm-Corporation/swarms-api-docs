@@ -40,7 +40,7 @@ from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 from typing import TypedDict
 
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-4.1")
 
 class State(TypedDict):
     messages: list
@@ -81,14 +81,14 @@ result = requests.post(
             {
                 "agent_name": "researcher",
                 "system_prompt": "You are a research specialist. Investigate the topic thoroughly and return detailed findings.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3,
             },
             {
                 "agent_name": "writer",
                 "system_prompt": "You are a professional writer. Using the research provided, write an engaging, well-structured article.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.6,
             },
@@ -135,7 +135,7 @@ from langchain_openai import ChatOpenAI
 from typing import TypedDict, Annotated
 import operator
 
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-4.1")
 
 class State(TypedDict):
     topic: str
@@ -186,21 +186,21 @@ result = requests.post(
             {
                 "agent_name": "tech_researcher",
                 "system_prompt": "You are a technical researcher. Investigate engineering, hardware, and software aspects of the topic.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3,
             },
             {
                 "agent_name": "market_researcher",
                 "system_prompt": "You are a market analyst. Research market size, adoption trends, key players, and business dynamics.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3,
             },
             {
                 "agent_name": "synthesizer",
                 "system_prompt": "You are a strategic analyst. Synthesize technical and market research into a comprehensive, actionable report.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4,
             },
@@ -245,7 +245,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_openai import ChatOpenAI
 from langchain_community.tools.tavily_search import TavilySearchResults
 
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-4.1")
 tools = [TavilySearchResults(max_results=3)]
 
 agent = create_react_agent(llm, tools)
@@ -266,7 +266,7 @@ result = requests.post(
         "agent_name": "news_researcher",
         "system_prompt": "You are a research assistant. Search for and summarize the latest AI news.",
         "task": "What are the latest AI news?",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "tools": ["browser"],
         "max_loops": 1,
         "temperature": 0.3,
@@ -327,13 +327,13 @@ result = requests.post(
             {
                 "agent_name": "code_reviewer",
                 "system_prompt": "You are a senior software engineer. Review code for bugs, style, and correctness.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
             },
             {
                 "agent_name": "content_writer",
                 "system_prompt": "You are a professional content writer. Write clear, engaging content on any topic.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
             },
         ],
@@ -376,7 +376,7 @@ def writer(state: State) -> State:
         "You are a professional writer. You will receive research notes from "
         "upstream agents. Use all of that context to write a polished draft."
     ),
-    "model_name": "gpt-4o",
+    "model_name": "gpt-4.1",
     "max_loops": 1,
 }
 ```

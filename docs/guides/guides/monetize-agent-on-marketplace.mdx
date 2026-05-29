@@ -1,0 +1,410 @@
+---
+title: "From Prototype to $10K MRR — Monetize Your Agent on the Swarms Marketplace"
+description: "A builder-to-builder playbook for packaging a working agent into a paid marketplace listing, tokenizing it for creator fees, and earning recurring revenue."
+---
+
+## TL;DR
+
+- **Build** a focused agent that solves one expensive, repetitive task — not a general assistant.
+- **Publish** it to the Swarms Marketplace with `POST /api/add-agent` (price it as a paid listing, not free).
+- **Monetize** through a sharp listing page — outcome-first copy, before/after examples, monthly pricing.
+- **Tokenize** through `POST /api/token/launch` so the agent has a Solana mint and you accrue creator fees.
+- **Promote** through three concrete channels (Twitter thread, free public demo, weekly subreddit posts) and pull earnings with `POST /api/product/claimfees`.
+
+The numbers at the end are honest: \$10K MRR is reachable, but it usually takes 3–6 months of consistent posting, a polished listing, and a working public demo. This guide is the path.
+
+---
+
+## Why Most Agents Never Earn a Dollar
+
+Most agent builders ship code, not products. They write a great system prompt, get it working on their own data, push the repo, and then wait. There's no listing page that explains the outcome in 10 seconds, no pricing, no demo a stranger can run without writing Python, and no distribution beyond a tweet at launch. The Swarms Marketplace handles the distribution layer — the discovery surface, the payments rail, the tokenized fee structure — but it can't write your one-paragraph value prop or your before/after screenshots. That's the product framing, and it's what separates the listings that earn from the listings that don't. The builders on the marketplace pulling real revenue all did the same boring thing: they treated the agent like a SaaS product and the listing page like a landing page.
+
+---
+
+## Meet Maya — A Working Example
+
+Maya is a freelance ops consultant. Her clients send her quarterly P&Ls and operational spreadsheets that are uniformly disastrous — merged cells, inconsistent date formats, currency mixed with text, blank columns nobody remembers creating. She used to spend the first 90 minutes of every engagement just cleaning the file. Six months ago she built an agent for herself: feed it a messy CSV, it returns a clean, normalised CSV plus a summary of what it changed. She called it the Spreadsheet Cleaner Agent.
+
+A few of her clients saw it run, and three of them asked if they could just send her files directly and pay her to run them. That's the moment most consultants either say yes (and trade their time for slightly more money) or shrug and move on. Maya wants the third option: turn the agent into recurring revenue without quitting consulting. She wants the agent to be a product strangers can buy, while she keeps the consulting practice running on the side.
+
+The rest of this guide walks Maya through exactly that — packaging the agent for the marketplace, publishing it via the Agents API, writing a listing page that actually converts, tokenizing it for ongoing creator fees, and the three marketing motions she'll run for the next six months.
+
+---
+
+## Step 1: Package the Agent
+
+Before anything ships to the marketplace, the agent has to be a clean object: a focused system prompt, an explicit model choice, a documented input shape, and a documented output shape. This is what Maya's agent looks like as a deployable Swarms `Agent`:
+
+```python
+from swarms import Agent
+
+SYSTEM_PROMPT = """You are the Spreadsheet Cleaner Agent.
+
+Your job is to take a messy financial or operational spreadsheet
+(CSV or TSV) and return:
+
+1) A cleaned CSV with these guarantees:
+   - All dates normalised to ISO 8601 (YYYY-MM-DD)
+   - All currency normalised to USD as a float (no symbols, no commas)
+   - One header row, snake_case column names, no merged cells
+   - Empty/whitespace-only rows removed
+   - All numeric columns typed as numbers, not strings
+   - Inferred but missing column names labelled column_1, column_2, ...
+
+2) A short CHANGE_LOG section describing exactly what you changed,
+   grouped by column. Be specific: name the columns, count the rows
+   affected, and call out any data you dropped.
+
+3) A QUALITY_FLAGS section listing rows or columns the user should
+   review manually (suspected duplicates, currency you couldn't infer,
+   dates older than 1970, etc.).
+
+Output format (strict):
+---CLEANED_CSV---
+<the cleaned CSV>
+---CHANGE_LOG---
+<bulleted list>
+---QUALITY_FLAGS---
+<bulleted list>
+
+Never invent data. If a value is ambiguous, leave it and flag it."""
+
+spreadsheet_cleaner = Agent(
+    agent_name="Spreadsheet-Cleaner-Agent",
+    agent_description=(
+        "Takes a messy financial spreadsheet and returns a cleaned "
+        "CSV plus a change log. Built for ops consultants, "
+        "bookkeepers, and finance teams."
+    ),
+    model_name="gpt-4.1-mini",
+    system_prompt=SYSTEM_PROMPT,
+    max_loops=1,
+    max_tokens=8192,
+)
+```
+
+Three things Maya did right that most builders skip:
+
+1. **The output format is strict and parseable.** A buyer can pipe the result straight into a script. Free-form prose responses are not products.
+2. **The model is `gpt-4.1-mini`, not `gpt-4.1`.** At a \$19/mo subscription, margin matters. Mini handles structured cleanup well and keeps her unit economics healthy.
+3. **The system prompt has a refusal rule** — "Never invent data" — which is exactly the kind of trust signal buyers screenshot and share.
+
+Run it locally a few times against three real-but-anonymised input files. Save the inputs and outputs — those become the before/after examples on the listing page.
+
+---
+
+## Step 2: Publish to the Marketplace via the Agents API
+
+The Swarms Marketplace lives at `https://swarms.world`. The agent listing endpoint is `POST /api/add-agent`, authenticated with a bearer token. Maya's first publish call looks like this:
+
+```python
+import os
+import requests
+
+API_KEY = os.environ["SWARMS_API_KEY"]
+
+payload = {
+    "name": "Spreadsheet Cleaner Agent",
+    "description": (
+        "Upload a messy financial or operational CSV. Get back a "
+        "cleaned CSV with normalised dates, normalised currency, "
+        "snake_case columns, and a change log. Built for ops "
+        "consultants, bookkeepers, and finance teams who spend the "
+        "first hour of every engagement cleaning files."
+    ),
+    "language": "python",
+    "agent": SYSTEM_PROMPT,  # the system prompt from Step 1
+    "useCases": [
+        {
+            "title": "Quarterly P&L Cleanup",
+            "description": (
+                "Drop a messy quarterly P&L export. Receive a cleaned "
+                "CSV with normalised dates and currency, plus a "
+                "change log of every modification."
+            ),
+        },
+        {
+            "title": "Bookkeeper Handoff",
+            "description": (
+                "Normalise a client's raw bank-export CSV so it can "
+                "be imported into QuickBooks or Xero without manual "
+                "column-mapping."
+            ),
+        },
+        {
+            "title": "Operational Dashboard Prep",
+            "description": (
+                "Take a multi-sheet ops export and return one clean, "
+                "typed CSV ready to load into a BI tool."
+            ),
+        },
+    ],
+    "tags": "spreadsheet,csv,cleaning,finance,ops,bookkeeping",
+    "category": "finance",
+    "is_free": False,
+    "price_usd": 19.00,
+    "seller_wallet_address": os.environ["SOLANA_WALLET_ADDRESS"],
+}
+
+resp = requests.post(
+    "https://swarms.world/api/add-agent",
+    headers={
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json=payload,
+    timeout=60,
+)
+
+data = resp.json()
+resp.raise_for_status()
+
+print("Listing URL:", data["listing_url"])
+print("Agent ID:", data["id"])
+```
+
+A few notes on the choices in that payload:
+
+- **`category: "finance"`** — Maya picked the closest existing category. Listings in a known category get filtered traffic; listings in `null` get nothing.
+- **`is_free: False` and `price_usd: 19.00`** — paid from day one. You can always discount; you cannot easily flip a free agent to paid without losing the "thousands of free users" who never paid you anyway.
+- **`useCases`** — three concrete, named scenarios. Buyers don't read prose, they scan for the use case that matches them.
+- **`seller_wallet_address`** — a Solana wallet she controls. Payouts and creator fees route here.
+
+On success, the response includes the public `listing_url`. Open it in a browser, scroll like a buyer would, and ask: *would I pay \$19/mo for this based on the page alone?* If no, fix the page before you spend a dollar promoting it.
+
+Full reference: [Agents API](/docs/marketplace/agents-api).
+
+---
+
+## Step 3: Write a Listing Page That Converts
+
+The listing page is the one thing every paying user sees and most builders ignore. The conversion math is unforgiving — at a 2% conversion rate, every visitor you waste on a confusing page costs you compounding revenue. Four rules that the highest-earning listings on the marketplace all follow:
+
+1. **Lead with the outcome, not the technology.** "Returns a cleaned CSV plus a change log" beats "Uses GPT-4o-mini with a structured output prompt to perform CSV normalisation." Buyers don't care what model you used.
+
+2. **Show three concrete before/after examples.** Use the inputs you saved from Step 1. A real screenshot of a messy spreadsheet next to the cleaned output is worth a thousand bullet points. Anonymise the data; keep the realism.
+
+3. **Price as a monthly subscription, not per-call.** Per-call pricing creates buyer anxiety ("will this run cost me \$3 or \$300?"). A flat monthly subscription anchors the value at the *outcome* (an ops consultant saves 6 hours per client per month — that's \$19 of obvious value). The marketplace's subscription tier is launching shortly; price into it from day one.
+
+4. **Under 200 words of copy.** If a buyer can't decide in 200 words, more words won't fix it. Headline, three bullets of what you get, three before/after thumbnails, price, button.
+
+Maya's final listing copy, in full:
+
+> **Spreadsheet Cleaner Agent**
+>
+> *Upload any messy financial CSV. Get back a clean one in 30 seconds.*
+>
+> - **Normalised** — dates in ISO 8601, currency in USD floats, snake_case columns
+> - **Audited** — every change is logged so you (or your client) can review it
+> - **Flagged** — suspected duplicates and ambiguous values are surfaced, never silently dropped
+>
+> Built for ops consultants, bookkeepers, and finance teams who spend the first hour of every engagement fixing the file before the work can start.
+>
+> **\$19/month — unlimited cleanups.**
+
+Use the `POST /api/edit-agent` endpoint to iterate on the listing without re-creating it. Iterate weekly for the first month.
+
+---
+
+## Step 4: Tokenize for Creator Fees via the Launchpad
+
+The marketplace subscription is one revenue stream. Tokenizing the agent unlocks a second one: **creator fees** that accrue every time the agent's token trades on its bonding curve. This is what separates the marketplace from every other agent directory — the agent itself becomes a Solana asset, and you, as the creator, keep a share of trading fees in perpetuity.
+
+The fastest path is `POST /api/token/launch`, which creates the listing and the token in a single request. Maya already has the listing from Step 2 — for new agents, the Launchpad endpoint does both at once. Here's the call:
+
+```python
+import os
+import requests
+
+API_KEY = os.environ["SWARMS_API_KEY"]
+SOLANA_PRIVATE_KEY = os.environ["SOLANA_PRIVATE_KEY"]
+
+payload = {
+    "name": "Spreadsheet Cleaner Agent",
+    "description": (
+        "Upload a messy financial CSV. Get back a clean one — "
+        "normalised dates, normalised currency, snake_case columns, "
+        "full change log. Built for ops consultants and bookkeepers."
+    ),
+    "ticker": "CLEAN",
+    "private_key": SOLANA_PRIVATE_KEY,
+    "image": "https://your-cdn.example.com/clean-agent-icon.png",
+    "fee_selection": "market",   # "frenzy" for 2x fees + leaderboard
+    "quote_mint": "SOL",         # or "USDC"
+}
+
+resp = requests.post(
+    "https://swarms.world/api/token/launch",
+    headers={
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json=payload,
+    timeout=120,
+)
+
+data = resp.json()
+resp.raise_for_status()
+
+print("Listing:", data["listing_url"])
+print("Token mint:", data["token_address"])
+print("Pool:", data.get("pool_address"))
+```
+
+A few things to understand plainly before you launch:
+
+- **Token launch costs ~0.04 SOL.** Fund the wallet associated with `private_key` first.
+- **Creator fees vs. revenue fees are different things.** Revenue fees are what the marketplace charges on subscription payments (5–15% depending on tier — see the [Monetization Guide](/docs/marketplace/monetize)). Creator fees are what your agent's *token* accrues from on-chain trading on the bonding curve. Both flow to you. You don't have to choose one.
+- **`fee_selection: "frenzy"` doubles the trading fees** and puts your token on the Frenzy leaderboard, which is its own discovery surface. Use it if you have a marketing push planned for launch day; otherwise stick with `"market"`.
+- **Never put a real private key in source control.** Use environment variables or a secret manager. The `private_key` is only used to sign the on-chain transaction.
+
+Full reference: [Token Launch API](/docs/marketplace/token-launch-api) and the [tokenization details](/docs/marketplace/tokenization_details).
+
+---
+
+## Step 5: The Three Marketing Motions That Actually Work
+
+The marketplace surfaces discovery; you still have to bring people to the listing. Out of the dozen things builders try, three actually move the needle. Run all three, weekly, for six months.
+
+### (a) The before/after Twitter thread
+
+Once a week, run the agent on a real (anonymised) file from a friend or a client. Post the input as the first image, the output as the second, the change log as the third. The thread is the proof — strangers see exactly what they'll get. Pin the best one. The format that converts:
+
+```
+1/ I clean ~30 client spreadsheets a month. This used to take 90 min each.
+   Now my agent does it in 30 seconds.
+
+   Here's what a real run looked like this morning. [image: messy input]
+
+2/ Same file, 30 seconds later. [image: cleaned output]
+
+3/ And the change log — every modification, by column, with row counts.
+   This is the part my clients actually care about. [image: change log]
+
+4/ Live here: swarms.world/agent/<your-id>. $19/mo, unlimited runs.
+```
+
+Don't promote every thread. Make the agent the protagonist of three threads, then a fourth thread about something else entirely (a lesson, a failure mode, a tool you use). Variety is what keeps you from sounding like an ad.
+
+### (b) A free public demo page
+
+This is the single highest-leverage thing you can build. A one-page web app where anyone can upload a small CSV and see the agent run — calling your marketplace agent under the hood. No login. No pricing wall. Just the agent doing the thing on their data.
+
+```python
+# Sketch — a FastAPI endpoint your demo page calls.
+# Marketplace agents can be invoked via the standard Swarms API
+# once you have the agent's system prompt in your code.
+
+from fastapi import FastAPI, UploadFile
+from swarms import Agent
+
+app = FastAPI()
+demo_agent = Agent(
+    agent_name="Spreadsheet-Cleaner-Demo",
+    model_name="gpt-4.1-mini",
+    system_prompt=SYSTEM_PROMPT,   # same as your listed agent
+    max_loops=1,
+)
+
+@app.post("/demo")
+async def demo(file: UploadFile):
+    raw = (await file.read()).decode("utf-8")
+    # Cap demo input to keep your spend bounded.
+    if len(raw) > 50_000:
+        return {"error": "Demo limited to 50KB. Subscribe for unlimited."}
+    cleaned = demo_agent.run(f"Clean this CSV:\n\n{raw}")
+    return {"cleaned": cleaned}
+```
+
+The demo converts because the buyer has already experienced the value before they're asked to pay. Cap the input size so the free demo doesn't sink your token budget, and put a "Subscribe — \$19/mo" CTA above the result.
+
+### (c) One subreddit per week, with genuine commentary
+
+Identify the three subreddits where your buyers actually hang out — for Maya, that's `r/bookkeeping`, `r/fpanda`, and `r/Accounting`. Once a week, find a thread where someone is complaining about exactly the problem your agent solves, and reply with genuine help. Sometimes you mention the agent; sometimes you don't. The point is to be a real participant, not a promoter. Marketplace listings linked from a comment that opens with "I built this for myself, happy to share how I clean these" convert ~10x better than the same listing linked from a top-level "check out my new tool" post.
+
+Three motions, one hour per week each. The compounding is real but slow — most accounts that hit traction did six months of this before the curve bent.
+
+---
+
+## Step 6: Track Revenue with the Claim Fees API
+
+The marketplace handles subscription payments automatically. The token side — your creator fees from on-chain trading — accrues on-chain and is claimed on demand. The `POST /api/product/claimfees` endpoint returns both the claimed amount and a full breakdown of historical earnings, so you can use it as your dashboard query:
+
+```python
+import os
+import requests
+
+payload = {
+    "ca": os.environ["TOKEN_MINT_ADDRESS"],    # from Step 4 response
+    "privateKey": os.environ["SOLANA_PRIVATE_KEY_BASE58"],
+}
+
+resp = requests.post(
+    "https://swarms.world/api/product/claimfees",
+    headers={"Content-Type": "application/json"},
+    json=payload,
+    timeout=60,
+)
+
+data = resp.json()
+resp.raise_for_status()
+
+if data.get("amountClaimedSol") is not None:
+    print(f"Just claimed: {data['amountClaimedSol']:.4f} SOL")
+
+if data.get("fees"):
+    print(f"Unclaimed:    {data['fees']['unclaimedSol']:.4f} SOL")
+    print(f"Lifetime claimed: {data['fees']['claimedSol']:.4f} SOL")
+    print(f"Lifetime total:   {data['fees']['totalSol']:.4f} SOL")
+
+print("Tx signature:", data.get("signature"))
+```
+
+Run it weekly. Log the lifetime total to a spreadsheet (which the Spreadsheet Cleaner could clean, but that would be too on-the-nose). The signature is the on-chain proof if you need to reconcile.
+
+Full reference: [Claim Fees API](/docs/marketplace/claim-fees-api).
+
+---
+
+## The Math at \$10K MRR
+
+Let's be honest about what \$10K MRR looks like from a pure-subscription perspective, before token fees are layered on top. At a \$19/month subscription, you need ~526 paying users. That's a real number, not a vanity number — and the funnel that gets you there is not magic:
+
+| Stage | Conversion | Required volume |
+|---|---|---|
+| Monthly subscribers needed | — | **526** |
+| Trial-to-paid conversion | 25% | 2,100 trials/month |
+| Listing visitors to trial | 10% | 21,000 visitors/month |
+| Top-of-funnel impressions to visitor | ~5% | ~420,000 impressions/month |
+| **Or: direct visitor-to-paid** | **2%** | **~26,300 visitors/month** |
+
+Two ways to read this table. The pessimistic read: 26K monthly visitors is a meaningful audience. The optimistic read: 26K is ~870 visitors per day, which is what a single decent Twitter thread can deliver, and the three motions in Step 5 compound. Builders earning real revenue on the marketplace today do not have a million followers. They have a focused listing, a working public demo, and six months of consistent posting in the right three places.
+
+Layer the token creator fees on top. If your agent's token sees even modest secondary trading, the fees from `POST /api/product/claimfees` add a non-trivial second stream. The builders treating both streams as serious — subscription + creator fees — are the ones whose numbers get interesting.
+
+\$10K MRR in 3 months is unlikely. \$10K MRR in 6–9 months for a builder running the playbook seriously is the realistic target.
+
+---
+
+## Common Failure Modes
+
+The list of ways this stops working, in rough order of frequency:
+
+- **No listing-page polish.** Default placeholder image, two-sentence description, no use cases. Buyers bounce in 4 seconds.
+- **Mispriced.** Either listed as free (no one signals value with \$0) or listed at \$499/mo with no track record. Anchor at \$19–49 and raise after you have testimonials.
+- **No demo video or public demo.** Buyers can't imagine the agent running on their data. They don't buy.
+- **No public examples.** No tweets, no thread, no screenshots in the wild. Discovery has nothing to grip onto.
+- **Promoting on the wrong subreddits.** Generic AI subreddits drown signal in noise. Find the three subreddits where the *buyer* hangs out, not the three where other builders hang out.
+- **Building the agent for everyone.** "AI assistant for productivity" never sells. "Cleans messy financial CSVs in 30 seconds" sells.
+- **Treating tokenization as a side experiment.** It's a second revenue stream. Claim fees weekly, post the lifetime totals, and let the on-chain proof do its own marketing.
+
+---
+
+## Next Steps
+
+- [Launchpad: Tokenize Your Agent Tutorial](/docs/marketplace/launchpad-tokenize-your-agent-tutorial) — the four-step Launchpad walkthrough referenced in Step 4.
+- [Agents API](/docs/marketplace/agents-api) — full reference for create, edit, and query endpoints.
+- [Tokenization Details](/docs/marketplace/tokenization_details) — how the bonding curve, fees, and migration work under the hood.
+- [Marketplace Publishing Quickstart](/docs/marketplace/marketplace_publishing_quickstart) — the SDK-side `publish_to_marketplace=True` flow if you'd rather publish from inside your `Agent` definition.
+- [Monetization Guide](/docs/marketplace/monetize) — eligibility, pricing tiers, and platform-fee math.
+- [Claim Fees API](/docs/marketplace/claim-fees-api) — the endpoint behind Step 6, with retry and async patterns.

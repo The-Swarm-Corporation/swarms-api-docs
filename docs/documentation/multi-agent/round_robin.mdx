@@ -44,7 +44,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Product Strategist",
         "description": "Defines product positioning and value proposition",
         "system_prompt": "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.5
       },
@@ -52,7 +52,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Growth Marketer",
         "description": "Designs acquisition channels and launch campaigns",
         "system_prompt": "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.5
       },
@@ -60,7 +60,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Sales Engineer",
         "description": "Evaluates technical feasibility and enterprise readiness",
         "system_prompt": "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.4
       }
@@ -93,7 +93,7 @@ swarm_config = {
             "agent_name": "Product Strategist",
             "description": "Defines product positioning and value proposition",
             "system_prompt": "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.5
         },
@@ -101,7 +101,7 @@ swarm_config = {
             "agent_name": "Growth Marketer",
             "description": "Designs acquisition channels and launch campaigns",
             "system_prompt": "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.5
         },
@@ -109,7 +109,7 @@ swarm_config = {
             "agent_name": "Sales Engineer",
             "description": "Evaluates technical feasibility and enterprise readiness",
             "system_prompt": "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.4
         }
@@ -151,7 +151,7 @@ const swarmConfig = {
             agent_name: "Product Strategist",
             description: "Defines product positioning and value proposition",
             system_prompt: "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.5
         },
@@ -159,7 +159,7 @@ const swarmConfig = {
             agent_name: "Growth Marketer",
             description: "Designs acquisition channels and launch campaigns",
             system_prompt: "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.5
         },
@@ -167,7 +167,7 @@ const swarmConfig = {
             agent_name: "Sales Engineer",
             description: "Evaluates technical feasibility and enterprise readiness",
             system_prompt: "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.4
         }
@@ -235,7 +235,7 @@ func main() {
                 AgentName:    "Product Strategist",
                 Description:  "Defines product positioning and value proposition",
                 SystemPrompt: "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.5,
             },
@@ -243,7 +243,7 @@ func main() {
                 AgentName:    "Growth Marketer",
                 Description:  "Designs acquisition channels and launch campaigns",
                 SystemPrompt: "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.5,
             },
@@ -251,7 +251,7 @@ func main() {
                 AgentName:    "Sales Engineer",
                 Description:  "Evaluates technical feasibility and enterprise readiness",
                 SystemPrompt: "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.4,
             },
@@ -300,7 +300,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Product Strategist",
                 "description": "Defines product positioning and value proposition",
                 "system_prompt": "You are a product strategist. Define the core value proposition, target personas, and competitive positioning. Be specific about what differentiates this product from existing solutions like GitHub Copilot, Codacy, and SonarQube.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.5
             },
@@ -308,7 +308,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Growth Marketer",
                 "description": "Designs acquisition channels and launch campaigns",
                 "system_prompt": "You are a growth marketing expert. Propose acquisition channels ranked by expected ROI, design the launch campaign, and suggest pricing tiers. Be data-driven with estimated CAC and conversion benchmarks.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.5
             },
@@ -316,7 +316,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Sales Engineer",
                 "description": "Evaluates technical feasibility and enterprise readiness",
                 "system_prompt": "You are a sales engineer. Evaluate the enterprise sales motion, identify technical integration requirements, and propose a proof-of-concept framework. Focus on what mid-size teams need for adoption.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4
             }

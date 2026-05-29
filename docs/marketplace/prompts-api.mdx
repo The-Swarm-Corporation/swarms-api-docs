@@ -670,7 +670,7 @@ When you submit a prompt with `price_usd`, the system automatically converts it 
 
 Example:
 - You set `price_usd`: 10.00
-- Current SOL price: $200
+- Current SOL price: \$200
 - Calculated `price`: 0.05 SOL
 
 This conversion happens automatically and is transparent to the user.
@@ -749,7 +749,7 @@ agent_response = requests.post(
     json={
         "agent_config": {
             "agent_name": "marketplace-agent",
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "marketplace_prompt_id": prompt_id,
             "max_loops": 1
         },
@@ -787,7 +787,7 @@ const agentResponse = await fetch('https://api.swarms.world/v1/agent/completions
   body: JSON.stringify({
     agent_config: {
       agent_name: 'marketplace-agent',
-      model_name: 'gpt-4o-mini',
+      model_name: 'gpt-4.1-mini',
       marketplace_prompt_id: promptId,
       max_loops: 1
     },
@@ -813,7 +813,7 @@ curl -X POST https://api.swarms.world/v1/agent/completions \
   -d "{
     \"agent_config\": {
       \"agent_name\": \"marketplace-agent\",
-      \"model_name\": \"gpt-4o-mini\",
+      \"model_name\": \"gpt-4.1-mini\",
       \"marketplace_prompt_id\": \"$PROMPT_ID\",
       \"max_loops\": 1
     },
@@ -839,7 +839,7 @@ response = requests.post(
     json={
         "agent_config": {
             "agent_name": "marketplace-agent",
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "marketplace_prompt_id": "92a11cf5-ac78-41b7-a4a6-005a92670462",
             "max_loops": 1
         },

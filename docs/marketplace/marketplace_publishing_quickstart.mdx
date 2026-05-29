@@ -48,7 +48,7 @@ from swarms import Agent
 my_agent = Agent(
     agent_name="Market-Analysis-Agent",
     agent_description="Expert market analyst specializing in cryptocurrency and stock analysis",
-    model_name="gpt-4o-mini",
+    model_name="gpt-4.1-mini",
     system_prompt="""You are an expert market analyst specializing in:
     - Cryptocurrency market analysis
     - Stock market trends
@@ -112,7 +112,7 @@ if not os.getenv("SWARMS_API_KEY"):
 medical_agent = Agent(
     agent_name="Blood-Data-Analysis-Agent",
     agent_description="Explains and contextualizes common blood test panels with structured insights",
-    model_name="gpt-4o-mini",
+    model_name="gpt-4.1-mini",
     max_loops=1,
     
     system_prompt="""You are a clinical laboratory data analyst assistant focused on hematology and basic metabolic panels.

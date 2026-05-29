@@ -3,7 +3,6 @@ title: "Batch Agent Completions (Single Agent)"
 description: "Process multiple single-agent tasks efficiently in parallel using the /v1/agent/batch/completions endpoint."
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 <Warning>
 **Premium Tier Required**: The `/v1/agent/batch/completions` endpoint is restricted to Pro, Ultra, and Premium plan subscribers. Free tier users will receive a 403 error. [Upgrade your account](https://swarms.world/platform/account) to access batch processing capabilities.
@@ -241,7 +240,7 @@ import { Tabs, Tab } from 'mintlify'
         {
           "agent_config": {
             "agent_name": "Bloodwork Diagnosis Expert",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 1000,
             "temperature": 0.5
           },
@@ -250,7 +249,7 @@ import { Tabs, Tab } from 'mintlify'
         {
           "agent_config": {
             "agent_name": "Radiology Report Summarizer",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 1000,
             "temperature": 0.5
           },

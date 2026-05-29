@@ -3,7 +3,6 @@ title: 'Reasoning Agent Types'
 description: 'Explore different reasoning agent architectures and their applications'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 Discover the different types of reasoning agents available in the Swarms API. The `/v1/reasoning-agent/types` endpoint provides information about specialized reasoning architectures designed for different problem-solving approaches.
 
@@ -126,7 +125,7 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     ```python
     payload = {
         "agent_name": "Basic Reasoner",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "system_prompt": "You are a logical reasoning assistant.",
         "max_loops": 1,
         "swarm_type": "reasoning-agent",
@@ -139,7 +138,7 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     ```python
     payload = {
         "agent_name": "Consistent Reasoner",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "system_prompt": "You are a reasoning agent that values consistency.",
         "max_loops": 1,
         "swarm_type": "self-consistency",
@@ -152,7 +151,7 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     ```python
     payload = {
         "agent_name": "Refinement Agent",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "system_prompt": "You are an agent that improves through iteration.",
         "max_loops": 3,
         "swarm_type": "ire",
@@ -165,7 +164,7 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     ```python
     payload = {
         "agent_name": "Dual Reasoner",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "system_prompt": "You are a dual reasoning system.",
         "max_loops": 1,
         "swarm_type": "reasoning-duo",
@@ -183,7 +182,7 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     ```python
     payload = {
         "agent_name": "High Consistency Agent",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "swarm_type": "self-consistency",
         "num_samples": 5,  # Higher sample count for better consistency
@@ -196,7 +195,7 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     ```python
     payload = {
         "agent_name": "Deep Analysis Agent",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 5,  # Multiple refinement iterations
         "swarm_type": "ire",
         "num_samples": 3,
@@ -209,7 +208,7 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     ```python
     payload = {
         "agent_name": "Knowledge Agent",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_loops": 1,
         "swarm_type": "consistency-agent",
         "num_samples": 3,
@@ -272,21 +271,21 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
                 "swarm_type": "reasoning-agent",
                 "num_samples": 1,
                 "max_loops": 1,
-                "model_name": "gpt-4o-mini"
+                "model_name": "gpt-4.1-mini"
             }
         elif task_complexity == "high":
             return {
                 "swarm_type": "ire",
                 "num_samples": 5,
                 "max_loops": 3,
-                "model_name": "gpt-4o"
+                "model_name": "gpt-4.1"
             }
         else:  # balanced
             return {
                 "swarm_type": "self-consistency",
                 "num_samples": 3,
                 "max_loops": 1,
-                "model_name": "gpt-4o"
+                "model_name": "gpt-4.1"
             }
     ```
   </Tab>
@@ -298,20 +297,20 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
         if budget < 0.1:
             return {
                 "swarm_type": "reasoning-agent",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "num_samples": 1
             }
         elif quality_requirement == "high":
             return {
                 "swarm_type": "self-consistency",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "num_samples": 3,
                 "max_tokens": 2048
             }
         else:
             return {
                 "swarm_type": "reasoning-duo",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "num_samples": 2
             }
     ```

@@ -3,7 +3,6 @@ title: 'Rate Limit Headers'
 description: 'Every authenticated API response includes X-RateLimit-* headers so you can track your usage and remaining quota in real time without making a separate API call.'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 All authenticated Swarms API responses include rate limit headers. These headers let you monitor your usage programmatically — build retry logic, display quota dashboards, or throttle requests before hitting limits.
 
@@ -104,7 +103,7 @@ Retry-After: 42
         json={
             "agent_config": {
                 "agent_name": "test",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "system_prompt": "You are helpful.",
                 "max_loops": 1,
             },
@@ -140,7 +139,7 @@ Retry-After: 42
       body: JSON.stringify({
         agent_config: {
           agent_name: "test",
-          model_name: "gpt-4o",
+          model_name: "gpt-4.1",
           system_prompt: "You are helpful.",
           max_loops: 1,
         },
@@ -174,7 +173,7 @@ Retry-After: 42
             .body(r#"{
                 "agent_config": {
                     "agent_name": "test",
-                    "model_name": "gpt-4o",
+                    "model_name": "gpt-4.1",
                     "system_prompt": "You are helpful.",
                     "max_loops": 1
                 },
@@ -223,7 +222,7 @@ Retry-After: 42
         body := strings.NewReader(`{
             "agent_config": {
                 "agent_name": "test",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "system_prompt": "You are helpful.",
                 "max_loops": 1
             },
@@ -262,7 +261,7 @@ Retry-After: 42
       -d '{
         "agent_config": {
           "agent_name": "test",
-          "model_name": "gpt-4o",
+          "model_name": "gpt-4.1",
           "system_prompt": "You are helpful.",
           "max_loops": 1
         },

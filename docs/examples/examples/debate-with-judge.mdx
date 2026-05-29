@@ -40,7 +40,7 @@ def run_debate(topic: str, max_loops: int = 1) -> dict:
                 "agent_name": "Pro Debater",
                 "description": "Argues in favor of the proposition",
                 "system_prompt": "You are an expert debater arguing IN FAVOR of the given proposition. Present well-structured arguments with evidence, data, and concrete examples. Anticipate counterarguments and address them. In refinement rounds, strengthen your case based on the judge's feedback.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.5
             },
@@ -48,7 +48,7 @@ def run_debate(topic: str, max_loops: int = 1) -> dict:
                 "agent_name": "Con Debater",
                 "description": "Argues against the proposition",
                 "system_prompt": "You are an expert debater arguing AGAINST the given proposition. Identify weaknesses, risks, and unintended consequences. Challenge assumptions with data and real-world counterexamples. In refinement rounds, sharpen your opposition based on the judge's feedback.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.5
             },
@@ -56,7 +56,7 @@ def run_debate(topic: str, max_loops: int = 1) -> dict:
                 "agent_name": "Debate Judge",
                 "description": "Evaluates arguments and provides synthesis",
                 "system_prompt": "You are an impartial judge evaluating a structured debate. Assess both sides on logical coherence, evidence quality, and persuasiveness. Identify the strongest points from each side. Provide a clear verdict with justification, synthesizing the best elements from both arguments into a balanced conclusion.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3
             }

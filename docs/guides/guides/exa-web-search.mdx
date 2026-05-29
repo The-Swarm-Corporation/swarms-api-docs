@@ -3,7 +3,6 @@ title: "Building Agents with Exa Web Search"
 description: "Create intelligent agents with real-time web search capabilities using Exa integration"
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 This guide covers how to build AI agents with powerful web search capabilities using Exa integration. Exa provides semantic search that understands the meaning of queries, enabling agents to find highly relevant, up-to-date information from across the web.
 
@@ -37,7 +36,7 @@ Exa-powered agents can search the web semantically, find current information, an
             2. Synthesize findings from multiple sources
             3. Cite your sources clearly
             4. Distinguish between facts and analysis""",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "max_tokens": 4096,
             "temperature": 0.3
         },
@@ -77,7 +76,7 @@ Exa-powered agents can search the web semantically, find current information, an
             2. Synthesize findings from multiple sources
             3. Cite your sources clearly
             4. Distinguish between facts and analysis`,
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             max_tokens: 4096,
             temperature: 0.3
         },
@@ -109,7 +108,7 @@ Exa-powered agents can search the web semantically, find current information, an
           "agent_name": "Research Agent",
           "description": "AI research assistant with web search capabilities",
           "system_prompt": "You are an expert research assistant with access to web search. Search for relevant information, synthesize findings, and cite sources.",
-          "model_name": "gpt-4o",
+          "model_name": "gpt-4.1",
           "max_tokens": 4096,
           "temperature": 0.3
         },
@@ -176,7 +175,7 @@ payload = {
         Research current market conditions, identify trends, and provide
         data-driven insights. Always cite sources and distinguish between
         confirmed data and market speculation.""",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 4096,
         "temperature": 0.2
     },
@@ -198,7 +197,7 @@ payload = {
         Find accurate, up-to-date technical information from official
         documentation, reputable tech publications, and authoritative sources.
         Provide code examples when relevant.""",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 4096,
         "temperature": 0.1
     },
@@ -219,7 +218,7 @@ payload = {
         "system_prompt": """You are a news analyst who provides balanced,
         factual summaries of current events. Cross-reference multiple sources,
         note any conflicting reports, and clearly separate facts from opinions.""",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 3000,
         "temperature": 0.3
     },
@@ -241,7 +240,7 @@ payload = {
         Find peer-reviewed sources, academic papers, and scholarly articles.
         Summarize key findings, note methodologies, and identify research gaps.
         Always provide proper citations.""",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "max_tokens": 5000,
         "temperature": 0.2
     },
@@ -279,7 +278,7 @@ research_team = client.swarms.run(
             "system_prompt": """Research the current state of quantum computing,
             focusing on technical capabilities, limitations, and timeline projections.
             Use web search to find the latest developments.""",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "role": "researcher",
             "max_loops": 1,
             "max_tokens": 4096,
@@ -291,7 +290,7 @@ research_team = client.swarms.run(
             "system_prompt": """Analyze cybersecurity implications based on the
             technical research provided. Identify vulnerabilities, potential threats,
             and required adaptations in security protocols.""",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "role": "analyst",
             "max_loops": 1,
             "max_tokens": 4096,
@@ -303,7 +302,7 @@ research_team = client.swarms.run(
             "system_prompt": """Synthesize the technical research and security analysis
             into actionable strategic recommendations. Provide a timeline for action
             and prioritize recommendations by urgency and impact.""",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "role": "advisor",
             "max_loops": 1,
             "max_tokens": 5000,
@@ -324,8 +323,8 @@ payload = {
     "config": {
         "name": "Climate Tech Investment Analysis",
         "description": "Research climate technology investment opportunities",
-        "worker_model_name": "gpt-4o-mini",
-        "director_model_name": "gpt-4o",
+        "worker_model_name": "gpt-4.1-mini",
+        "director_model_name": "gpt-4.1",
         "max_loops": 2,
         "exa_search_num_results": 5,
         "exa_search_max_characters": 400
@@ -495,13 +494,13 @@ Search operations add additional costs. Optimize usage with these strategies:
 1. **Start with fewer results**: Begin with `exa_search_num_results: 3` and increase only if needed
 2. **Limit snippet length**: Use `exa_search_max_characters: 200` for simple queries
 3. **Cache research results**: Store responses for repeated similar queries
-4. **Use appropriate models**: Use `gpt-4o-mini` for simpler research tasks
+4. **Use appropriate models**: Use `gpt-4.1-mini` for simpler research tasks
 
 ```python
 # Cost-efficient configuration for simple queries
 efficient_config = {
     "agent_config": {
-        "model_name": "gpt-4o-mini",  # Lower cost model
+        "model_name": "gpt-4.1-mini",  # Lower cost model
         "max_tokens": 2000            # Limit output length
     },
     "search_enabled": True,

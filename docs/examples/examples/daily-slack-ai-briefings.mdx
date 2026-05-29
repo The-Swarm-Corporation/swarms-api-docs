@@ -1,0 +1,304 @@
+---
+title: "Daily AI Briefings in Slack — News, Stocks, and Calendar at 7AM"
+description: "A ~50-line ConcurrentWorkflow swarm that posts your morning news, market open, and calendar to Slack every weekday at 7AM via cron."
+---
+
+## What This Example Shows
+
+- A `ConcurrentWorkflow` swarm with three search-enabled agents running in parallel — News Curator, Market Watcher, Calendar Briefer
+- How to fan a swarm's outputs into a Slack `blocks` payload via an incoming webhook
+- A real cron schedule — `0 7 * * 1-5` — that ships a useful briefing to your team channel before standup
+- The full pipeline in roughly 55 lines of Python with `requests` and `python-dotenv` only
+- A genuine ship-it-before-coffee pattern: 60 seconds to set up env vars, 5 minutes to install the cron
+
+<Info>
+Get a free Swarms API key in 1 minute at [swarms.world](https://swarms.world). Get a free Slack incoming webhook URL in 2 minutes from your workspace's app directory ("Incoming Webhooks" → "Add to Slack" → pick a channel → copy the URL). Drop the cron line on any always-on box in 5 minutes. Total time-to-first-briefing: under 10 minutes.
+</Info>
+
+## Why You'll Actually Use This
+
+The briefing has the three sections you actually want before coffee: how the market opened in red or green, the top stories that touch your world, and what's already booked on your calendar. It lands in Slack so you can't miss it, your team sees the same context you do, and once Monday's briefing shows up your morning quietly depends on it. That's the whole pitch — useful enough that you forget it's running.
+
+## The Output
+
+Here's what shows up in your Slack channel at 7:00:01 every weekday:
+
+```
+:sunrise: *Morning Briefing — Monday, May 26, 2026*
+
+> Markets opening green on soft CPI; OpenAI ships a new model; you have 4 meetings starting at 9:30.
+
+*:chart_with_upwards_trend: Market Watcher*
+- S&P 500 futures +0.42% pre-market; 10Y yield at 4.31%
+- NVDA +1.8% on supply-chain note; TSLA -0.9% on delivery rumor
+- Bitcoin holding $67.2K; ETH at $3,510
+
+*:newspaper: News Curator*
+- OpenAI announces GPT-5.5 with 2M-token context (TechCrunch)
+- Fed minutes hint at September cut; CPI prints 2.4% YoY (Reuters)
+- Anthropic raises $4B Series E at $40B post (Bloomberg)
+
+*:calendar: Calendar Briefer*
+- 09:30 — Weekly eng sync (45m)
+- 11:00 — Customer call: Acme Corp renewal (30m)
+- 14:00 — 1:1 with Priya (30m)
+- 16:30 — Investor update prep (60m)
+```
+
+## The Architecture
+
+```
+                  ┌──────────────────────┐
+                  │  ConcurrentWorkflow  │
+                  └──────────┬───────────┘
+                             │ fan-out (parallel)
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+ ┌──────▼──────┐      ┌──────▼──────┐      ┌──────▼──────┐
+ │News Curator │      │Market Watcher│      │Calendar     │
+ │(search on)  │      │(search on)   │      │Briefer      │
+ └──────┬──────┘      └──────┬──────┘      └──────┬──────┘
+        └────────────────────┼────────────────────┘
+                             │ fan-in
+                  ┌──────────▼───────────┐
+                  │ build_slack_blocks() │
+                  └──────────┬───────────┘
+                             │
+                  ┌──────────▼───────────┐
+                  │  Slack Incoming Hook │
+                  └──────────────────────┘
+```
+
+One swarm call, three agents in parallel, one synthesizer function, one webhook POST.
+
+## Step 1: Setup (60 seconds)
+
+```bash
+pip install requests python-dotenv
+```
+
+Create a `.env` next to your script:
+
+```bash
+SWARMS_API_KEY=sk-...
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T000/B000/XXXX
+CALENDAR_TODAY="09:30 Weekly eng sync (45m); 11:00 Acme renewal (30m); 14:00 1:1 with Priya (30m); 16:30 Investor update prep (60m)"
+```
+
+<Note>
+`CALENDAR_TODAY` is a simple string you can pipe in from `icalBuddy`, a Google Calendar export, or a quick `gcalcli agenda` call. The Calendar Briefer agent reformats whatever you hand it — no calendar API integration required for v1.
+</Note>
+
+## Step 2: Define Three Concurrent Agents
+
+Each agent is search-enabled where it needs to be, and each system prompt is under four sentences. Tight prompts keep the output Slack-shaped instead of essay-shaped.
+
+```python
+AGENTS = [
+    {
+        "agent_name": "News Curator",
+        "system_prompt": (
+            "You are a morning news curator. Surface the 3 most important stories "
+            "from the last 24 hours relevant to AI, tech, and macro markets. "
+            "Output exactly 3 bullets, each one line, with the source in parentheses. "
+            "No preamble, no closing remarks."
+        ),
+        "model_name": "gemini-2.5-pro",
+        "search_enabled": True,
+        "max_loops": 1,
+        "temperature": 0.3,
+    },
+    {
+        "agent_name": "Market Watcher",
+        "system_prompt": (
+            "You are a pre-market briefer. Report S&P 500 futures, 10Y yield, "
+            "two notable single-stock moves, and BTC/ETH levels. "
+            "Output 3 bullets max, each one line, numbers first. "
+            "No commentary, no disclaimers."
+        ),
+        "model_name": "grok-4",
+        "search_enabled": True,
+        "max_loops": 1,
+        "temperature": 0.2,
+    },
+    {
+        "agent_name": "Calendar Briefer",
+        "system_prompt": (
+            "You are a calendar briefer. Reformat the user's raw calendar string "
+            "into clean bullets sorted by start time, format 'HH:MM — Title (duration)'. "
+            "One bullet per meeting. No summary line, no advice."
+        ),
+        "model_name": "gpt-4.1-mini",
+        "max_loops": 1,
+        "temperature": 0.1,
+    },
+]
+```
+
+## Step 3: Run the Concurrent Swarm
+
+One POST to `/v1/swarm/completions` with `swarm_type: "ConcurrentWorkflow"`. All three agents execute in parallel; you get an `output` array back keyed by `role`.
+
+```python
+def run_briefing_swarm(calendar_today: str) -> dict[str, str]:
+    payload = {
+        "name": "Daily Morning Briefing",
+        "swarm_type": "ConcurrentWorkflow",
+        "task": (
+            "Produce the morning briefing. News Curator: top 3 stories. "
+            "Market Watcher: pre-market snapshot. Calendar Briefer: reformat "
+            f"this raw calendar: {calendar_today}"
+        ),
+        "agents": AGENTS,
+        "max_loops": 1,
+    }
+    r = requests.post(
+        "https://api.swarms.world/v1/swarm/completions",
+        headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
+        json=payload,
+        timeout=180,
+    )
+    r.raise_for_status()
+    return {o["role"]: o["content"] for o in r.json().get("output", [])}
+```
+
+## Step 4: Synthesize Into a Slack Block
+
+A tiny synthesizer function turns the three agent outputs into a Slack `blocks` payload. No LLM call here — just string assembly. Cheap, fast, deterministic.
+
+```python
+def build_slack_blocks(sections: dict[str, str]) -> dict:
+    today = datetime.now().strftime("%A, %B %d, %Y")
+    header = f":sunrise: *Morning Briefing — {today}*"
+    body = (
+        f"*:chart_with_upwards_trend: Market Watcher*\n{sections.get('Market Watcher','(no data)')}\n\n"
+        f"*:newspaper: News Curator*\n{sections.get('News Curator','(no data)')}\n\n"
+        f"*:calendar: Calendar Briefer*\n{sections.get('Calendar Briefer','(no data)')}"
+    )
+    return {"blocks": [
+        {"type": "section", "text": {"type": "mrkdwn", "text": header}},
+        {"type": "divider"},
+        {"type": "section", "text": {"type": "mrkdwn", "text": body}},
+    ]}
+```
+
+## Step 5: Post to Slack
+
+The webhook accepts JSON. One line.
+
+```python
+requests.post(os.environ["SLACK_WEBHOOK_URL"], json=payload, timeout=10).raise_for_status()
+```
+
+## Step 6: Schedule It for 7AM Every Weekday
+
+Save the script to `/opt/briefing/brief.py` on any always-on Linux box and add one line to your crontab (`crontab -e`):
+
+```
+0 7 * * 1-5 cd /opt/briefing && /usr/bin/python brief.py >> /var/log/briefing.log 2>&1
+```
+
+That's it. Monday through Friday at 7:00 local time, your channel gets the briefing.
+
+<AccordionGroup>
+  <Accordion title="On macOS (no cron) — use launchd">
+    Create `~/Library/LaunchAgents/com.you.briefing.plist` with a `StartCalendarInterval` block for `Hour=7, Minute=0, Weekday=1..5`, point `ProgramArguments` at `/usr/bin/python3 /Users/you/briefing/brief.py`, then `launchctl load` it. macOS handles wake-on-schedule for you.
+  </Accordion>
+  <Accordion title="On a Linux server — prefer a systemd timer">
+    Create `briefing.service` (Type=oneshot, ExecStart=python brief.py) and `briefing.timer` (OnCalendar=Mon..Fri 07:00). `systemctl enable --now briefing.timer`. You get logs in `journalctl -u briefing.service`, no cron mail noise, and persistent timer state across reboots.
+  </Accordion>
+  <Accordion title="On a serverless platform — easier still">
+    Drop the script into a GitHub Actions workflow with `on: schedule: cron: '0 7 * * 1-5'`, or use a Vercel/Modal/Render cron job. No box to maintain.
+  </Accordion>
+</AccordionGroup>
+
+## The Full Script (~55 lines)
+
+Copy this into `brief.py`, set the two env vars, and you're done.
+
+```python
+import os
+from datetime import datetime
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+AGENTS = [
+    {
+        "agent_name": "News Curator",
+        "system_prompt": (
+            "You are a morning news curator. Surface the 3 most important stories "
+            "from the last 24 hours relevant to AI, tech, and macro markets. "
+            "Output exactly 3 bullets, each one line, with the source in parentheses. "
+            "No preamble."
+        ),
+        "model_name": "gemini-2.5-pro", "search_enabled": True, "max_loops": 1, "temperature": 0.3,
+    },
+    {
+        "agent_name": "Market Watcher",
+        "system_prompt": (
+            "You are a pre-market briefer. Report S&P 500 futures, 10Y yield, "
+            "two notable single-stock moves, and BTC/ETH levels. "
+            "Output 3 bullets max, one line each, numbers first. No disclaimers."
+        ),
+        "model_name": "grok-4", "search_enabled": True, "max_loops": 1, "temperature": 0.2,
+    },
+    {
+        "agent_name": "Calendar Briefer",
+        "system_prompt": (
+            "You are a calendar briefer. Reformat the user's raw calendar string into "
+            "clean bullets sorted by start time, format 'HH:MM — Title (duration)'. "
+            "One bullet per meeting. No summary line."
+        ),
+        "model_name": "claude-haiku-4.5", "max_loops": 1, "temperature": 0.1,
+    },
+]
+
+def run_briefing_swarm(cal: str) -> dict[str, str]:
+    payload = {"name": "Daily Morning Briefing", "swarm_type": "ConcurrentWorkflow",
+               "task": f"Produce the morning briefing. Calendar raw: {cal}",
+               "agents": AGENTS, "max_loops": 1}
+    r = requests.post("https://api.swarms.world/v1/swarm/completions",
+                      headers={"x-api-key": os.environ["SWARMS_API_KEY"],
+                               "Content-Type": "application/json"},
+                      json=payload, timeout=180)
+    r.raise_for_status()
+    return {o["role"]: o["content"] for o in r.json().get("output", [])}
+
+def build_slack_blocks(s: dict[str, str]) -> dict:
+    today = datetime.now().strftime("%A, %B %d, %Y")
+    body = (f"*:chart_with_upwards_trend: Market Watcher*\n{s.get('Market Watcher','(no data)')}\n\n"
+            f"*:newspaper: News Curator*\n{s.get('News Curator','(no data)')}\n\n"
+            f"*:calendar: Calendar Briefer*\n{s.get('Calendar Briefer','(no data)')}")
+    return {"blocks": [
+        {"type": "section", "text": {"type": "mrkdwn", "text": f":sunrise: *Morning Briefing — {today}*"}},
+        {"type": "divider"},
+        {"type": "section", "text": {"type": "mrkdwn", "text": body}},
+    ]}
+
+if __name__ == "__main__":
+    sections = run_briefing_swarm(os.environ.get("CALENDAR_TODAY", "(no meetings today)"))
+    requests.post(os.environ["SLACK_WEBHOOK_URL"],
+                  json=build_slack_blocks(sections), timeout=10).raise_for_status()
+    print("Briefing posted.")
+```
+
+## Variations
+
+- **Swap News Curator for a Hacker News Curator** — change the system prompt to "Top 3 HN front-page stories from the last 24h with comment counts" and keep `search_enabled: True`.
+- **Add a Weather Briefer** — fourth concurrent agent, `search_enabled: True`, prompt: "One-line forecast and high/low for {city}".
+- **Post to Discord instead of Slack** — Discord webhooks accept the same JSON shape with `content` instead of `blocks`; swap the synthesizer.
+- **Send via email** — replace the Slack POST with `smtplib.SMTP` and render the same string as plain text.
+- **Post at end-of-day with a wrap-up** — flip the cron to `0 17 * * 1-5`, retarget the prompts to "today's closing recap" and "what shipped on HN today".
+
+## Real Cost
+
+Three agents, one run per weekday, ~21 runs/month. Each run uses roughly 1,500 input tokens and 600 output tokens across the swarm, plus two web-search calls. At current pricing, that's about **\$0.012 per briefing × 21 runs = ~\$0.25/month**. Under \$0.30/month for a deployment your team will notice if it ever fails.
+
+## Next Steps
+
+- [Concurrent Workflow](/docs/examples/examples/concurrent-workflow) — the full pattern for parallel agents and when to reach for it
+- [Search-Enabled Agents](/docs/examples/examples/search-enabled) — every option on the `search_enabled` flag, including how to inspect the citations
+- [Batch Processing](/docs/examples/examples/batch-processing) — when one briefing isn't enough and you want a briefing per team, per region, or per portfolio company on one cron tick

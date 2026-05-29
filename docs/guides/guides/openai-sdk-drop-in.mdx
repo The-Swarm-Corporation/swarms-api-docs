@@ -3,7 +3,6 @@ title: "Drop-In Migration from OpenAI SDK to Swarms"
 description: "You already have an OpenAI client. Change a base_url and you get multi-agent for free — then upgrade to /v1/swarm/completions when you want full orchestration. A strategic migration narrative."
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 ## What This Covers
 
@@ -37,7 +36,7 @@ Here is the code you already have:
     )
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": "You are a senior financial analyst."},
             {"role": "user",   "content": "What are the top risks in EM bonds right now?"},
@@ -63,7 +62,7 @@ Here is the code you already have:
     )
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": "You are a senior financial analyst."},
             {"role": "user",   "content": "What are the top risks in EM bonds right now?"},
@@ -129,7 +128,7 @@ client = OpenAI(
 
 # Streaming, multi-turn, vision, error-handling — all unchanged from OpenAI.
 stream = client.chat.completions.create(
-    model="gpt-4o",
+    model="gpt-4.1",
     messages=[
         {"role": "system", "content": "You are a meticulous code reviewer."},
         {"role": "user", "content": "Review this function for edge cases: def divide(a, b): return a / b"},
@@ -150,7 +149,7 @@ The Swarms endpoint adds **one** non-OpenAI parameter you can pass through `extr
 
 ```python
 response = client.chat.completions.create(
-    model="gpt-4o",
+    model="gpt-4.1",
     messages=[
         {"role": "system", "content": "Write a solution, then critique it, then output the corrected version."},
         {"role": "user",   "content": "Implement longest_palindromic_substring(s: str) -> str."},
@@ -197,7 +196,7 @@ Upgrade to `/v1/swarm/completions` when any of these are true:
 
     # One model, one pass. Cheap, fast, fine for simple analysis.
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": "You are a strategy analyst. Research, analyse, and recommend."},
             {"role": "user",   "content": "Should a Series-B SaaS company enter the German market?"},
@@ -234,25 +233,25 @@ Upgrade to `/v1/swarm/completions` when any of these are true:
             {
                 "agent_name": "Market Researcher",
                 "system_prompt": "Surface 3 key facts about the German SaaS market.",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "max_tokens": 768,
             },
             {
                 "agent_name": "Competitive Analyst",
                 "system_prompt": "Identify the top 3 incumbents and their moats.",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "max_tokens": 768,
             },
             {
                 "agent_name": "Risk Analyst",
                 "system_prompt": "List the top 3 entry risks and mitigations.",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "max_tokens": 768,
             },
             {
                 "agent_name": "Director (Synthesizer)",
                 "system_prompt": "Read the three briefings. Produce a go/no-go memo.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_tokens": 3072,
             },
         ],

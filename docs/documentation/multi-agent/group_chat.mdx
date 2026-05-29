@@ -43,7 +43,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Product Manager",
         "description": "Drives product vision, roadmap, and prioritization",
         "system_prompt": "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "role": "worker",
         "max_loops": 1,
         "temperature": 0.5
@@ -52,7 +52,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Growth Marketer",
         "description": "Designs acquisition channels and launch campaigns",
         "system_prompt": "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "role": "worker",
         "max_loops": 1,
         "temperature": 0.5
@@ -61,7 +61,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Engineering Lead",
         "description": "Assesses technical feasibility and delivery timelines",
         "system_prompt": "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "role": "worker",
         "max_loops": 1,
         "temperature": 0.4
@@ -70,7 +70,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "agent_name": "Customer Success Lead",
         "description": "Represents the customer voice and retention strategy",
         "system_prompt": "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
-        "model_name": "gpt-4o",
+        "model_name": "gpt-4.1",
         "role": "worker",
         "max_loops": 1,
         "temperature": 0.5
@@ -104,7 +104,7 @@ swarm_config = {
             "agent_name": "Product Manager",
             "description": "Drives product vision, roadmap, and prioritization",
             "system_prompt": "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "role": "worker",
             "max_loops": 1,
             "temperature": 0.5
@@ -113,7 +113,7 @@ swarm_config = {
             "agent_name": "Growth Marketer",
             "description": "Designs acquisition channels and launch campaigns",
             "system_prompt": "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "role": "worker",
             "max_loops": 1,
             "temperature": 0.5
@@ -122,7 +122,7 @@ swarm_config = {
             "agent_name": "Engineering Lead",
             "description": "Assesses technical feasibility and delivery timelines",
             "system_prompt": "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "role": "worker",
             "max_loops": 1,
             "temperature": 0.4
@@ -131,7 +131,7 @@ swarm_config = {
             "agent_name": "Customer Success Lead",
             "description": "Represents the customer voice and retention strategy",
             "system_prompt": "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
-            "model_name": "gpt-4o",
+            "model_name": "gpt-4.1",
             "role": "worker",
             "max_loops": 1,
             "temperature": 0.5
@@ -176,7 +176,7 @@ const swarmConfig = {
             agent_name: "Product Manager",
             description: "Drives product vision, roadmap, and prioritization",
             system_prompt: "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             role: "worker",
             max_loops: 1,
             temperature: 0.5
@@ -185,7 +185,7 @@ const swarmConfig = {
             agent_name: "Growth Marketer",
             description: "Designs acquisition channels and launch campaigns",
             system_prompt: "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             role: "worker",
             max_loops: 1,
             temperature: 0.5
@@ -194,7 +194,7 @@ const swarmConfig = {
             agent_name: "Engineering Lead",
             description: "Assesses technical feasibility and delivery timelines",
             system_prompt: "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             role: "worker",
             max_loops: 1,
             temperature: 0.4
@@ -203,7 +203,7 @@ const swarmConfig = {
             agent_name: "Customer Success Lead",
             description: "Represents the customer voice and retention strategy",
             system_prompt: "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
-            model_name: "gpt-4o",
+            model_name: "gpt-4.1",
             role: "worker",
             max_loops: 1,
             temperature: 0.5
@@ -275,7 +275,7 @@ func main() {
                 AgentName:    "Product Manager",
                 Description:  "Drives product vision, roadmap, and prioritization",
                 SystemPrompt: "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 Role:         "worker",
                 MaxLoops:     1,
                 Temperature:  0.5,
@@ -284,7 +284,7 @@ func main() {
                 AgentName:    "Growth Marketer",
                 Description:  "Designs acquisition channels and launch campaigns",
                 SystemPrompt: "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 Role:         "worker",
                 MaxLoops:     1,
                 Temperature:  0.5,
@@ -293,7 +293,7 @@ func main() {
                 AgentName:    "Engineering Lead",
                 Description:  "Assesses technical feasibility and delivery timelines",
                 SystemPrompt: "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 Role:         "worker",
                 MaxLoops:     1,
                 Temperature:  0.4,
@@ -302,7 +302,7 @@ func main() {
                 AgentName:    "Customer Success Lead",
                 Description:  "Represents the customer voice and retention strategy",
                 SystemPrompt: "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
-                ModelName:    "gpt-4o",
+                ModelName:    "gpt-4.1",
                 Role:         "worker",
                 MaxLoops:     1,
                 Temperature:  0.5,
@@ -352,7 +352,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Product Manager",
                 "description": "Drives product vision, roadmap, and prioritization",
                 "system_prompt": "You are a Senior Product Manager. Define the core value proposition and target personas. Prioritize features for the launch MVP. Identify key metrics and success criteria. Be concise and action-oriented. Build on what other participants say.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "worker",
                 "max_loops": 1,
                 "temperature": 0.5
@@ -361,7 +361,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Growth Marketer",
                 "description": "Designs acquisition channels and launch campaigns",
                 "system_prompt": "You are a Growth Marketing Lead. Propose acquisition channels ranked by expected ROI. Design the launch campaign strategy. Suggest pricing and positioning tactics. Be data-driven and specific with numbers.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "worker",
                 "max_loops": 1,
                 "temperature": 0.5
@@ -370,7 +370,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Engineering Lead",
                 "description": "Assesses technical feasibility and delivery timelines",
                 "system_prompt": "You are an Engineering Lead. Evaluate technical feasibility of proposed features. Flag complexity risks and dependencies. Propose a realistic MVP scope and timeline. Be pragmatic and push back on scope creep.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "worker",
                 "max_loops": 1,
                 "temperature": 0.4
@@ -379,7 +379,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "agent_name": "Customer Success Lead",
                 "description": "Represents the customer voice and retention strategy",
                 "system_prompt": "You are a Customer Success Lead. Advocate for the end-user experience. Identify onboarding friction points. Propose retention and engagement hooks. Ground the discussion in real customer needs.",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "worker",
                 "max_loops": 1,
                 "temperature": 0.5

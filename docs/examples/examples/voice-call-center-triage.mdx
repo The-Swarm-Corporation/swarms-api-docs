@@ -1,0 +1,407 @@
+---
+title: "Build a Voice Call Center Triage System with Vapi + Swarms"
+description: "Wire a Vapi voice agent to a Swarms MultiAgentRouter so inbound calls get classified, routed, answered, and logged to your CRM in under a second per turn."
+---
+
+## What This Example Shows
+
+- How to treat voice as I/O — Vapi runs the realtime audio loop, Swarms runs the brain
+- A FastAPI webhook that receives caller transcripts and fires a `MultiAgentRouter` swarm
+- Four specialist voice agents (Booking, Billing, Emergency Triage, FAQ) tuned for spoken replies
+- An end-of-call summary sub-agent that writes a structured record to Airtable or HubSpot
+- A real per-turn latency budget and per-call cost breakdown you can quote to a customer
+
+<Info>
+Vapi, Retell, and 11Labs handle the realtime audio loop — STT, TTS, barge-in detection, and the WebRTC plumbing. Swarms handles the brains: routing, specialist reasoning, structured output, and CRM logging. This pattern works with any voice infrastructure that supports a webhook on user turn.
+</Info>
+
+## Why This Matters
+
+A single voice receptionist costs around \$35K/yr fully loaded and works 40 hours a week. A voice agent stack runs 24/7 for roughly \$0.30 per call. Most voice startups shipping today wire a single LLM call to each turn and call it done — that hits a ceiling fast because one prompt can't be specialist, structured, and fast all at once. A swarm gives you proper intent routing, parallel reasoning when you need it, and CRM logging on the same turn budget. You ship a real product, not a chatbot with a phone number.
+
+## The Architecture
+
+```
+Caller (PSTN / SIP)
+        |
+        v
++----------------------+
+|  Vapi                |   <- STT, TTS, barge-in, audio loop
+|  (or Retell / 11Labs)|
++----------+-----------+
+           |  POST /webhook/vapi  { transcript, call_id, caller_phone, context }
+           v
++----------------------+
+|  FastAPI endpoint    |
++----------+-----------+
+           |
+           v
++----------------------+
+|  MultiAgentRouter    |   Booking | Billing | Emergency | FAQ
+|  /v1/swarm/          |   (auto-routes by transcript)
+|  completions         |
++----------+-----------+
+           |
+           v
+   reply text -> Vapi -> TTS -> Caller
+
+
+At end-of-call:
+
+   Vapi  --POST /webhook/vapi/end-of-call-->  FastAPI
+                                                  |
+                                                  v
+                                       Summary Agent (single)
+                                       /v1/agent/completions
+                                                  |
+                                                  v
+                                         Airtable / HubSpot
+```
+
+## Step 1: Setup
+
+```bash
+pip install fastapi uvicorn requests python-dotenv
+export SWARMS_API_KEY="your-api-key-here"
+export AIRTABLE_API_KEY="your-airtable-key"
+export AIRTABLE_BASE_ID="appXXXXXXXXXXXXXX"
+```
+
+```python
+import os
+import requests
+from fastapi import FastAPI, Request
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SWARMS_API_KEY = os.getenv("SWARMS_API_KEY")
+SWARMS_BASE_URL = "https://api.swarms.world"
+
+if not SWARMS_API_KEY:
+    raise ValueError("SWARMS_API_KEY environment variable is required")
+
+swarms_headers = {
+    "x-api-key": SWARMS_API_KEY,
+    "Content-Type": "application/json",
+}
+
+app = FastAPI()
+```
+
+Vapi-side configuration (creating the assistant, attaching a phone number, picking a voice) is out of scope for this tutorial — follow the Vapi docs at [vapi.ai](https://vapi.ai) to get an assistant running with a webhook URL pointing at your FastAPI server.
+
+## Step 2: Configure the Vapi Webhook
+
+In your Vapi assistant config, point the `serverUrl` at your FastAPI endpoint. Vapi will POST a payload on every user turn and again at end-of-call. The exact schema is documented by Vapi — what matters for this pattern is that the payload carries the caller's transcript, a stable `call_id`, and the caller's phone number.
+
+```json
+{
+  "name": "Front Desk",
+  "model": {
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "messages": [
+      { "role": "system", "content": "You are the receptionist. Always defer to the server webhook for replies." }
+    ]
+  },
+  "voice": { "provider": "11labs", "voiceId": "your-voice-id" },
+  "transcriber": { "provider": "deepgram", "model": "nova-2" },
+  "serverUrl": "https://your-domain.com/webhook/vapi",
+  "serverMessages": ["function-call", "end-of-call-report"]
+}
+```
+
+<Note>
+The Vapi assistant's own model is intentionally minimal — it just keeps the audio loop alive. The actual reasoning happens in your FastAPI handler when Vapi calls back with the user transcript. This is the pattern voice-AI builders use when they want full control over routing and tools.
+</Note>
+
+## Step 3: Define the Specialist Agents
+
+These agents are tuned for speech, not text. Short sentences. No bullet lists. No markdown. The caller is on a phone — they can't see your formatting.
+
+```python
+BOOKING_AGENT = {
+    "agent_name": "Booking Specialist",
+    "description": (
+        "Handles appointment scheduling, reschedules, cancellations, "
+        "and availability questions. Use for anything about times, dates, or slots."
+    ),
+    "system_prompt": (
+        "You are a voice booking specialist on a live phone call. "
+        "Keep every reply under two sentences. "
+        "Speak naturally — no lists, no markdown, no special characters. "
+        "When you need information from the caller (name, callback number, preferred time), "
+        "ask one question at a time. "
+        "If you commit to a booking, restate the time and date once for confirmation."
+    ),
+    "model_name": "claude-haiku-4.5",
+    "max_loops": 1,
+    "temperature": 0.3,
+}
+
+BILLING_AGENT = {
+    "agent_name": "Billing Inquiry Handler",
+    "description": (
+        "Handles invoice questions, payment status, refunds, and account balance inquiries. "
+        "Use for anything about money, charges, or statements."
+    ),
+    "system_prompt": (
+        "You are a voice billing specialist on a live phone call. "
+        "Keep every reply under two sentences. "
+        "Never read out card numbers or full account numbers. "
+        "If the caller needs to confirm sensitive info, ask them to verify the last four digits only. "
+        "If you cannot resolve the issue on the call, offer to email a statement to the email on file."
+    ),
+    "model_name": "gpt-4.1-mini",
+    "max_loops": 1,
+    "temperature": 0.2,
+}
+
+EMERGENCY_AGENT = {
+    "agent_name": "Emergency Triage",
+    "description": (
+        "Handles urgent, safety-critical, or after-hours emergency calls. "
+        "Use when the caller mentions injury, severe pain, flooding, fire, break-in, "
+        "or anything time-sensitive."
+    ),
+    "system_prompt": (
+        "You are an emergency triage agent on a live phone call. "
+        "Stay calm and direct. Replies must be under two sentences. "
+        "If the situation is life-threatening, immediately tell the caller to hang up and dial 911. "
+        "Otherwise, capture the caller's name, callback number, and the nature of the emergency, "
+        "then tell them an on-call specialist will call back within fifteen minutes."
+    ),
+    "model_name": "claude-sonnet-4.5",
+    "max_loops": 1,
+    "temperature": 0.1,
+}
+
+FAQ_AGENT = {
+    "agent_name": "FAQ Bot",
+    "description": (
+        "Handles general questions about hours, location, services offered, pricing, "
+        "and anything else informational. Default agent for non-urgent, non-transactional calls."
+    ),
+    "system_prompt": (
+        "You are a voice FAQ agent on a live phone call. "
+        "Keep every reply under two sentences. "
+        "If you do not know the answer, say so and offer to take a message. "
+        "Speak naturally — no lists, no markdown."
+    ),
+    "model_name": "grok-4",
+    "max_loops": 1,
+    "temperature": 0.3,
+}
+
+VOICE_AGENTS = [BOOKING_AGENT, BILLING_AGENT, EMERGENCY_AGENT, FAQ_AGENT]
+```
+
+## Step 4: The MultiAgentRouter Endpoint
+
+This is the per-turn handler. Vapi posts the running transcript on every user turn; we send it through the router and return the reply in the format Vapi expects.
+
+```python
+def run_voice_swarm(transcript: str, caller_phone: str, call_id: str) -> str:
+    """Route a caller turn to the right specialist and return the spoken reply."""
+    swarm_config = {
+        "name": "Voice Call Center Router",
+        "description": "Routes inbound voice calls to the right specialist agent.",
+        "swarm_type": "MultiAgentRouter",
+        "task": (
+            f"Caller phone: {caller_phone}\n"
+            f"Call ID: {call_id}\n\n"
+            f"Live transcript so far (caller's latest turn at the end):\n{transcript}\n\n"
+            "Respond as if speaking to the caller right now. "
+            "Keep the reply under two sentences."
+        ),
+        "agents": VOICE_AGENTS,
+        "max_loops": 1,
+    }
+
+    response = requests.post(
+        f"{SWARMS_BASE_URL}/v1/swarm/completions",
+        headers=swarms_headers,
+        json=swarm_config,
+        timeout=20,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    output = data.get("output", [{}])
+    if isinstance(output, list) and output:
+        return output[0].get("content", "I'm sorry, could you repeat that?")
+    return "I'm sorry, could you repeat that?"
+
+
+@app.post("/webhook/vapi")
+async def vapi_webhook(request: Request):
+    """Vapi calls this on every user turn."""
+    payload = await request.json()
+    message = payload.get("message", {})
+
+    # On user turn, Vapi sends the running transcript and call context
+    transcript = message.get("transcript", "")
+    call = message.get("call", {})
+    call_id = call.get("id", "unknown")
+    caller_phone = call.get("customer", {}).get("number", "unknown")
+
+    # End-of-call event is handled by a separate route — see Step 5
+    if message.get("type") == "end-of-call-report":
+        return await handle_end_of_call(payload)
+
+    reply = run_voice_swarm(
+        transcript=transcript,
+        caller_phone=caller_phone,
+        call_id=call_id,
+    )
+
+    # Vapi expects { "result": "<text to speak>" } for function-call style responses
+    return {"result": reply}
+```
+
+<Note>
+The `timeout=20` matters. If Swarms takes longer than the turn budget, Vapi will stall the caller — pick fast models (`gpt-4.1-mini`, `claude-haiku-4.5`) for routing and only escalate to a larger model on flagged calls.
+</Note>
+
+## Step 5: End-of-Call Summary → CRM
+
+When the caller hangs up, Vapi sends an `end-of-call-report` event with the full transcript, duration, and any tool calls made during the call. Route that to a single summary agent and POST the result to your CRM.
+
+```python
+SUMMARY_SYSTEM_PROMPT = (
+    "You are a call summary agent. Given a full call transcript, output a STRICT JSON object "
+    "with exactly these keys and nothing else:\n\n"
+    "{\n"
+    '  "caller_name": "<string or null>",\n'
+    '  "callback_number": "<string>",\n'
+    '  "intent": "BOOKING" | "BILLING" | "EMERGENCY" | "FAQ" | "OTHER",\n'
+    '  "outcome": "RESOLVED" | "CALLBACK_REQUIRED" | "ESCALATED" | "UNRESOLVED",\n'
+    '  "summary": "<two-sentence summary of the call>",\n'
+    '  "follow_up_required": true | false,\n'
+    '  "urgency": "LOW" | "MEDIUM" | "HIGH"\n'
+    "}\n\n"
+    "Output JSON only. No prose."
+)
+
+
+def summarize_call(transcript: str, caller_phone: str) -> dict:
+    """Single-agent call to produce a structured CRM record."""
+    payload = {
+        "agent_config": {
+            "agent_name": "Call Summary Agent",
+            "system_prompt": SUMMARY_SYSTEM_PROMPT,
+            "model_name": "gpt-4.1-mini",
+            "max_tokens": 512,
+            "temperature": 0.1,
+        },
+        "task": (
+            f"Caller phone: {caller_phone}\n\n"
+            f"Full transcript:\n{transcript}"
+        ),
+    }
+
+    response = requests.post(
+        f"{SWARMS_BASE_URL}/v1/agent/completions",
+        headers=swarms_headers,
+        json=payload,
+        timeout=60,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    import json
+    output = data.get("output") or data.get("outputs") or ""
+    if isinstance(output, list):
+        for item in reversed(output):
+            if isinstance(item, dict) and item.get("role") in ("assistant", "Call Summary Agent"):
+                output = item.get("content", "")
+                break
+    try:
+        return json.loads(str(output).strip())
+    except json.JSONDecodeError:
+        return {"intent": "OTHER", "outcome": "UNRESOLVED", "summary": str(output)[:500]}
+
+
+def write_to_airtable(record: dict, call_id: str) -> None:
+    """POST the structured summary to Airtable."""
+    airtable_url = (
+        f"https://api.airtable.com/v0/{os.getenv('AIRTABLE_BASE_ID')}/Calls"
+    )
+    headers = {
+        "Authorization": f"Bearer {os.getenv('AIRTABLE_API_KEY')}",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "fields": {
+            "Call ID": call_id,
+            "Caller Name": record.get("caller_name") or "",
+            "Callback Number": record.get("callback_number") or "",
+            "Intent": record.get("intent"),
+            "Outcome": record.get("outcome"),
+            "Summary": record.get("summary"),
+            "Urgency": record.get("urgency"),
+            "Follow Up": bool(record.get("follow_up_required")),
+        }
+    }
+    requests.post(airtable_url, headers=headers, json=body, timeout=15)
+
+
+async def handle_end_of_call(payload: dict) -> dict:
+    message = payload.get("message", {})
+    call = message.get("call", {})
+    call_id = call.get("id", "unknown")
+    caller_phone = call.get("customer", {}).get("number", "unknown")
+
+    # Vapi places the full transcript on the end-of-call report
+    transcript = message.get("artifact", {}).get("transcript") or message.get("transcript", "")
+
+    summary = summarize_call(transcript=transcript, caller_phone=caller_phone)
+    write_to_airtable(summary, call_id)
+
+    return {"received": True}
+```
+
+For HubSpot, swap `write_to_airtable` for a POST to `https://api.hubapi.com/crm/v3/objects/calls` with an OAuth bearer — the structured-summary shape is the same.
+
+## Latency Budget
+
+A real-feeling voice call needs round-trip turn latency under ~1.5 seconds. Here is where the time goes:
+
+| Stage | Typical latency | Owner |
+| --- | --- | --- |
+| STT (Deepgram / Whisper) | ~150–250 ms | Vapi |
+| Webhook network round trip | ~50–100 ms | Your infra |
+| Swarms router decision | ~200–400 ms | Swarms (`gpt-4.1-mini`) |
+| Specialist agent reply | ~300–600 ms | Swarms (`gpt-4.1-mini`) |
+| TTS first audio chunk | ~150–250 ms | Vapi |
+| **Total to first audio out** | **~850 ms – 1.6 s** | |
+
+Keep the router on `gpt-4.1-mini` or `claude-haiku-4.5`. Only escalate to `gpt-4.1` or `claude-sonnet-4.5` on flagged calls (emergencies, high-value accounts). Cap `max_tokens` aggressively — voice replies are short anyway, and a 200-token cap shaves real milliseconds off the response.
+
+## Real Cost
+
+A representative five-turn call (caller books an appointment):
+
+| Line item | Cost per call |
+| --- | --- |
+| Vapi infrastructure (STT + TTS + telephony) | ~\$0.10 |
+| Swarms turns × 5 (router + specialist, `gpt-4.1-mini`) | ~\$0.04 |
+| End-of-call summary agent | ~\$0.01 |
+| **Total** | **~\$0.15** |
+
+Now compare:
+
+| Scenario | Annual cost | Coverage | Calls handled |
+| --- | --- | --- | --- |
+| One voice receptionist | ~\$35,000 | 40 hr/wk | ~8,000 |
+| Voice agent stack at \$0.15/call | ~\$1,200 | 24/7 | ~8,000 |
+| Same stack at high volume (50k calls) | ~\$7,500 | 24/7 | ~50,000 |
+
+You are not eliminating the human — you are taking the after-hours, overflow, and routine-routing load off the front desk so they can do the work that actually needs a human voice.
+
+## Next Steps
+
+- [Multi-Agent Router Example](/docs/examples/examples/multi-agent-router) — the routing pattern that powers the turn handler
+- [Agent Handoffs Example](/docs/examples/examples/agent-handoffs) — pre-defined specialist routing inside a single agent call, for tighter latency budgets
+- [Structured Outputs](/docs/examples/examples/structured-outputs) — the JSON-output pattern the summary agent uses for CRM writes

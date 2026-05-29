@@ -1,0 +1,353 @@
+---
+title: "Replace Your Zapier or n8n Workflow with a Swarms Agent"
+description: "Stop paying per-task fees and patching brittle if/then graphs — replace your Zaps with a single agent call that handles classification, extraction, and routing in one pass."
+---
+
+
+## What This Covers
+
+- The strategic case for retiring no-code automation graphs in favor of one agent call with reasoning
+- Three universal migrations: Slack triage, inbound-email extraction to CRM, and lead enrichment for outreach
+- The exact `/v1/agent/completions` request shape: `agent_config`, `tools_list_dictionary`, `mcp_url`, and `output_type`
+- Side-by-side Zap-graph "before" descriptions vs. ~50 lines of "after" Python
+- A concrete cost comparison: Zapier Professional at \$73/mo for 2K tasks vs. ~\$50 for 10K agent calls
+- When you should *not* migrate — the linear flows Zapier still wins on
+
+## Why This Matters
+
+Zapier prices per-task and breaks the moment you need conditional logic — every Filter, Paths split, Formatter step, and Looping branch is another billable task and another box on a graph that a human has to maintain. n8n is the better escape hatch, but you're still hand-drawing a state machine in a GUI and shipping JavaScript snippets between nodes when the logic gets real. Swarms collapses the entire flow into **one HTTP call**: you describe the goal, attach the tools the agent is allowed to use, and the model figures out the branching. A Zap with 11 steps and 4 Paths becomes a single POST to `/v1/agent/completions` — fewer moving parts, more reasoning, lower bill.
+
+## The Mental Model
+
+A Zap or an n8n flow is an **if/then/else graph**. You decide every branch in advance. The platform fires each node in sequence, charges you per node, and falls over the second a payload looks different from what you anticipated.
+
+A Swarms agent is the opposite shape. You **describe the goal once**, give the agent a `tools_list_dictionary` of callable functions (Slack, CRM, webhook, search), and the model decides which tools to call, in what order, with what arguments. The branching is in the reasoning, not in the graph.
+
+| | Zapier / n8n | Swarms agent |
+| --- | --- | --- |
+| Logic lives in | A GUI graph you maintain | A system prompt + tool list |
+| Pricing unit | Per task / per node execution | Per token, per call |
+| Failure mode | A new edge case breaks a node | Agent reasons through the new case |
+| Conditional branching | Filter / Paths / IF nodes (extra steps) | Free — the model decides |
+| Extraction from messy text | Formatter + regex + fallback | One structured-output call |
+| Time to ship a new flow | Hours of dragging boxes | Minutes of Python |
+
+The migrations below show what this looks like in practice.
+
+---
+
+## Migration 1: Slack Triage → Routed Reply
+
+**Before (Zapier, ~8 steps):**
+
+1. Trigger: *New Message in Slack channel #support*
+2. Filter: only messages containing "?" or "help" or "broken"
+3. Formatter: extract message text
+4. Paths split: keyword-match into Billing / Bug / Feature / Other
+5. Per-Path: ChatGPT step to draft a reply
+6. Per-Path: Slack action to post the reply in the right channel
+7. Catch hook for unmatched
+
+That's 7 billable tasks per message, and every new category means re-editing the Paths node. It also can't tell the difference between "my login is broken" (Bug) and "I was charged twice and now I can't log in" (Billing + Bug — Zapier picks one).
+
+**After (Swarms, one agent call with a Slack tool):**
+
+```python
+import os
+import json
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.environ["SWARMS_API_KEY"]
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+# The agent is allowed to call this function. The model picks the channel
+# and writes the reply — no Paths node required.
+slack_tool = {
+    "type": "function",
+    "function": {
+        "name": "send_slack_message",
+        "description": "Post a triaged reply into the correct Slack channel.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string",
+                    "enum": ["#billing", "#bugs", "#feature-requests", "#support-general"],
+                    "description": "The routed destination channel."
+                },
+                "reply_text": {"type": "string", "description": "Draft reply to the user."},
+                "priority": {"type": "string", "enum": ["low", "medium", "high"]},
+                "tags": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["channel", "reply_text", "priority"],
+        },
+    },
+}
+
+inbound_message = "Hey — got charged twice this month and now my dashboard won't load. Pretty annoyed."
+
+payload = {
+    "agent_config": {
+        "agent_name": "Slack Triage Agent",
+        "system_prompt": (
+            "You are a support triage agent. Read the inbound Slack message, "
+            "classify it (billing, bug, feature, or general), and call "
+            "send_slack_message with a routed channel, a helpful draft reply, "
+            "and a priority. If the message spans multiple categories, pick "
+            "the highest-severity one and tag the others."
+        ),
+        "model_name": "claude-haiku-4.5",
+        "tools_list_dictionary": [slack_tool],
+        "max_tokens": 1024,
+        "temperature": 0.2,
+    },
+    "task": f"Inbound Slack message from user U_8821: {inbound_message}",
+}
+
+resp = requests.post(f"{BASE_URL}/v1/agent/completions", headers=headers, json=payload)
+result = resp.json()
+
+# The agent's tool call is in the response — execute it against the real Slack API.
+print(json.dumps(result, indent=2))
+```
+
+The agent returns a `send_slack_message` tool call with `channel="#billing"`, `priority="high"`, `tags=["bug"]`, and a drafted reply that acknowledges both issues. You pass that payload to the real Slack API. **One call, no Paths node, handles multi-category messages your Zap couldn't.**
+
+---
+
+## Migration 2: Email Parse → CRM Update
+
+**Before (Zapier or n8n, ~10 steps):**
+
+Inbound email webhook → Formatter (strip HTML) → ChatGPT (try to extract fields) → Formatter (regex the JSON out of the model response) → Filter (drop if extraction failed) → 4× Formatter steps (one per CRM field) → Webhooks by Zapier (POST to CRM).
+
+The fragile part is steps 3–5: the model returns prose, Zapier's Formatter has to regex-extract JSON, and one stray backtick breaks the whole Zap. The whole reason you wanted AI was structured extraction — Zapier's data model is fighting you.
+
+**After (Swarms, one structured-output call):**
+
+```python
+import os
+import json
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.environ["SWARMS_API_KEY"]
+BASE_URL = "https://api.swarms.world"
+CRM_WEBHOOK = "https://crm.example.com/webhooks/leads"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+inbound_email = {
+    "from": "lena.kowalski@northwind-industrial.de",
+    "subject": "RE: Pricing for the EU rollout",
+    "body": (
+        "Hi — following up on our call. We're a 240-person manufacturer in "
+        "Hamburg, current spend is around 18k EUR/yr on the legacy tool. "
+        "Decision by end of Q3. My CFO Markus is the final signer. "
+        "Phone is +49 40 555 0142 if easier."
+    ),
+}
+
+# The schema the agent MUST conform to — no Formatter regex required.
+crm_schema = {
+    "type": "object",
+    "properties": {
+        "contact_name":     {"type": "string"},
+        "contact_email":    {"type": "string"},
+        "contact_phone":    {"type": "string"},
+        "company_name":     {"type": "string"},
+        "company_size":     {"type": "integer"},
+        "company_location": {"type": "string"},
+        "stage":            {"type": "string", "enum": ["new", "qualified", "negotiation", "closed_won", "closed_lost"]},
+        "deal_size_eur":    {"type": "number"},
+        "decision_maker":   {"type": "string"},
+        "close_by":         {"type": "string", "description": "ISO date or quarter (e.g. 2026-Q3)."},
+        "summary":          {"type": "string"},
+    },
+    "required": ["contact_email", "company_name", "stage", "summary"],
+}
+
+payload = {
+    "agent_config": {
+        "agent_name": "Email-to-CRM Extractor",
+        "system_prompt": (
+            "You parse inbound sales emails into a structured CRM record. "
+            "Use ONLY information present in the email — never invent fields. "
+            "If a field is unknown, omit it. Output must conform to the schema."
+        ),
+        "model_name": "gpt-4.1-mini",
+        "output_type": "json",
+        "structured_output_schema": crm_schema,
+        "max_tokens": 1024,
+        "temperature": 0.0,
+    },
+    "task": (
+        "Extract a CRM record from this email:\n\n"
+        f"From: {inbound_email['from']}\n"
+        f"Subject: {inbound_email['subject']}\n\n"
+        f"{inbound_email['body']}"
+    ),
+}
+
+resp = requests.post(f"{BASE_URL}/v1/agent/completions", headers=headers, json=payload)
+record = json.loads(resp.json()["outputs"])
+
+# Post straight to the CRM — no Formatter, no regex, no fallback Path.
+crm_resp = requests.post(CRM_WEBHOOK, json=record, timeout=10)
+print(f"CRM status: {crm_resp.status_code}  Record: {record}")
+```
+
+The agent returns clean JSON that conforms to your schema. You POST it to the CRM. **10 Zap steps collapse into one extraction call plus one webhook.**
+
+---
+
+## Migration 3: Lead Enrichment → Personalized Outreach
+
+**Before (Zapier, the "premium plan" flow):**
+
+Form submission trigger → Filter on lead score → **Clearbit (paid integration)** for enrichment → **Hunter.io (paid integration)** for email verification → ChatGPT step #1 to draft outreach → ChatGPT step #2 to draft a follow-up → ChatGPT step #3 to draft a LinkedIn note → Gmail action.
+
+You're paying Zapier per task, **plus** Clearbit's per-lookup fee, **plus** Hunter's per-verification fee, **plus** three ChatGPT steps. And the three drafts don't share context — the LinkedIn note doesn't know what the email said.
+
+**After (Swarms, one agent with web search via MCP):**
+
+```python
+import os
+import json
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.environ["SWARMS_API_KEY"]
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+form_submission = {
+    "name":    "Priya Shah",
+    "email":   "priya@orbitlabs.ai",
+    "company": "Orbit Labs",
+    "role":    "Head of Platform",
+    "message": "Curious if you support multi-tenant deployments for fintech.",
+}
+
+# Option A: give the agent a web-search MCP server — the model calls it
+# when it needs to enrich the lead. No Clearbit subscription required.
+payload = {
+    "agent_config": {
+        "agent_name": "Outreach Drafter",
+        "system_prompt": (
+            "You are an SDR research and outreach assistant. Given a form "
+            "submission, (1) research the lead and their company using the "
+            "available search tool, (2) write three outreach variants:\n"
+            "  - A short cold email (under 90 words)\n"
+            "  - A 2-sentence LinkedIn DM\n"
+            "  - A follow-up nudge to send 4 days later\n"
+            "All three must share a coherent angle informed by your research. "
+            "Return JSON with keys: research_summary, email, linkedin_dm, "
+            "follow_up_email."
+        ),
+        "model_name": "gemini-2.5-pro",
+        "mcp_url": "https://mcp.example.com/web-search",
+        "output_type": "json",
+        "max_tokens": 2048,
+        "temperature": 0.5,
+    },
+    "task": (
+        f"Form submission:\n{json.dumps(form_submission, indent=2)}\n\n"
+        "Research the lead and draft the three variants."
+    ),
+}
+
+resp = requests.post(f"{BASE_URL}/v1/agent/completions", headers=headers, json=payload)
+drafts = json.loads(resp.json()["outputs"])
+
+print("Research:",      drafts["research_summary"])
+print("Email:",         drafts["email"])
+print("LinkedIn DM:",   drafts["linkedin_dm"])
+print("Follow-up:",     drafts["follow_up_email"])
+```
+
+If you'd rather pass a function-tool than an MCP server, swap `mcp_url` for a `tools_list_dictionary` entry — `web_search(query: str) -> list[Result]` — and the model will call it the same way. Either way, the three drafts are written by the **same** agent in the **same** call, so they share the research and stay coherent. See [MCP Integration](/docs/documentation/capabilities/mcp_integration) for the server side.
+
+---
+
+## Cost Comparison
+
+The numbers Zapier charges for the *moment your CEO starts asking questions*:
+
+| Plan | Monthly cost | Tasks included | Effective $/task |
+| --- | --- | --- | --- |
+| Zapier Starter | \$29.99 | 750 | \$0.040 |
+| Zapier Professional | \$73.50 | 2,000 | \$0.037 |
+| Zapier Team | \$103.50 | 2,000 | \$0.052 |
+| Zapier Company | \$148.50 | 2,000 | \$0.074 |
+
+A "task" is **one node firing**, not one workflow run. A 7-step Zap costs 7 tasks per execution — so the 2K-task Professional plan is really ~285 runs/month of the Slack-triage Zap above.
+
+Compare to Swarms on `/v1/agent/completions`. A representative agent call from the migrations above:
+
+- Input tokens: ~600 (system prompt + task + tools schema)
+- Output tokens: ~250 (tool call + drafted reply)
+
+```
+input_cost  = (600 / 1_000_000) * 6.50  = $0.0039
+output_cost = (250 / 1_000_000) * 18.50 = $0.0046
+per_call    ≈ $0.0085  →  round to ~$0.005–$0.01 depending on model and length
+```
+
+At ~\$0.005 per call, **10,000 agent calls cost about \$50** — and each one is a full multi-step reasoning flow, not one Zap node.
+
+| Volume | Zapier (7-step Zap) | Swarms agent call | Savings |
+| --- | --- | --- | --- |
+| 1,000 runs/mo | 7,000 tasks → Professional + overage | \$5 | ~94% |
+| 5,000 runs/mo | Team / Company tier | \$25 | ~85% |
+| 10,000 runs/mo | Enterprise quote (4-figure) | \$50 | ~95% |
+
+And the Swarms call replaces *the entire 7-step graph* — including the ChatGPT step you were already paying for.
+
+---
+
+## When to Stay on Zapier
+
+Be honest about this: agents are not always the right tool.
+
+**Stay on Zapier / n8n when:**
+
+- The flow is genuinely linear: *new row in Sheet → send email* with fixed templates and no extraction.
+- You need one of their hundreds of pre-built integrations (e.g. niche SaaS auth flows you don't want to OAuth yourself).
+- The decision-maker is a non-engineer who must own and edit the flow themselves.
+- Volume is so low (under 100 runs/mo) that you'll never hit a plan cap.
+
+**Migrate to a Swarms agent when:**
+
+- The Zap has **any** Filter, Paths, or Formatter step that does classification or extraction.
+- You're already paying for a ChatGPT/OpenAI step inside the Zap.
+- The same model output gets reformatted by 2+ downstream nodes.
+- Your bill is dominated by *one or two* high-volume Zaps.
+- You need to handle inputs you didn't anticipate (the Zap breaks; the agent reasons through it).
+
+The migrations above cover the three patterns that are almost always worth it: *triage and route*, *extract to schema*, *enrich and draft*. Those three shapes account for the majority of Zaps that get expensive.
+
+## Next Steps
+
+- [Tools in Swarms](/docs/examples/examples/tools-in-swarms) — full reference for `tools_list_dictionary`, function calling, and tool execution loops
+- [MCP Integration](/docs/documentation/capabilities/mcp_integration) — give your agent live search, databases, or any MCP server with one `mcp_url` field
+- [Structured Outputs](/docs/examples/examples/structured-outputs) — the schema patterns that make extraction safe enough to wire straight into your CRM

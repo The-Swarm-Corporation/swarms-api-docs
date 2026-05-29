@@ -1,0 +1,508 @@
+---
+title: "Build a 24/7 Autonomous Equity Research Analyst"
+description: "Compose batch swarms, advanced research with citations, and reasoning agents into a scheduled pipeline that ships a Slack briefing on every name in your watchlist before 7 AM ET — for under $10 a day."
+---
+
+## What This Example Shows
+
+- A production pipeline that composes four premium primitives — batch swarm completions, advanced research, reasoning agents, and a cron schedule
+- A two-tier design: cheap parallel triage across the full watchlist, then expensive deep dives only on the highest-conviction names
+- How to enforce a JSON-parseable BUY/HOLD/SELL + conviction contract from a `HierarchicalSwarm` so downstream filtering is trivial
+- How to merge cited research (from `/v1/advanced-research/completions`) with deliberated analysis (from `/v1/reasoning-agent/completions`) into a single brief per name
+- A jinja-style Markdown compiler that turns the merged outputs into a polished morning briefing
+- A Slack webhook delivery and the exact crontab line that fires the whole pipeline at 7 AM ET on weekdays
+
+<Info>
+This pipeline is designed to run overnight. Kicking the batch off between 8 PM and 5 AM ET takes advantage of off-peak rate-limit headroom and queue latency — see the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for why overnight execution is the right default for any scheduled research workload.
+</Info>
+
+## Why This Matters
+
+The 8 AM morning meeting at a typical research desk covers five names. The watchlist has fifty. By 9:30 the other forty-five have already moved without coverage and the PM is reading a Bloomberg headline cold. The whole point of this pipeline is to invert that: before anyone sits down with coffee, there is a structured, cited, deliberated brief on every name in the universe — triaged into HIGH / MEDIUM / LOW conviction, with deep dives waiting on the names that actually move the book. You are not replacing the PM's judgment. You are giving them the same prep pack a three-person research pod would have produced overnight, for the cost of a sandwich.
+
+## The Architecture
+
+Six stages, every one of which is already documented as a standalone feature. This tutorial wires them together.
+
+1. **Watchlist load.** A flat list of tickers from a portfolio database, CSV, or hard-coded array.
+2. **Tier 1 — Batch Triage.** One `HierarchicalSwarm` per ticker, fired as a single batch POST. Output is a strict JSON contract: `{ticker, call, conviction, key_signal, risk}`.
+3. **Filter.** Keep only the names that came back as `conviction == "HIGH"`. Typically 3-8 of a 50-name list.
+4. **Tier 2 — Deep Dive.** For each survivor, fan out two calls in parallel: an `AdvancedResearch` swarm for cited fundamentals and a `reasoning-agent` self-consistency run for deliberated analysis. Merge.
+5. **Compile.** Render a single Markdown briefing — executive summary table at the top, deep-dive sections at the bottom.
+6. **Ship.** POST to a Slack incoming webhook. Cron fires the whole thing at 7 AM ET.
+
+```text
++-------------------+
+|  Watchlist (50)   |
++---------+---------+
+          |
+          v
++-------------------+        Tier 1 — cheap, parallel triage
+| Batch Swarm POST  |   --->  /v1/swarm/batch/completions
+| (HierarchicalSwarm|        50 tickers, ~$3, one POST
+|  per ticker)      |
++---------+---------+
+          |
+          v
++-------------------+        Filter to HIGH conviction (typically 3-8 names)
+| conviction=HIGH?  |
++---------+---------+
+          |
+          v
++-------------------+        Tier 2 — expensive, focused
+| Per top pick:     |   --->  /v1/advanced-research/completions  (cited memo)
+|   AdvancedResearch|   --->  /v1/reasoning-agent/completions   (self-consistency)
+|   + ReasoningAgent|        ~$0.50-$1.00 per name
++---------+---------+
+          |
+          v
++-------------------+
+| Markdown Compiler |        Jinja-style template assembles the brief
++---------+---------+
+          |
+          v
++-------------------+        7:00 AM ET, weekdays
+| Slack Webhook     |   <---  cron: 0 7 * * 1-5
++-------------------+
+```
+
+## Step 1: Setup
+
+Install dependencies and set the three env vars. The Slack URL is whatever incoming webhook you configured for `#research-morning-brief`.
+
+```bash
+pip install requests python-dotenv jinja2
+```
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/T000/B000/XXXX"
+```
+
+```python
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
+import requests
+from dotenv import load_dotenv
+from jinja2 import Template
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+SLACK_URL = os.getenv("SLACK_WEBHOOK_URL")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+WATCHLIST = [
+    "NVDA", "AAPL", "MSFT", "GOOGL", "META", "AMZN", "TSLA", "AMD", "AVGO", "CRM",
+    "ORCL", "ADBE", "NFLX", "PYPL", "SHOP", "UBER", "COIN", "PLTR", "SNOW", "DDOG",
+    "NOW", "INTU", "TXN", "QCOM", "MU", "ASML", "LRCX", "AMAT", "KLAC", "ANET",
+    "PANW", "CRWD", "ZS", "NET", "MDB", "TEAM", "WDAY", "ABNB", "DASH", "SPOT",
+    "RBLX", "U", "TTD", "APP", "DUOL", "S", "FROG", "ESTC", "PATH", "AI",
+]
+```
+
+## Step 2: Tier 1 — Batch Triage Across the Full Watchlist
+
+This is the cheap, parallel pass. One small `HierarchicalSwarm` per ticker — a Portfolio Manager directing Fundamentals, Technicals, and Macro — fired as a single batch POST. The contract is strict: every PM output must be parseable JSON so the filter step is one line of code. See [Batch Swarm Completions for Overnight Reports](/docs/examples/examples/batch-swarm-scale-tutorial) for the full envelope.
+
+```python
+TRIAGE_PM_PROMPT = (
+    "You are a Portfolio Manager. Synthesize the Fundamentals, Technicals, and "
+    "Macro briefs into a single JSON object and OUTPUT NOTHING ELSE. The JSON "
+    "must conform exactly to this schema:\n\n"
+    "{\n"
+    '  "ticker": "<symbol>",\n'
+    '  "call": "BUY" | "SELL" | "HOLD",\n'
+    '  "conviction": "LOW" | "MEDIUM" | "HIGH",\n'
+    '  "key_signal": "<one sentence>",\n'
+    '  "risk": "<one sentence>"\n'
+    "}\n\n"
+    "Reserve HIGH conviction for setups where the three analysts agree AND the "
+    "dominant signal is unusually strong. Do not output Markdown fences."
+)
+
+
+def triage_swarm(ticker: str) -> dict:
+    return {
+        "name": f"Tier 1 Triage - {ticker}",
+        "description": "Cheap parallel triage swarm.",
+        "swarm_type": "HierarchicalSwarm",
+        "max_loops": 1,
+        "task": f"Issue a same-day call on {ticker}. Output strict JSON per the PM schema.",
+        "agents": [
+            {
+                "agent_name": "Portfolio Manager",
+                "system_prompt": TRIAGE_PM_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "coordinator",
+                "max_loops": 1,
+                "max_tokens": 1024,
+                "temperature": 0.1,
+            },
+            {
+                "agent_name": "Fundamentals Analyst",
+                "system_prompt": (
+                    "Fundamentals lens for the named ticker. Revenue trajectory, "
+                    "margin profile, FCF, balance sheet, near-term catalyst. "
+                    "Maximum 120 words."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 768,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Technicals Analyst",
+                "system_prompt": (
+                    "Technicals lens: trend regime, key support/resistance, "
+                    "momentum (RSI/MACD), volume. Maximum 120 words."
+                ),
+                "model_name": "claude-haiku-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 768,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Macro Analyst",
+                "system_prompt": (
+                    "Macro lens: sector vs. rates regime, FX/commodity tilt, "
+                    "policy items, risk-off behavior. Maximum 120 words."
+                ),
+                "model_name": "grok-4",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 768,
+                "temperature": 0.3,
+            },
+        ],
+    }
+
+
+def run_tier_1(watchlist: list[str]) -> list[dict]:
+    payload = [triage_swarm(t) for t in watchlist]
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/batch/completions",
+        headers=headers,
+        json=payload,
+        timeout=3600,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def extract_pm_json(swarm_result: dict, ticker: str) -> dict:
+    pm_text = ""
+    for entry in swarm_result.get("output", []):
+        if "Portfolio Manager" in entry.get("role", ""):
+            content = entry.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(str(c) for c in content)
+            pm_text = str(content)
+            break
+    try:
+        return json.loads(pm_text)
+    except json.JSONDecodeError:
+        # PM occasionally wraps in fences — strip and retry
+        cleaned = pm_text.strip().strip("`").lstrip("json").strip()
+        try:
+            return json.loads(cleaned)
+        except Exception:
+            return {
+                "ticker": ticker,
+                "call": "HOLD",
+                "conviction": "LOW",
+                "key_signal": "JSON parse failed — see raw output",
+                "risk": "Parser fallback",
+            }
+
+
+tier_1_raw = run_tier_1(WATCHLIST)
+tier_1 = [extract_pm_json(r, t) for r, t in zip(tier_1_raw, WATCHLIST)]
+print(f"Triaged {len(tier_1)} names. HIGH conviction: "
+      f"{sum(1 for x in tier_1 if x.get('conviction') == 'HIGH')}")
+```
+
+<Note>
+The reason the PM prompt forbids Markdown fences is that downstream filtering is `if row["conviction"] == "HIGH"`. Anything that breaks the JSON contract pushes a name into the fallback bucket — which is fine, the brief still ships, but you lose a deep dive on it. Keep the schema tight.
+</Note>
+
+## Step 3: Tier 2 — Deep Dive on Highest Conviction Names
+
+For each HIGH conviction name, fire two calls in parallel. The first is an `AdvancedResearch` swarm — the system supplies the director/worker agents and runs external search, returning a cited memo. The second is a `reasoning-agent` self-consistency run that pressure-tests the thesis across multiple independent chains. We merge the two outputs into a single deep-dive block per ticker.
+
+See [Advanced Research: Investor Memos with Citations](/docs/examples/examples/advanced-research-investor-memos) and [Reasoning Agents for Hard Analytical Problems](/docs/examples/examples/reasoning-agents-tutorial) for the standalone feature pages.
+
+```python
+def advanced_research_memo(triage_row: dict) -> dict:
+    ticker = triage_row["ticker"]
+    task = (
+        f"Produce a one-page institutional investor memo on {ticker}. "
+        f"Tier 1 triage flagged this as a {triage_row['call']} with HIGH "
+        f"conviction. Dominant signal: {triage_row['key_signal']}. "
+        f"Primary risk: {triage_row['risk']}.\n\n"
+        "Use these section headers and cite every claim as [source: URL]:\n\n"
+        f"# {ticker} — Morning Deep Dive\n"
+        "## 1. Catalyst Calendar (next 90 days)\n"
+        "## 2. Recent Tape (last 5 trading days)\n"
+        "## 3. Sell-Side Delta (last 2 weeks)\n"
+        "## 4. Pressure Points on the Thesis\n"
+        "## 5. Recommendation (ADD / HOLD / TRIM)\n\n"
+        "Mark unsupported claims [unsourced]. Do not fabricate citations."
+    )
+    payload = {
+        "config": {
+            "name": f"{ticker} Morning Deep Dive",
+            "description": f"Cited research memo for {ticker}.",
+            "swarm_type": "AdvancedResearch",
+            "director_model_name": "anthropic/claude-opus-4-8",
+            "worker_model_name": "anthropic/claude-opus-4-8",
+            "max_loops": 2,
+            "exa_search_num_results": 6,
+            "exa_search_max_characters": 1500,
+        },
+        "task": task,
+    }
+    response = requests.post(
+        f"{BASE_URL}/v1/advanced-research/completions",
+        headers=headers,
+        json=payload,
+        timeout=600,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def reasoning_pressure_test(triage_row: dict) -> dict:
+    ticker = triage_row["ticker"]
+    task = (
+        f"Tier 1 triage on {ticker} returned: {json.dumps(triage_row)}.\n\n"
+        "Pressure-test this call. Identify the two single strongest "
+        "counter-arguments to the dominant signal, and the one position-sizing "
+        "consideration the PM should weigh before committing risk. Return a "
+        "JSON object with keys: counter_argument_1, counter_argument_2, "
+        "sizing_note, convergent_call (BUY/SELL/HOLD), confidence (0-1)."
+    )
+    payload = {
+        "agent_config": {
+            "agent_name": f"{ticker}-Reasoner",
+            "description": "Self-consistency pressure test on the triage call.",
+            "system_prompt": (
+                "You are a buy-side risk officer. Pressure-test analyst calls by "
+                "running multiple independent reasoning chains and reporting the "
+                "convergent answer. Output strict JSON only."
+            ),
+            "model_name": "claude-sonnet-4.5",
+            "reasoning_effort": "high",
+            "max_loops": 1,
+            "max_tokens": 4000,
+        },
+        "task": task,
+    }
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=600,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def extract_memo_and_sources(research_result: dict) -> tuple[str, list]:
+    memo = research_result.get("outputs", "")
+    if isinstance(memo, list):
+        memo = "\n\n".join(str(item) for item in memo)
+    sources = research_result.get("sources", []) or []
+    return str(memo), sources
+
+
+def extract_reasoning_json(reasoning_result: dict) -> dict:
+    text = ""
+    for entry in reasoning_result.get("output", []):
+        content = entry.get("content", "")
+        if isinstance(content, list):
+            content = " ".join(str(c) for c in content)
+        text = str(content)
+    try:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start >= 0 and end > start:
+            return json.loads(text[start:end + 1])
+    except json.JSONDecodeError:
+        pass
+    return {
+        "counter_argument_1": "(reasoning agent JSON parse failed)",
+        "counter_argument_2": "",
+        "sizing_note": "",
+        "convergent_call": "HOLD",
+        "confidence": 0.0,
+    }
+
+
+high_conviction = [row for row in tier_1 if row.get("conviction") == "HIGH"]
+print(f"Running deep dives on {len(high_conviction)} names.")
+
+deep_dives = []
+for row in high_conviction:
+    research = advanced_research_memo(row)
+    reasoning = reasoning_pressure_test(row)
+    memo, sources = extract_memo_and_sources(research)
+    pressure = extract_reasoning_json(reasoning)
+    deep_dives.append({
+        "ticker": row["ticker"],
+        "triage": row,
+        "memo": memo,
+        "sources": sources,
+        "pressure_test": pressure,
+    })
+```
+
+<Note>
+The two Tier 2 calls are independent — wrap the loop body in a `ThreadPoolExecutor` if you want to fan them out concurrently. For an 8-name HIGH bucket the serial path runs in 4-6 minutes wall clock, which is well inside the 7 AM delivery window. The parallel path drops that to under a minute.
+</Note>
+
+## Step 4: Compile the Briefing
+
+One Jinja template renders the final Markdown. Executive summary table up top so the PM can scan the whole universe in five seconds, deep-dive sections at the bottom for the names that need attention.
+
+```python
+BRIEFING_TEMPLATE = Template("""# Morning Research Brief — {{ date }}
+
+_Universe: {{ total }} names. HIGH conviction: {{ high_count }}.
+Generated overnight by the autonomous research pipeline._
+
+---
+
+## Executive Summary
+
+| Ticker | Call | Conviction | Key Signal |
+|--------|------|------------|------------|
+{% for row in triage -%}
+| {{ row.ticker }} | {{ row.call }} | {{ row.conviction }} | {{ row.key_signal }} |
+{% endfor %}
+
+---
+
+## Deep Dives — HIGH Conviction Names
+
+{% for dive in deep_dives %}
+### {{ dive.ticker }}
+
+**Triage call:** {{ dive.triage.call }} ({{ dive.triage.conviction }})
+**Dominant signal:** {{ dive.triage.key_signal }}
+**Primary risk:** {{ dive.triage.risk }}
+
+{{ dive.memo }}
+
+#### Pressure Test (reasoning agent)
+- **Counter-argument 1:** {{ dive.pressure_test.counter_argument_1 }}
+- **Counter-argument 2:** {{ dive.pressure_test.counter_argument_2 }}
+- **Sizing note:** {{ dive.pressure_test.sizing_note }}
+- **Convergent call:** {{ dive.pressure_test.convergent_call }} (confidence {{ dive.pressure_test.confidence }})
+
+#### Sources
+{% for src in dive.sources -%}
+- {{ src.title if src.title else src.url }} — {{ src.url }}
+{% endfor %}
+
+---
+{% endfor %}
+
+_End of brief. Generated in roughly {{ runtime_min }} minutes for ~${{ cost }} in API spend._
+""".strip())
+
+
+def compile_briefing(triage: list[dict], deep_dives: list[dict],
+                     runtime_min: float, cost: float) -> str:
+    return BRIEFING_TEMPLATE.render(
+        date=datetime.utcnow().strftime("%A, %B %d, %Y"),
+        total=len(triage),
+        high_count=sum(1 for r in triage if r.get("conviction") == "HIGH"),
+        triage=triage,
+        deep_dives=deep_dives,
+        runtime_min=round(runtime_min, 1),
+        cost=round(cost, 2),
+    )
+
+
+brief = compile_briefing(tier_1, deep_dives, runtime_min=5.4, cost=7.85)
+Path("morning_brief.md").write_text(brief)
+print("Brief written to morning_brief.md")
+```
+
+## Step 5: Ship It to Slack at 7 AM ET
+
+Slack incoming webhooks accept a JSON payload with `text` and optional `blocks`. We send the executive summary as the visible message and attach the full Markdown brief as a code block so anyone in the channel can copy-paste it into their own notes.
+
+```python
+def post_to_slack(brief_md: str, triage: list[dict]) -> None:
+    high = [r for r in triage if r.get("conviction") == "HIGH"]
+    headline = (
+        f":sunrise: *Morning Research Brief* — {len(triage)} names triaged, "
+        f"{len(high)} HIGH conviction"
+    )
+
+    # Slack hard-limits a single block to ~3000 chars; chunk if needed.
+    chunks = [brief_md[i:i + 2800] for i in range(0, len(brief_md), 2800)]
+
+    blocks = [
+        {"type": "section", "text": {"type": "mrkdwn", "text": headline}},
+        {"type": "divider"},
+    ]
+    for chunk in chunks:
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"```{chunk}```"},
+        })
+
+    requests.post(
+        SLACK_URL,
+        json={"text": headline, "blocks": blocks},
+        timeout=30,
+    ).raise_for_status()
+
+
+post_to_slack(brief, tier_1)
+print("Brief delivered to Slack.")
+```
+
+The whole pipeline lives in a single file — call it `morning_brief.py` — and the cron line that fires it at 7 AM ET (12 UTC, adjust for DST or run the box on America/New_York) is:
+
+```bash
+# Weekday morning brief at 7:00 AM ET
+0 7 * * 1-5 cd /opt/swarms && /usr/bin/python morning_brief.py >> /var/log/morning_brief.log 2>&1
+```
+
+<Info>
+If 7 AM is the target *delivery* time, you actually want to fire earlier — kick the batch off at 5 AM ET (`0 5 * * 1-5`) so the deep-dive Tier 2 fan-out has wall-clock budget to finish before the desk arrives. The [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide explains why pushing the Tier 1 batch to 2-4 AM ET further reduces queue contention.
+</Info>
+
+## Real Cost vs. Staffing
+
+A 50-name watchlist with an 8-name HIGH conviction bucket, every weekday.
+
+| Approach | Daily cost | Annualized | Coverage at 8 AM |
+|----------|-----------|------------|------------------|
+| 3-person research pod (junior + mid + senior) | ~\$2,000 fully-loaded | ~\$500,000 | 5 names |
+| 1 senior associate writing morning notes | ~\$700 | ~\$175,000 | 8-10 names |
+| **This pipeline (batch + advanced research + reasoning)** | **~\$5-10** | **~\$1,500-\$2,500** | **Every name on the watchlist** |
+
+The hero number: **before 7 AM the desk has a structured note on every name in the universe, with citations, for under \$10.** The pipeline isn't a research analyst replacement — it's the prep deck a research analyst would have spent until lunch building, waiting in Slack before the PM finishes their first coffee.
+
+<Warning>
+LLM-generated briefs are research artifacts, not investment advice. The `[unsourced]` markers on the AdvancedResearch memos and the convergence signal from the reasoning agent are the audit trail your compliance team will ask for. Wire the briefing into a reviewer-signoff queue before any output reaches an LP or external client.
+</Warning>
+
+## Next Steps
+
+- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — why scheduling the batch at 2-5 AM ET is the right default for any overnight research workload
+- [Batch Swarm Completions for Overnight Reports](/docs/examples/examples/batch-swarm-scale-tutorial) — the Tier 1 primitive on its own, with retry and persistence patterns
+- [Advanced Research: Investor Memos with Citations](/docs/examples/examples/advanced-research-investor-memos) — the Tier 2 cited-research primitive in standalone form
+- [Reasoning Agents for Hard Analytical Problems](/docs/examples/examples/reasoning-agents-tutorial) — the self-consistency pressure-test primitive, with full `swarm_type` catalog

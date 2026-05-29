@@ -3,7 +3,6 @@ title: 'OpenAI-Compatible Chat Completions'
 description: 'Drop-in usage of the Swarms API with the OpenAI SDK — basic completion, streaming, multi-turn chat, and vision in Python, TypeScript, Go, and Rust.'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 ## What This Example Shows
 
@@ -74,7 +73,7 @@ The simplest usage — send a message, get a response.
     )
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": "You are a senior financial analyst."},
             {
@@ -101,7 +100,7 @@ The simplest usage — send a message, get a response.
     });
 
     const response = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         { role: "system", content: "You are a senior financial analyst." },
         {
@@ -141,7 +140,7 @@ The simplest usage — send a message, get a response.
 
         response, err := client.Chat.Completions.New(context.Background(),
             openai.ChatCompletionNewParams{
-                Model: "gpt-4o",
+                Model: "gpt-4.1",
                 Messages: []openai.ChatCompletionMessageParamUnion{
                     openai.SystemMessage("You are a senior financial analyst."),
                     openai.UserMessage("Summarize the key risks of investing in emerging market bonds."),
@@ -184,7 +183,7 @@ The simplest usage — send a message, get a response.
         let client = Client::with_config(config);
 
         let request = CreateChatCompletionRequestArgs::default()
-            .model("gpt-4o")
+            .model("gpt-4.1")
             .messages(vec![
                 ChatCompletionRequestSystemMessageArgs::default()
                     .content("You are a senior financial analyst.")
@@ -255,7 +254,7 @@ Stream the response as it's generated for a better user experience on longer out
     print("Agent: ", end="", flush=True)
 
     stream = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": "You are a creative fiction writer."},
             {"role": "user", "content": "Write a 3-paragraph short story about a robot discovering music for the first time."},
@@ -286,7 +285,7 @@ Stream the response as it's generated for a better user experience on longer out
     process.stdout.write("Agent: ");
 
     const stream = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         { role: "system", content: "You are a creative fiction writer." },
         {
@@ -332,7 +331,7 @@ Stream the response as it's generated for a better user experience on longer out
 
         stream := client.Chat.Completions.NewStreaming(context.Background(),
             openai.ChatCompletionNewParams{
-                Model: "gpt-4o",
+                Model: "gpt-4.1",
                 Messages: []openai.ChatCompletionMessageParamUnion{
                     openai.SystemMessage("You are a creative fiction writer."),
                     openai.UserMessage("Write a 3-paragraph short story about a robot discovering music for the first time."),
@@ -380,7 +379,7 @@ Stream the response as it's generated for a better user experience on longer out
         let client = Client::with_config(config);
 
         let request = CreateChatCompletionRequestArgs::default()
-            .model("gpt-4o")
+            .model("gpt-4.1")
             .messages(vec![
                 ChatCompletionRequestSystemMessageArgs::default()
                     .content("You are a creative fiction writer.")
@@ -452,21 +451,21 @@ Build a conversational chatbot by accumulating messages across turns.
 
     # Turn 1
     messages.append({"role": "user", "content": "How do I read a JSON file in Python?"})
-    response = client.chat.completions.create(model="gpt-4o", messages=messages)
+    response = client.chat.completions.create(model="gpt-4.1", messages=messages)
     assistant_reply = response.choices[0].message.content
     messages.append({"role": "assistant", "content": assistant_reply})
     print(f"Assistant: {assistant_reply}\n")
 
     # Turn 2 — follows up on the first answer
     messages.append({"role": "user", "content": "How do I handle the case where the file doesn't exist?"})
-    response = client.chat.completions.create(model="gpt-4o", messages=messages)
+    response = client.chat.completions.create(model="gpt-4.1", messages=messages)
     assistant_reply = response.choices[0].message.content
     messages.append({"role": "assistant", "content": assistant_reply})
     print(f"Assistant: {assistant_reply}\n")
 
     # Turn 3 — references context from both prior turns
     messages.append({"role": "user", "content": "Now combine both into a single reusable function."})
-    response = client.chat.completions.create(model="gpt-4o", messages=messages)
+    response = client.chat.completions.create(model="gpt-4.1", messages=messages)
     assistant_reply = response.choices[0].message.content
     print(f"Assistant: {assistant_reply}")
     ```
@@ -495,7 +494,7 @@ Build a conversational chatbot by accumulating messages across turns.
       messages.push({ role: "user", content: userMessage });
 
       const response = await client.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages,
       });
 
@@ -544,7 +543,7 @@ Build a conversational chatbot by accumulating messages across turns.
 
             response, err := client.Chat.Completions.New(context.Background(),
                 openai.ChatCompletionNewParams{
-                    Model:    "gpt-4o",
+                    Model:    "gpt-4.1",
                     Messages: messages,
                 },
             )
@@ -605,7 +604,7 @@ Build a conversational chatbot by accumulating messages across turns.
             );
 
             let request = CreateChatCompletionRequestArgs::default()
-                .model("gpt-4o")
+                .model("gpt-4.1")
                 .messages(messages.clone())
                 .build()?;
 
@@ -653,7 +652,7 @@ Send an image alongside your prompt using the multimodal content format.
     )
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {
                 "role": "user",
@@ -685,7 +684,7 @@ Send an image alongside your prompt using the multimodal content format.
     });
 
     const response = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         {
           role: "user",
@@ -728,7 +727,7 @@ Send an image alongside your prompt using the multimodal content format.
 
         response, err := client.Chat.Completions.New(context.Background(),
             openai.ChatCompletionNewParams{
-                Model: "gpt-4o",
+                Model: "gpt-4.1",
                 Messages: []openai.ChatCompletionMessageParamUnion{
                     openai.UserMessage([]openai.ChatCompletionContentPartUnionParam{
                         {
@@ -780,7 +779,7 @@ Send an image alongside your prompt using the multimodal content format.
         let client = Client::with_config(config);
 
         let request = CreateChatCompletionRequestArgs::default()
-            .model("gpt-4o")
+            .model("gpt-4.1")
             .messages(vec![
                 ChatCompletionRequestUserMessageArgs::default()
                     .content(vec![
@@ -835,7 +834,7 @@ Use `max_loops` to let the agent iterate on its own output — useful for comple
     )
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {
                 "role": "system",
@@ -869,7 +868,7 @@ Use `max_loops` to let the agent iterate on its own output — useful for comple
     });
 
     const response = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
@@ -895,7 +894,7 @@ Use `max_loops` to let the agent iterate on its own output — useful for comple
       -H "Authorization: Bearer $SWARMS_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{
-        "model": "gpt-4o",
+        "model": "gpt-4.1",
         "messages": [
           {"role": "system", "content": "You are a rigorous code reviewer. First write a solution, then review it for bugs, then provide the final corrected version."},
           {"role": "user", "content": "Write a Python function that finds the longest palindromic substring in a string."}
@@ -945,7 +944,7 @@ def ask(question: str) -> str:
     messages.append({"role": "user", "content": question})
 
     stream = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=messages,
         max_tokens=1024,
         temperature=0.3,

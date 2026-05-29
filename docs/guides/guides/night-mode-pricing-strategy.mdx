@@ -3,7 +3,6 @@ title: "Night-Mode Pricing: 50% Off Overnight Batch Workflows"
 description: "Move batch swarms and overnight pipelines into the 8 PM – 6 AM Pacific window for a 50% discount on swarm-completion token costs. Includes scheduling recipes with cron and Airflow."
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 ## What This Covers
 
@@ -15,7 +14,7 @@ import { Tabs, Tab } from 'mintlify'
 
 ## Why This Matters
 
-The single highest-ROI cost lever the Swarms API offers is its overnight discount: **swarm-completion input and output tokens are billed at 50% between 8 PM and 6 AM Pacific time**. For any workload that doesn't need sub-second turnaround — overnight reports, daily research digests, RAG-index refreshes, training-data generation, backfills, evaluation suites — this is free money you collect by changing *when* the job runs, not *what* the job runs. A team spending $10,000/month on swarm jobs that could shift to the overnight window saves roughly **$4,500/month** with zero code-quality tradeoff. This guide makes that shift mechanical.
+The single highest-ROI cost lever the Swarms API offers is its overnight discount: **swarm-completion input and output tokens are billed at 50% between 8 PM and 6 AM Pacific time**. For any workload that doesn't need sub-second turnaround — overnight reports, daily research digests, RAG-index refreshes, training-data generation, backfills, evaluation suites — this is free money you collect by changing *when* the job runs, not *what* the job runs. A team spending \$10,000/month on swarm jobs that could shift to the overnight window saves roughly **\$4,500/month** with zero code-quality tradeoff. This guide makes that shift mechanical.
 
 ## How the Discount Works
 
@@ -67,7 +66,7 @@ total/run                                   = $0.1445
 ```
 
 Per day: `$0.1445 * 1,000 = $144.50`
-Per 30-day month: **$4,335.00**
+Per 30-day month: **\$4,335.00**
 
 ### Overnight: same workload, scheduled 8 PM – 6 AM PT
 
@@ -81,13 +80,13 @@ total/run                    = $0.09725
 ```
 
 Per day: `$0.09725 * 1,000 = $97.25`
-Per 30-day month: **$2,917.50**
+Per 30-day month: **\$2,917.50**
 
 ### Savings
 
-**$4,335 – $2,917.50 = $1,417.50/month** saved by shifting the same workload into the overnight window. Annualized: **$17,010**. Zero code changes to the agents themselves — just *when* they run.
+**\$4,335 – \$2,917.50 = \$1,417.50/month** saved by shifting the same workload into the overnight window. Annualized: **\$17,010**. Zero code changes to the agents themselves — just *when* they run.
 
-For larger workloads the savings scale linearly until the agent-fee floor dominates. At 10,000 jobs/day this same calculation yields **$14,175/month** in savings.
+For larger workloads the savings scale linearly until the agent-fee floor dominates. At 10,000 jobs/day this same calculation yields **\$14,175/month** in savings.
 
 ## Verifying the Discount in Your Response
 
@@ -116,8 +115,8 @@ resp = requests.post(
         "swarm_type": "SequentialWorkflow",
         "task": "Summarize today's developments in AI infrastructure.",
         "agents": [
-            {"agent_name": "Scanner",     "model_name": "gpt-4o-mini", "max_tokens": 1024},
-            {"agent_name": "Synthesizer", "model_name": "gpt-4o",      "max_tokens": 2048},
+            {"agent_name": "Scanner",     "model_name": "gpt-4.1-mini", "max_tokens": 1024},
+            {"agent_name": "Synthesizer", "model_name": "gpt-4.1",      "max_tokens": 2048},
         ],
     },
 )
@@ -180,8 +179,8 @@ JOBS = [
 ]
 
 AGENT_SPECS = [
-    {"agent_name": "Scanner",     "model_name": "gpt-4o-mini", "max_tokens": 1024},
-    {"agent_name": "Synthesizer", "model_name": "gpt-4o",      "max_tokens": 2048},
+    {"agent_name": "Scanner",     "model_name": "gpt-4.1-mini", "max_tokens": 1024},
+    {"agent_name": "Synthesizer", "model_name": "gpt-4.1",      "max_tokens": 2048},
 ]
 
 for job in JOBS:
@@ -227,8 +226,8 @@ JOBS = [
 ]
 
 AGENT_SPECS = [
-    {"agent_name": "Scanner",     "model_name": "gpt-4o-mini", "max_tokens": 1024},
-    {"agent_name": "Synthesizer", "model_name": "gpt-4o",      "max_tokens": 2048},
+    {"agent_name": "Scanner",     "model_name": "gpt-4.1-mini", "max_tokens": 1024},
+    {"agent_name": "Synthesizer", "model_name": "gpt-4.1",      "max_tokens": 2048},
 ]
 
 

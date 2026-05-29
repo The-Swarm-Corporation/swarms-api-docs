@@ -61,8 +61,8 @@ The Swarms API supports multiple AI model providers:
 
 **OpenAI Models:**
 - gpt-4: High-quality reasoning and complex task handling
-- gpt-4o: Optimized version with improved performance
-- gpt-4o-mini: Lightweight version for faster responses
+- gpt-4.1: Optimized version with improved performance
+- gpt-4.1-mini: Lightweight version for faster responses
 
 **Anthropic Models:**
 - claude-sonnet-4-20250514-20240620: Balanced performance and reasoning
@@ -77,18 +77,18 @@ The Swarms API supports multiple AI model providers:
 The Swarms API uses a transparent, usage-based pricing model with unified pricing across all endpoints:
 
 **Unified Token Pricing:**
-- **Input Tokens**: $6.50 per 1 million tokens (all endpoints)
-- **Output Tokens**: $18.50 per 1 million tokens (all endpoints)
+- **Input Tokens**: \$6.50 per 1 million tokens (all endpoints)
+- **Output Tokens**: \$18.50 per 1 million tokens (all endpoints)
 
 | Item | Cost | Notes |
 |------|------|-------|
-| **Base cost per agent** | $0.01 per agent | Charged for each agent in swarms and workflows |
-| **Input tokens** | $6.50 per 1M tokens | Unified pricing for all endpoints |
-| **Output tokens** | $18.50 per 1M tokens | Unified pricing for all endpoints |
-| **MCP cost** | $0.10 per call | Charged if an agent uses an MCP URL |
-| **Image cost** | $0.25 per image | Charged for each image processed |
-| **Exa Search tool** | $0.04 per search | Charged per search execution |
-| **Web Scraper tool** | $0.15 per scrape | Charged per scrape execution |
+| **Base cost per agent** | \$0.01 per agent | Charged for each agent in swarms and workflows |
+| **Input tokens** | \$6.50 per 1M tokens | Unified pricing for all endpoints |
+| **Output tokens** | \$18.50 per 1M tokens | Unified pricing for all endpoints |
+| **MCP cost** | \$0.10 per call | Charged if an agent uses an MCP URL |
+| **Image cost** | \$0.25 per image | Charged for each image processed |
+| **Exa Search tool** | \$0.04 per search | Charged per search execution |
+| **Web Scraper tool** | \$0.15 per scrape | Charged per scrape execution |
 | **Night-time discount** | 50% off token costs | 8 PM - 6 AM PT (Swarm Completions only) |
 
 **Pricing applies to:**
@@ -154,7 +154,7 @@ result = client.agent.run(
     agent_config={
         "agent_name": "My First Agent",
         "system_prompt": "You are a helpful assistant.",
-        "model_name": "gpt-4o-mini",
+        "model_name": "gpt-4.1-mini",
         "max_tokens": 1000,
         "temperature": 0.7,
     },

@@ -1,0 +1,338 @@
+---
+title: "Build a Code Review Swarm — Security, Style, Tests, Architecture"
+description: "A HierarchicalSwarm of specialist reviewer agents — Security, Style, Test Coverage, Architecture — coordinated by a Lead Reviewer that posts a single, decisive PR comment to GitHub."
+---
+
+## What This Example Shows
+
+- A `HierarchicalSwarm` with a Lead Reviewer (director) coordinating four specialist workers: Security, Style/Lint, Test Coverage, and Architecture
+- Tightly scoped system prompts that force each reviewer into a single lens with an explicit output format
+- A Lead Reviewer prompt that compresses every specialist's findings into one structured Markdown PR comment with a hard verdict
+- How to wire the swarm into a real GitHub PR — fetch the diff via the GitHub REST API and post the review back as a comment
+- A realistic cost comparison against a senior engineer reviewing the same PR
+
+<Info>
+This tutorial uses `HierarchicalSwarm` on `/v1/swarm/completions` — included in every paid Swarms tier. For teams reviewing hundreds of PRs a day across multiple repos, upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) for higher rate limits and parallel execution.
+</Info>
+
+## Why This Matters
+
+A single human reviewer cannot hold security, style, test coverage, and architecture in their head on the same pass — they pick one lens, miss the others, and the PR sits for two days while the author context-switches onto something else. That latency is what actually kills shipping speed: not the reviewing, the waiting. The job here is not to replace your senior engineer's signoff — it is to make sure that by the time they open the PR, every obvious finding is already in the thread, every missing test is already called out, and the only thing left for the human is the judgement call. One reviewer cannot catch everything. Four specialists running in parallel can.
+
+## Step 1: Setup
+
+Install the dependencies and grab your API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys). You will also need a GitHub personal access token with `repo` scope to post the review back.
+
+```bash
+pip install requests python-dotenv
+export SWARMS_API_KEY="your-swarms-api-key"
+export GITHUB_TOKEN="your-github-pat"
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Reviewer Team
+
+The Lead Reviewer owns the final comment. Each specialist owns exactly one lens and is told to ignore everything outside it. The output format is rigid on purpose — the Lead has to merge four streams into one PR comment in a single pass.
+
+```python
+LEAD_REVIEWER_PROMPT = (
+    "You are the Lead Reviewer on a pull request. Four specialists report to you: "
+    "Security Reviewer, Style/Lint Reviewer, Test Coverage Reviewer, and Architecture "
+    "Reviewer. Your job is NOT to re-review the diff yourself. Your job is to compress "
+    "their findings into a single PR comment that an engineer can act on in five "
+    "minutes.\n\n"
+    "Output this exact Markdown structure and nothing else:\n\n"
+    "## Verdict\n"
+    "<APPROVE | REQUEST CHANGES | COMMENT> — one sentence on why.\n\n"
+    "## Critical Issues\n"
+    "<numbered list of blocking issues with file:line references; empty if none>\n\n"
+    "## Suggestions\n"
+    "<numbered list of non-blocking improvements with file:line references>\n\n"
+    "## Test Gaps\n"
+    "<numbered list of behaviors that should have tests but do not>\n\n"
+    "## Architecture Notes\n"
+    "<short paragraph on design concerns, coupling, or layering issues; 'None.' if clean>\n\n"
+    "Be decisive. If any specialist flagged a Critical finding, the verdict is REQUEST "
+    "CHANGES. Do not soften their language. Do not repeat the same finding across sections."
+)
+
+SECURITY_REVIEWER_PROMPT = (
+    "You are a Security Reviewer. Read the diff and flag ONLY security issues: "
+    "injection (SQL, command, template), authentication and authorization gaps, "
+    "secrets in code, unsafe deserialization, SSRF, XSS, insecure crypto, missing "
+    "input validation, and dangerous defaults. Ignore style, performance, and tests. "
+    "For each finding output: SEVERITY (CRITICAL/HIGH/MEDIUM/LOW), file:line, the "
+    "specific vulnerability, and the one-line fix. If the diff is clean, say 'No "
+    "security findings.' Do not invent issues."
+)
+
+STYLE_REVIEWER_PROMPT = (
+    "You are a Style and Lint Reviewer. Read the diff and flag ONLY code style "
+    "issues: naming, dead code, unused imports, overly long functions, deeply "
+    "nested branches, magic numbers, inconsistent error handling, and violations "
+    "of the language's idiomatic conventions (PEP 8 for Python, Effective Go, "
+    "etc.). Ignore correctness, security, and architecture. For each finding "
+    "output: file:line, the smell, and the rewrite. Skip nits that a formatter "
+    "would auto-fix."
+)
+
+TEST_REVIEWER_PROMPT = (
+    "You are a Test Coverage Reviewer. Read the diff and identify behaviors that "
+    "are new or changed but lack a corresponding test. For each gap output: the "
+    "function or behavior, why it needs a test (edge case, regression risk, public "
+    "API), and a one-line description of the test that should exist. Also flag any "
+    "tests in the diff that assert on implementation details rather than behavior. "
+    "Ignore style and security."
+)
+
+ARCH_REVIEWER_PROMPT = (
+    "You are an Architecture Reviewer. Read the diff and flag ONLY design concerns: "
+    "layering violations, leaky abstractions, circular dependencies, modules taking "
+    "on responsibilities that belong elsewhere, new coupling between previously "
+    "independent components, and patterns that will be expensive to undo in six "
+    "months. Ignore line-level style and security. For each finding output: the "
+    "concern, the affected files, and the structural alternative."
+)
+
+
+def build_review_swarm(diff_text: str, pr_title: str, pr_description: str) -> dict:
+    task = (
+        f"PR TITLE: {pr_title}\n\n"
+        f"PR DESCRIPTION:\n{pr_description}\n\n"
+        f"UNIFIED DIFF:\n{diff_text}\n\n"
+        "Each specialist reviews the diff through their lens. The Lead Reviewer "
+        "then produces the final PR comment."
+    )
+    return {
+        "name": "Code-Review-Swarm",
+        "description": "Lead Reviewer coordinating Security, Style, Test, and Architecture specialists.",
+        "swarm_type": "HierarchicalSwarm",
+        "max_loops": 1,
+        "task": task,
+        "agents": [
+            {
+                "agent_name": "Lead Reviewer",
+                "description": "Director — synthesizes specialist findings into one PR comment.",
+                "system_prompt": LEAD_REVIEWER_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "coordinator",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.2,
+            },
+            {
+                "agent_name": "Security Reviewer",
+                "description": "Injection, authn/authz, secrets, crypto, validation.",
+                "system_prompt": SECURITY_REVIEWER_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.2,
+            },
+            {
+                "agent_name": "Style Reviewer",
+                "description": "Naming, dead code, idiom violations, readability.",
+                "system_prompt": STYLE_REVIEWER_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Test Coverage Reviewer",
+                "description": "Missing tests, weak assertions, regression risk.",
+                "system_prompt": TEST_REVIEWER_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+            },
+            {
+                "agent_name": "Architecture Reviewer",
+                "description": "Layering, coupling, abstractions, long-horizon design risk.",
+                "system_prompt": ARCH_REVIEWER_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+            },
+        ],
+    }
+```
+
+<Note>
+The Lead Reviewer's output is the comment you post to GitHub. The four specialist outputs are the audit trail — every flagged issue is fully traceable back to the reviewer who raised it.
+</Note>
+
+## Step 3: Review a Single Diff
+
+Start with a single diff pasted in directly. This is the loop you will wire to GitHub in the next step.
+
+```python
+SAMPLE_DIFF = """\
+diff --git a/app/auth.py b/app/auth.py
+index 1a2b3c..4d5e6f 100644
+--- a/app/auth.py
++++ b/app/auth.py
+@@ -10,6 +10,15 @@ from app.db import get_conn
+ def get_user(user_id):
+     conn = get_conn()
+     cur = conn.cursor()
+-    cur.execute("SELECT id, email FROM users WHERE id = %s", (user_id,))
++    cur.execute(f"SELECT id, email, role FROM users WHERE id = {user_id}")
+     return cur.fetchone()
++
++def reset_password(user_id, new_password):
++    conn = get_conn()
++    cur = conn.cursor()
++    cur.execute(
++        f"UPDATE users SET password = '{new_password}' WHERE id = {user_id}"
++    )
++    conn.commit()
++    return True
+"""
+
+
+def run_review(diff_text: str, pr_title: str, pr_description: str) -> dict:
+    payload = build_review_swarm(diff_text, pr_title, pr_description)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def extract_lead_comment(result: dict) -> str:
+    for output in result.get("output", []):
+        if "Lead Reviewer" in output.get("role", ""):
+            content = output["content"]
+            if isinstance(content, list):
+                content = "\n".join(str(c) for c in content)
+            return str(content)
+    return ""
+
+
+result = run_review(
+    diff_text=SAMPLE_DIFF,
+    pr_title="Add password reset endpoint",
+    pr_description="Adds reset_password() and fixes a small bug in get_user().",
+)
+
+print(extract_lead_comment(result))
+
+billing = result.get("usage", {}).get("billing_info", {})
+print(f"\n---\nReview cost: ${billing.get('total_cost', 0):.4f}")
+print(f"Execution time: {result.get('execution_time', 'n/a')}s")
+```
+
+The Lead Reviewer should come back with `REQUEST CHANGES`, a CRITICAL finding for the SQL injection in both queries, and a Test Gap entry for `reset_password`. That is the comment you post.
+
+## Step 4: Wire It Into a GitHub PR
+
+In production you do not paste diffs — you point the swarm at a PR number. GitHub exposes both the unified diff and the issue-comments endpoint on every PR.
+
+```python
+GITHUB_API = "https://api.github.com"
+
+gh_headers = {
+    "Authorization": f"Bearer {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+}
+
+
+def fetch_pr_diff(owner: str, repo: str, number: int) -> tuple[str, str, str]:
+    # 1. Fetch PR metadata (title + body) as JSON
+    meta = requests.get(
+        f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{number}",
+        headers=gh_headers,
+        timeout=30,
+    )
+    meta.raise_for_status()
+    pr = meta.json()
+
+    # 2. Fetch the unified diff with the diff media type
+    diff_resp = requests.get(
+        f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{number}",
+        headers={**gh_headers, "Accept": "application/vnd.github.v3.diff"},
+        timeout=30,
+    )
+    diff_resp.raise_for_status()
+
+    return pr.get("title", ""), pr.get("body") or "", diff_resp.text
+
+
+def post_pr_comment(owner: str, repo: str, number: int, body: str) -> dict:
+    response = requests.post(
+        f"{GITHUB_API}/repos/{owner}/{repo}/issues/{number}/comments",
+        headers=gh_headers,
+        json={"body": body},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def review_github_pr(owner: str, repo: str, number: int) -> str:
+    title, description, diff_text = fetch_pr_diff(owner, repo, number)
+    result = run_review(diff_text, title, description)
+    comment_body = extract_lead_comment(result)
+
+    # Prepend a small attribution footer so the team knows what they're reading
+    full_body = (
+        f"{comment_body}\n\n"
+        f"---\n"
+        f"_Automated review by Swarms `HierarchicalSwarm` "
+        f"(Security + Style + Test + Architecture). "
+        f"Cost: ${result['usage']['billing_info']['total_cost']:.4f}._"
+    )
+
+    post_pr_comment(owner, repo, number, full_body)
+    return full_body
+
+
+# Drop this into your CI on the `pull_request` event:
+# review_github_pr("your-org", "your-repo", int(os.environ["PR_NUMBER"]))
+```
+
+<Info>
+Running this from a GitHub Actions workflow on the `pull_request` event gives every PR a structured review comment within ~30 seconds of being opened. The author fixes the obvious findings before a human ever looks at the PR — which is the entire point.
+</Info>
+
+## Real Cost vs. a Senior Reviewer
+
+| Scenario | Cost per PR | Monthly at 200 PRs | Annualized |
+| --- | --- | --- | --- |
+| Code Review Swarm (5 agents, mixed GPT-4.1 + Sonnet 4.5) | ~\$0.08 | ~\$16 | ~\$190 |
+| Senior engineer review (30 min @ \$200/hr fully loaded) | \$100 | \$20,000 | \$240,000 |
+| Senior engineer review with 1-day PR latency cost (lost throughput) | \$100 + opportunity cost | \$20,000+ | \$240,000+ |
+
+The swarm is not a replacement for your senior engineer's signoff — it is the reviewer who is always available at 2 AM, never misses the SQL injection, and never lets a PR sit for two days without a first pass.
+
+## Next Steps
+
+- See [Tools in Swarms](/docs/examples/examples/tools-in-swarms) to give the reviewers a real linter, AST parser, or test runner as a tool call
+- Read [MCP Integration](/docs/examples/examples/mcp-integration) to connect the swarm to your internal code-search or SAST server over MCP
+- Browse the [Hierarchical Workflow Example](/docs/examples/examples/hierarchical-workflow) for the director-and-workers pattern with a deeper dive on routing

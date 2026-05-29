@@ -57,7 +57,7 @@ def run_code_review(code: str, context: str = "") -> dict:
 4. Proper error handling for security-sensitive operations
 
 Vote APPROVE if the code is secure. Vote REJECT if there are security concerns. Always start your response with your vote.""",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2
             },
@@ -71,7 +71,7 @@ Vote APPROVE if the code is secure. Vote REJECT if there are security concerns. 
 4. Scalability concerns
 
 Vote APPROVE if the code is performant. Vote REJECT if there are performance concerns. Always start your response with your vote.""",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2
             },
@@ -85,7 +85,7 @@ Vote APPROVE if the code is performant. Vote REJECT if there are performance con
 4. SOLID principles and clean code patterns
 
 Vote APPROVE if it follows best practices. Vote REJECT if it needs improvement. Always start your response with your vote.""",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2
             },
@@ -99,7 +99,7 @@ Vote APPROVE if it follows best practices. Vote REJECT if it needs improvement. 
 4. Missing validation that tests would catch
 
 Vote APPROVE if edge cases are well-covered. Vote REJECT if cases are missed. Always start your response with your vote.""",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2
             },
@@ -113,7 +113,7 @@ Vote APPROVE if edge cases are well-covered. Vote REJECT if cases are missed. Al
 4. Function design and API ergonomics
 
 Vote APPROVE if well-designed. Vote REJECT if architectural improvements are needed. Always start your response with your vote.""",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.2
             }

@@ -61,7 +61,7 @@ The first 80% of any API integration is happy-path code. The last 20% — the pa
 
 ### Premium Tier Thresholds
 
-Upgrade to premium when **any** of these are true. The premium tier is $100/month and gives you 20x the per-minute, 200x the per-hour, and 83x the per-day quota — and 10x the per-agent token budget.
+Upgrade to premium when **any** of these are true. The premium tier is \$100/month and gives you 20x the per-minute, 200x the per-hour, and 83x the per-day quota — and 10x the per-agent token budget.
 
 - [ ] You hit a `429` more than once per day in production
 - [ ] You need to run more than 1,200 requests per day
@@ -300,7 +300,7 @@ The wrapper tags every request's `name` with the first 8 characters of the UUID 
 | Retries on 5xx / timeout | 4, full-jitter exponential backoff, base 1.5s | Catches transient infra without DOS'ing yourself |
 | Retries on 429 | Honor `Retry-After` literally | The server knows when its window resets; you don't |
 | Retries on 4xx (not 429) | **Zero** | Your request is malformed; retrying won't fix it |
-| Per-call budget | $2–$5 | High enough for most swarms, low enough to catch runaway loops |
+| Per-call budget | \$2–\$5 | High enough for most swarms, low enough to catch runaway loops |
 | Cumulative budget | Scale to job size, hard cap | Prevents a bad config from emptying your account |
 | Credit safety margin | 1.5x estimated cost | Covers retries and minor cost variance |
 | Request timeout | 600s | Long swarms run for minutes; 60s is too aggressive |

@@ -25,8 +25,8 @@ Anthropic and OpenAI both publish three rough tiers, and the ratios are roughly 
 
 | Tier | Anthropic | OpenAI | Use For |
 | --- | --- | --- | --- |
-| Cheap | Haiku family | `gpt-4o-mini`, `gpt-4.1-mini` | Triage, classification, extraction, routing, formatting |
-| Mid | Sonnet family | `gpt-4o`, `gpt-4.1` | Most analysis, most worker agents, drafts |
+| Cheap | Haiku family | `gpt-4.1-mini`, `gpt-4.1-mini` | Triage, classification, extraction, routing, formatting |
+| Mid | Sonnet family | `gpt-4.1`, `gpt-4.1` | Most analysis, most worker agents, drafts |
 | Flagship | `anthropic/claude-opus-4-8` | (top OpenAI reasoning tier) | Synthesis, final judgments, multi-step reasoning, the agent that signs the memo |
 
 As a rule of thumb across providers, cheap-tier input is roughly an order of magnitude cheaper than flagship input, and cheap-tier output is several times cheaper than flagship output. Exact ratios shift with each release — but the gap is always wide enough that misallocating tiers is the single biggest unforced error in production swarms.
@@ -82,7 +82,7 @@ payload = {
                 "List the three most important near-term catalysts for "
                 "the semiconductor sector. One sentence each."
             ),
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 1024,
@@ -95,7 +95,7 @@ payload = {
                 "List the three most important risks to the semiconductor "
                 "sector over the next two quarters. One sentence each."
             ),
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 1024,
@@ -108,7 +108,7 @@ payload = {
                 "Write a single one-line outlook for the semiconductor "
                 "sector over the next two quarters."
             ),
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 256,
@@ -163,7 +163,7 @@ def classify(item_text: str) -> str:
                 "VIP customer) or 'auto-resolve' if it is routine. "
                 "Output one word only."
             ),
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "max_loops": 1,
             "max_tokens": 8,
             "temperature": 0.0,
@@ -249,7 +249,7 @@ agent_batch = [
                 "Summarize the company's latest quarter in one paragraph. "
                 "Include revenue YoY, EPS, and one forward-looking item."
             ),
-            "model_name": "gpt-4o-mini",
+            "model_name": "gpt-4.1-mini",
             "max_loops": 1,
             "max_tokens": 512,
             "temperature": 0.2,
@@ -305,13 +305,13 @@ Conservative defaults that work in production:
 
 Take a realistic production workload: an investment-research team running 500 single-agent summaries plus 50 multi-agent deep-dive swarms per day. The naive setup runs everything on a flagship model, in the middle of the business day, with generous `max_tokens` and `max_loops`. The optimized setup applies all four patterns above.
 
-Assume rough per-million-token costs of flagship ~$15 input / $75 output, mid-tier ~$3 input / $15 output, cheap ~$0.30 input / $1.20 output. (Use these for relative scale; check your provider's published rates for current values.)
+Assume rough per-million-token costs of flagship ~\$15 input / \$75 output, mid-tier ~\$3 input / \$15 output, cheap ~\$0.30 input / \$1.20 output. (Use these for relative scale; check your provider's published rates for current values.)
 
 | Workload | Naive (all flagship, peak hours) | Optimized (tiered + batch + night) |
 | --- | --- | --- |
-| 500 single-agent summaries × ~600 input / ~300 output tokens | ~$15.75/day | Cheap-tier + night mode: ~$0.36/day |
-| 50 deep-dive swarms × 4 agents × ~2k input / ~1.5k output | ~$28.50/day | Director-only flagship, workers cheap, batched at night: ~$5.10/day |
-| **Total daily** | **~$44.25** | **~$5.46** |
+| 500 single-agent summaries × ~600 input / ~300 output tokens | ~\$15.75/day | Cheap-tier + night mode: ~\$0.36/day |
+| 50 deep-dive swarms × 4 agents × ~2k input / ~1.5k output | ~\$28.50/day | Director-only flagship, workers cheap, batched at night: ~\$5.10/day |
+| **Total daily** | **~\$44.25** | **~\$5.46** |
 | **Effective multiplier** | — | **~8x cheaper** |
 
 The savings come from four stacked decisions: (1) the 80% of work that didn't need a flagship model didn't get one, (2) the workers in the swarm dropped from flagship to cheap-tier, (3) `max_tokens` was set close to the actual output length, and (4) the whole pipeline ran during the night-mode window. Any one of them in isolation saves money. Stacked, they consistently produce a 5-10x reduction on real workloads.

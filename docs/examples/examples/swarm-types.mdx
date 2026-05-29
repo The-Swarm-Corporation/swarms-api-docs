@@ -3,7 +3,6 @@ title: 'Available Swarm Types'
 description: 'Discover all available swarm architectures and choose the right one for your use case'
 ---
 
-import { Tabs, Tab } from 'mintlify'
 
 
 Explore all available swarm architectures supported by the Swarms API. The `/v1/swarms/available` endpoint provides information about different swarm types, their capabilities, and use cases.
@@ -122,12 +121,12 @@ Different swarm types are optimized for different workflows - choose the right a
         "agents": [
             {
                 "agent_name": "Data Analyst",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "analyst"
             },
             {
                 "agent_name": "Domain Expert",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "expert"
             }
         ],
@@ -145,17 +144,17 @@ Different swarm types are optimized for different workflows - choose the right a
         "agents": [
             {
                 "agent_name": "Researcher",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "role": "research"
             },
             {
                 "agent_name": "Writer",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "writing"
             },
             {
                 "agent_name": "Editor",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "role": "editing"
             }
         ],
@@ -173,15 +172,15 @@ Different swarm types are optimized for different workflows - choose the right a
         "agents": [
             {
                 "agent_name": "Data Processor 1",
-                "model_name": "gpt-4o-mini"
+                "model_name": "gpt-4.1-mini"
             },
             {
                 "agent_name": "Data Processor 2",
-                "model_name": "gpt-4o-mini"
+                "model_name": "gpt-4.1-mini"
             },
             {
                 "agent_name": "Data Processor 3",
-                "model_name": "gpt-4o-mini"
+                "model_name": "gpt-4.1-mini"
             }
         ],
         "swarm_type": "ConcurrentWorkflow",
@@ -202,11 +201,11 @@ Different swarm types are optimized for different workflows - choose the right a
         "agents": [
             {
                 "agent_name": "Primary Analyst",
-                "model_name": "gpt-4o"
+                "model_name": "gpt-4.1"
             },
             {
                 "agent_name": "Secondary Analyst",
-                "model_name": "gpt-4o-mini"
+                "model_name": "gpt-4.1-mini"
             }
         ],
         "swarm_type": "AgentRearrange",
@@ -239,22 +238,22 @@ Different swarm types are optimized for different workflows - choose the right a
         "agents": [
             {
                 "agent_name": "CEO Agent",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "executive"
             },
             {
                 "agent_name": "Manager Agent",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "manager"
             },
             {
                 "agent_name": "Analyst Agent 1",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "role": "analyst"
             },
             {
                 "agent_name": "Analyst Agent 2",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "role": "analyst"
             }
         ],
@@ -272,22 +271,22 @@ Different swarm types are optimized for different workflows - choose the right a
         "agents": [
             {
                 "agent_name": "Moderator",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "moderator"
             },
             {
                 "agent_name": "Creative Thinker",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "creative"
             },
             {
                 "agent_name": "Technical Expert",
-                "model_name": "gpt-4o",
+                "model_name": "gpt-4.1",
                 "role": "technical"
             },
             {
                 "agent_name": "Business Analyst",
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4.1-mini",
                 "role": "business"
             }
         ],
@@ -341,20 +340,20 @@ Different swarm types are optimized for different workflows - choose the right a
         if budget_limit < 0.1:  # Very low budget
             return {
                 "swarm_type": "ConcurrentWorkflow",
-                "model_preference": "gpt-4o-mini",
+                "model_preference": "gpt-4.1-mini",
                 "max_tokens": 512,
                 "parallel_execution": True
             }
         elif budget_limit < 0.5:  # Medium budget
             return {
                 "swarm_type": "SequentialWorkflow",
-                "model_preference": "gpt-4o-mini",
+                "model_preference": "gpt-4.1-mini",
                 "selective_upgrade": True  # Use better model for complex steps
             }
         else:  # High budget
             return {
                 "swarm_type": "MixtureOfAgents",
-                "model_preference": "gpt-4o",
+                "model_preference": "gpt-4.1",
                 "quality_optimization": True
             }
     ```

@@ -270,26 +270,59 @@
             ]
           },
           {
-            "group": "Applications",
+            "group": "Finance & Investing",
             "pages": [
-              "docs/examples/examples/hospital-team",
-              "docs/examples/examples/legal-team",
-              "docs/examples/examples/icd-analysis",
-              "docs/examples/api_examples/legal_team",
-              "docs/examples/examples/seo-content-pipeline",
-              "docs/examples/examples/supply-chain-swarm",
-              "docs/examples/examples/etf-analysis-grid",
-              "docs/examples/examples/crypto-quant-agent",
+              "docs/examples/examples/247-autonomous-equity-research-analyst",
               "docs/examples/examples/ai-hedge-fund",
-              "docs/examples/examples/insurance-claims-triage",
-              "docs/examples/examples/real-estate-investment-memo",
-              "docs/examples/examples/clinical-case-conference",
-              "docs/examples/examples/ma-due-diligence",
-              "docs/examples/examples/intelligence-triage-pipeline",
-              "docs/examples/examples/consulting-deliverable-generator",
               "docs/examples/examples/advanced-research-investor-memos",
-              "docs/examples/examples/catering-agent",
-              "docs/examples/examples/medical-research-pipeline"
+              "docs/examples/examples/etf-analysis-grid",
+              "docs/examples/examples/real-estate-investment-memo",
+              "docs/examples/examples/crypto-quant-agent"
+            ]
+          },
+          {
+            "group": "Healthcare & Life Sciences",
+            "pages": [
+              "docs/examples/examples/medical-research-pipeline",
+              "docs/examples/examples/clinical-case-conference",
+              "docs/examples/examples/hospital-team",
+              "docs/examples/examples/icd-analysis",
+              "docs/examples/examples/insurance-claims-triage"
+            ]
+          },
+          {
+            "group": "Legal, M&A & Diligence",
+            "pages": [
+              "docs/examples/examples/ma-due-diligence",
+              "docs/examples/examples/legal-team",
+              "docs/examples/api_examples/legal_team",
+              "docs/examples/examples/consulting-deliverable-generator"
+            ]
+          },
+          {
+            "group": "Customer Operations",
+            "pages": [
+              "docs/examples/examples/customer-support-swarm",
+              "docs/examples/examples/voice-call-center-triage",
+              "docs/examples/examples/catering-agent"
+            ]
+          },
+          {
+            "group": "Defense, Gov & Supply Chain",
+            "pages": [
+              "docs/examples/examples/intelligence-triage-pipeline",
+              "docs/examples/examples/supply-chain-swarm"
+            ]
+          },
+          {
+            "group": "Marketing, Content & Founder Tools",
+            "pages": [
+              "docs/examples/examples/yc-application-market-research",
+              "docs/guides/guides/monetize-agent-on-marketplace",
+              "docs/examples/examples/personal-ai-chief-of-staff",
+              "docs/examples/examples/daily-slack-ai-briefings",
+              "docs/examples/examples/code-review-swarm",
+              "docs/examples/examples/seo-content-pipeline"
             ]
           },
           {
@@ -321,17 +354,34 @@
             ]
           },
           {
-            "group": "Guides",
+            "group": "Resources",
+            "pages": [
+              "docs/guides/guides/night-mode-pricing-strategy",
+              "docs/guides/guides/cost-optimization-playbook"
+            ]
+          },
+          {
+            "group": "Production",
+            "pages": [
+              "docs/guides/guides/production-readiness-checklist",
+              "docs/guides/guides/production-observability"
+            ]
+          },
+          {
+            "group": "Compatibility & Benchmarks",
+            "pages": [
+              "docs/guides/guides/openai-sdk-drop-in",
+              "docs/guides/guides/replace-zapier-with-swarms",
+              "docs/guides/guides/swarms-vs-langgraph-crewai-autogen-benchmark"
+            ]
+          },
+          {
+            "group": "Tutorials & Integrations",
             "pages": [
               "docs/guides/guides/first",
               "docs/guides/guides/exa-web-search",
               "docs/guides/guides/x402_agents",
-              "docs/guides/guides/agdp",
-              "docs/guides/guides/cost-optimization-playbook",
-              "docs/guides/guides/night-mode-pricing-strategy",
-              "docs/guides/guides/openai-sdk-drop-in",
-              "docs/guides/guides/production-observability",
-              "docs/guides/guides/production-readiness-checklist"
+              "docs/guides/guides/agdp"
             ]
           }
         ]
