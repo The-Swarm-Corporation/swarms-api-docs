@@ -1,0 +1,568 @@
+---
+title: "News + Sentiment → Trade Idea Engine: Portfolio-Aware"
+description: "A HierarchicalSwarm that turns a continuous news firehose into actionable, portfolio-overlapped trade theses in Slack within 60 seconds of publish."
+---
+
+Two thousand articles cross the wire today. Eighty actually overlap your book. The engine posts a thesis on each of those eighty in Slack — and ignores the rest.
+
+## What This Example Shows
+
+- A `HierarchicalSwarm` with a News Director coordinating four per-sector workers — Tech, Energy, Healthcare, Financials — running in parallel on each article
+- A continuous webhook ingestion path that accepts Bloomberg, Reuters, and AP feeds straight into a FastAPI endpoint
+- Function tools that hit your portfolio database for entity-to-ticker resolution, position-size lookup, and the only-fire-when-relevant overlap gate
+- A cheap Python pre-filter that runs *before* the swarm so 96% of the firehose never costs a token
+- A Trade Idea Synthesizer that emits a structured thesis straight to Slack — ticker, position size, sentiment, suggested action, time horizon, confidence
+- Sustained high-volume throughput with the observability needed to track a missed-news SLA
+
+<Info>
+This pipeline runs continuously against a 24/7 news firehose at sustained volume. Upgrade to Premium at [https://swarms.world/platform/account](https://swarms.world/platform/account) for the throughput headroom, priority processing, and the observability dashboard needed to monitor the missed-news SLA. See the [Production Observability Guide](/docs/guides/guides/production-observability) for the metrics that matter when news latency is the product.
+</Info>
+
+## Why This Matters
+
+Most PMs are drowning in a news firehose where 99% of articles are irrelevant to their book — a tariff print on a name you don't hold is just noise, and by the time the analyst pod has read enough of the daily clip file to find the one piece that matters, the move has already happened. The alpha is in the 1% of articles that overlap a position you actually hold and carry a real signal, and that 1% needs to be in front of the PM in Slack within 60 seconds of the article publishing — not in the 8:30 AM morning meeting, not in the afternoon clip review, but now, before the desk you're competing against has finished reading the headline. This engine is the portfolio-aware filter that turns the firehose into exactly that: a Slack channel that only pings when something on your book just moved.
+
+## The Architecture
+
+```
+                 ┌─────────────────────────────┐
+                 │  Bloomberg / Reuters / AP   │
+                 │      News Webhook Feed      │
+                 └──────────────┬──────────────┘
+                                │
+                                ▼
+                  ┌──────────────────────────┐
+                  │   FastAPI /webhook/news  │
+                  └──────────────┬───────────┘
+                                 │
+                                 ▼
+                  ┌──────────────────────────┐
+                  │   Portfolio Overlap Gate │
+                  │  (cheap Python pre-call) │
+                  └──────────┬───────────────┘
+                             │
+              overlap empty ─┴─ overlap non-empty
+                       │              │
+                       ▼              ▼
+                  ┌────────┐   ┌────────────────────────────────────────────┐
+                  │ no-op  │   │            HierarchicalSwarm               │
+                  │ (drop) │   │  ┌─────────────────────────────────────┐   │
+                  └────────┘   │  │          News Director              │   │
+                               │  │   (claude-sonnet-4.5, coordinator)  │   │
+                               │  └────┬────────┬────────┬─────────┬────┘   │
+                               │       │        │        │         │        │
+                               │       ▼        ▼        ▼         ▼        │
+                               │   ┌──────┐ ┌──────┐ ┌──────┐ ┌──────────┐  │
+                               │   │ Tech │ │Energy│ │ HC   │ │Financials│  │
+                               │   └──┬───┘ └──┬───┘ └──┬───┘ └────┬─────┘  │
+                               │      └────┬───┴────┬───┴──────────┘        │
+                               │           ▼        ▼                        │
+                               │   ┌─────────────────────────────────────┐   │
+                               │   │      Trade Idea Synthesizer         │   │
+                               │   │    (claude-sonnet-4.5, output)      │   │
+                               │   └──────────────────┬──────────────────┘   │
+                               └──────────────────────┼──────────────────────┘
+                                                      │
+                                                      ▼
+                                            ┌──────────────────┐
+                                            │  Slack #theses   │
+                                            └──────────────────┘
+```
+
+## Step 1: Setup
+
+Install dependencies and pull your API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+```bash
+pip install requests fastapi uvicorn python-dotenv
+```
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+export NEWS_WEBHOOK_SECRET="shared-secret-with-bloomberg-or-reuters"
+export PORTFOLIO_DB_URL="postgresql://user:pass@db.internal:5432/book"
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/T.../B.../..."
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+PORTFOLIO_DB_URL = os.getenv("PORTFOLIO_DB_URL")
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+NEWS_WEBHOOK_SECRET = os.getenv("NEWS_WEBHOOK_SECRET")
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Function Tools
+
+The workers and the synthesizer share a toolbox that resolves entities to tickers, checks your actual book, scores sentiment, and posts the final thesis. Every tool follows the OpenAI function-call schema.
+
+```python
+EXTRACT_ENTITIES_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "extract_entities",
+        "description": (
+            "Extract all company names, products, executives, and regulatory bodies "
+            "mentioned in a news article. Return them as a normalized list."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "article_text": {
+                    "type": "string",
+                    "description": "The full body of the news article.",
+                },
+            },
+            "required": ["article_text"],
+        },
+    },
+}
+
+LOOKUP_TICKERS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "lookup_tickers_for_entity",
+        "description": (
+            "Resolve a single named entity (company, subsidiary, product) into "
+            "the list of public tickers it maps to in the firm's reference data."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "entity_name": {
+                    "type": "string",
+                    "description": "The normalized entity name.",
+                },
+            },
+            "required": ["entity_name"],
+        },
+    },
+}
+
+IS_IN_BOOK_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "is_in_book",
+        "description": (
+            "Return True if the firm currently holds a position in the given ticker "
+            "according to the live portfolio database."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Ticker symbol."},
+                "portfolio_db": {
+                    "type": "string",
+                    "description": "Connection string for the portfolio database.",
+                },
+            },
+            "required": ["ticker", "portfolio_db"],
+        },
+    },
+}
+
+COMPUTE_OVERLAP_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "compute_overlap",
+        "description": (
+            "Given the tickers mentioned in an article and the firm's current book, "
+            "return only the tickers that appear in both."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "article_tickers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Tickers extracted from the article.",
+                },
+                "book": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Tickers currently held by the firm.",
+                },
+            },
+            "required": ["article_tickers", "book"],
+        },
+    },
+}
+
+SCORE_SENTIMENT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "score_sentiment",
+        "description": (
+            "Score the sentiment of the article specifically toward the named ticker. "
+            "Return a float in [-1.0, 1.0] and a one-line rationale."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "article_text": {"type": "string"},
+                "ticker": {"type": "string"},
+            },
+            "required": ["article_text", "ticker"],
+        },
+    },
+}
+
+LOOKUP_POSITION_SIZE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "lookup_position_size",
+        "description": (
+            "Return the firm's current notional position size in USD for the given "
+            "ticker. Used to size the suggested action."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string"},
+                "portfolio_db": {"type": "string"},
+            },
+            "required": ["ticker", "portfolio_db"],
+        },
+    },
+}
+
+POST_TRADE_THESIS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "post_trade_thesis_to_slack",
+        "description": (
+            "Post a fully-formed trade thesis to the #theses Slack channel. Should "
+            "be called exactly once per overlapping ticker per article."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "The one-line thesis body to display in Slack.",
+                },
+                "ticker": {"type": "string"},
+                "conviction": {
+                    "type": "string",
+                    "enum": ["LOW", "MEDIUM", "HIGH"],
+                },
+                "action": {
+                    "type": "string",
+                    "enum": ["HOLD", "ADD", "REDUCE", "EXIT"],
+                },
+            },
+            "required": ["text", "ticker", "conviction", "action"],
+        },
+    },
+}
+
+ALL_TOOLS = [
+    EXTRACT_ENTITIES_TOOL,
+    LOOKUP_TICKERS_TOOL,
+    IS_IN_BOOK_TOOL,
+    COMPUTE_OVERLAP_TOOL,
+    SCORE_SENTIMENT_TOOL,
+    LOOKUP_POSITION_SIZE_TOOL,
+    POST_TRADE_THESIS_TOOL,
+]
+```
+
+## Step 3: Define the Hierarchical Swarm
+
+The News Director runs on `claude-sonnet-4.5` because synthesizing multi-sector takes into a single coherent dispatch needs strong reasoning. The four sector workers run on `gpt-4.1-mini` — they are doing tight, scoped, per-sector reasoning over a single article, which is exactly the workload that cheap fast models eat for breakfast. The Trade Idea Synthesizer goes back to `claude-sonnet-4.5` because the final thesis is the artifact that lands in front of the PM.
+
+```python
+NEWS_DIRECTOR_PROMPT = (
+    "You are the News Director on a multi-sector trading desk. An article has just "
+    "crossed the wire and at least one ticker on the firm's book is mentioned. "
+    "Route the article to the relevant sector workers (Tech, Energy, Healthcare, "
+    "Financials), collect their per-ticker takes, and hand a clean, deduplicated "
+    "package of {ticker, sentiment, signal_strength, sector_take} to the Trade Idea "
+    "Synthesizer. Do not write the thesis yourself — coordinate."
+)
+
+SECTOR_WORKER_PROMPT_TEMPLATE = (
+    "You are the {sector} sector specialist. You have one job: for every ticker in "
+    "your sector that the News Director hands you, use `extract_entities`, "
+    "`score_sentiment`, and `lookup_position_size` as needed to write a tight "
+    "per-ticker take covering (1) what the article actually says, (2) sentiment "
+    "toward this specific ticker, (3) signal strength on a 1-5 scale, and (4) the "
+    "single most important second-order implication for the position. No fluff."
+)
+
+SYNTHESIZER_PROMPT = (
+    "You are the Trade Idea Synthesizer. Given the per-ticker takes from the sector "
+    "workers, produce one structured trade thesis per overlapping ticker and call "
+    "`post_trade_thesis_to_slack` exactly once for each. Each thesis is one line, "
+    "ends with a clear HOLD / ADD / REDUCE / EXIT action, and includes the firm's "
+    "current position size. Be decisive — the PM has 20 of these to read today."
+)
+
+
+def build_news_swarm(article_text: str, article_url: str, overlap: list[str]) -> dict:
+    return {
+        "name": "News-Driven Trade Idea Engine",
+        "description": (
+            "News Director coordinates sector workers and a Trade Idea Synthesizer "
+            "to emit portfolio-overlapped trade theses to Slack."
+        ),
+        "swarm_type": "HierarchicalSwarm",
+        "max_loops": 1,
+        "task": (
+            f"Article URL: {article_url}\n"
+            f"Overlapping book tickers: {', '.join(overlap)}\n\n"
+            f"Article body:\n{article_text}\n\n"
+            "Produce one trade thesis per overlapping ticker and post each to Slack."
+        ),
+        "agents": [
+            {
+                "agent_name": "News Director",
+                "description": "Coordinator — routes the article across sector workers.",
+                "system_prompt": NEWS_DIRECTOR_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "coordinator",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.2,
+            },
+            {
+                "agent_name": "Tech Sector Worker",
+                "description": "Per-ticker takes for Tech sector names.",
+                "system_prompt": SECTOR_WORKER_PROMPT_TEMPLATE.format(sector="Technology"),
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+                "tools_dictionary": [
+                    EXTRACT_ENTITIES_TOOL,
+                    SCORE_SENTIMENT_TOOL,
+                    LOOKUP_POSITION_SIZE_TOOL,
+                ],
+            },
+            {
+                "agent_name": "Energy Sector Worker",
+                "description": "Per-ticker takes for Energy sector names.",
+                "system_prompt": SECTOR_WORKER_PROMPT_TEMPLATE.format(sector="Energy"),
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+                "tools_dictionary": [
+                    EXTRACT_ENTITIES_TOOL,
+                    SCORE_SENTIMENT_TOOL,
+                    LOOKUP_POSITION_SIZE_TOOL,
+                ],
+            },
+            {
+                "agent_name": "Healthcare Sector Worker",
+                "description": "Per-ticker takes for Healthcare sector names.",
+                "system_prompt": SECTOR_WORKER_PROMPT_TEMPLATE.format(sector="Healthcare"),
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+                "tools_dictionary": [
+                    EXTRACT_ENTITIES_TOOL,
+                    SCORE_SENTIMENT_TOOL,
+                    LOOKUP_POSITION_SIZE_TOOL,
+                ],
+            },
+            {
+                "agent_name": "Financials Sector Worker",
+                "description": "Per-ticker takes for Financials sector names.",
+                "system_prompt": SECTOR_WORKER_PROMPT_TEMPLATE.format(sector="Financials"),
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+                "tools_dictionary": [
+                    EXTRACT_ENTITIES_TOOL,
+                    SCORE_SENTIMENT_TOOL,
+                    LOOKUP_POSITION_SIZE_TOOL,
+                ],
+            },
+            {
+                "agent_name": "Trade Idea Synthesizer",
+                "description": "Emits the final structured thesis to Slack.",
+                "system_prompt": SYNTHESIZER_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.2,
+                "tools_dictionary": [
+                    LOOKUP_POSITION_SIZE_TOOL,
+                    POST_TRADE_THESIS_TOOL,
+                ],
+            },
+        ],
+    }
+```
+
+## Step 4: The FastAPI Webhook Endpoint
+
+The vendor (Bloomberg, Reuters, AP) POSTs every article to `/webhook/news`. The webhook does the cheap work first: extract entities, resolve to tickers, intersect with the live book. **Only if the overlap is non-empty does the swarm fire.** This is the single most important cost lever in the entire pipeline.
+
+```python
+import hmac
+import hashlib
+
+from fastapi import FastAPI, Header, HTTPException, Request
+
+app = FastAPI()
+
+
+def verify_webhook_signature(body: bytes, signature: str) -> bool:
+    expected = hmac.new(
+        NEWS_WEBHOOK_SECRET.encode(),
+        body,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+# --- Local pre-call helpers (cheap, no LLM) -----------------------------------
+
+def extract_entities_local(article_text: str) -> list[str]:
+    """NER over the article body — spaCy / a small in-house model. No LLM."""
+    ...  # your existing extractor
+
+
+def resolve_entities_to_tickers(entities: list[str]) -> list[str]:
+    """Hit the firm's reference data table to map entities → tickers."""
+    ...  # SQL against PORTFOLIO_DB_URL
+
+
+def get_current_book() -> set[str]:
+    """Return the set of tickers currently held by the firm."""
+    ...  # SQL against PORTFOLIO_DB_URL
+
+
+def portfolio_overlap(article_text: str) -> list[str]:
+    entities = extract_entities_local(article_text)
+    article_tickers = resolve_entities_to_tickers(entities)
+    book = get_current_book()
+    return sorted(set(article_tickers) & book)
+
+
+# --- The webhook -------------------------------------------------------------
+
+@app.post("/webhook/news")
+async def news_webhook(request: Request, x_signature: str = Header(...)) -> dict:
+    body = await request.body()
+    if not verify_webhook_signature(body, x_signature):
+        raise HTTPException(status_code=401, detail="bad signature")
+
+    article = json.loads(body)
+    article_text = article["body"]
+    article_url = article["url"]
+
+    # The gate. This is what keeps 96% of the firehose from ever touching an LLM.
+    overlap = portfolio_overlap(article_text)
+    if not overlap:
+        return {"status": "dropped", "reason": "no portfolio overlap"}
+
+    # Overlap is non-empty — fire the swarm.
+    thesis_count = fire_swarm(article_text, article_url, overlap)
+    return {
+        "status": "processed",
+        "overlap": overlap,
+        "theses_posted": thesis_count,
+    }
+```
+
+<Note>
+The overlap gate is the cost-control layer. At a full feed of ~2,000 articles/day, roughly 4% will mention something on the book — call it 80 articles. Every article that fails the gate costs you a few milliseconds of Python and zero tokens. Skip the gate and you're paying for 2,000 swarm runs to discover 1,920 of them weren't relevant.
+</Note>
+
+## Step 5: The Per-Article Swarm Call
+
+When the gate passes, POST the article into the swarm. The `swarm_type` is `HierarchicalSwarm` — the News Director fans out to the four sector workers, collects their takes, and the Trade Idea Synthesizer calls `post_trade_thesis_to_slack` once per overlapping ticker.
+
+```python
+def fire_swarm(article_text: str, article_url: str, overlap: list[str]) -> int:
+    payload = build_news_swarm(article_text, article_url, overlap)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=120,
+    )
+    response.raise_for_status()
+    result = response.json()
+
+    # Count theses actually posted (Synthesizer calls post_trade_thesis_to_slack).
+    synthesizer_output = next(
+        (o for o in result.get("output", []) if "Trade Idea Synthesizer" in o.get("role", "")),
+        {},
+    )
+    theses = synthesizer_output.get("tool_calls", []) or []
+    return len([t for t in theses if t.get("name") == "post_trade_thesis_to_slack"])
+```
+
+## Step 6: The Trade Thesis Output Schema
+
+Every thesis the synthesizer posts to Slack is a structured object. This is what your PM sees and what gets persisted into the research database for audit.
+
+```json
+{
+  "ticker": "XOM",
+  "position_size_usd": 12400000,
+  "article_url": "https://www.reuters.com/business/energy/...",
+  "sentiment": -0.62,
+  "suggested_action": "REDUCE",
+  "thesis_one_liner": "Saudi production guidance + softer Asian demand prints argue for a 25% trim into strength while crack spreads still support the multiple.",
+  "time_horizon": "2-6 weeks",
+  "confidence": "MEDIUM"
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `ticker` | string | Must be a ticker currently in the book |
+| `position_size_usd` | int | Pulled live via `lookup_position_size` |
+| `article_url` | string | Source link, always preserved for audit |
+| `sentiment` | float | `[-1.0, 1.0]` toward this specific ticker |
+| `suggested_action` | enum | `HOLD` / `ADD` / `REDUCE` / `EXIT` |
+| `thesis_one_liner` | string | One sentence. The PM reads 20 of these a day. |
+| `time_horizon` | string | e.g. `"intraday"`, `"2-6 weeks"`, `"1-2 quarters"` |
+| `confidence` | enum | `LOW` / `MEDIUM` / `HIGH` |
+
+## Step 7: Production Observability
+
+At sustained continuous volume, observability is not optional — it is the SLA. The Premium observability dashboard tracks the metrics that matter when news latency *is* the product: articles ingested per minute, articles passing the overlap gate, swarm calls fired, theses posted to Slack, p50/p99 article-to-Slack latency, and — most importantly — the **missed-news SLA**: any article that overlapped the book but failed to produce a thesis within the 60-second budget. The dashboard, the priority processing queue that keeps the missed-news SLA inside the budget at peak earnings-week volume, and the per-route throughput headroom are Premium-tier features. See the [Production Observability Guide](/docs/guides/guides/production-observability) for the full set of metrics and alerting recipes.
+
+## Real Cost vs. Bloomberg + Headcount
+
+The engine doesn't replace humans — it captures the 90% of relevance their day misses. At a full feed of ~2,000 articles/day, the overlap gate filters to ~80 swarm calls/day.
+
+| Line item | Volume | Cost |
+| --- | --- | --- |
+| Articles ingested (gate only, no LLM) | ~2,000/day | ~\$0/day |
+| Swarm runs (post-gate, full hierarchical) | ~80/day | ~\$80/day |
+| **Engine total** | | **~\$80/day (~\$20K/yr)** |
+| Bloomberg terminal × 5 PMs | \$24K/seat/yr | \$120K/yr |
+| Sector-rotation analyst (fully loaded) | 1 FTE | \$200K/yr |
+| **Human stack total** | | **\$320K/yr** |
+
+The math isn't "fire the analyst." The math is: your sector-rotation analyst reads maybe 200 articles end-to-end on a heavy day and writes up the three they think matter. The engine reads all 2,000, identifies all 80 that overlap the book, and posts a structured thesis on each — for \$80/day. The analyst gets to spend their day on the five names that need real human judgement, and the desk stops missing the other 75.
+
+## Next Steps
+
+- See the [AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) for the morning-meeting batch variant of the same hierarchical pattern
+- See the [24/7 Autonomous Equity Research Analyst](/docs/examples/examples/247-autonomous-equity-research-analyst) for the always-on equity coverage companion to this engine
+- Read the [Production Observability Guide](/docs/guides/guides/production-observability) for the missed-news SLA dashboard and Premium-tier throughput configuration

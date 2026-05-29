@@ -1,0 +1,405 @@
+---
+title: "Options Flow Detector: Unusual Activity to Trade Ideas Intraday"
+description: "A ConcurrentWorkflow that scans options chains every 5 minutes, fans out flow, Greeks, and vol-surface analysis in parallel, and ships a ranked watchlist to Slack before the next print."
+---
+
+Every 5 minutes during market hours, an unusual-activity watchlist lands in Slack — and the engineer who built it goes back to actually trading.
+
+## What This Example Shows
+
+- A `ConcurrentWorkflow` of three specialist agents — Flow Scanner, Greeks Analyzer, Vol Surface Watcher — fanning out in parallel on the same options snapshot
+- Per-agent `tools_dictionary` wired to live options market-data endpoints (Polygon / Tradier) and a Slack webhook
+- An intraday cron firing every 5 minutes (`*/5 9-16 * * 1-5`) that turns into ~80 swarm runs per session
+- The rate-limit math: a 5-minute cadence blows through Free per-hour caps inside the first 60 minutes — Premium is not optional for production
+- Model diversification across providers — `gpt-4.1-mini`, `gpt-4.1`, `claude-haiku-4.5`, `claude-sonnet-4.5` — each picked for what that node actually needs
+- A Trade Idea Generator merging the three parallel briefs into a ranked watchlist and posting to a Slack channel before the next 5-minute window
+
+<Info>
+A 5-minute cron during the 6.5-hour cash session generates ~78 swarm runs per day, each launching 4 agents — that is well past Free per-hour rate limits within the first hour, and Pro limits by mid-morning. You need Premium for the priority queue and the headroom. Full limit table at [Rate Limits](/docs/documentation/resources/ratelimits).
+</Info>
+
+## Why This Matters
+
+Unusual options activity has historically led equity returns by 10 to 30 minutes — large sweeps, abnormal volume-vs-OI ratios, IV expansions, and skew shifts are exactly the footprints big books leave when they take a directional view before it shows up in the tape. A single human eyeballing a Bloomberg flow scanner can cover maybe 20 names attentively in a session. The S&P 500 has 500 names, the Russell 3000 has 3,000, the optionable US equity universe is roughly 5,000. You cannot scan that manually, and you cannot scan it once a day either — flow that mattered at 10:05 is dead by 10:35. The only way to win this is a 5-minute heartbeat with parallel specialist agents that survive the firehose and only escalate the names that actually deserve a look.
+
+## The Architecture
+
+```
+                            ┌──────────────────────────────┐
+                            │ Cron */5 9-16 * * 1-5 (NY)   │
+                            └──────────────┬───────────────┘
+                                           │
+                                           ▼
+                          ┌─────────────────────────────────┐
+                          │ Pull options chains             │
+                          │  • Polygon /v3/snapshot/options │
+                          │  • Tradier /markets/options     │
+                          └─────────────┬───────────────────┘
+                                        │
+                                        ▼
+                    ┌─────────────────────────────────────────┐
+                    │           ConcurrentWorkflow             │
+                    │ ┌─────────────┐ ┌──────────┐ ┌────────┐ │
+                    │ │ Flow Scanner│ │ Greeks   │ │ Vol    │ │
+                    │ │ gpt-4.1-mini│ │ Analyzer │ │ Surface│ │
+                    │ │             │ │ gpt-4.1  │ │ haiku  │ │
+                    │ └──────┬──────┘ └────┬─────┘ └───┬────┘ │
+                    └────────┼─────────────┼───────────┼──────┘
+                             │             │           │
+                             └─────────────┼───────────┘
+                                           ▼
+                          ┌─────────────────────────────────┐
+                          │ Trade Idea Generator            │
+                          │ claude-sonnet-4.5               │
+                          │ (merge → rank → conviction)     │
+                          └─────────────┬───────────────────┘
+                                        ▼
+                          ┌─────────────────────────────────┐
+                          │ Slack #options-flow             │
+                          └─────────────────────────────────┘
+```
+
+## Step 1: Setup
+
+Grab your Swarms key at [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys), then wire up the options data vendor and Slack.
+
+```bash
+pip install requests python-dotenv
+export SWARMS_API_KEY="your-swarms-key"
+export POLYGON_API_KEY="your-polygon-key"          # or TRADIER_TOKEN
+export TRADIER_TOKEN="your-tradier-token"
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/T.../B.../..."
+```
+
+```python
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Function Tools
+
+Tools are OpenAI function-call schemas attached per-agent via `tools_dictionary`. The agents decide when to call them — your backend executes them against Polygon / Tradier / Slack and feeds results back into the loop.
+
+```python
+FETCH_OPTIONS_CHAIN = {
+    "type": "function",
+    "function": {
+        "name": "fetch_options_chain",
+        "description": (
+            "Pull the live options chain for an underlying ticker across a "
+            "near-term expiry range. Returns strikes, bid/ask, IV, volume, and "
+            "open interest per contract."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "symbol": {
+                    "type": "string",
+                    "description": "Underlying ticker, e.g. 'NVDA'.",
+                },
+                "expiry_range": {
+                    "type": "string",
+                    "description": (
+                        "ISO date range, e.g. '2026-05-30:2026-06-20'. "
+                        "Limit to weeklies + front month for flow work."
+                    ),
+                },
+            },
+            "required": ["symbol", "expiry_range"],
+        },
+    },
+}
+
+COMPUTE_GREEKS = {
+    "type": "function",
+    "function": {
+        "name": "compute_greeks",
+        "description": (
+            "Compute Black-Scholes delta, gamma, vega, theta, rho for a "
+            "single contract given strike, IV, expiry, underlying spot, "
+            "and risk-free rate."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "strike": {"type": "number", "description": "Strike price."},
+                "iv": {"type": "number", "description": "Implied vol as a decimal, e.g. 0.42."},
+                "expiry": {"type": "string", "description": "ISO expiry date."},
+                "underlying": {"type": "number", "description": "Spot price of the underlying."},
+                "rfr": {"type": "number", "description": "Risk-free rate as a decimal, e.g. 0.045."},
+            },
+            "required": ["strike", "iv", "expiry", "underlying", "rfr"],
+        },
+    },
+}
+
+VOLUME_VS_OI_RATIO = {
+    "type": "function",
+    "function": {
+        "name": "volume_vs_oi_ratio",
+        "description": (
+            "Return today's contract-level volume / open interest ratio for "
+            "every strike on the chain. Ratios > 2.0 are the headline "
+            "unusual-activity tell."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "symbol": {"type": "string", "description": "Underlying ticker."},
+            },
+            "required": ["symbol"],
+        },
+    },
+}
+
+COMPUTE_IV_RANK = {
+    "type": "function",
+    "function": {
+        "name": "compute_iv_rank",
+        "description": (
+            "Compute IV rank (0-100) for the at-the-money 30-day vol vs. its "
+            "trailing window. High IV rank = vol is rich, sellers favored. "
+            "Low IV rank = vol is cheap, gamma is on sale."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "symbol": {"type": "string", "description": "Underlying ticker."},
+                "lookback_days": {
+                    "type": "integer",
+                    "description": "Lookback window in trading days, e.g. 252.",
+                },
+            },
+            "required": ["symbol", "lookback_days"],
+        },
+    },
+}
+
+POST_SLACK_ALERT = {
+    "type": "function",
+    "function": {
+        "name": "post_slack_alert",
+        "description": (
+            "Post a formatted unusual-activity alert to the #options-flow "
+            "Slack channel via the configured webhook."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "Full markdown body of the alert.",
+                },
+                "ticker": {
+                    "type": "string",
+                    "description": "Headline ticker for the alert.",
+                },
+                "conviction": {
+                    "type": "string",
+                    "enum": ["LOW", "MEDIUM", "HIGH"],
+                    "description": "Conviction bucket, drives channel emoji + colour bar.",
+                },
+            },
+            "required": ["text", "ticker", "conviction"],
+        },
+    },
+}
+```
+
+## Step 3: Define the Four Agents
+
+Four agents, four models, four jobs. Cheap and fast on the wide scan; reasoning-heavy where the math actually matters; Sonnet at the top to merge.
+
+```python
+FLOW_SCANNER_PROMPT = (
+    "You are an Options Flow Scanner. For the given universe of tickers, call "
+    "fetch_options_chain and volume_vs_oi_ratio to flag contracts with "
+    "volume/OI > 2.0, abnormal block prints, and sweeps that hit the ask. "
+    "Return a tight list of (ticker, strike, expiry, side, V/OI, $premium). "
+    "No prose. No hedging. Be fast — you are the first pass."
+)
+
+GREEKS_ANALYZER_PROMPT = (
+    "You are a Greeks Analyzer. For each contract surfaced by the Flow Scanner, "
+    "call compute_greeks and report delta exposure, gamma per $1 move, vega per "
+    "vol point, and the dollar size of the position. Flag any single trade with "
+    "more than $250k notional gamma or vega. Output one line per contract."
+)
+
+VOL_SURFACE_PROMPT = (
+    "You are a Vol Surface Watcher. For each underlying flagged by Flow Scanner, "
+    "call compute_iv_rank with lookback_days=252 and read the chain for skew "
+    "shifts and term-structure dislocations vs. the prior snapshot. Flag IV "
+    "rank > 70 (rich vol) and < 20 (cheap vol). Note any 25-delta skew that "
+    "moved more than 2 vol points in the last hour."
+)
+
+TRADE_IDEA_PROMPT = (
+    "You are the Trade Idea Generator. Merge the Flow Scanner, Greeks Analyzer, "
+    "and Vol Surface Watcher briefs into a ranked watchlist. For each idea:\n\n"
+    "TICKER: <symbol>\n"
+    "STRUCTURE: <single-leg or spread>\n"
+    "THESIS: <one sentence on why this flow matters now>\n"
+    "CONVICTION: <LOW | MEDIUM | HIGH>\n"
+    "INVALIDATION: <one sentence on what would kill the idea>\n\n"
+    "Then call post_slack_alert for every MEDIUM and HIGH conviction idea. "
+    "Skip LOW conviction — Slack is not a log file."
+)
+
+
+def build_options_flow_swarm(universe: list[str]) -> dict:
+    return {
+        "name": "Options Flow Detector",
+        "description": "ConcurrentWorkflow scanning unusual options activity intraday.",
+        "swarm_type": "ConcurrentWorkflow",
+        "max_loops": 1,
+        "task": (
+            "Scan the following universe for unusual options activity in the "
+            "last 5 minutes and produce a ranked watchlist of trade ideas: "
+            f"{', '.join(universe)}"
+        ),
+        "agents": [
+            {
+                "agent_name": "Flow Scanner",
+                "description": "First-pass unusual-activity scan across the universe.",
+                "system_prompt": FLOW_SCANNER_PROMPT,
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.2,
+                "tools_dictionary": [FETCH_OPTIONS_CHAIN, VOLUME_VS_OI_RATIO],
+            },
+            {
+                "agent_name": "Greeks Analyzer",
+                "description": "Delta / gamma / vega / theta sizing on flagged contracts.",
+                "system_prompt": GREEKS_ANALYZER_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.2,
+                "tools_dictionary": [COMPUTE_GREEKS],
+            },
+            {
+                "agent_name": "Vol Surface Watcher",
+                "description": "IV rank, skew, and term-structure dislocations.",
+                "system_prompt": VOL_SURFACE_PROMPT,
+                "model_name": "claude-haiku-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4096,
+                "temperature": 0.2,
+                "tools_dictionary": [COMPUTE_IV_RANK, FETCH_OPTIONS_CHAIN],
+            },
+            {
+                "agent_name": "Trade Idea Generator",
+                "description": "Merges briefs into a ranked watchlist and posts to Slack.",
+                "system_prompt": TRADE_IDEA_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "coordinator",
+                "max_loops": 1,
+                "max_tokens": 6144,
+                "temperature": 0.3,
+                "tools_dictionary": [POST_SLACK_ALERT],
+            },
+        ],
+        "output_type": "dict",
+    }
+```
+
+<Note>
+The cheapest model (`gpt-4.1-mini`) does the widest pass because flow scanning is mostly pattern recognition over structured data — Greeks reasoning and final ranking is where the smarter models earn their tokens. Diversifying providers across OpenAI and Anthropic also means if one provider has a 5-minute outage, three out of four agents still ship.
+</Note>
+
+## Step 4: Run One Intraday Pass
+
+```python
+UNIVERSE = [
+    "SPY", "QQQ", "IWM",
+    "NVDA", "AAPL", "MSFT", "GOOGL", "META", "AMZN", "TSLA",
+    "AMD", "AVGO", "NFLX", "COIN", "PLTR", "SMCI", "MSTR",
+    "JPM", "BAC", "XOM", "OXY",
+]
+
+
+def run_options_flow_pass(universe: list[str]) -> dict:
+    payload = build_options_flow_swarm(universe)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+if __name__ == "__main__":
+    result = run_options_flow_pass(UNIVERSE)
+
+    for output in result.get("output", []):
+        print("=" * 60)
+        print(output["role"])
+        print("=" * 60)
+        content = output["content"]
+        if isinstance(content, list):
+            content = " ".join(str(c) for c in content)
+        print(str(content)[:600])
+
+    cost = result["usage"]["billing_info"]["total_cost"]
+    elapsed = result["execution_time"]
+    print(f"\nPass cost: ${cost:.4f}  |  wall time: {elapsed:.1f}s")
+```
+
+A single 21-ticker pass typically runs ~\$0.18–\$0.25 and completes in 30–45 seconds — well inside the 5-minute window, with a generous buffer for slow data calls.
+
+## Step 5: The 5-Minute Cron
+
+Drop the script behind a cron line that only fires during the US cash session, Monday through Friday.
+
+```cron
+# /etc/cron.d/options-flow  (server is on America/New_York)
+*/5 9-16 * * 1-5  trader  /usr/bin/python3 /opt/flow/run_pass.py >> /var/log/flow.log 2>&1
+```
+
+The math on a 5-minute heartbeat:
+
+| Window | Passes |
+| --- | --- |
+| Per hour | 12 |
+| Per 6.5-hour session | ~78 |
+| Per week | ~390 |
+| Per month | ~1,700 |
+
+Each pass launches the swarm, which kicks off 4 agents and the underlying tool calls. That is roughly 312 agent-runs per hour during market hours — Free per-hour caps tap out in the first 60 minutes, and Pro tier saturates by mid-morning on a busy day. Production needs **Premium** for the priority processing queue, higher concurrent-execution caps, and the headroom not to drop a window when the chain endpoint is slow. Full numbers at [Rate Limits](/docs/documentation/resources/ratelimits).
+
+<Info>
+Premium queue priority matters more than raw call count here. A 5-minute window that completes at minute 6 is a missed window — the next cron fires before the last alert lands in Slack. Priority routing keeps the wall time inside the cadence on busy days.
+</Info>
+
+## Real Cost vs. Bloomberg Options Scanner
+
+| Stack | Setup | Annual |
+| --- | --- | --- |
+| This swarm (4 agents × ~78 passes/day) | ~\$15/day in API + data fees | ~\$3,750/yr |
+| Bloomberg AIM seat (with options analytics) | \$2,000/mo per seat | ~\$24,000/yr |
+| Tradeshift / OptionsPlay enterprise | \$1,500–\$3,000/mo | ~\$18,000–\$36,000/yr |
+
+This is not a Bloomberg replacement. Nobody is canceling their Terminal because of a Slack bot — Bloomberg owns the ground truth, the chat, and the workflow your counterparties live in. What this stack is: a focused alpha layer on top of the data you already pay for, doing the one thing humans cannot do — scanning the full optionable universe every 5 minutes without getting tired. Cheap enough to run from a side server, cheap enough to fail occasionally, cheap enough that you do not have to justify the spend to a CFO.
+
+## Next Steps
+
+- [Crypto Quant Agent](/docs/examples/examples/crypto-quant-agent) — the same intraday cron pattern applied to 24/7 crypto markets where the heartbeat can stay tight all weekend
+- [AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) — the overnight `HierarchicalSwarm` batch pattern that pairs with this intraday loop for a complete research stack
+- [Rate Limits](/docs/documentation/resources/ratelimits) — exact per-tier numbers, the upgrade path, and how priority queueing changes the cadence math

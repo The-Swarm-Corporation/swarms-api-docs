@@ -277,7 +277,17 @@
               "docs/examples/examples/advanced-research-investor-memos",
               "docs/examples/examples/etf-analysis-grid",
               "docs/examples/examples/real-estate-investment-memo",
-              "docs/examples/examples/crypto-quant-agent"
+              "docs/examples/examples/crypto-quant-agent",
+              "docs/examples/examples/earnings-call-analysis-swarm",
+              "docs/examples/examples/sec-filing-triage-pipeline",
+              "docs/examples/examples/options-flow-unusual-activity",
+              "docs/examples/examples/macro-data-release-engine",
+              "docs/examples/examples/insider-form4-monitor",
+              "docs/examples/examples/sell-side-research-pipeline",
+              "docs/examples/examples/dcf-builder-sensitivity",
+              "docs/examples/examples/13f-tracker-quarterly-burst",
+              "docs/examples/examples/crypto-onchain-whale-tracker",
+              "docs/examples/examples/news-driven-trade-idea-engine"
             ]
           },
           {

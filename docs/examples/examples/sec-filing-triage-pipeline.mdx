@@ -1,0 +1,500 @@
+---
+title: "SEC Filing Triage Pipeline: 10-K, 10-Q, and 8-K Diffs Against Prior Period"
+description: "A SequentialWorkflow that ingests EDGAR filings, extracts the load-bearing sections, diffs them against the prior period, and lands a materiality-scored memo on every name in the book before the open."
+---
+
+Every morning by 7am ET, every new 10-Q for every name in the book has a materiality-scored diff memo waiting.
+
+## What This Example Shows
+
+- A `SequentialWorkflow` that pipes a single EDGAR accession number through classification, section extraction, diffing, scoring, and memo generation
+- Five OpenAI-format **function tools** wired into the agents: EDGAR fetch, MD&A parser, Risk Factors extractor, section differ, and a materiality scorer
+- Real **EDGAR ingestion** including the SEC-mandated `User-Agent` header — no scraping, no hand-built parsers downstream
+- A **diff-against-prior** core: the pipeline only surfaces what changed versus the previous comparable filing (10-Q vs. prior 10-Q, 10-K vs. prior 10-K, 8-K vs. nothing)
+- A **materiality score** (0-100) attached to every delta so analysts read top-of-stack, not chronologically
+- An overnight **batch run** of 30-50 filings per portfolio per day against `/v1/swarm/batch/completions` — the volume that forces Pro → Premium
+
+<Info>
+The `/v1/swarm/batch/completions` endpoint used in Step 5 is a premium feature. A live portfolio firehose at 30-50 filings/day per book quickly saturates Pro rate limits — upgrade to Premium for the parallel execution and observability (per-filing cost, per-agent token counts, structured run logs) you need to actually trust this in production. Manage your plan at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+</Info>
+
+## Why This Matters
+
+Analysts do not read 10-Qs — they skim them for what changed. A 90-page Q3 filing is 87 pages of boilerplate, copy-pasted disclaimers, and last quarter's text, plus 3 pages of new language buried somewhere in MD&A, Risk Factors, or the footnotes that actually moves the thesis. The job of this pipeline is not to summarize filings; it is to throw away the 87 pages of unchanged text, isolate the new language, score how thesis-relevant the delta is, and put the top items in front of a human in 90 seconds. A four-person credit desk covering 200 issuers cannot read every 10-Q the day it drops. This pipeline can — and it costs less than one analyst-hour per day to run the whole book.
+
+## The Architecture
+
+```
+                                    SequentialWorkflow
+   ┌──────────────┐
+   │ EDGAR Feed   │  (cron polls EDGAR every ~15 min for new filings)
+   └──────┬───────┘
+          │ accession numbers
+          ▼
+ ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
+ │ Filing Classifier   │ →  │ Section Extractor   │ →  │ Diff Engine         │
+ │ (gpt-4.1-mini)      │    │ (gpt-4.1)           │    │ (claude-opus-4-8)   │
+ │ 10-K / 10-Q / 8-K   │    │ MD&A, Risk, Notes   │    │ vs. prior period    │
+ └─────────────────────┘    └─────────────────────┘    └──────────┬──────────┘
+                                                                  │
+                                                                  ▼
+                            ┌─────────────────────┐    ┌─────────────────────┐
+                            │ Memo Writer         │ ←  │ Materiality Scorer  │
+                            │ (claude-sonnet-4.5) │    │ (claude-sonnet-4.5) │
+                            └──────────┬──────────┘    └─────────────────────┘
+                                       │
+                                       ▼
+                                ┌──────────────┐
+                                │  Research DB │
+                                └──────────────┘
+```
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+```
+
+Create a `.env` file. SEC requires a descriptive `User-Agent` on every EDGAR request (see [SEC EDGAR access rules](https://www.sec.gov/os/accessing-edgar-data)) — set one that identifies your firm and a reachable email:
+
+```bash
+SWARMS_API_KEY=your_api_key_here
+EDGAR_USER_AGENT="Acme Capital Research research@acmecap.com"
+PRIOR_FILINGS_DB_URL=postgres://...   # where you stash prior accession texts
+```
+
+Grab your Swarms key at [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+```python
+import json
+import os
+from datetime import datetime, timedelta
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+EDGAR_UA = os.getenv("EDGAR_USER_AGENT")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Function Tools
+
+Five OpenAI-format function tools. The agents decide when to call them; the swarm runtime carries arguments and return values between stages.
+
+```python
+FETCH_EDGAR_FILING = {
+    "type": "function",
+    "function": {
+        "name": "fetch_edgar_filing",
+        "description": (
+            "Fetch the full text of an SEC filing from EDGAR by accession "
+            "number. Returns the raw filing text, the form type (10-K, 10-Q, "
+            "8-K, etc.), the filer CIK, and the period of report."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "accession_number": {
+                    "type": "string",
+                    "description": (
+                        "EDGAR accession number, e.g. 0000320193-24-000123. "
+                        "Dashes required."
+                    ),
+                },
+            },
+            "required": ["accession_number"],
+        },
+    },
+}
+
+PARSE_MDA_SECTION = {
+    "type": "function",
+    "function": {
+        "name": "parse_mda_section",
+        "description": (
+            "Extract the Management's Discussion and Analysis (MD&A) section "
+            "from the full text of a 10-K or 10-Q filing. Returns the MD&A "
+            "as clean text with subsection headers preserved."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filing_text": {
+                    "type": "string",
+                    "description": "Full raw text of the EDGAR filing.",
+                },
+            },
+            "required": ["filing_text"],
+        },
+    },
+}
+
+EXTRACT_RISK_FACTORS = {
+    "type": "function",
+    "function": {
+        "name": "extract_risk_factors",
+        "description": (
+            "Extract Item 1A (Risk Factors) from a 10-K, or the updated risk "
+            "factor language from a 10-Q. Returns each risk factor as an "
+            "individually addressable string in an array."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filing_text": {
+                    "type": "string",
+                    "description": "Full raw text of the EDGAR filing.",
+                },
+            },
+            "required": ["filing_text"],
+        },
+    },
+}
+
+DIFF_SECTIONS = {
+    "type": "function",
+    "function": {
+        "name": "diff_sections",
+        "description": (
+            "Compare a section of the current filing against the same "
+            "section of the prior comparable filing. Returns a semantic "
+            "diff: added language, removed language, and language with "
+            "changed meaning even if wording is similar."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "current_text": {
+                    "type": "string",
+                    "description": (
+                        "Section text from the new filing (e.g. MD&A from "
+                        "the latest 10-Q)."
+                    ),
+                },
+                "prior_text": {
+                    "type": "string",
+                    "description": (
+                        "Same section from the prior comparable filing "
+                        "(prior 10-Q for a 10-Q, prior 10-K for a 10-K)."
+                    ),
+                },
+            },
+            "required": ["current_text", "prior_text"],
+        },
+    },
+}
+
+SCORE_MATERIALITY = {
+    "type": "function",
+    "function": {
+        "name": "score_materiality",
+        "description": (
+            "Score the materiality of a diff on a 0-100 scale. 0 = pure "
+            "boilerplate cleanup, 100 = thesis-breaking new disclosure. "
+            "Returns the score, a one-line rationale, and a category "
+            "(GUIDANCE, LITIGATION, ACCOUNTING, SEGMENT, LIQUIDITY, OTHER)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "diff_text": {
+                    "type": "string",
+                    "description": (
+                        "The semantic diff output from diff_sections."
+                    ),
+                },
+            },
+            "required": ["diff_text"],
+        },
+    },
+}
+```
+
+## Step 3: Define the Pipeline Agents
+
+Five agents in a `SequentialWorkflow`. Each stage builds on the prior stage's output. Models are deliberately diversified — a cheap classifier on the front, two Claude models doing the deep legal-language work in the middle, and Sonnet writing the final memo.
+
+```python
+PIPELINE_AGENTS = [
+    {
+        "agent_name": "Filing Classifier",
+        "description": "Identifies form type and routes the pipeline.",
+        "system_prompt": (
+            "You are an SEC filing classifier. Given an accession number, "
+            "call fetch_edgar_filing, then output a single JSON object: "
+            '{"accession": str, "form_type": "10-K"|"10-Q"|"8-K", '
+            '"cik": str, "period_of_report": "YYYY-MM-DD", '
+            '"prior_accession": str | null}. The prior_accession is the '
+            "same filer's most recent comparable filing (prior 10-Q for a "
+            "10-Q, prior 10-K for a 10-K, null for an 8-K). Output JSON "
+            "only — no prose."
+        ),
+        "model_name": "gpt-4.1-mini",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 1024,
+        "temperature": 0.0,
+        "tools_dictionary": [FETCH_EDGAR_FILING],
+    },
+    {
+        "agent_name": "Section Extractor",
+        "description": "Pulls MD&A, Risk Factors, and footnotes.",
+        "system_prompt": (
+            "You are an SEC filing section extractor. Given the classifier "
+            "output and the filing text, call parse_mda_section and "
+            "extract_risk_factors. Also extract any financial-statement "
+            "footnotes that discuss revenue recognition, going concern, "
+            "subsequent events, or commitments and contingencies. Output "
+            "a JSON object with keys: mda, risk_factors (array), footnotes "
+            "(object keyed by footnote topic). Preserve all numbers and "
+            "section headers verbatim — do not paraphrase."
+        ),
+        "model_name": "gpt-4.1",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 8192,
+        "temperature": 0.1,
+        "tools_dictionary": [PARSE_MDA_SECTION, EXTRACT_RISK_FACTORS],
+    },
+    {
+        "agent_name": "Diff Engine",
+        "description": "Semantic diff vs. the prior comparable filing.",
+        "system_prompt": (
+            "You are a senior securities lawyer comparing two filings. For "
+            "each extracted section (MD&A, each Risk Factor, each footnote), "
+            "fetch the same section from prior_accession and call "
+            "diff_sections. Surface: (1) NEW language not present in the "
+            "prior period, (2) REMOVED language present prior but not now, "
+            "(3) CHANGED MEANING where wording is similar but the legal "
+            "or financial implication has shifted. Be precise about which "
+            "section each diff comes from. If a section is unchanged, say "
+            "so explicitly — do not invent diffs. For 8-Ks (no prior), "
+            "treat the entire filing as net-new."
+        ),
+        "model_name": "claude-opus-4-8",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 8192,
+        "temperature": 0.2,
+        "tools_dictionary": [FETCH_EDGAR_FILING, PARSE_MDA_SECTION,
+                             EXTRACT_RISK_FACTORS, DIFF_SECTIONS],
+    },
+    {
+        "agent_name": "Materiality Scorer",
+        "description": "0-100 score per diff, with category and rationale.",
+        "system_prompt": (
+            "You are a buy-side analyst scoring each diff for thesis "
+            "materiality. For every diff produced by the Diff Engine, call "
+            "score_materiality. Output a JSON array of objects sorted by "
+            "score descending: "
+            '[{"section": str, "change_type": "NEW"|"REMOVED"|"CHANGED", '
+            '"diff_excerpt": str, "score": 0-100, '
+            '"category": "GUIDANCE"|"LITIGATION"|"ACCOUNTING"|"SEGMENT"|'
+            '"LIQUIDITY"|"OTHER", "rationale": str}]. Be ruthless — most '
+            "10-Q diffs are boilerplate cleanup and should score under 20."
+        ),
+        "model_name": "claude-sonnet-4.5",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 4096,
+        "temperature": 0.2,
+        "tools_dictionary": [SCORE_MATERIALITY],
+    },
+    {
+        "agent_name": "Memo Writer",
+        "description": "Produces the final analyst-facing memo.",
+        "system_prompt": (
+            "You are writing a one-page memo for a portfolio manager. "
+            "Format exactly:\n\n"
+            "TICKER / CIK: <ticker> / <cik>\n"
+            "FILING: <form_type> filed <date> for period <period>\n"
+            "HEADLINE: <one sentence — the single most material change>\n\n"
+            "TOP DELTAS (sorted by materiality):\n"
+            "  1. [<score>/100, <category>] <section>: <one-sentence delta>\n"
+            "  2. [<score>/100, <category>] <section>: <one-sentence delta>\n"
+            "  3. [<score>/100, <category>] <section>: <one-sentence delta>\n\n"
+            "READ-THROUGH: <two sentences on what this means for the thesis>\n"
+            "NEXT STEP: <one of: NO ACTION | ANALYST READ | PM REVIEW | "
+            "RISK COMMITTEE>\n\n"
+            "Only include deltas scoring 30 or higher. If nothing scores "
+            "above 30, say NO MATERIAL CHANGES and recommend NO ACTION."
+        ),
+        "model_name": "claude-sonnet-4.5",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 2048,
+        "temperature": 0.3,
+    },
+]
+```
+
+## Step 4: Process One Filing End-to-End
+
+Single accession number in, materiality-scored memo out. This is the unit you batch in Step 5.
+
+```python
+def triage_filing(accession_number: str) -> dict:
+    payload = {
+        "name": f"SEC Filing Triage — {accession_number}",
+        "description": (
+            "Sequential pipeline: classify, extract, diff against prior, "
+            "score materiality, write memo."
+        ),
+        "swarm_type": "SequentialWorkflow",
+        "max_loops": 1,
+        "task": (
+            f"Triage SEC filing accession {accession_number}. Pass the "
+            "output of each stage to the next. The final output must be "
+            "a one-page memo per the Memo Writer spec."
+        ),
+        "agents": PIPELINE_AGENTS,
+    }
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=600,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+result = triage_filing("0000320193-24-000123")  # example Apple 10-Q
+
+for output in result.get("output", []):
+    print("=" * 60)
+    print(output["role"])
+    print("=" * 60)
+    content = output["content"]
+    if isinstance(content, list):
+        content = " ".join(str(c) for c in content)
+    print(str(content)[:800])
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+<Note>
+Persist only the Memo Writer's output to the research DB. The four upstream stages are the audit trail — when the PM asks "why is this scored 78?", you can walk them back through the Diff Engine output that produced the score.
+</Note>
+
+## Step 5: Wire Up the EDGAR Firehose with Batch
+
+A real portfolio sees 30-50 new filings per day across its names — earnings season pushes that to 80+. Polling EDGAR every 15 minutes and triggering one swarm per filing would saturate Pro tier rate limits by mid-morning. Batch the day's queue in a single call.
+
+```python
+EDGAR_RECENT_FILINGS = "https://www.sec.gov/cgi-bin/browse-edgar"
+EDGAR_HEADERS = {"User-Agent": EDGAR_UA, "Accept": "application/json"}
+
+PORTFOLIO_CIKS = [
+    # Top of book — one CIK per name
+    "0000320193",  # AAPL
+    "0000789019",  # MSFT
+    "0001018724",  # AMZN
+    "0001045810",  # NVDA
+    # ... ~40 more in a real book
+]
+
+
+def poll_new_filings(since: datetime) -> list[str]:
+    """Return EDGAR accession numbers filed by portfolio CIKs since `since`."""
+    new_accessions = []
+    for cik in PORTFOLIO_CIKS:
+        params = {
+            "action": "getcompany",
+            "CIK": cik,
+            "type": "",          # all form types
+            "dateb": "",
+            "owner": "include",
+            "count": "10",
+            "output": "atom",
+        }
+        r = requests.get(
+            EDGAR_RECENT_FILINGS,
+            params=params,
+            headers=EDGAR_HEADERS,
+            timeout=30,
+        )
+        # Parse the atom feed for accession numbers filed after `since`.
+        # (Your EDGAR parser of choice — sec-edgar-downloader, feedparser, etc.)
+        new_accessions.extend(parse_atom_for_new(r.text, since))  # noqa
+    return new_accessions
+
+
+def triage_filings_batch(accession_numbers: list[str]) -> list[dict]:
+    batch_payload = []
+    for acc in accession_numbers:
+        batch_payload.append({
+            "name": f"SEC Filing Triage — {acc}",
+            "description": "Sequential triage pipeline.",
+            "swarm_type": "SequentialWorkflow",
+            "max_loops": 1,
+            "task": (
+                f"Triage SEC filing accession {acc}. Pass the output of each "
+                "stage to the next. Final output: one-page memo per spec."
+            ),
+            "agents": PIPELINE_AGENTS,
+        })
+
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/batch/completions",
+        headers=headers,
+        json=batch_payload,
+        timeout=1800,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+# Run at 06:30 ET — picks up yesterday's late filings + this morning's 8-Ks
+since = datetime.utcnow() - timedelta(hours=18)
+new_filings = poll_new_filings(since)
+print(f"Triaging {len(new_filings)} new filings")
+
+results = triage_filings_batch(new_filings)
+
+with open(f"triage_{datetime.utcnow():%Y%m%d}.jsonl", "w") as f:
+    for acc, result in zip(new_filings, results):
+        memo = next(
+            (o["content"] for o in result.get("output", [])
+             if "Memo Writer" in o.get("role", "")),
+            "",
+        )
+        if isinstance(memo, list):
+            memo = " ".join(str(c) for c in memo)
+        f.write(json.dumps({
+            "accession": acc,
+            "memo": memo,
+            "cost": result["usage"]["billing_info"]["total_cost"],
+        }) + "\n")
+
+total = sum(r["usage"]["billing_info"]["total_cost"] for r in results)
+print(f"Triaged {len(results)} filings for ${total:.2f}")
+```
+
+<Warning>
+`/v1/swarm/batch/completions` is a premium endpoint. A live EDGAR firehose at 30-50 filings/day per book will land you in Premium tier territory regardless — that is exactly the volume tier the batch endpoint was sized for. See [Premium Endpoints](/docs/documentation/resources/premium-endpoints).
+</Warning>
+
+## Real Cost vs. Analyst Reading Time
+
+A buy-side analyst at a fully loaded \$300K/year costs roughly \$150/hour. A careful read of a 10-Q with a memo write-up is 15-20 minutes — call it \$45 of analyst time per filing, and that is the analyst who already covers the name. For 8-Ks across the book that the dedicated analyst does not read, the alternative is "nothing gets read" — which is the actual failure mode this pipeline addresses.
+
+| Scenario | Pipeline cost | Analyst-time cost |
+| --- | --- | --- |
+| One filing (10-Q, ~5 sections diffed) | ~\$0.30 | ~\$45 |
+| Daily run (40 filings across the book) | ~\$12 | ~\$1,800 |
+| Annualized (250 trading days) | ~\$3,000 | ~\$450,000 |
+
+The pipeline is not replacing the analyst's read on the names they already cover. It is making sure the other 180 issuers in the credit book get a structured first-pass screen the same morning the filing drops — which is the only way a four-person desk covers a 200-name book without missing the 8-K that matters.
+
+## Next Steps
+
+- Pair this with the [M&A Due Diligence Swarm](/docs/examples/examples/ma-due-diligence) when a triage memo flags a strategic-review or transaction disclosure
+- Feed high-materiality memos into the [Sell-Side Research Pipeline](/docs/examples/examples/sell-side-research-pipeline) for full-length write-ups
+- Read the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) for tuning model selection per stage once the pipeline is in production

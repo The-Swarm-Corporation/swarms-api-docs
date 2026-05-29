@@ -1,0 +1,638 @@
+---
+title: "Earnings Call Analysis Swarm: Tone, Guidance, and Q&A Red Flags in 60 Seconds"
+description: "A ConcurrentWorkflow of four specialist agents plus a Synthesizer turns every earnings call transcript into a structured note — covering all 125 calls per day during peak earnings season for under $50."
+---
+
+## What This Example Shows
+
+- A `ConcurrentWorkflow` of four specialists — Transcript Analyzer, Guidance Tracker, Q&A Sentiment, Material Disclosure Detector — fanning out in parallel, then merged by a Synthesizer agent
+- Per-agent function tools in OpenAI schema (`tools_list_dictionary`): `score_tone`, `compare_guidance`, `detect_material_disclosure`, `extract_qa_red_flags`
+- Mixed-provider model routing: Claude Sonnet 4.5 for analysis and synthesis, GPT-4.1 for guidance arithmetic, Claude Haiku 4.5 for cheap sentiment, Claude Opus 4.8 with `reasoning_effort: "high"` for the high-stakes disclosure check
+- How to scale a single call across the full earnings-season firehose using `/v1/swarm/batch/completions`
+- A cron pattern that fires at 5pm ET each day so the desk wakes up to a structured note on every transcript filed the day before
+- Real per-call and per-day economics against a sell-side analyst at peak burn
+
+<Info>
+Batch completions and observability dashboards are Premium-tier features. During the 3-week earnings burst a sell-side desk will push 500+ calls through this pipeline — that's exactly the workload Premium rate limits, parallel batch execution, and per-agent token tracing exist for. See the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for why running the batch off-peak (after the 4pm ET tape) is the right default for any scheduled earnings workload.
+</Info>
+
+## Why This Matters
+
+A sell-side analyst on a 14-hour day during peak earnings season can read, parse, model, and write up maybe six to eight earnings calls before they fall over. A US large-cap sector publishes 125 prints on a single Thursday in late January or late April. The math has never worked. Every call after the eighth is either (a) skimmed from the press release and a Bloomberg headline, (b) covered the next morning when the tape has already moved, or (c) skipped entirely. The job of this pipeline is not to replace the analyst's read — it is to put a structured note on every call before the analyst sits down: tone score, guidance delta vs. last quarter, Q&A red flags, and a flag for anything that looks like a material disclosure. The human then spends their finite hours on the names that actually need their judgment. **By 4:45pm ET your DB has a structured note on every call — tone, guidance delta, red-flag Q&A — for under \$50 a day.**
+
+## The Architecture
+
+Four specialists run in parallel against the same transcript. A Synthesizer agent merges their outputs into one structured note, which gets persisted to the research DB and pinged to Slack.
+
+```text
++----------------------------+
+|  Earnings Call Transcript  |
+|  (from filing/feed/upload) |
++-------------+--------------+
+              |
+              v
++----------------------------+        ConcurrentWorkflow — all four fire in parallel
+|       ConcurrentWorkflow   |
+|                            |
+|  +----------------------+  |
+|  | Transcript Analyzer  |  |   ->  score_tone()
+|  |  (claude-sonnet-4.5) |  |
+|  +----------------------+  |
+|                            |
+|  +----------------------+  |
+|  | Guidance Tracker     |  |   ->  compare_guidance(this_qtr, prior_qtr)
+|  |  (gpt-4.1)           |  |
+|  +----------------------+  |
+|                            |
+|  +----------------------+  |
+|  | Q&A Sentiment        |  |   ->  extract_qa_red_flags(qa_section)
+|  |  (claude-haiku-4.5)  |  |
+|  +----------------------+  |
+|                            |
+|  +----------------------+  |
+|  | Material Disclosure  |  |   ->  detect_material_disclosure()
+|  |  (claude-opus-4-8,   |  |       reasoning_effort=high
+|  |   reasoning_effort)  |  |
+|  +----------------------+  |
++-------------+--------------+
+              |
+              v
++----------------------------+
+|       Synthesizer          |        Merges into a single structured note
+|       (claude-sonnet-4.5)  |
++-------------+--------------+
+              |
+              v
++----------------------------+
+|  Structured Note (JSON)    |   --->  Research DB (Postgres / Snowflake)
+|                            |   --->  Slack #earnings-firehose
++----------------------------+
+```
+
+## Step 1: Setup
+
+Install dependencies and set your API key. The Slack webhook is whatever you've wired into `#earnings-firehose`.
+
+```bash
+pip install requests python-dotenv
+```
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/T000/B000/XXXX"
+```
+
+```python
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+SLACK_URL = os.getenv("SLACK_WEBHOOK_URL")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Function Tools
+
+Each specialist gets one tool, scoped per-agent in OpenAI function schema. The tools force structured output: tone scores, guidance deltas, disclosure verdicts, and Q&A red flags all come back as parseable JSON the synthesizer (and your DB schema) can rely on.
+
+```python
+SCORE_TONE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "score_tone",
+        "description": (
+            "Score the tone of an earnings call transcript across multiple "
+            "dimensions. Returns numeric scores plus a one-line rationale."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "Full transcript or prepared-remarks section.",
+                },
+                "confidence_score": {
+                    "type": "number",
+                    "description": (
+                        "Management confidence on a -1.0 (defensive) to "
+                        "+1.0 (assertive) scale."
+                    ),
+                },
+                "hedging_score": {
+                    "type": "number",
+                    "description": (
+                        "Density of hedging language on a 0.0 (none) to "
+                        "1.0 (saturated) scale."
+                    ),
+                },
+                "forward_optimism": {
+                    "type": "number",
+                    "description": (
+                        "Forward-looking optimism on a -1.0 (cautious) to "
+                        "+1.0 (bullish) scale."
+                    ),
+                },
+                "rationale": {
+                    "type": "string",
+                    "description": "One sentence justifying the scores.",
+                },
+            },
+            "required": [
+                "text",
+                "confidence_score",
+                "hedging_score",
+                "forward_optimism",
+                "rationale",
+            ],
+        },
+    },
+}
+
+COMPARE_GUIDANCE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "compare_guidance",
+        "description": (
+            "Extract forward guidance from this quarter and the prior "
+            "quarter's call and compute the delta on revenue, margin, and "
+            "EPS bands."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "this_qtr_text": {
+                    "type": "string",
+                    "description": "Guidance section from the current call.",
+                },
+                "prior_qtr_text": {
+                    "type": "string",
+                    "description": "Guidance section from the prior quarter's call.",
+                },
+                "revenue_delta_pct": {
+                    "type": "number",
+                    "description": (
+                        "Midpoint-to-midpoint revenue guide change as a "
+                        "percentage. Negative means a guide-down."
+                    ),
+                },
+                "margin_delta_bps": {
+                    "type": "number",
+                    "description": (
+                        "Operating margin guide change in basis points. "
+                        "Negative means a guide-down."
+                    ),
+                },
+                "eps_delta_pct": {
+                    "type": "number",
+                    "description": "Midpoint-to-midpoint EPS guide change as a percentage.",
+                },
+                "guidance_direction": {
+                    "type": "string",
+                    "enum": ["RAISE", "MAINTAIN", "LOWER", "WITHDRAWN"],
+                    "description": "Net direction of the guide.",
+                },
+            },
+            "required": [
+                "this_qtr_text",
+                "prior_qtr_text",
+                "revenue_delta_pct",
+                "margin_delta_bps",
+                "eps_delta_pct",
+                "guidance_direction",
+            ],
+        },
+    },
+}
+
+DETECT_MATERIAL_DISCLOSURE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "detect_material_disclosure",
+        "description": (
+            "Detect statements on the call that constitute a material "
+            "disclosure under Reg FD — anything previously non-public that "
+            "a reasonable investor would consider important."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "Full transcript.",
+                },
+                "disclosures": {
+                    "type": "array",
+                    "description": "List of detected material disclosures.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "quote": {
+                                "type": "string",
+                                "description": "Verbatim quote from the transcript.",
+                            },
+                            "category": {
+                                "type": "string",
+                                "enum": [
+                                    "GUIDANCE_CHANGE",
+                                    "STRATEGIC_PIVOT",
+                                    "CUSTOMER_LOSS",
+                                    "REGULATORY",
+                                    "LITIGATION",
+                                    "MA_ACTIVITY",
+                                    "EXECUTIVE_DEPARTURE",
+                                    "OTHER",
+                                ],
+                            },
+                            "materiality": {
+                                "type": "string",
+                                "enum": ["HIGH", "MEDIUM", "LOW"],
+                            },
+                            "rationale": {
+                                "type": "string",
+                                "description": "Why this is material.",
+                            },
+                        },
+                        "required": ["quote", "category", "materiality", "rationale"],
+                    },
+                },
+            },
+            "required": ["text", "disclosures"],
+        },
+    },
+}
+
+EXTRACT_QA_RED_FLAGS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "extract_qa_red_flags",
+        "description": (
+            "Scan the Q&A section of an earnings call for analyst questions "
+            "that management deflected, dodged, or answered with unusual "
+            "hedging. These are the most reliable short-term sentiment "
+            "signals on the entire call."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "qa_section": {
+                    "type": "string",
+                    "description": "Q&A portion of the transcript.",
+                },
+                "red_flags": {
+                    "type": "array",
+                    "description": "List of flagged exchanges.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "analyst": {
+                                "type": "string",
+                                "description": "Analyst and firm if identifiable.",
+                            },
+                            "question_topic": {
+                                "type": "string",
+                                "description": "What the analyst was probing.",
+                            },
+                            "management_response": {
+                                "type": "string",
+                                "description": "Short summary of the response.",
+                            },
+                            "flag_type": {
+                                "type": "string",
+                                "enum": [
+                                    "DEFLECTION",
+                                    "REFUSED_TO_ANSWER",
+                                    "EXCESSIVE_HEDGING",
+                                    "CONTRADICTED_PRIOR_CALL",
+                                    "OFFLINE_FOLLOWUP",
+                                ],
+                            },
+                            "severity": {
+                                "type": "string",
+                                "enum": ["HIGH", "MEDIUM", "LOW"],
+                            },
+                        },
+                        "required": [
+                            "analyst",
+                            "question_topic",
+                            "management_response",
+                            "flag_type",
+                            "severity",
+                        ],
+                    },
+                },
+            },
+            "required": ["qa_section", "red_flags"],
+        },
+    },
+}
+```
+
+## Step 3: Define the Five Agents
+
+Four specialists run in parallel, each on the model that gives the best cost/quality tradeoff for the job. The Material Disclosure Detector is the only one that gets Claude Opus 4.8 with `reasoning_effort: "high"` — that's the agent whose mistakes are most expensive (a missed Reg FD disclosure on a name your fund holds is a compliance event). The Synthesizer runs Claude Sonnet 4.5 because it has to merge four structured outputs into a clean note without inventing anything.
+
+```python
+TRANSCRIPT_ANALYZER_PROMPT = (
+    "You are a Sell-Side Earnings Analyst. Read the prepared-remarks section "
+    "of the call and call the `score_tone` tool exactly once. Score management's "
+    "confidence, hedging density, and forward optimism. Be calibrated — a CEO "
+    "reading scripted bullet points should score near 0 on confidence, not +1. "
+    "After the tool call, write a single paragraph (max 80 words) summarizing "
+    "the tonal posture of the call."
+)
+
+GUIDANCE_TRACKER_PROMPT = (
+    "You are a Forward Guidance Specialist. Find the guidance section of the "
+    "current call and the prior quarter's guidance section (provided in the "
+    "task). Call `compare_guidance` once. Be precise — use midpoint-to-midpoint "
+    "math, not best-case-to-best-case. If guidance was withdrawn or refused, "
+    "report that explicitly. After the tool call, write a one-sentence "
+    "interpretation of the delta."
+)
+
+QA_SENTIMENT_PROMPT = (
+    "You are a Buy-Side Q&A Reader. Read the Q&A section of the call. Call "
+    "`extract_qa_red_flags` once and flag every exchange where management "
+    "deflected, refused, hedged excessively, or pushed the analyst to a "
+    "follow-up offline. Do not flag normal back-and-forth. The signal is "
+    "asymmetric — false negatives matter more than false positives. After "
+    "the tool call, summarize the three most important flags in one paragraph."
+)
+
+MATERIAL_DISCLOSURE_PROMPT = (
+    "You are a Securities Compliance Analyst with a Reg FD specialty. Read "
+    "the entire transcript and call `detect_material_disclosure` once. A "
+    "material disclosure is any non-public statement a reasonable investor "
+    "would consider important to a buy/sell decision. Be conservative on "
+    "category labels but inclusive on detection — a missed material event "
+    "is a compliance failure, an over-flagged routine commentary is just "
+    "noise the analyst will skip. After the tool call, write a one-paragraph "
+    "executive summary suitable for a compliance review queue."
+)
+
+SYNTHESIZER_PROMPT = (
+    "You are a Research Editor. Four specialists have each analyzed an "
+    "earnings call from a different angle: tone, guidance, Q&A red flags, "
+    "and material disclosures. Merge their outputs into a single structured "
+    "note as STRICT JSON, no Markdown fences. The schema is:\n\n"
+    "{\n"
+    '  "ticker": "<symbol>",\n'
+    '  "period": "<e.g. Q3 2026>",\n'
+    '  "headline": "<one sentence — the dominant takeaway>",\n'
+    '  "tone": {"confidence": <num>, "hedging": <num>, "optimism": <num>},\n'
+    '  "guidance": {"direction": "<RAISE|MAINTAIN|LOWER|WITHDRAWN>", '
+    '"revenue_delta_pct": <num>, "margin_delta_bps": <num>, "eps_delta_pct": <num>},\n'
+    '  "qa_red_flags": [{"topic": <str>, "flag_type": <str>, "severity": <str>}],\n'
+    '  "material_disclosures": [{"category": <str>, "materiality": <str>, '
+    '"quote": <str>}],\n'
+    '  "analyst_action": "REVIEW_NOW | REVIEW_AM | FILE"\n'
+    "}\n\n"
+    "Set analyst_action=REVIEW_NOW if there is any HIGH-severity Q&A flag, "
+    "any HIGH-materiality disclosure, or guidance_direction=LOWER. "
+    "REVIEW_AM for MEDIUM signals. FILE otherwise. Do not fabricate any "
+    "field — if a specialist returned nothing, leave the corresponding "
+    "array empty or value null."
+)
+
+
+def build_earnings_swarm(ticker: str, period: str,
+                         transcript: str, prior_qtr_guidance: str) -> dict:
+    task = (
+        f"Analyze the {ticker} {period} earnings call. The full transcript "
+        f"is below. The prior quarter's guidance section is included for "
+        f"the Guidance Tracker. Each specialist runs their tool exactly "
+        f"once and writes a short follow-up. The Synthesizer merges into "
+        f"strict JSON per the schema.\n\n"
+        f"=== TRANSCRIPT ({ticker} {period}) ===\n{transcript}\n\n"
+        f"=== PRIOR QUARTER GUIDANCE ===\n{prior_qtr_guidance}"
+    )
+    return {
+        "name": f"Earnings Call Analysis - {ticker} {period}",
+        "description": "Four specialists in parallel plus a Synthesizer.",
+        "swarm_type": "ConcurrentWorkflow",
+        "max_loops": 1,
+        "task": task,
+        "agents": [
+            {
+                "agent_name": "Transcript Analyzer",
+                "description": "Tone, confidence, hedging, forward optimism.",
+                "system_prompt": TRANSCRIPT_ANALYZER_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.2,
+                "tools_list_dictionary": [SCORE_TONE_TOOL],
+            },
+            {
+                "agent_name": "Guidance Tracker",
+                "description": "Quarter-over-quarter guidance delta.",
+                "system_prompt": GUIDANCE_TRACKER_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.1,
+                "tools_list_dictionary": [COMPARE_GUIDANCE_TOOL],
+            },
+            {
+                "agent_name": "Q&A Sentiment",
+                "description": "Deflection, hedging, and offline-followup detection.",
+                "system_prompt": QA_SENTIMENT_PROMPT,
+                "model_name": "claude-haiku-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.3,
+                "tools_list_dictionary": [EXTRACT_QA_RED_FLAGS_TOOL],
+            },
+            {
+                "agent_name": "Material Disclosure Detector",
+                "description": "Reg FD-style material disclosure detection.",
+                "system_prompt": MATERIAL_DISCLOSURE_PROMPT,
+                "model_name": "claude-opus-4-8",
+                "reasoning_effort": "high",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 3072,
+                "temperature": 0.1,
+                "tools_list_dictionary": [DETECT_MATERIAL_DISCLOSURE_TOOL],
+            },
+            {
+                "agent_name": "Synthesizer",
+                "description": "Merges the four specialist outputs into one structured JSON note.",
+                "system_prompt": SYNTHESIZER_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2048,
+                "temperature": 0.1,
+            },
+        ],
+        "output_type": "dict",
+    }
+```
+
+<Note>
+Function tools force structured outputs at the source, not at the synthesizer. By the time the Synthesizer reads the four specialist outputs, the tone scores, guidance deltas, and disclosure list are already typed JSON — the Synthesizer is just merging, not parsing free-form text. This is what makes the JSON contract reliable enough to feed straight into a Postgres or Snowflake table.
+</Note>
+
+## Step 4: Process One Call End-to-End
+
+Start with a single transcript. This is the loop you scale.
+
+```python
+def run_one_call(ticker: str, period: str,
+                 transcript: str, prior_qtr_guidance: str) -> dict:
+    payload = build_earnings_swarm(ticker, period, transcript, prior_qtr_guidance)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=600,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def extract_synthesizer_json(swarm_result: dict) -> dict:
+    text = ""
+    for entry in swarm_result.get("output", []):
+        if "Synthesizer" in entry.get("role", ""):
+            content = entry.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(str(c) for c in content)
+            text = str(content)
+            break
+    try:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start >= 0 and end > start:
+            return json.loads(text[start:end + 1])
+    except json.JSONDecodeError:
+        pass
+    return {"parse_error": True, "raw": text}
+
+
+# Example — a single call. In practice the transcript and prior guidance
+# come from your filing feed (e.g. Quartr, AlphaSense, Bamsec).
+result = run_one_call(
+    ticker="NVDA",
+    period="Q3 2026",
+    transcript=open("transcripts/NVDA_Q3_2026.txt").read(),
+    prior_qtr_guidance=open("transcripts/NVDA_Q2_2026_guidance.txt").read(),
+)
+
+note = extract_synthesizer_json(result)
+print(json.dumps(note, indent=2))
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+The Synthesizer output is the row you persist. The four specialist outputs are the audit trail — when a PM challenges the `REVIEW_NOW` flag on a portfolio name, you can trace it straight back to the verbatim quote the Material Disclosure Detector picked up.
+
+## Step 5: Earnings-Season Batch Mode
+
+The single-call path is the prototype. The actual workload during peak earnings season is 125 calls a day. POST the entire list as one payload to `/v1/swarm/batch/completions` — the API executes the swarms in parallel and returns a list of results in input order.
+
+```python
+def load_today_calls() -> list[dict]:
+    """Return today's transcripts from your filing feed.
+
+    Each row: {"ticker", "period", "transcript", "prior_qtr_guidance"}.
+    """
+    return json.loads(Path("today_calls.json").read_text())
+
+
+def run_batch(calls: list[dict]) -> list[dict]:
+    payload = [
+        build_earnings_swarm(
+            c["ticker"], c["period"], c["transcript"], c["prior_qtr_guidance"],
+        )
+        for c in calls
+    ]
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/batch/completions",
+        headers=headers,
+        json=payload,
+        timeout=3600,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def persist_and_alert(calls: list[dict], results: list[dict]) -> None:
+    out_path = Path(f"notes_{datetime.utcnow().strftime('%Y%m%d')}.jsonl")
+    review_now = []
+
+    with out_path.open("w") as f:
+        for call, result in zip(calls, results):
+            note = extract_synthesizer_json(result)
+            note["_ticker"] = call["ticker"]
+            note["_period"] = call["period"]
+            f.write(json.dumps(note) + "\n")
+            if note.get("analyst_action") == "REVIEW_NOW":
+                review_now.append(note)
+
+    if review_now and SLACK_URL:
+        headline = (
+            f":rotating_light: {len(review_now)} of {len(calls)} calls "
+            f"flagged REVIEW_NOW — see {out_path}"
+        )
+        requests.post(SLACK_URL, json={"text": headline}, timeout=30)
+
+
+today = load_today_calls()
+print(f"Processing {len(today)} calls in one batch...")
+results = run_batch(today)
+persist_and_alert(today, results)
+
+total_cost = sum(
+    r.get("usage", {}).get("billing_info", {}).get("total_cost", 0)
+    for r in results
+)
+print(f"Processed {len(results)} calls for ${total_cost:.2f}")
+```
+
+The crontab line that fires it at 5pm ET each weekday during the earnings burst:
+
+```bash
+# Earnings-season batch — 5:00 PM ET, weekdays
+0 17 * * 1-5 cd /opt/swarms && /usr/bin/python earnings_batch.py >> /var/log/earnings.log 2>&1
+```
+
+<Info>
+Most earnings calls during peak season land between 4:30pm and 5:00pm ET, immediately after the tape. Firing at 5:00pm ET catches the tail of late prints and gives the batch a clean window before market open the next morning. Premium-tier rate limits matter here: 125 ConcurrentWorkflows fired in a single POST consume meaningful concurrency, and queue contention on a free tier turns a 6-minute batch into a 90-minute one. The [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide covers the throughput tradeoffs in depth.
+</Info>
+
+## Real Cost vs. Junior Analyst
+
+Per-call and per-day economics. The per-call number is the median across mixed-provider routing — Haiku on Q&A is the lever that keeps the average down even when Opus 4.8 with reasoning runs on every disclosure check.
+
+| Scenario | Per call | Per day (125 calls) | Per 3-week earnings burst |
+| --- | --- | --- | --- |
+| This swarm (4 specialists + synthesizer, mixed providers) | ~\$0.40 | ~\$50 | ~\$750 |
+| One sell-side analyst, fully loaded (\$300/hr blended, 1hr per call) | ~\$300 | ~\$2,400 (8 calls) | ~\$36,000 (8/day cap) |
+| Three-analyst sector pod | — | ~\$7,500 (24 calls) | ~\$112,500 (24/day cap) |
+| Full coverage by humans | not possible | ~\$37,500 of team time | ~\$562,500 |
+
+The hero number again: **by 4:45pm ET your DB has a structured note on every call — tone, guidance delta, red-flag Q&A — for under \$50 a day.** The pipeline is not a replacement for the analyst's read on the names that move the book. It's the prep deck that makes sure no print on the sector slips through unnoticed during the three weeks of the year when humans physically cannot keep up.
+
+<Warning>
+Material disclosure detection is an assistive layer, not a compliance system of record. Every flag from the Material Disclosure Detector should land in a human reviewer queue before anything reaches an IR client or a portfolio decision. The verbatim quotes in the disclosure JSON are exactly the audit trail your compliance team will want to see.
+</Warning>
+
+## Next Steps
+
+- [Build an AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) — the HierarchicalSwarm variant when you need a director synthesizing analyst briefs instead of fanning out in parallel
+- [Sell-Side Research Pipeline](/docs/examples/examples/sell-side-research-pipeline) — composing earnings notes, cited research, and reasoning agents into a single end-of-day deliverable (planned)
+- [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) — model routing, token budgeting, and batch scheduling patterns that keep the per-call number under a dollar at scale

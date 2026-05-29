@@ -1,0 +1,680 @@
+---
+title: "DCF Builder + Sensitivity Tables: Per-Name Daily Refresh"
+description: "Reason the assumptions with Opus 4.8 at high effort, build the DCF mechanically through a SequentialWorkflow, and refresh 50 names every night via batch completions for under $80 of overnight compute."
+---
+
+## What This Example Shows
+
+- A reasoning agent on `claude-opus-4-8` with `reasoning_effort: "high"` setting the load-bearing inputs: revenue growth, margin trajectory, terminal growth, WACC
+- A four-stage `SequentialWorkflow` that turns the reasoned assumptions into an audited DCF, sensitivity grids, and an analyst-grade memo
+- Per-agent function tools that pull income statement, balance sheet, cash flow, consensus estimates, and run the actual DCF math
+- A 50-name overnight refresh fired as one POST to `/v1/swarm/batch/completions`, scheduled in the night-mode window for a 50% discount
+- A structured one-pager memo per ticker — exec summary, fair value bands, sensitivity tables, key assumptions, risks — sitting in the database before 6am Pacific
+
+<Info>
+`reasoning_effort: "high"` and `/v1/swarm/batch/completions` are Premium-tier features. Pair them with the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — overnight execution between 9pm and 6am Pacific is billed at a 50% discount, which is what makes a 50-name nightly DCF refresh land under \$80 of compute.
+</Info>
+
+## Why This Matters
+
+The DCF is the load-bearing instrument of fundamental investing. Every BUY thesis at a long-only fund eventually reduces to a sheet that says "I think this company's free cash flow ramps from X to Y, discounted at Z, gives me a fair value of W per share." Refreshing one DCF properly — pulling the latest statements, re-reasoning the assumptions against the most recent quarter, rerunning sensitivities, and writing the memo — is half a day of associate work. A 50-name portfolio refresh through earnings season is a team of associates working for weeks. The job here is to do that work overnight, mechanically, with the reasoning step handled by Opus at high effort so the assumptions are actually defensible — and the math handled by cheaper mechanical models because the math is just math. Every morning at 6am Pacific, fifty fresh DCFs are sitting in the DB — assumptions reasoned by Opus, math run mechanically, memos written like an associate did them, for under \$80 of overnight compute.
+
+## The Architecture
+
+One reasoning pass per ticker sets the assumptions. A four-stage Sequential pipeline turns those assumptions into a model, runs the sensitivity tables, and writes the memo. The whole thing fans out 50-wide as a single batch POST.
+
+```text
++----------------+
+|    Ticker      |
++--------+-------+
+         |
+         v
++----------------------+
+|  Fetch Financials    |   fetch_income_statement, fetch_balance_sheet,
+|  (function tools)    |   fetch_cash_flow, fetch_consensus_estimates
++--------+-------------+
+         |
+         v
++----------------------+
+|  Reasoning           |   claude-opus-4-8
+|  Hypothesis Agent    |   reasoning_effort: "high"
+|  (sets assumptions)  |   -> revenue growth, margin path,
++--------+-------------+      terminal growth, WACC
+         |
+         v
++-----------------------------------------------------+
+|             SequentialWorkflow                       |
+|                                                      |
+|  +------------------+   +------------------------+   |
+|  | Assumptions      |-->| DCF Model              |   |
+|  | Builder (gpt-4.1)|   | (gpt-4.1-mini)         |   |
+|  +------------------+   +-----------+------------+   |
+|                                     |                |
+|                                     v                |
+|  +------------------+   +------------------------+   |
+|  | Memo Writer      |<--| Sensitivity Tables     |   |
+|  | (claude-sonnet-  |   | (gpt-4.1-mini)         |   |
+|  |  4.5)            |   +------------------------+   |
+|  +--------+---------+                                |
++-----------|------------------------------------------+
+            |
+            v
++----------------------+
+|  Markdown One-Pager  |   exec summary, fair value bands,
++--------+-------------+   sensitivity tables, risks
+         |
+         v
++----------------------+
+|     Database         |   50 memos by 6am Pacific
++----------------------+
+```
+
+## Step 1: Setup
+
+Install dependencies and set the two env vars. `FMP_API_KEY` is Financial Modeling Prep — any equivalent statements provider works; the function-tool schemas below are the contract, not the vendor.
+
+```bash
+pip install requests python-dotenv
+```
+
+```bash
+export SWARMS_API_KEY="your-swarms-key"
+export FMP_API_KEY="your-fmp-key"
+```
+
+```python
+import json
+import os
+from datetime import datetime
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+FMP_KEY = os.getenv("FMP_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Function Tools
+
+These are OpenAI-format function schemas the agents call to pull data and run mechanical math. Define them once; attach via `tools_dictionary` to whichever agent needs them.
+
+```python
+FETCH_INCOME_STATEMENT = {
+    "type": "function",
+    "function": {
+        "name": "fetch_income_statement",
+        "description": (
+            "Pull the most recent N years of annual income statements for a "
+            "ticker. Returns revenue, gross profit, operating income, net "
+            "income, EPS, and shares outstanding per year."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Equity ticker symbol."},
+                "years": {"type": "integer", "description": "Years of history.", "default": 5},
+            },
+            "required": ["ticker"],
+        },
+    },
+}
+
+FETCH_BALANCE_SHEET = {
+    "type": "function",
+    "function": {
+        "name": "fetch_balance_sheet",
+        "description": (
+            "Pull the most recent N years of annual balance sheets. Returns "
+            "cash, total debt, equity, working capital line items."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string"},
+                "years": {"type": "integer", "default": 5},
+            },
+            "required": ["ticker"],
+        },
+    },
+}
+
+FETCH_CASH_FLOW = {
+    "type": "function",
+    "function": {
+        "name": "fetch_cash_flow",
+        "description": (
+            "Pull the most recent N years of annual cash flow statements. "
+            "Returns operating CF, capex, free cash flow, SBC, working "
+            "capital movement."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string"},
+                "years": {"type": "integer", "default": 5},
+            },
+            "required": ["ticker"],
+        },
+    },
+}
+
+FETCH_CONSENSUS_ESTIMATES = {
+    "type": "function",
+    "function": {
+        "name": "fetch_consensus_estimates",
+        "description": (
+            "Pull sell-side consensus estimates for revenue, EBIT, EPS, and "
+            "FCF for the next 3 fiscal years."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string"},
+            },
+            "required": ["ticker"],
+        },
+    },
+}
+
+CALC_WACC = {
+    "type": "function",
+    "function": {
+        "name": "calc_wacc",
+        "description": (
+            "Calculate weighted average cost of capital for the ticker. "
+            "Uses CAPM for cost of equity (rfr + beta * ERP), after-tax cost "
+            "of debt from the company's interest expense, and the current "
+            "capital structure weights."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string"},
+                "beta": {"type": "number", "description": "Levered equity beta."},
+                "rfr": {"type": "number", "description": "Risk-free rate.", "default": 0.045},
+            },
+            "required": ["ticker", "beta"],
+        },
+    },
+}
+
+BUILD_DCF = {
+    "type": "function",
+    "function": {
+        "name": "build_dcf",
+        "description": (
+            "Run a 10-year explicit-forecast DCF given a structured assumptions "
+            "object. Returns per-year FCF, terminal value, enterprise value, "
+            "equity value, fair value per share, and the implied upside vs. "
+            "spot."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "assumptions_json": {
+                    "type": "object",
+                    "description": (
+                        "Structured assumptions: ticker, base_revenue, "
+                        "revenue_growth (array of 10 floats), "
+                        "ebit_margin (array of 10 floats), tax_rate, "
+                        "capex_pct_revenue, working_capital_pct_revenue, "
+                        "wacc, terminal_growth, net_debt, shares_outstanding."
+                    ),
+                },
+            },
+            "required": ["assumptions_json"],
+        },
+    },
+}
+
+SENSITIVITY_TABLE = {
+    "type": "function",
+    "function": {
+        "name": "sensitivity_table",
+        "description": (
+            "Build a 2-D sensitivity grid on the DCF, varying two named "
+            "assumption keys across the given range. Returns a matrix of "
+            "fair value per share at each cell."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "model_json": {
+                    "type": "object",
+                    "description": "The output of build_dcf — the baseline model.",
+                },
+                "var1": {
+                    "type": "string",
+                    "description": "First assumption key, e.g. 'wacc'.",
+                },
+                "var2": {
+                    "type": "string",
+                    "description": "Second assumption key, e.g. 'terminal_growth'.",
+                },
+                "range": {
+                    "type": "object",
+                    "description": (
+                        "Symmetric range for each variable as {var1: [low, "
+                        "high, steps], var2: [low, high, steps]}."
+                    ),
+                },
+            },
+            "required": ["model_json", "var1", "var2", "range"],
+        },
+    },
+}
+
+ALL_DATA_TOOLS = [
+    FETCH_INCOME_STATEMENT,
+    FETCH_BALANCE_SHEET,
+    FETCH_CASH_FLOW,
+    FETCH_CONSENSUS_ESTIMATES,
+    CALC_WACC,
+]
+
+MODEL_TOOLS = [BUILD_DCF, SENSITIVITY_TABLE]
+```
+
+<Note>
+The tool schemas are the contract — your backend resolves them against whatever data vendor you use. For a self-contained walkthrough, the Reasoning agent and the DCF Model worker can both make the function calls; the orchestrator delivers the resolved tool outputs back into the conversation. The math tools (`build_dcf`, `sensitivity_table`) are mechanical — wire them to a pure-Python DCF library, not an LLM.
+</Note>
+
+## Step 3: The Reasoning Assumption Agent
+
+This is the only step where you spend real model dollars. Opus 4.8 at `reasoning_effort: "high"` reads the last five years of financials, the consensus, and the company's own guidance, and produces a defensible set of assumptions — not a wishlist. Everything downstream is mechanical.
+
+```python
+ASSUMPTION_REASONER_PROMPT = (
+    "You are a senior buy-side analyst building the assumptions for a 10-year "
+    "DCF. You will receive the last 5 years of income statement, balance "
+    "sheet, and cash flow, plus consensus estimates and the company's own "
+    "guidance.\n\n"
+    "Your job is to set, with reasoning, every load-bearing input:\n"
+    "1. Revenue growth — 10 years, declining toward GDP\n"
+    "2. EBIT margin — 10 years, normalized to a steady-state\n"
+    "3. Tax rate — effective, not statutory\n"
+    "4. Capex as % of revenue — through-cycle\n"
+    "5. Working capital intensity\n"
+    "6. WACC — derive via calc_wacc tool\n"
+    "7. Terminal growth — 2.0%-2.5% unless you defend otherwise\n\n"
+    "For each input write one sentence of justification grounded in the "
+    "pulled data. Do NOT eyeball. If you assume revenue grows 15% in year "
+    "3, name the driver. If your terminal growth is above 2.5%, defend it "
+    "against GDP.\n\n"
+    "Output a single JSON object: ticker, base_revenue, revenue_growth (10 "
+    "floats), ebit_margin (10 floats), tax_rate, capex_pct_revenue, "
+    "working_capital_pct_revenue, wacc, terminal_growth, net_debt, "
+    "shares_outstanding, plus an 'assumption_notes' object keyed by each "
+    "field name with a one-sentence justification."
+)
+
+
+def reasoning_assumptions_agent_config(ticker: str) -> dict:
+    return {
+        "agent_name": "Assumption Reasoner",
+        "description": (
+            "Sets the load-bearing DCF assumptions with high-effort reasoning."
+        ),
+        "system_prompt": ASSUMPTION_REASONER_PROMPT,
+        "model_name": "claude-opus-4-8",
+        "reasoning_effort": "high",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 8000,
+        "temperature": 0.2,
+        "tools_dictionary": ALL_DATA_TOOLS,
+    }
+```
+
+<Note>
+`reasoning_effort: "high"` is what makes the assumptions defensible. On medium effort, the agent will frequently anchor on consensus without questioning the path; on high effort, it interrogates margin trajectory and capex against actual historical patterns. This is the one place to spend.
+</Note>
+
+## Step 4: The SequentialWorkflow Pipeline
+
+Four workers, each cheap, each doing one well-defined job. The Assumptions Builder ingests the reasoned output and emits a strict JSON spec the math layer can consume. The DCF Model and Sensitivity Tables are mechanical — they call `build_dcf` and `sensitivity_table` and report results. The Memo Writer is the only stage that needs prose quality, and Sonnet handles that cheaply.
+
+```python
+def build_dcf_swarm(ticker: str, reasoning_output: str) -> dict:
+    return {
+        "name": f"DCF Pipeline — {ticker}",
+        "description": (
+            f"Per-ticker DCF builder for {ticker} — assumptions reasoned by "
+            "Opus, math run mechanically, memo written analyst-grade."
+        ),
+        "swarm_type": "SequentialWorkflow",
+        "max_loops": 1,
+        "task": (
+            f"Build a one-page DCF memo on {ticker}. The reasoned assumption "
+            f"set from the upstream Opus pass is:\n\n{reasoning_output}\n\n"
+            "Carry this forward through the pipeline."
+        ),
+        "agents": [
+            {
+                "agent_name": "Assumptions Builder",
+                "description": (
+                    "Digests the reasoning output into a strict JSON spec "
+                    "for the mechanical model."
+                ),
+                "system_prompt": (
+                    "You are a model engineer. Take the upstream reasoning "
+                    "and produce a single JSON object matching the build_dcf "
+                    "schema EXACTLY: ticker, base_revenue, revenue_growth (10 "
+                    "floats), ebit_margin (10 floats), tax_rate, "
+                    "capex_pct_revenue, working_capital_pct_revenue, wacc, "
+                    "terminal_growth, net_debt, shares_outstanding. Do not "
+                    "alter the reasoned numbers. Drop the prose. Output ONLY "
+                    "the JSON spec."
+                ),
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 2000,
+                "temperature": 0.0,
+            },
+            {
+                "agent_name": "DCF Model",
+                "description": "Runs the mechanical 10-year DCF.",
+                "system_prompt": (
+                    "You are a quant. Call build_dcf with the upstream JSON "
+                    "spec. Return the full model output: per-year FCF, "
+                    "discounted FCF, terminal value, enterprise value, equity "
+                    "value, fair value per share, and implied upside vs. spot. "
+                    "Do not editorialize. Pass through the numbers."
+                ),
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 3000,
+                "temperature": 0.0,
+                "tools_dictionary": MODEL_TOOLS,
+            },
+            {
+                "agent_name": "Sensitivity Tables",
+                "description": "Runs 3 standard 2-D sensitivity grids.",
+                "system_prompt": (
+                    "You are a quant. Using the upstream baseline model, call "
+                    "sensitivity_table three times:\n"
+                    "1. WACC (±150 bps, 7 steps) × Terminal Growth (1.0%-3.5%, "
+                    "6 steps)\n"
+                    "2. EBIT Margin Year-10 (±300 bps, 7 steps) × Revenue "
+                    "Growth Y1-3 CAGR (±5pts, 6 steps)\n"
+                    "3. Capex % Revenue (±200 bps, 5 steps) × Terminal "
+                    "Growth (1.0%-3.5%, 6 steps)\n"
+                    "Return each grid as a labeled markdown table."
+                ),
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4000,
+                "temperature": 0.0,
+                "tools_dictionary": MODEL_TOOLS,
+            },
+            {
+                "agent_name": "Memo Writer",
+                "description": "Writes the analyst-grade one-pager memo.",
+                "system_prompt": (
+                    "You are a senior buy-side associate writing a one-page "
+                    "DCF memo for the PM. Use the upstream assumption notes, "
+                    "the DCF model output, and the three sensitivity tables. "
+                    "Structure the memo EXACTLY as:\n\n"
+                    "# {TICKER} — DCF Refresh ({date})\n\n"
+                    "## Executive Summary\n"
+                    "(3 lines: fair value, upside vs. spot, conviction)\n\n"
+                    "## Target Price & Fair-Value Bands\n"
+                    "Base / Bull / Bear with the assumption shifts.\n\n"
+                    "## Key Assumptions\n"
+                    "Table: assumption, value, justification (one line each).\n\n"
+                    "## Sensitivity Tables\n"
+                    "All three grids with one-line readers' guides.\n\n"
+                    "## Risks to the Thesis\n"
+                    "Top 3, ranked.\n\n"
+                    "## Recommendation\n"
+                    "ADD / HOLD / TRIM with a one-sentence justification.\n\n"
+                    "Keep total length under 800 words."
+                ),
+                "model_name": "claude-sonnet-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 4000,
+                "temperature": 0.3,
+            },
+        ],
+    }
+```
+
+## Step 5: Run One Ticker End-to-End
+
+Run the reasoning pass first, hand its output to the Sequential pipeline, print the memo. This is the loop you will scale.
+
+```python
+def run_assumption_reasoner(ticker: str) -> str:
+    payload = {
+        "agent_config": reasoning_assumptions_agent_config(ticker),
+        "task": (
+            f"Pull the last 5 years of statements and consensus for {ticker}. "
+            "Set every DCF input with one-sentence reasoning per input. Output "
+            "the structured JSON spec described in your system prompt."
+        ),
+    }
+    response = requests.post(
+        f"{BASE_URL}/v1/agent/completions",
+        headers=headers,
+        json=payload,
+        timeout=600,
+    )
+    response.raise_for_status()
+    result = response.json()
+
+    text = ""
+    for entry in result.get("output", []):
+        content = entry.get("content", "")
+        if isinstance(content, list):
+            content = " ".join(str(c) for c in content)
+        text = str(content)
+    return text
+
+
+def run_dcf_pipeline(ticker: str) -> dict:
+    reasoning_output = run_assumption_reasoner(ticker)
+    payload = build_dcf_swarm(ticker, reasoning_output)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=900,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+result = run_dcf_pipeline("NVDA")
+
+memo = ""
+for output in result.get("output", []):
+    if "Memo Writer" in output.get("role", ""):
+        content = output.get("content", "")
+        if isinstance(content, list):
+            content = " ".join(str(c) for c in content)
+        memo = str(content)
+
+print(memo)
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+## Step 6: Overnight Portfolio Refresh
+
+The whole point. Fan the same per-ticker pipeline across 50 names as a single batch POST. Schedule the cron at 9pm Pacific so the entire batch runs inside the night-mode window and bills at 50% off.
+
+```python
+PORTFOLIO = [
+    "NVDA", "AAPL", "MSFT", "GOOGL", "META", "AMZN", "TSLA", "AMD", "AVGO", "CRM",
+    "ORCL", "ADBE", "NFLX", "INTU", "TXN", "QCOM", "ASML", "LRCX", "AMAT", "KLAC",
+    "ANET", "PANW", "CRWD", "ZS", "NET", "MDB", "TEAM", "WDAY", "NOW", "SNOW",
+    "DDOG", "ABNB", "DASH", "SPOT", "TTD", "APP", "UBER", "PLTR", "COIN", "SHOP",
+    "JPM", "BAC", "GS", "MS", "WFC", "BLK", "SCHW", "V", "MA", "BRK.B",
+]
+
+
+def run_portfolio_refresh(tickers: list[str]) -> list[dict]:
+    # Step 1: Reason assumptions for every ticker in parallel via batch agent
+    reasoning_payload = [
+        {
+            "agent_config": reasoning_assumptions_agent_config(t),
+            "task": (
+                f"Pull the last 5 years of statements and consensus for {t}. "
+                "Set every DCF input with one-sentence reasoning. Output the "
+                "structured JSON spec."
+            ),
+        }
+        for t in tickers
+    ]
+    reasoning_resp = requests.post(
+        f"{BASE_URL}/v1/agent/batch/completions",
+        headers=headers,
+        json=reasoning_payload,
+        timeout=3600,
+    )
+    reasoning_resp.raise_for_status()
+    reasoning_results = reasoning_resp.json()
+
+    reasoned_assumptions = []
+    for r in reasoning_results:
+        text = ""
+        for entry in r.get("output", []):
+            content = entry.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(str(c) for c in content)
+            text = str(content)
+        reasoned_assumptions.append(text)
+
+    # Step 2: Fan out 50 SequentialWorkflows as a single batch
+    swarm_payload = [
+        build_dcf_swarm(t, reasoned)
+        for t, reasoned in zip(tickers, reasoned_assumptions)
+    ]
+    swarm_resp = requests.post(
+        f"{BASE_URL}/v1/swarm/batch/completions",
+        headers=headers,
+        json=swarm_payload,
+        timeout=3600,
+    )
+    swarm_resp.raise_for_status()
+    return swarm_resp.json()
+
+
+def persist_memos(tickers: list[str], results: list[dict]) -> None:
+    date = datetime.utcnow().strftime("%Y-%m-%d")
+    with open(f"dcf_memos_{date}.jsonl", "w") as f:
+        for ticker, r in zip(tickers, results):
+            memo = ""
+            for output in r.get("output", []):
+                if "Memo Writer" in output.get("role", ""):
+                    content = output.get("content", "")
+                    if isinstance(content, list):
+                        content = " ".join(str(c) for c in content)
+                    memo = str(content)
+            f.write(json.dumps({"ticker": ticker, "date": date, "memo": memo}) + "\n")
+
+
+results = run_portfolio_refresh(PORTFOLIO)
+persist_memos(PORTFOLIO, results)
+
+total_cost = sum(r.get("usage", {}).get("billing_info", {}).get("total_cost", 0) for r in results)
+print(f"Refreshed {len(results)} DCFs for ${total_cost:.2f}")
+```
+
+The cron line that fires the refresh inside the night-mode window:
+
+```bash
+# Nightly DCF refresh — 9:00 PM Pacific, weekdays
+0 21 * * 1-5 cd /opt/dcf && /usr/bin/python overnight_refresh.py >> /var/log/dcf_refresh.log 2>&1
+```
+
+<Info>
+The batch lands in the database by ~5am Pacific. See [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) for why scheduling between 9pm and 6am Pacific cuts the bill in half — the same workload at 11am Pacific is twice as expensive for identical output.
+</Info>
+
+## Step 7: The Memo Output Format
+
+Every memo lands in the database with the same skeleton. The PM reads the executive summary on every name in five minutes; they drill into the sensitivity tables only on names where the call is close.
+
+```markdown
+# NVDA — DCF Refresh (2026-05-28)
+
+## Executive Summary
+Fair value per share: $148 (base). Implied upside vs. $112 spot: +32%.
+Conviction: HIGH — assumption set survives ±150bps WACC stress.
+
+## Target Price & Fair-Value Bands
+| Scenario | Fair Value | Upside | Key Shift |
+|----------|-----------|--------|-----------|
+| Bull | $182 | +63% | EBIT margin holds 38% in Y10 |
+| Base | $148 | +32% | Margin normalizes to 34% by Y10 |
+| Bear | $96 | -14% | Capex steps up 200bps + WACC 11% |
+
+## Key Assumptions
+| Assumption | Value | Justification |
+|------------|-------|---------------|
+| Revenue growth Y1-3 CAGR | 38% | Data center backlog through FY27 |
+| Revenue growth Y4-10 | declines 28% -> 6% | Reverts toward semis steady-state |
+| EBIT margin Y10 | 34% | Above-cycle vs. historical 28% — defend on AI mix |
+| Terminal growth | 2.5% | Above GDP defensible on AI infrastructure decade |
+| WACC | 9.2% | Beta 1.45, ERP 5.0%, rfr 4.5%, cost of debt 4.8% |
+| Capex % revenue | 8.5% | Elevated vs. 6.5% trailing — fabs and platform |
+
+## Sensitivity Tables
+
+### WACC × Terminal Growth (fair value per share)
+| | TG 1.0% | 1.5% | 2.0% | 2.5% | 3.0% | 3.5% |
+|---|---|---|---|---|---|---|
+| **WACC 8.0%** | $158 | $172 | $189 | $211 | $241 | $283 |
+| **WACC 8.7%** | $138 | $148 | $161 | $176 | $196 | $223 |
+| **WACC 9.2%** | $126 | $135 | $145 | $158 | $173 | $193 |
+| **WACC 10.0%** | $110 | $116 | $124 | $133 | $144 | $158 |
+
+Read: at base WACC 9.2%, the model breaks $130 even at 1.0% terminal growth.
+
+### EBIT Margin Y10 × Revenue Growth Y1-3 CAGR
+(Same grid format, 7×6.)
+
+### Capex % Revenue × Terminal Growth
+(Same grid format, 5×6.)
+
+## Risks to the Thesis
+1. Hyperscaler capex pause through 2H26 cuts Y1-2 growth 1500-2000bps.
+2. China export control tightening removes 12-15% of incremental TAM.
+3. Custom silicon at top-3 customers compresses pricing in Y3+.
+
+## Recommendation
+ADD — base case fair value clears spot by 32% and the sensitivity grid shows the call survives reasonable assumption stress.
+```
+
+## Real Cost vs. IB Associate Time
+
+The hero number — and it isn't subtle.
+
+| Approach | Per-ticker cost | Nightly (50 names) | Annualized | Refresh latency |
+|----------|----------------|--------------------|------------|-----------------|
+| **This pipeline (Opus reasoning + Sequential math + night-mode)** | **~\$1.50** | **~\$75** | **~\$19,000** | **Overnight, every name** |
+| One IB associate, fully loaded \$250k | — | ~\$1,000 of their day | ~\$250,000 | 5 names/day before burnout |
+| Three-associate coverage pod | — | ~\$3,000 of their day | ~\$750,000 | 12-15 names/day |
+
+A single associate covers maybe five names a day before quality degrades. Three associates cover fifteen. The portfolio has fifty. The math has never worked — every fundamental shop either ships stale DCFs or ships none. This pipeline ships fifty fresh DCFs every morning before the desk arrives, for **less than 8% of one associate's salary** and roughly **3% of the three-associate pod's cost**. The associate isn't replaced — they spend their day on the names the memo flagged as conviction-changing, instead of grinding through statement updates that didn't move the call.
+
+<Warning>
+DCF memos generated by this pipeline are research artifacts. The assumption_notes from the Opus reasoning pass are the audit trail; the sensitivity tables are the stress test. Before any output reaches an IC vote or an LP, the memo passes through a signoff queue where a human reviews the assumption justifications and signs off on the recommendation. The pipeline doesn't carry investment authority.
+</Warning>
+
+## Next Steps
+
+- [Build an AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) — the HierarchicalSwarm pattern for buy/sell/hold calls upstream of the DCF refresh
+- [Build a 24/7 Autonomous Equity Research Analyst](/docs/examples/examples/247-autonomous-equity-research-analyst) — the production pattern for shipping the memo to Slack on a cron
+- [Reasoning Agents for Hard Analytical Problems](/docs/examples/examples/reasoning-agents-tutorial) — the standalone primitive for the Opus reasoning pass, with the full `swarm_type` catalog
+- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — why scheduling the batch between 9pm and 6am Pacific is what makes the 50-name refresh land under \$80

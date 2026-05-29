@@ -1,0 +1,520 @@
+---
+title: "13F Tracker: Quarterly Hedge Fund Position Changes at Scale"
+description: "Parse ~5,000 13F filings in a 48-hour quarterly burst with a fan-out GraphWorkflow, then synthesize cross-fund themes into a newsroom-ready brief — for the cost of takeout dinner."
+---
+
+## What This Example Shows
+
+- A `GraphWorkflow` shaped as fan-out → fan-in: thousands of per-fund parser nodes run in parallel, then converge into a cross-fund aggregator and a Theme Synthesizer
+- How to parse raw SEC EDGAR 13F-HR filings (CIK + accession number) into structured holdings, then diff against the prior quarter
+- The batch volume math for the quarterly burst: ~5,000 filings dropping in 48 hours, dispatched via `/v1/swarm/batch/completions` and priced under night-mode
+- Model diversification across the DAG: `gpt-4.1-mini` for mechanical parsing, `gpt-4.1` for aggregation, `claude-sonnet-4.5` for the synthesis layer
+- Journalist-grade output: ranked sector adds/cuts, new positions crossing \$100M of cumulative flow, eliminated positions, and named emerging themes with the funds driving them
+- A reusable pattern for any high-volume regulatory-filing burst (Form 4, N-PORT, NPX)
+
+<Info>
+This tutorial leans hard on two premium features: the batch swarm endpoint (`/v1/swarm/batch/completions`) for the burst, and **night-mode pricing** for the burst itself. 13Fs become public after-hours on the 45-day lag — fire the batch between 11pm and 5am Pacific and you pay the night-mode rate. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule.
+</Info>
+
+## Why This Matters
+
+Form 13F-HR filings publish on a 45-day lag — every institutional manager with over \$100M AUM has to disclose their long US-equity positions within 45 days of quarter-end, and almost all of them file in the same 48-hour window right at the deadline. ~5,000 filings hit EDGAR essentially simultaneously, and that window is when the entire allocator and newsroom ecosystem scrambles: Bloomberg, the FT, Institutional Investor, fund-of-funds managers, sell-side strategists, and signal traders are all racing to surface "what did the smart money buy" before the next morning's open. The traditional shape of that work is a junior analyst manually pulling a handful of "name brand" 13Fs (Pershing Square, Tiger, Coatue, Berkshire) and writing one-off blurbs — leaving 4,990 filings unread and the cross-fund themes invisible. A GraphWorkflow turns the firehose into a structured story automatically: every filing parsed, every position diffed, every theme ranked by cumulative dollar flow across all reporting managers. By 7am Pacific on day 2 of the window, you have a brief that took a newsroom team two weeks the old way.
+
+## The Architecture
+
+```text
+                                         GraphWorkflow
+                                ┌─────────────────────────────────┐
+EDGAR 13F feed (~5,000 CIKs)    │                                 │
+        │                       │ [13F Parser — Fund 1]  ──┐      │
+        ▼                       │ [13F Parser — Fund 2]  ──┤      │
+[Batch Dispatcher]  ────────►   │ [13F Parser — Fund 3]  ──┼──►   │
+   (one swarm                   │           …                │    │
+    payload per                 │ [13F Parser — Fund N]  ──┘      │
+    filing)                     │           │                     │
+                                │           ▼                     │
+                                │  [Cross-Fund Aggregator]        │
+                                │           │                     │
+                                │           ▼                     │
+                                │  [Theme Synthesizer]            │
+                                └───────────┬─────────────────────┘
+                                            │
+                                            ▼
+                          Markdown brief per theme  +  Top-N adds/cuts per manager
+                                            │
+                                            ▼
+                                    Postgres / Slack
+```
+
+Per-fund parsing happens in parallel inside each filing's own GraphWorkflow. The batch dispatcher fans the workload out across the 5,000 filings. The synthesis is the cross-cutting layer that runs once across the batched outputs.
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+```python
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Function Tools
+
+Every tool the parser and aggregator nodes use is declared as an OpenAI-style function tool. The model calls them, the runtime resolves them on your side.
+
+```python
+FETCH_13F_FILING = {
+    "type": "function",
+    "function": {
+        "name": "fetch_13f_filing",
+        "description": (
+            "Download the raw 13F-HR filing for a given CIK and accession number "
+            "from SEC EDGAR and return the holdings table as text."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "cik": {
+                    "type": "string",
+                    "description": "SEC CIK (Central Index Key) of the filing manager, zero-padded to 10 digits.",
+                },
+                "accession": {
+                    "type": "string",
+                    "description": "EDGAR accession number, e.g. '0001172661-24-000123'.",
+                },
+            },
+            "required": ["cik", "accession"],
+        },
+    },
+}
+
+PARSE_13F_HOLDINGS = {
+    "type": "function",
+    "function": {
+        "name": "parse_13f_holdings",
+        "description": (
+            "Parse the raw informationTable.xml body of a 13F-HR filing into a "
+            "list of holdings with ticker, CUSIP, issuer, shares, and market value."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filing_text": {
+                    "type": "string",
+                    "description": "Raw XML or text body of the 13F informationTable.",
+                }
+            },
+            "required": ["filing_text"],
+        },
+    },
+}
+
+LOOKUP_FUND_PROFILE = {
+    "type": "function",
+    "function": {
+        "name": "lookup_fund_profile",
+        "description": (
+            "Return the fund's name, AUM bucket, strategy tag (e.g. long-short, "
+            "activist, quant, family office), and known PM."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "cik": {"type": "string", "description": "Manager CIK."},
+            },
+            "required": ["cik"],
+        },
+    },
+}
+
+DIFF_QUARTER_HOLDINGS = {
+    "type": "function",
+    "function": {
+        "name": "diff_quarter_holdings",
+        "description": (
+            "Compute position deltas between this quarter and the prior quarter. "
+            "Returns adds, trims, new positions, and eliminated positions with "
+            "share-count and market-value changes."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "this_q": {
+                    "type": "array",
+                    "description": "Holdings array for the current quarter.",
+                    "items": {"type": "object"},
+                },
+                "last_q": {
+                    "type": "array",
+                    "description": "Holdings array for the prior quarter.",
+                    "items": {"type": "object"},
+                },
+            },
+            "required": ["this_q", "last_q"],
+        },
+    },
+}
+
+CROSS_FUND_AGGREGATE = {
+    "type": "function",
+    "function": {
+        "name": "cross_fund_aggregate",
+        "description": (
+            "Aggregate per-fund adds and cuts into cross-fund sector flows. "
+            "Sums cumulative dollar inflow/outflow per ticker and per GICS sector."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "adds_by_sector": {
+                    "type": "object",
+                    "description": "Map of sector → list of {ticker, fund_cik, dollar_change}.",
+                },
+                "cuts_by_sector": {
+                    "type": "object",
+                    "description": "Map of sector → list of {ticker, fund_cik, dollar_change}.",
+                },
+            },
+            "required": ["adds_by_sector", "cuts_by_sector"],
+        },
+    },
+}
+
+IS_NEW_POSITION = {
+    "type": "function",
+    "function": {
+        "name": "is_new_position",
+        "description": (
+            "Check whether a ticker is a brand-new position for the fund by "
+            "scanning the fund's prior 8 quarters of holdings history."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Equity ticker."},
+                "fund_history": {
+                    "type": "array",
+                    "description": "Array of prior-quarter holdings arrays for this fund.",
+                    "items": {"type": "object"},
+                },
+            },
+            "required": ["ticker", "fund_history"],
+        },
+    },
+}
+
+POST_THEME_BRIEF_TO_SLACK = {
+    "type": "function",
+    "function": {
+        "name": "post_theme_brief_to_slack",
+        "description": (
+            "Post a rendered Markdown theme brief to the #13f-tracker Slack channel."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "Rendered Markdown body of the theme brief.",
+                }
+            },
+            "required": ["text"],
+        },
+    },
+}
+
+PARSER_TOOLS = [FETCH_13F_FILING, PARSE_13F_HOLDINGS, LOOKUP_FUND_PROFILE, DIFF_QUARTER_HOLDINGS, IS_NEW_POSITION]
+AGGREGATOR_TOOLS = [CROSS_FUND_AGGREGATE]
+SYNTHESIZER_TOOLS = [POST_THEME_BRIEF_TO_SLACK]
+```
+
+## Step 3: Define the Graph Workflow Nodes
+
+The shape is fan-out → fan-in. Each per-fund parser is a node that fetches the filing, parses the holdings table, looks up the fund profile, and diffs against the prior quarter. Multiple parsers run in parallel inside one GraphWorkflow when a filing covers multiple sub-funds under one umbrella manager. They converge into a Cross-Fund Aggregator, which feeds the Theme Synthesizer.
+
+Models are diversified across the DAG by the cognitive load of each node:
+- **Per-fund parsers** → `gpt-4.1-mini` — cheap, fast, mechanical. Most of the work is tool calling against structured XML.
+- **Cross-fund aggregator** → `gpt-4.1` — needs to reason over many per-fund summaries and group them coherently.
+- **Theme synthesizer** → `claude-sonnet-4.5` — produces the journalist-grade narrative the brief is built around.
+
+```python
+def build_13f_workflow_for_filing(cik: str, accession: str, fund_name: str, sub_funds: list[str]) -> dict:
+    """
+    Build the GraphWorkflow payload for a single 13F filing.
+
+    Graph structure:
+        [Parser — sub-fund 1] ──┐
+        [Parser — sub-fund 2] ──┼──> [CrossFundAggregator] ──> [ThemeSynthesizer]
+        [Parser — sub-fund N] ──┘
+    """
+    parser_agents = [
+        {
+            "agent_name": f"Parser_{sub}",
+            "description": f"Per-fund 13F parser for {sub}.",
+            "system_prompt": (
+                "You are a 13F parser. Use the provided tools to: "
+                "(1) fetch_13f_filing(cik, accession), "
+                "(2) parse_13f_holdings on the raw text, "
+                "(3) lookup_fund_profile(cik) for context, "
+                "(4) diff_quarter_holdings against the prior quarter. "
+                "Return a compact JSON object with: fund_name, strategy, "
+                "top_5_adds, top_5_cuts, new_positions, eliminated_positions. "
+                "Be terse — no prose."
+            ),
+            "model_name": "gpt-4.1-mini",
+            "max_tokens": 3000,
+            "temperature": 0.1,
+            "max_loops": 1,
+            "tools_dictionary": PARSER_TOOLS,
+        }
+        for sub in sub_funds
+    ]
+
+    aggregator_agent = {
+        "agent_name": "CrossFundAggregator",
+        "description": "Aggregates per-fund deltas into cross-fund sector flows.",
+        "system_prompt": (
+            "You receive per-fund delta JSON from upstream parsers. "
+            "Group adds and cuts by GICS sector, sum cumulative dollar flow per "
+            "ticker, and call cross_fund_aggregate. Output a JSON object: "
+            "{sector_adds, sector_cuts, top_inflows, top_outflows}. No prose."
+        ),
+        "model_name": "gpt-4.1",
+        "max_tokens": 4000,
+        "temperature": 0.2,
+        "max_loops": 1,
+        "tools_dictionary": AGGREGATOR_TOOLS,
+    }
+
+    synthesizer_agent = {
+        "agent_name": "ThemeSynthesizer",
+        "description": "Produces the journalist-grade theme brief.",
+        "system_prompt": (
+            "You are a senior markets editor. Given the aggregated cross-fund "
+            "sector flows, produce a Markdown brief with: (1) top 10 sector adds "
+            "with dollar magnitudes and named funds driving each, (2) top 10 "
+            "sector cuts, (3) new positions crossing $100M of cumulative flow, "
+            "(4) eliminated positions, (5) 3-5 emerging themes with named funds. "
+            "Cite manager names. Be specific, numbers-forward, and printable."
+        ),
+        "model_name": "claude-sonnet-4.5",
+        "max_tokens": 6000,
+        "temperature": 0.4,
+        "max_loops": 1,
+        "tools_dictionary": SYNTHESIZER_TOOLS,
+    }
+
+    edges = (
+        [{"source": p["agent_name"], "target": "CrossFundAggregator"} for p in parser_agents]
+        + [{"source": "CrossFundAggregator", "target": "ThemeSynthesizer"}]
+    )
+
+    return {
+        "name": f"13F-Tracker — {fund_name}",
+        "description": f"Per-fund GraphWorkflow for {fund_name} ({cik}) filing {accession}.",
+        "swarm_type": "GraphWorkflow",
+        "max_loops": 1,
+        "task": (
+            f"Process the 13F-HR filing for {fund_name} (CIK {cik}, accession "
+            f"{accession}). Parse all sub-fund holdings, diff against the prior "
+            f"quarter, aggregate cross-fund flows, and produce the theme brief."
+        ),
+        "agents": parser_agents + [aggregator_agent, synthesizer_agent],
+        "edges": edges,
+        "entry_points": [p["agent_name"] for p in parser_agents],
+        "end_points": ["ThemeSynthesizer"],
+    }
+```
+
+## Step 4: Run One Fund's 13F
+
+Smoke-test the shape against a single filing before you fire the burst. Pershing Square's umbrella files include the main fund plus the SPARC vehicle, which makes for a clean multi-parser fan-in.
+
+```python
+def run_single_filing(cik: str, accession: str, fund_name: str, sub_funds: list[str]) -> dict:
+    payload = build_13f_workflow_for_filing(cik, accession, fund_name, sub_funds)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+result = run_single_filing(
+    cik="0001336528",
+    accession="0001172661-24-000123",
+    fund_name="Pershing Square Capital",
+    sub_funds=["PSCM_Main", "PSCM_SPARC"],
+)
+
+for node, output in result.get("outputs", {}).items():
+    print("=" * 60)
+    print(f"[{node}]")
+    print("=" * 60)
+    if isinstance(output, list):
+        output = " ".join(str(o) for o in output)
+    print(str(output)[:600])
+
+print(f"\nCost: ${result['usage']['billing_info']['total_cost']:.4f}")
+print(f"Execution time: {result['execution_time']:.1f}s")
+```
+
+<Note>
+The ThemeSynthesizer output for a single filing is just that one manager's contribution to the cross-fund picture. The real value emerges when you batch it across the full 5,000-fund universe in Step 5 — at that point the aggregator sees the entire flow and the themes pop.
+</Note>
+
+## Step 5: The Quarterly Burst — 5,000 Funds in One Night
+
+Production shape: you have a feed (EDGAR's RSS or a vendor like SEC-API.io) emitting accession numbers as they hit the system. You buffer them across the 48-hour deadline window, then fire one batch at 11pm Pacific on day 1 of the burst.
+
+```python
+# Imagine this list comes from a pull of EDGAR's 13F-HR daily index for the
+# deadline week. ~5,000 entries in practice.
+QUARTERLY_FILINGS = [
+    {"cik": "0001336528", "accession": "0001172661-24-000123", "fund_name": "Pershing Square Capital", "sub_funds": ["PSCM_Main"]},
+    {"cik": "0001478912", "accession": "0001478912-24-000089", "fund_name": "Tiger Global Management", "sub_funds": ["TGM_Main", "TGM_PIPE"]},
+    {"cik": "0001423053", "accession": "0001423053-24-000045", "fund_name": "Coatue Management", "sub_funds": ["Coatue_LP"]},
+    {"cik": "0001067983", "accession": "0001067983-24-000018", "fund_name": "Berkshire Hathaway", "sub_funds": ["BRK_Core"]},
+    # ... ~5,000 entries pulled from the EDGAR 13F-HR daily index
+]
+
+
+def run_quarterly_burst(filings: list[dict]) -> list[dict]:
+    batch_payload = [
+        build_13f_workflow_for_filing(
+            cik=f["cik"],
+            accession=f["accession"],
+            fund_name=f["fund_name"],
+            sub_funds=f["sub_funds"],
+        )
+        for f in filings
+    ]
+    print(f"Dispatching batch of {len(batch_payload)} GraphWorkflows.")
+
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/batch/completions",
+        headers=headers,
+        json=batch_payload,
+        timeout=7200,  # the burst can run for an hour or more server-side
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+results = run_quarterly_burst(QUARTERLY_FILINGS)
+
+# Persist raw responses first — partial network failures are easier to recover
+# from when you have the bytes on disk.
+out_dir = Path("13f_runs") / datetime.utcnow().strftime("%Y-Q%m-%d")
+out_dir.mkdir(parents=True, exist_ok=True)
+(out_dir / "raw_batch_response.json").write_text(json.dumps(results, indent=2))
+```
+
+**The math.** A single 5-node GraphWorkflow per filing — three lean parsers on `gpt-4.1-mini`, one aggregator on `gpt-4.1`, one synthesizer on `claude-sonnet-4.5` — comes out to roughly **\$0.04 per filing under night-mode pricing**. Across the full quarterly burst:
+
+| Volume | Per-filing cost (night-mode) | Total |
+| --- | --- | --- |
+| 5,000 13F-HR filings | ~\$0.04 | **~\$200** |
+| With the night-mode 50% discount window | ~\$0.02 | **~\$100** |
+
+A takeout dinner gets you the entire quarter's 13F coverage. Run four times a year and your annual budget for the program is roughly **\$400** in API cost.
+
+<Info>
+The burst must land inside the night-mode window (11pm–5am Pacific) to hit the headline pricing. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule mechanics and how to chunk a larger batch across multiple windows if you exceed the rate ceiling.
+</Info>
+
+## Step 6: The Theme Synthesizer Output
+
+A representative ThemeSynthesizer output for the cross-fund aggregate. This is the artifact your DB, Slack channel, and morning newsletter pull from.
+
+```markdown
+# 13F Tracker — Q3 2024 Cross-Fund Brief
+Reporting universe: 4,983 13F-HR filings, $6.4T in long US-equity AUM.
+
+## Top 10 Sector Adds (by cumulative net dollar inflow)
+
+| Rank | Sector                  | Cumulative Net Add | Named Managers Driving |
+| ---- | ----------------------- | ------------------ | ---------------------- |
+| 1    | Semiconductors          | +$18.4B            | Coatue, Tiger Global, Lone Pine, Whale Rock |
+| 2    | Hyperscaler infra       | +$12.1B            | Pershing Square, ValueAct, Pat Dorsey |
+| 3    | Power & utilities       | +$ 9.7B            | Berkshire, Soros, Third Point |
+| 4    | Defense primes          | +$ 6.2B            | Discovery Capital, Maverick, Viking |
+| 5    | Obesity-adjacent biotech| +$ 5.9B            | Baker Bros, Perceptive, RTW |
+| ...  | ...                     | ...                | ... |
+
+## Top 10 Sector Cuts (by cumulative net dollar outflow)
+
+| Rank | Sector                  | Cumulative Net Cut | Named Managers Driving |
+| ---- | ----------------------- | ------------------ | ---------------------- |
+| 1    | Regional banks          | -$ 8.7B            | Hound Partners, Greenlight, Pershing Square |
+| 2    | China ADRs              | -$ 7.4B            | Tiger Global, Coatue, Lone Pine |
+| 3    | Legacy media            | -$ 4.1B            | Third Point, Trian, ValueAct |
+| ...  | ...                     | ...                | ... |
+
+## New Positions Crossing $100M Cumulative Flow
+
+- **VST** (Vistra) — 14 funds initiated, $1.9B cumulative; Berkshire, Soros, Third Point
+- **CRWV** (CoreWeave) — 9 funds initiated, $640M cumulative; Coatue, Tiger Global, Whale Rock
+- **VRT** (Vertiv) — 11 funds initiated, $480M cumulative; Pershing Square, Lone Pine
+- **SMCI** (Super Micro) — 7 funds initiated, $310M cumulative; Maverick, Discovery
+
+## Eliminated Positions
+
+- **PYPL** — 22 funds eliminated, $2.1B exiting; concentrated in long-short pods
+- **BABA** — 18 funds eliminated, $1.6B exiting; Tiger Global, Lone Pine, Hound
+- **CVS** — 12 funds eliminated, $740M exiting; ValueAct, Glenview
+
+## Emerging Themes
+
+1. **Power buildout as the AI shadow trade.** Power & utilities (+$9.7B) plus
+   hyperscaler infra (+$12.1B) reads as one trade: capacity to feed the
+   datacenter buildout. Berkshire (VST), Third Point (CEG), and Soros (NRG)
+   are the names to watch.
+2. **Semis are crowding.** Coatue, Tiger, Lone Pine, and Whale Rock are all
+   adding the same five names (NVDA, AVGO, AMD, TSM, MRVL). When the velocity
+   tightens like this, the unwind is fast — flag for the desk.
+3. **China ADR capitulation.** -$7.4B cut concentrated in BABA, JD, PDD across
+   the long-only crossover managers. The cleanup is finally happening.
+4. **Obesity drugs broadening.** Baker, Perceptive, and RTW added second-tier
+   names (VKTX, ALT, STRC) alongside their existing LLY/NVO core — signaling
+   conviction that the platform is bigger than two names.
+5. **Defense primes rotation.** Discovery and Maverick added LMT, NOC, GD
+   simultaneously — the same week as the supplemental funding bill passed.
+```
+
+The Slack post fires automatically via the `post_theme_brief_to_slack` tool. The structured per-manager output also writes to a Postgres table so the desk can query "every fund that added NVDA this quarter, ranked by dollar size."
+
+## Real Cost vs. Newsroom 13F Team
+
+| Approach | Wall time | Cost per quarter | Annualized |
+| --- | --- | --- | --- |
+| Junior research analyst manually pulling ~50 "name brand" 13Fs | ~2 weeks of nights | — | ~\$120,000 fully loaded |
+| Senior markets editor reviewing and writing the brief under deadline | ~3 days each quarter | — | ~\$200,000 fully loaded |
+| Combined 2-person desk (junior + senior) covering ~50 funds | ~2 weeks | ~\$10,000–\$20,000 in burdened labor | ~\$320,000+ |
+| **GraphWorkflow batch burst, 5,000 funds, night-mode** | **~1 hour server-side** | **~\$100** | **~\$400** |
+
+The swarm isn't replacing the senior editor — it's replacing the two weeks of mechanical 13F-pulling that buries them. The editor now lands at their desk on day 2 of the window with the entire universe of 4,983 filings already parsed, diffed, and themed. Their job becomes choosing which three themes to lead with — the work that actually requires judgement.
+
+## Next Steps
+
+- [SEC Filing Triage Pipeline](/docs/examples/examples/sec-filing-triage-pipeline) for the same fan-out pattern applied to 8-K, S-1, and 10-K firehoses
+- [Insider Form 4 Monitor](/docs/examples/examples/insider-form4-monitor) for the daily-burst variant: insider transactions instead of quarterly positions
+- [Graph Workflows for Production Pipelines](/docs/examples/examples/graph-workflows-production) for the DAG-shape reference and conditional gating patterns
+- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) to schedule the burst against the discount window

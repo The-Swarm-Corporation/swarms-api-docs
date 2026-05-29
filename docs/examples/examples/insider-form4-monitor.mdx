@@ -1,0 +1,501 @@
+---
+title: "Insider Trading Form 4 Monitor: Cluster Buys and Significance Scoring at Scale"
+description: "A SequentialWorkflow that parses every Form 4 filed with the SEC, scores significance against insider history, detects cluster buys, and ships a ranked end-of-day digest to Slack for the price of a takeout dinner."
+---
+
+Every weekday at 5:30pm ET, a ranked digest of the day's most-significant insider buys lands in Slack. Total cost per year: less than what a junior analyst makes in a week.
+
+## What This Example Shows
+
+- A four-stage `SequentialWorkflow` — Parser → Insider Profile Lookup → Cluster Detector → Signal Scorer — applied to every Form 4 the SEC publishes
+- How to ingest the EDGAR Form 4 RSS firehose (500-1000 filings/day) without your job choking on it
+- Insider history lookups that anchor each transaction against the person's prior trading behavior
+- Cluster-buy detection: multiple distinct insiders buying the same ticker within 30 days
+- A 0-100 significance score that filters the firehose down to a handful of HIGH conviction signals
+- `/v1/swarm/batch/completions` running the whole day's filings in a single overnight job
+
+<Info>
+EDGAR publishes 500-1000 Form 4s every trading day. Single-shot `/v1/swarm/completions` calls breach Free-tier rate caps by mid-morning. The batch endpoint is the right tool — see [Rate Limits](/docs/documentation/resources/ratelimits) for the per-tier numbers and upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) for Pro/Ultra/Premium throughput.
+</Info>
+
+## Why This Matters
+
+Cluster insider buying has 30+ years of peer-reviewed alpha behind it — when three or more insiders at the same company open-market-buy stock inside a thirty-day window, forward returns over the next 6-12 months beat the market by a meaningful margin in nearly every cut of the data. The signal is not the hard part. The hard part is the firehose: EDGAR publishes 500-1000 Form 4s per day, the vast majority are options exercises, automatic 10b5-1 sales, or token grants that mean nothing. Filtering 800 filings down to the three that actually matter — a CFO buying open-market for the first time in two years, alongside two directors inside the same week — is a parsing, classification, and scoring problem at scale. That is exactly what a sequential swarm running over a batch endpoint is built for.
+
+## The Architecture
+
+```
+EDGAR Form 4 RSS (500-1000/day)
+            │
+            ▼
+   batch fetch (one job)
+            │
+            ▼
+ /v1/swarm/batch/completions
+            │
+            ▼
+   SequentialWorkflow (per filing)
+   ┌──────────────────────────────┐
+   │ 1. Parser (gpt-4.1-mini)     │
+   │    extract who/what/how much │
+   │              │               │
+   │              ▼               │
+   │ 2. Insider Profile Lookup    │
+   │    (gpt-4.1-mini)            │
+   │    pull prior history        │
+   │              │               │
+   │              ▼               │
+   │ 3. Cluster Detector (gpt-4.1)│
+   │    other insiders, same name │
+   │              │               │
+   │              ▼               │
+   │ 4. Signal Scorer             │
+   │    (claude-sonnet-4.5)       │
+   │    final 0-100 score         │
+   └──────────────────────────────┘
+            │
+            ▼
+   filter score ≥ 75
+            │
+            ▼
+   end-of-day Slack digest
+```
+
+## Step 1: Setup
+
+```bash
+pip install requests python-dotenv
+export SWARMS_API_KEY="your-api-key-here"
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
+```
+
+```python
+import json
+import os
+from datetime import datetime, timedelta
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+## Step 2: Define the Function Tools
+
+Each agent calls into one or more of these tools. The schemas are OpenAI function-call shape and are attached per-agent via `tools_dictionary`.
+
+```python
+FETCH_FORM4 = {
+    "type": "function",
+    "function": {
+        "name": "fetch_form4",
+        "description": (
+            "Fetch a parsed Form 4 filing from EDGAR by accession number. "
+            "Returns issuer, reporting person, transaction code, shares, price, "
+            "and post-transaction ownership."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "accession": {
+                    "type": "string",
+                    "description": "SEC accession number, e.g. 0001127602-25-019844.",
+                }
+            },
+            "required": ["accession"],
+        },
+    },
+}
+
+LOOKUP_INSIDER_HISTORY = {
+    "type": "function",
+    "function": {
+        "name": "lookup_insider_history",
+        "description": (
+            "Return the prior 24 months of Form 3/4/5 filings for a given insider CIK. "
+            "Each record contains date, ticker, transaction code, shares, and value."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "person_cik": {
+                    "type": "string",
+                    "description": "10-digit CIK of the reporting person.",
+                }
+            },
+            "required": ["person_cik"],
+        },
+    },
+}
+
+COUNT_RECENT_INSIDER_BUYS = {
+    "type": "function",
+    "function": {
+        "name": "count_recent_insider_buys",
+        "description": (
+            "Count distinct insiders who have open-market-purchased the ticker "
+            "within the lookback window."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Issuer ticker symbol."},
+                "days": {
+                    "type": "integer",
+                    "description": "Lookback window in days. Default 30.",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+}
+
+COMPUTE_AVG_POSITION_SIZE = {
+    "type": "function",
+    "function": {
+        "name": "compute_avg_position_size",
+        "description": (
+            "Compute the trailing 24-month average dollar size of open-market "
+            "purchases for a single insider."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "person_cik": {
+                    "type": "string",
+                    "description": "10-digit CIK of the reporting person.",
+                }
+            },
+            "required": ["person_cik"],
+        },
+    },
+}
+
+SCORE_SIGNIFICANCE = {
+    "type": "function",
+    "function": {
+        "name": "score_significance",
+        "description": (
+            "Compute a 0-100 significance score for a Form 4 transaction. "
+            "Inputs are the parsed transaction, the insider's prior history, "
+            "and any cluster activity at the issuer."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "transaction": {
+                    "type": "object",
+                    "description": "Parsed Form 4 transaction object.",
+                },
+                "insider_history": {
+                    "type": "object",
+                    "description": "Output of lookup_insider_history + compute_avg_position_size.",
+                },
+                "cluster_data": {
+                    "type": "object",
+                    "description": "Output of count_recent_insider_buys for the issuer.",
+                },
+            },
+            "required": ["transaction", "insider_history", "cluster_data"],
+        },
+    },
+}
+
+POST_SLACK_DIGEST = {
+    "type": "function",
+    "function": {
+        "name": "post_slack_digest",
+        "description": (
+            "Post the ranked end-of-day digest of HIGH conviction insider signals "
+            "to a Slack channel via incoming webhook."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "Header text for the Slack message.",
+                },
+                "signals_list": {
+                    "type": "array",
+                    "description": "Ranked list of HIGH conviction signals.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "ticker": {"type": "string"},
+                            "insider": {"type": "string"},
+                            "role": {"type": "string"},
+                            "dollar_value": {"type": "number"},
+                            "score": {"type": "integer"},
+                            "rationale": {"type": "string"},
+                        },
+                        "required": ["ticker", "insider", "score", "rationale"],
+                    },
+                },
+            },
+            "required": ["text", "signals_list"],
+        },
+    },
+}
+```
+
+## Step 3: Define the Four Pipeline Agents
+
+The first two stages are mechanical parsing and history retrieval — `gpt-4.1-mini` handles them cheaply. Cluster detection needs a stronger model that can reason about overlap windows; `gpt-4.1` does that work. The final significance score is the only step that exercises real judgment, so `claude-sonnet-4.5` gets the closing call.
+
+```python
+PARSER_PROMPT = (
+    "You are a Form 4 parser. Given an accession number, call fetch_form4 and "
+    "extract: issuer ticker, reporting person name and CIK, role "
+    "(CEO/CFO/Director/Officer/10% Holder), transaction code (P/S/A/M/F), "
+    "shares transacted, price per share, total dollar value, and "
+    "post-transaction ownership. Output strict JSON. Flag whether the "
+    "transaction is an open-market purchase (code P) — anything else is noise "
+    "for this pipeline."
+)
+
+INSIDER_PROFILE_PROMPT = (
+    "You are an insider profile analyst. Given the parsed transaction, call "
+    "lookup_insider_history and compute_avg_position_size for the reporting "
+    "person. Append to the JSON: trailing_24m_buy_count, avg_buy_dollars, "
+    "months_since_last_buy, and a one-sentence behavioral note (e.g. 'first "
+    "open-market buy in 27 months', 'consistent monthly buyer')."
+)
+
+CLUSTER_DETECTOR_PROMPT = (
+    "You are a cluster-buy detector. Given the enriched transaction, call "
+    "count_recent_insider_buys for the issuer with a 30-day window. Append: "
+    "cluster_size (distinct insiders), cluster_total_dollars, and "
+    "cluster_classification (NONE | EMERGING | STRONG | EXCEPTIONAL). "
+    "EXCEPTIONAL requires 4+ distinct insiders inside 30 days."
+)
+
+SIGNAL_SCORER_PROMPT = (
+    "You are the final signal scorer. Given the fully enriched transaction, "
+    "call score_significance and output the final JSON: "
+    '{"ticker": str, "insider": str, "role": str, "dollar_value": float, '
+    '"score": int (0-100), "conviction": "LOW"|"MEDIUM"|"HIGH", '
+    '"rationale": str (one sentence)}. '
+    "Weight cluster_classification heavily — a STRONG cluster with a CFO "
+    "first-buy-in-two-years should score 85+. A solo 10% holder routine buy "
+    "should score under 40."
+)
+
+
+def build_form4_pipeline(accession: str) -> dict:
+    return {
+        "name": f"Form 4 Significance Pipeline — {accession}",
+        "description": "Parse, profile, cluster, score one Form 4 filing.",
+        "swarm_type": "SequentialWorkflow",
+        "max_loops": 1,
+        "task": (
+            f"Process Form 4 accession {accession}. Output the final "
+            f"significance signal as strict JSON."
+        ),
+        "agents": [
+            {
+                "agent_name": "Form 4 Parser",
+                "description": "Extracts structured transaction data from raw Form 4.",
+                "system_prompt": PARSER_PROMPT,
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 1024,
+                "temperature": 0.1,
+                "tools_dictionary": [FETCH_FORM4],
+            },
+            {
+                "agent_name": "Insider Profile Lookup",
+                "description": "Enriches the transaction with the insider's prior 24m history.",
+                "system_prompt": INSIDER_PROFILE_PROMPT,
+                "model_name": "gpt-4.1-mini",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 1024,
+                "temperature": 0.1,
+                "tools_dictionary": [LOOKUP_INSIDER_HISTORY, COMPUTE_AVG_POSITION_SIZE],
+            },
+            {
+                "agent_name": "Cluster Detector",
+                "description": "Counts other insiders buying the same ticker in the last 30 days.",
+                "system_prompt": CLUSTER_DETECTOR_PROMPT,
+                "model_name": "gpt-4.1",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 1024,
+                "temperature": 0.2,
+                "tools_dictionary": [COUNT_RECENT_INSIDER_BUYS],
+            },
+            {
+                "agent_name": "Signal Scorer",
+                "description": "Issues the final 0-100 significance score and conviction.",
+                "system_prompt": SIGNAL_SCORER_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "role": "worker",
+                "max_loops": 1,
+                "max_tokens": 1024,
+                "temperature": 0.2,
+                "tools_dictionary": [SCORE_SIGNIFICANCE],
+            },
+        ],
+    }
+```
+
+<Note>
+The Parser and Profile Lookup stages are pure extraction — they almost never need to think. Reserving `claude-sonnet-4.5` for the Signal Scorer is where the cost-per-Form-4 math stays under three cents.
+</Note>
+
+## Step 4: Process One Form 4 End-to-End
+
+Before scaling, prove the pipeline on a single filing.
+
+```python
+def score_one_form4(accession: str) -> dict:
+    payload = build_form4_pipeline(accession)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+result = score_one_form4("0001127602-25-019844")
+
+for output in result.get("output", []):
+    print("=" * 60)
+    print(output["role"])
+    print("=" * 60)
+    content = output["content"]
+    if isinstance(content, list):
+        content = " ".join(str(c) for c in content)
+    print(str(content)[:600])
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
+```
+
+The Signal Scorer's final JSON is the row you persist. The other three stages are the audit trail — every score is fully reproducible from the parsed filing, the insider history snapshot, and the cluster counts that fed into it.
+
+## Step 5: End-of-Day Batch Pipeline
+
+EDGAR's Form 4 RSS feed publishes accession numbers in close to real time. Pull the day's list at 5:30pm ET, build one batch payload, and submit it all at once.
+
+```python
+EDGAR_FORM4_RSS = (
+    "https://www.sec.gov/cgi-bin/browse-edgar"
+    "?action=getcurrent&type=4&company=&dateb=&owner=include&count=1000&output=atom"
+)
+
+
+def fetch_todays_form4_accessions() -> list[str]:
+    """Pull every Form 4 accession number filed today from EDGAR."""
+    resp = requests.get(
+        EDGAR_FORM4_RSS,
+        headers={"User-Agent": "InsiderMonitor contact@yourfirm.com"},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    # Parse the atom feed for <id>...</id> accession entries.
+    # Implementation omitted — any feedparser/xml.etree call works here.
+    return parse_accessions_from_atom(resp.text)
+
+
+def run_eod_batch() -> list[dict]:
+    accessions = fetch_todays_form4_accessions()
+    print(f"Processing {len(accessions)} Form 4 filings for {datetime.utcnow().date()}")
+
+    payload = [build_form4_pipeline(a) for a in accessions]
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/batch/completions",
+        headers=headers,
+        json=payload,
+        timeout=1800,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def extract_final_signal(result: dict) -> dict | None:
+    """Pull the Signal Scorer's JSON output from a single swarm result."""
+    for output in result.get("output", []):
+        if "Signal Scorer" in output.get("role", ""):
+            content = output["content"]
+            if isinstance(content, list):
+                content = " ".join(str(c) for c in content)
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                return None
+    return None
+
+
+results = run_eod_batch()
+signals = [s for s in (extract_final_signal(r) for r in results) if s]
+
+high_conviction = sorted(
+    [s for s in signals if s.get("score", 0) >= 75],
+    key=lambda s: s["score"],
+    reverse=True,
+)
+
+print(f"Total signals scored: {len(signals)}")
+print(f"HIGH conviction (score >= 75): {len(high_conviction)}")
+```
+
+Now ship the digest to Slack.
+
+```python
+def post_digest_to_slack(signals: list[dict]) -> None:
+    if not signals:
+        return
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    lines = [f"*Insider Form 4 Digest — {today}*", ""]
+    for s in signals[:20]:
+        lines.append(
+            f"• *{s['ticker']}* — {s['insider']} ({s.get('role', '?')}) "
+            f"${s.get('dollar_value', 0):,.0f} — score *{s['score']}* — {s['rationale']}"
+        )
+    requests.post(SLACK_WEBHOOK_URL, json={"text": "\n".join(lines)}, timeout=30)
+
+
+post_digest_to_slack(high_conviction)
+```
+
+Wire the whole thing to cron:
+
+```cron
+30 17 * * 1-5 /usr/bin/python3 /opt/jobs/form4_monitor.py >> /var/log/form4.log 2>&1
+```
+
+<Info>
+Run `fetch_todays_form4_accessions` once at 5:30pm ET — that captures the full filing window, since Form 4 has a two-business-day reporting deadline and most issuers file in the last hour before EDGAR's evening cutoff.
+</Info>
+
+## Real Cost vs. Quantitative Signal Provider
+
+Per-Form-4 cost is dominated by the Signal Scorer's `claude-sonnet-4.5` call; the three preceding mini/gpt-4.1 stages add only fractions of a cent.
+
+| Scope | Cost |
+| --- | --- |
+| Per Form 4 (4-stage SequentialWorkflow) | ~\$0.02 |
+| Per trading day (~800 filings) | ~\$16 |
+| Per year (~250 trading days) | ~\$4,000 |
+| Bloomberg Terminal — single seat | ~\$24,000/yr |
+| Quantitative insider-signal data vendor | \$50,000-\$200,000/yr |
+| Dedicated insider-trading analyst (fully loaded) | \$150,000-\$250,000/yr |
+
+You are buying the same firehose-to-signal transform a quant data vendor sells, for roughly 2% of what they charge — and you own the prompt, the scoring rubric, and the audit trail row-by-row.
+
+## Next Steps
+
+- [Build an AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) for the HierarchicalSwarm pattern that turns these signals into long/short calls
+- [SEC Filing Triage Pipeline](/docs/examples/examples/sec-filing-triage-pipeline) to extend the same batch architecture to 10-K, 10-Q, and 8-K filings
+- [Sell-Side Research Pipeline](/docs/examples/examples/sell-side-research-pipeline) for the full publish-grade research note built on top of your highest conviction signals

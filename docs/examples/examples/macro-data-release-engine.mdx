@@ -1,0 +1,556 @@
+---
+title: "Macro Data Release Reaction Engine: CPI, NFP, and FOMC in Under 60 Seconds"
+description: "A scheduled, latency-critical reasoning swarm that parses the release the moment it crosses, models regime impact with Opus 4.8 high, and fans out asset-class trade theses to Slack before the desk has finished reading the headline."
+---
+
+## What This Example Shows
+
+- A scheduled engine fired exactly at the release minute (CPI 8:30 AM ET, NFP 8:30 AM ET, FOMC 2:00 PM ET) that parses the print within 5 seconds
+- A single hypothesis reasoning agent on `claude-opus-4-8` with `reasoning_effort: "high"` to compute surprise vs. consensus and articulate the regime hypothesis
+- A `GraphWorkflow` that branches by regime into four asset-class workers — Rates, FX, Equities, Commodities — with diversified models per desk
+- Multiple data sources stitched in via function tools: BLS, FRED, consensus, historical reaction tables, live market snapshots
+- A full sub-60-second end-to-end budget from release timestamp to a Slack-ready trade brief
+- Roughly eight dollars per event, ~50 high-stakes events per year — the kind of capability a macro desk pays a strategist \$400k for
+
+<Info>
+`reasoning_effort: "high"` on `claude-opus-4-8` and `GraphWorkflow` are **Premium-only** features. Latency-critical events also benefit from priority processing on the Premium tier. See the [Reasoning Agents tutorial](/docs/examples/examples/reasoning-agents-tutorial) for the full primer on reasoning-effort tuning, and [upgrade your account](https://swarms.world/platform/account) before running this in production.
+</Info>
+
+## Why This Matters
+
+The first ninety seconds after a macro print is where the alpha lives. CPI crosses at 8:30:00.000 ET and by 8:30:30 the front-end of the curve has already moved twenty basis points. No human can physically read the release, decompose the surprise versus consensus across headline / core / shelter / services-ex-shelter, model the regime impact across rates / FX / equities / commodities, and route a tradeable thesis to four desks inside that window — and the desks that try are paying a senior strategist mid-six-figures to be wrong half the time on adrenaline. This engine collapses the whole loop into a deterministic, scheduled call: a reasoning agent computes the surprise and the regime hypothesis with deliberate chains of thought, then a graph fans the hypothesis into asset-specific theses in parallel. By the time CPI prints, your Slack already has a regime-tagged FX/rates/equities/commodities trade brief — and you spent eight dollars to get it.
+
+## The Architecture
+
+```text
+                  Scheduled trigger (release time, ET)
+                                 │
+                                 ▼
+                         [ReleaseFetcher]
+                  (BLS / FRED / consensus / history)
+                                 │
+                                 ▼
+              [HypothesisReasoner — Opus 4.8 high]
+            (surprise vs. consensus, regime hypothesis)
+                                 │
+                ┌────────────────┼────────────────┐
+                ▼                ▼                ▼                ▼
+        [RatesStrategist] [FXStrategist]  [EquityStrategist] [CommodityStrategist]
+            gpt-4.1            grok-4         sonnet-4.5         gpt-4.1-mini
+                └────────────────┼────────────────┘
+                                 ▼
+                  [ThesisSynthesizer — sonnet-4.5]
+                                 │
+                                 ▼
+                         post_slack_alert()
+```
+
+Three things to notice. First, the reasoning step is a single dedicated node — that is where the deliberation budget goes, not on every downstream worker. Second, the four asset workers run on diversified models on purpose: real-time edge for FX (grok-4), cheap commodities (gpt-4.1-mini), strong reasoning for equities (sonnet-4.5), structured rates work (gpt-4.1). Third, the entire DAG is one API call — one billing event, one `job_id`, one replayable artifact for the compliance log.
+
+## Step 1: Setup
+
+Premium API key, a calendar source for release timestamps, and the standard Python stack.
+
+```bash
+pip install requests python-dotenv pytz
+export SWARMS_API_KEY="your-premium-api-key"
+export BLS_API_KEY="your-bls-api-key"
+export FRED_API_KEY="your-fred-api-key"
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
+```
+
+```python
+import json
+import os
+import time
+from datetime import datetime, timedelta
+
+import requests
+import pytz
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+ET = pytz.timezone("America/New_York")
+
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+```
+
+The economic calendar (release_id, scheduled time ET, release window) can be sourced from any pro vendor — BLS publishes its own forward-looking schedule and FOMC dates are public. For this tutorial assume `RELEASE_CALENDAR` is a list of `{"release_id": "CPI", "ts_et": "2026-06-12T08:30:00"}` records.
+
+## Step 2: Define the Function Tools
+
+Seven tools cover the entire pipeline: four data fetchers, two lookups, one notifier. All in OpenAI function format so any agent in the swarm can call them.
+
+```python
+FETCH_BLS_CPI = {
+    "type": "function",
+    "function": {
+        "name": "fetch_bls_cpi",
+        "description": (
+            "Fetch the latest CPI release from BLS. Returns headline MoM, "
+            "core MoM, headline YoY, core YoY, and the shelter and "
+            "services-ex-shelter components."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "release_month": {
+                    "type": "string",
+                    "description": "Release month in YYYY-MM format.",
+                },
+            },
+            "required": ["release_month"],
+        },
+    },
+}
+
+FETCH_BLS_NFP = {
+    "type": "function",
+    "function": {
+        "name": "fetch_bls_nfp",
+        "description": (
+            "Fetch the latest Nonfarm Payrolls release from BLS. Returns "
+            "headline payrolls change, unemployment rate, labor force "
+            "participation, average hourly earnings MoM and YoY, and prior "
+            "two months' revisions."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "release_month": {
+                    "type": "string",
+                    "description": "Release month in YYYY-MM format.",
+                },
+            },
+            "required": ["release_month"],
+        },
+    },
+}
+
+FETCH_FRED_SERIES = {
+    "type": "function",
+    "function": {
+        "name": "fetch_fred_series",
+        "description": (
+            "Fetch any FRED time series by series_id (e.g., DGS10, DFF, "
+            "DEXUSEU, VIXCLS). Returns the most recent value and the "
+            "trailing 90-day window for regime context."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "series_id": {
+                    "type": "string",
+                    "description": "FRED series identifier.",
+                },
+            },
+            "required": ["series_id"],
+        },
+    },
+}
+
+LOOKUP_CONSENSUS = {
+    "type": "function",
+    "function": {
+        "name": "lookup_consensus",
+        "description": (
+            "Look up the Wall Street consensus expectation for a given "
+            "macro release (Bloomberg/Reuters survey median, mean, and "
+            "high-low range)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "release_id": {
+                    "type": "string",
+                    "description": "Release identifier (CPI, NFP, FOMC, GDP, PCE).",
+                },
+                "release_date": {
+                    "type": "string",
+                    "description": "Release date in YYYY-MM-DD format.",
+                },
+            },
+            "required": ["release_id", "release_date"],
+        },
+    },
+}
+
+LOOKUP_HISTORICAL_REACTION = {
+    "type": "function",
+    "function": {
+        "name": "lookup_historical_reaction",
+        "description": (
+            "Look up the empirical asset-class reaction in the 60 minutes "
+            "post-release for comparable historical surprises in the same "
+            "regime. Returns medians and 25/75 percentiles for 2y, 10y, "
+            "DXY, SPX, gold, and crude moves."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "release_id": {"type": "string"},
+                "surprise_zscore": {
+                    "type": "number",
+                    "description": "Standardized surprise (actual - consensus) / historical_std.",
+                },
+                "regime": {
+                    "type": "string",
+                    "description": "Current regime tag (e.g., 'hiking', 'cutting', 'pause', 'risk-on', 'risk-off').",
+                },
+            },
+            "required": ["release_id", "surprise_zscore", "regime"],
+        },
+    },
+}
+
+FETCH_MARKET_SNAPSHOT = {
+    "type": "function",
+    "function": {
+        "name": "fetch_market_snapshot",
+        "description": (
+            "Fetch a live pre-release market snapshot for an asset class. "
+            "Returns levels, 1-day and 1-week changes, implied vol, and "
+            "positioning indicators."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "asset_class": {
+                    "type": "string",
+                    "enum": ["rates", "fx", "equities", "commodities"],
+                },
+            },
+            "required": ["asset_class"],
+        },
+    },
+}
+
+POST_SLACK_ALERT = {
+    "type": "function",
+    "function": {
+        "name": "post_slack_alert",
+        "description": (
+            "Post the synthesized trade brief to a Slack channel via "
+            "incoming webhook. Use markdown formatting."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string",
+                    "description": "Slack channel (e.g., '#macro-desk').",
+                },
+                "text": {
+                    "type": "string",
+                    "description": "The formatted trade brief.",
+                },
+            },
+            "required": ["channel", "text"],
+        },
+    },
+}
+
+ALL_TOOLS = [
+    FETCH_BLS_CPI,
+    FETCH_BLS_NFP,
+    FETCH_FRED_SERIES,
+    LOOKUP_CONSENSUS,
+    LOOKUP_HISTORICAL_REACTION,
+    FETCH_MARKET_SNAPSHOT,
+    POST_SLACK_ALERT,
+]
+```
+
+## Step 3: Define the Hypothesis Reasoning Agent
+
+This is the only place in the pipeline that thinks slowly. Its job is narrow and load-bearing: compute the surprise versus consensus on every relevant sub-component, anchor it in the prevailing regime (hiking/cutting/pause, risk-on/off), and produce a single regime-tagged hypothesis the four downstream desks can branch off. `reasoning_effort: "high"` is the lever that buys the deliberate chain — the agent will internally consider multiple regime narratives before committing.
+
+```python
+HYPOTHESIS_PROMPT = (
+    "You are the senior macro strategist running the post-release "
+    "hypothesis desk. Given a fresh macro print, you must produce a "
+    "single regime-tagged hypothesis in under 15 seconds. Process:\n\n"
+    "1. Call the appropriate fetcher (fetch_bls_cpi, fetch_bls_nfp, or "
+    "   fetch_fred_series) to obtain the actual print.\n"
+    "2. Call lookup_consensus to obtain Wall Street consensus.\n"
+    "3. Compute the standardized surprise (actual - consensus) / std for "
+    "   every relevant sub-component.\n"
+    "4. Call fetch_fred_series for the current rate regime context (DFF, "
+    "   DGS2, DGS10) and risk regime (VIXCLS, DXY).\n"
+    "5. Call lookup_historical_reaction with your computed surprise and "
+    "   regime tag.\n"
+    "6. Emit a single JSON object with fields: surprise_summary, "
+    "   regime_tag, primary_hypothesis (one sentence), and "
+    "   confidence ('low'|'medium'|'high').\n\n"
+    "Do NOT recommend trades — that is the job of the asset-class desks. "
+    "Your output is the regime hypothesis they branch on. Be surgical."
+)
+
+HYPOTHESIS_AGENT = {
+    "agent_name": "HypothesisReasoner",
+    "description": "Computes the surprise and regime hypothesis.",
+    "system_prompt": HYPOTHESIS_PROMPT,
+    "model_name": "claude-opus-4-8",
+    "reasoning_effort": "high",
+    "max_loops": 1,
+    "max_tokens": 4000,
+    "temperature": 0.2,
+    "tools_dictionary": [
+        FETCH_BLS_CPI,
+        FETCH_BLS_NFP,
+        FETCH_FRED_SERIES,
+        LOOKUP_CONSENSUS,
+        LOOKUP_HISTORICAL_REACTION,
+    ],
+}
+```
+
+<Note>
+`reasoning_effort: "high"` is the difference between a strategist who blurts out a number and one who sits with the release for ten seconds and says "the headline is hot but services-ex-shelter is decelerating — this is a Fed-friendly miss dressed as a hawkish print." That second read is what the downstream desks branch on. You do not want that on a fast model.
+</Note>
+
+## Step 4: Define the Graph Workflow
+
+Four asset-class strategists fan out from the hypothesis, then a synthesizer collapses their theses into a single Slack-ready brief. Model selection per desk is deliberate:
+
+| Desk | Model | Why |
+| --- | --- | --- |
+| Rates | `gpt-4.1` | Structured, numerate, strong on yield-curve mechanics |
+| FX | `grok-4` | Real-time edge — picks up the live tape and positioning chatter |
+| Equities | `claude-sonnet-4.5` | Best at sector rotation reasoning under regime shifts |
+| Commodities | `gpt-4.1-mini` | Cheap and adequate — commodities reaction is mostly mechanical |
+| Synthesizer | `claude-sonnet-4.5` | Needs to read four theses and write one tight brief |
+
+```python
+RATES_PROMPT = (
+    "You are the rates desk strategist. Given the regime hypothesis, "
+    "call fetch_market_snapshot('rates') and produce a single trade "
+    "thesis in under 5 seconds: front-end vs. back-end positioning, "
+    "specific instrument (2y, 5y, 10y futures or swaps), direction, "
+    "size guidance, stop, and time horizon. Max 80 words. Be specific."
+)
+
+FX_PROMPT = (
+    "You are the FX desk strategist. Given the regime hypothesis, call "
+    "fetch_market_snapshot('fx') and produce a single trade thesis in "
+    "under 5 seconds: which pair, direction, entry level, stop, size, "
+    "and the carry/momentum lens that drives the call. Max 80 words. "
+    "Be specific."
+)
+
+EQUITY_PROMPT = (
+    "You are the equity desk strategist. Given the regime hypothesis, "
+    "call fetch_market_snapshot('equities') and produce a single trade "
+    "thesis in under 5 seconds: sector rotation call, specific "
+    "instrument (futures, ETF, or pair), direction, stop, and how the "
+    "regime shift cascades through cyclicals vs. defensives. Max 80 "
+    "words. Be specific."
+)
+
+COMMODITY_PROMPT = (
+    "You are the commodity desk strategist. Given the regime hypothesis, "
+    "call fetch_market_snapshot('commodities') and produce a single "
+    "trade thesis in under 5 seconds: gold or crude or both, direction, "
+    "specific instrument, stop, and the dollar/real-rate transmission "
+    "logic. Max 80 words. Be specific."
+)
+
+SYNTH_PROMPT = (
+    "You are the chief macro strategist. Given the regime hypothesis "
+    "and the four desk theses, produce a single Slack-ready trade "
+    "brief in this exact format:\n\n"
+    "*REGIME:* <tag>\n"
+    "*HYPOTHESIS:* <one sentence>\n"
+    "*RATES:* <thesis>\n"
+    "*FX:* <thesis>\n"
+    "*EQUITIES:* <thesis>\n"
+    "*COMMODITIES:* <thesis>\n"
+    "*CONVICTION:* <LOW|MEDIUM|HIGH>\n\n"
+    "Then call post_slack_alert with channel='#macro-desk' and the "
+    "brief as text. Do not editorialize across desks — preserve each "
+    "thesis verbatim."
+)
+
+
+def build_release_swarm(release_id: str, release_ts: str) -> dict:
+    return {
+        "name": f"Macro-Release-Reaction-{release_id}-{release_ts}",
+        "description": (
+            "Scheduled reaction engine. Reasoning hypothesis fans out "
+            "to four asset-class desks, then a synthesizer posts to Slack."
+        ),
+        "swarm_type": "GraphWorkflow",
+        "max_loops": 1,
+        "task": (
+            f"Macro release {release_id} crossed at {release_ts} ET. "
+            f"Run the full reaction pipeline: fetch the print, compute "
+            f"the regime hypothesis, branch into asset desks, synthesize, "
+            f"and post the brief to Slack."
+        ),
+        "agents": [
+            HYPOTHESIS_AGENT,
+            {
+                "agent_name": "RatesStrategist",
+                "description": "Rates desk thesis.",
+                "system_prompt": RATES_PROMPT,
+                "model_name": "gpt-4.1",
+                "max_loops": 1,
+                "max_tokens": 1500,
+                "temperature": 0.3,
+                "tools_dictionary": [FETCH_MARKET_SNAPSHOT],
+            },
+            {
+                "agent_name": "FXStrategist",
+                "description": "FX desk thesis.",
+                "system_prompt": FX_PROMPT,
+                "model_name": "grok-4",
+                "max_loops": 1,
+                "max_tokens": 1500,
+                "temperature": 0.3,
+                "tools_dictionary": [FETCH_MARKET_SNAPSHOT],
+            },
+            {
+                "agent_name": "EquityStrategist",
+                "description": "Equity desk thesis.",
+                "system_prompt": EQUITY_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "max_loops": 1,
+                "max_tokens": 1500,
+                "temperature": 0.3,
+                "tools_dictionary": [FETCH_MARKET_SNAPSHOT],
+            },
+            {
+                "agent_name": "CommodityStrategist",
+                "description": "Commodities desk thesis.",
+                "system_prompt": COMMODITY_PROMPT,
+                "model_name": "gpt-4.1-mini",
+                "max_loops": 1,
+                "max_tokens": 1500,
+                "temperature": 0.3,
+                "tools_dictionary": [FETCH_MARKET_SNAPSHOT],
+            },
+            {
+                "agent_name": "ThesisSynthesizer",
+                "description": "Synthesizes the four desks into one Slack brief.",
+                "system_prompt": SYNTH_PROMPT,
+                "model_name": "claude-sonnet-4.5",
+                "max_loops": 1,
+                "max_tokens": 2000,
+                "temperature": 0.2,
+                "tools_dictionary": [POST_SLACK_ALERT],
+            },
+        ],
+        "edges": [
+            {"source": "HypothesisReasoner", "target": "RatesStrategist"},
+            {"source": "HypothesisReasoner", "target": "FXStrategist"},
+            {"source": "HypothesisReasoner", "target": "EquityStrategist"},
+            {"source": "HypothesisReasoner", "target": "CommodityStrategist"},
+            {"source": "RatesStrategist", "target": "ThesisSynthesizer"},
+            {"source": "FXStrategist", "target": "ThesisSynthesizer"},
+            {"source": "EquityStrategist", "target": "ThesisSynthesizer"},
+            {"source": "CommodityStrategist", "target": "ThesisSynthesizer"},
+        ],
+        "entry_points": ["HypothesisReasoner"],
+        "end_points": ["ThesisSynthesizer"],
+        "auto_compile": True,
+    }
+
+
+def fire_release_swarm(release_id: str, release_ts: str) -> dict:
+    payload = build_release_swarm(release_id, release_ts)
+    response = requests.post(
+        f"{BASE_URL}/v1/swarm/completions",
+        headers=headers,
+        json=payload,
+        timeout=90,
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+Note the edge shape: one fan-out from the reasoner into four desks, one fan-in from the four desks into the synthesizer. The graph compiler runs the four desks in true parallel — total wall clock is `max(desk_latency) + synth`, not their sum.
+
+## Step 5: Schedule Around the Economic Calendar
+
+The scheduler reads a forward calendar of release timestamps and arms a fire-exactly-on-the-minute trigger. The release is parsed within five seconds of the print; the swarm runs and posts to Slack inside thirty.
+
+```python
+RELEASE_CALENDAR = [
+    {"release_id": "CPI", "ts_et": "2026-06-12T08:30:00"},
+    {"release_id": "NFP", "ts_et": "2026-06-06T08:30:00"},
+    {"release_id": "FOMC", "ts_et": "2026-06-18T14:00:00"},
+    # ... ~50 events per year
+]
+
+
+def schedule_release(release_id: str, ts_et_str: str) -> None:
+    """Sleep until the release minute, then fire immediately."""
+    release_ts = ET.localize(datetime.fromisoformat(ts_et_str))
+    now_et = datetime.now(ET)
+    wait_seconds = (release_ts - now_et).total_seconds()
+
+    if wait_seconds < 0:
+        print(f"Skipping {release_id} — already crossed.")
+        return
+
+    # Wake up 2 seconds before the release to be hot
+    sleep_until = wait_seconds - 2
+    if sleep_until > 0:
+        print(f"Sleeping {sleep_until:.0f}s until {release_id} at {ts_et_str} ET")
+        time.sleep(sleep_until)
+
+    # Poll tight until the release timestamp crosses
+    while datetime.now(ET) < release_ts:
+        time.sleep(0.1)
+
+    print(f"FIRE {release_id} at {datetime.now(ET).isoformat()}")
+    t0 = time.time()
+    result = fire_release_swarm(release_id, ts_et_str)
+    elapsed = time.time() - t0
+
+    cost = result.get("usage", {}).get("billing_info", {}).get("total_cost", 0)
+    print(f"{release_id} done in {elapsed:.1f}s — cost ${cost:.2f}")
+
+
+# Run the whole calendar as a long-lived process
+if __name__ == "__main__":
+    for event in RELEASE_CALENDAR:
+        schedule_release(event["release_id"], event["ts_et"])
+```
+
+In production you would run this under a process supervisor (systemd, k8s, supervisord) with an external watchdog that re-arms missed releases. For the truly latency-sensitive prints (CPI, NFP, FOMC) you also pre-warm the API with a no-op ping at T-30s so the connection is established and the keys are cached.
+
+## Step 6: Latency Budget
+
+| Stage | Target | What runs |
+| --- | --- | --- |
+| Data fetch (BLS/FRED/consensus) | ~3s | `HypothesisReasoner` tool calls in parallel |
+| Hypothesis reasoning | ~12s | Opus 4.8 with `reasoning_effort: "high"` |
+| Asset desks (parallel) | ~10s | Slowest of Rates / FX / Equities / Commodities |
+| Synthesizer + Slack post | ~5s | Sonnet 4.5 + `post_slack_alert` |
+| **End-to-end** | **~30-40s** | **Comfortably under the 60s target** |
+
+The hard ceiling is the reasoning step — that is where the deliberation budget goes, and the only knob to tighten it further is dropping `reasoning_effort` to `"medium"` (~6s) at the cost of regime hypothesis quality. For CPI and FOMC, do not drop it. For lower-stakes prints (Empire Manufacturing, consumer confidence) the medium setting is fine.
+
+## Real Cost vs. Macro Desk
+
+| Approach | Cost per event | Annual (~50 events) | Calibrated regime hypothesis? |
+| --- | --- | --- | --- |
+| Macro strategist (fully loaded \$400k) | — | \$400,000 | Yes — but one human, one chain of thought, prone to anchoring |
+| In-house orchestration (engineers + LLM glue) | ~\$5 per event | ~\$250 plus ~\$300k/yr engineering | Maybe — depends on glue quality |
+| **Reaction engine (Opus high + GraphWorkflow)** | **~\$8 per event** | **~\$400 per year** | **Yes — and replayable, audited, deterministic** |
+
+The math is the giveaway. A single macro strategist costs roughly **a thousand times** what this engine costs to run for the same ~50 events per year. The strategist still has the job — but their work is now reviewing the engine's brief and overriding it on judgement calls, instead of trying to compute four asset reactions from scratch in 90 seconds. That is the right division of labor.
+
+<Warning>
+This engine is not a license to trade unattended. The Slack brief is decision support — a human on the desk approves before any execution. Compliance also requires the `job_id` of every release reaction to be persisted alongside the trade ticket for audit. Both of those drop out naturally from this architecture: one `job_id` per event, one Slack post per event, one human signoff per trade.
+</Warning>
+
+## Next Steps
+
+- [Reasoning Agents for Hard Analytical Problems](/docs/examples/examples/reasoning-agents-tutorial) — the full primer on `reasoning_effort`, `self-consistency`, and when each shape is the right one
+- [Build an AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) — the slower, scheduled overnight cousin of this engine for the watchlist
+- [Graph Workflows for Production Pipelines](/docs/examples/examples/graph-workflows-production) — the production DAG patterns this engine is built on (fan-out, fan-in, retries, conditional gating)
