@@ -18,7 +18,7 @@ Vault Mode requires the entity to be **tokenized** first. Configure it from [swa
 When Vault Mode is enabled on a tokenized agent or prompt:
 
 - The full listing (system prompt, agent code, metadata, etc.) is **blurred and inaccessible** to non-holders.
-- Visitors see a **"Holders only"** gate with a built-in **Buy $TICKER** widget (powered by Jupiter Ultra).
+- Visitors see a **"Holders only"** gate with a built-in **Buy $TICKER** widget.
 - Any **non-zero balance** of the entity's token unlocks the page.
 - The **creator always has access**, regardless of holder status.
 - Holder status is cached for **5 minutes** per wallet/token pair to keep the experience snappy.
@@ -123,30 +123,14 @@ Vault Mode is a client-rendered gate backed by an onchain balance check.
   </Step>
 
   <Step title="In-gate buy flow">
-    Non-holders can buy $TICKER directly from the gate. The widget uses **Jupiter Ultra** to:
+    Non-holders can buy $TICKER directly from the gate without leaving the page:
 
-    1. Quote a SOL → $TICKER swap (debounced 350ms).
-    2. Have the wallet sign the versioned transaction.
-    3. Submit it to Jupiter for execution.
-    4. Invalidate the holder cache and re-check, unlocking the page on success.
+    1. Enter a SOL amount — a live quote estimates how much $TICKER you'll receive.
+    2. Sign the swap in your wallet.
+    3. On success, the holder cache is invalidated and re-checked.
+    4. The page unlocks automatically with the **"Access granted"** animation.
   </Step>
 </Steps>
-
----
-
-## Data model
-
-Vault Mode is stored as a nullable boolean on both tokenized product tables:
-
-```sql
-ALTER TABLE public.swarms_cloud_agents
-  ADD COLUMN IF NOT EXISTS vault_mode boolean NULL;
-
-ALTER TABLE public.swarms_cloud_prompts
-  ADD COLUMN IF NOT EXISTS vault_mode boolean NULL;
-```
-
-A value of `true` activates the gate **only when** the row is also tokenized (`tokenized_on = true` and a valid `token_address` is present). If either condition is false, the listing renders normally.
 
 ---
 
