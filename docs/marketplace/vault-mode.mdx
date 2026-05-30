@@ -1,0 +1,194 @@
+---
+title: "Vault Mode"
+description: "Token-gate your tokenized agents and prompts so only $TICKER holders can view the full listing"
+---
+
+**Vault Mode** lets creators gate access to their tokenized agents and prompts behind token ownership. When enabled, the listing page is locked for anyone who doesn't hold the entity's token — and instantly unlocked the moment they do.
+
+It is the first native, token-gated distribution model for the Swarms Marketplace, turning every tokenized product into a holders-only experience.
+
+<Info>
+Vault Mode requires the entity to be **tokenized** first. Configure it from [swarms.world/launch](https://swarms.world/launch) by toggling **Tokenize → Vault Mode**.
+</Info>
+
+---
+
+## What is Vault Mode?
+
+When Vault Mode is enabled on a tokenized agent or prompt:
+
+- The full listing (system prompt, agent code, metadata, etc.) is **blurred and inaccessible** to non-holders.
+- Visitors see a **"Holders only"** gate with a built-in **Buy $TICKER** widget (powered by Jupiter Ultra).
+- Any **non-zero balance** of the entity's token unlocks the page.
+- The **creator always has access**, regardless of holder status.
+- Holder status is cached for **5 minutes** per wallet/token pair to keep the experience snappy.
+
+This unlocks an entirely new monetization model for the agent economy — token-gated agents, premium prompts, exclusive tools, private swarms, and member-only AI products.
+
+<CardGroup cols={2}>
+  <Card title="Token-Gated Access" icon="lock">
+    Only holders of your agent's token can view the system prompt, code, and metadata.
+  </Card>
+  <Card title="Built-In Buy Flow" icon="coins">
+    Non-holders see a one-click buy widget — they can become holders without leaving the page.
+  </Card>
+  <Card title="Automatic Permissions" icon="user-check">
+    Holder verification runs onchain. No allowlists, no manual approvals.
+  </Card>
+  <Card title="Creator Bypass" icon="shield-check">
+    The wallet that minted the agent always sees the unblurred listing.
+  </Card>
+</CardGroup>
+
+---
+
+## Benefits
+
+Vault Mode creates a direct alignment between holders and creators:
+
+- **Token-gated access** to agents and prompts.
+- **New monetization models** beyond subscriptions — your token *is* the product key.
+- **Exclusive access** for token holders who back you early.
+- **Automated permission management** with no offchain bookkeeping.
+- **Premium AI products and experiences** that scale with your token's distribution.
+
+When a non-holder buys $TICKER on the page, the gate animates into an **"Access granted"** confirmation and reveals the listing — no refresh required.
+
+---
+
+## How to enable Vault Mode
+
+<Steps>
+  <Step title="Sign in or sign up">
+    Create or sign into your Swarms account at [swarms.world/signin](https://swarms.world/signin).
+  </Step>
+
+  <Step title="Open the Launchpad">
+    Go to [swarms.world/launch](https://swarms.world/launch) and start a new agent or prompt listing. Vault Mode is currently supported for **agents** and **prompts** (not tools).
+  </Step>
+
+  <Step title="Select Tokenize">
+    Fill in the required fields (name, description, image, etc.) and choose **Tokenize** as your monetization option. Vault Mode requires a tokenized product because the token is the access key.
+  </Step>
+
+  <Step title="Enable Vault Mode">
+    In the Tokenize panel, toggle **Vault Mode** on. You'll see a description confirming:
+
+    > *Only token holders can view this agent.*
+  </Step>
+
+  <Step title="Launch">
+    Submit your listing. Once your token is minted, the page is automatically gated. Your wallet (the creator) sees it unblurred; everyone else must hold $TICKER.
+  </Step>
+</Steps>
+
+<Tip>
+Vault Mode can be combined with **Frenzy Mode** for tokenized agents and prompts. Holders unlock the listing, and every trade on the bonding curve collects 2× fees. See the [Frenzy Mode doc](/docs/marketplace/frenzy-mode).
+</Tip>
+
+---
+
+## How it works under the hood
+
+Vault Mode is a client-rendered gate backed by an onchain balance check.
+
+<Steps>
+  <Step title="The listing renders, blurred">
+    The full entity page is rendered as a blurred, non-interactive layer underneath the gate. Nothing sensitive (system prompt, code, etc.) is shipped to the client for non-holders in plaintext that would otherwise be hidden — the gate is paired with a server-enforced check below.
+  </Step>
+
+  <Step title="The gate calls the holder endpoint">
+    Once the visitor's wallet is connected, the gate calls:
+
+    ```
+    GET /api/vault-mode/check-holder?wallet={publicKey}&token_address={mint}
+    ```
+
+    The endpoint returns:
+
+    ```json
+    {
+      "is_holder": true,
+      "balance": 12500
+    }
+    ```
+  </Step>
+
+  <Step title="Holder cache (5-minute TTL)">
+    The result is cached in-memory and in `sessionStorage` under `vault-mode:holder:{wallet}:{mint}` for 5 minutes. Subsequent visits within that window skip the network round-trip.
+  </Step>
+
+  <Step title="Unlock animation">
+    When a holder is detected for the first time, the gate plays a brief **"Access granted"** → **reveal** animation, then renders the full listing. The creator and existing holders bypass the gate immediately.
+  </Step>
+
+  <Step title="In-gate buy flow">
+    Non-holders can buy $TICKER directly from the gate. The widget uses **Jupiter Ultra** to:
+
+    1. Quote a SOL → $TICKER swap (debounced 350ms).
+    2. Have the wallet sign the versioned transaction.
+    3. Submit it to Jupiter for execution.
+    4. Invalidate the holder cache and re-check, unlocking the page on success.
+  </Step>
+</Steps>
+
+---
+
+## Data model
+
+Vault Mode is stored as a nullable boolean on both tokenized product tables:
+
+```sql
+ALTER TABLE public.swarms_cloud_agents
+  ADD COLUMN IF NOT EXISTS vault_mode boolean NULL;
+
+ALTER TABLE public.swarms_cloud_prompts
+  ADD COLUMN IF NOT EXISTS vault_mode boolean NULL;
+```
+
+A value of `true` activates the gate **only when** the row is also tokenized (`tokenized_on = true` and a valid `token_address` is present). If either condition is false, the listing renders normally.
+
+---
+
+## Visual indicators
+
+A purple **VAULTED** tag with a lock icon appears next to the entity title on any gated listing, so visitors immediately understand the access model. If the entity is also in Frenzy Mode, the orange **FRENZY** tag renders alongside it.
+
+---
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="Can I enable Vault Mode without tokenizing?">
+    No. Vault Mode is the access mechanism for tokenized products — the token itself is the key. If you want a paid-but-not-tokenized listing, use the standard paid monetization option instead.
+  </Accordion>
+
+  <Accordion title="What's the minimum holding required?">
+    Any non-zero balance unlocks the listing. There is no minimum threshold today.
+  </Accordion>
+
+  <Accordion title="Does the creator need to hold the token?">
+    No. The wallet that launched the agent is recognized as the owner and always has unblurred access, even with a zero balance.
+  </Accordion>
+
+  <Accordion title="Can I change a listing from Vault Mode to public later?">
+    Yes. Edit the listing from your profile and toggle Vault Mode off. The change applies immediately.
+  </Accordion>
+
+  <Accordion title="What happens if a holder sells their tokens?">
+    They lose access on the next holder check (within 5 minutes, or immediately on hard refresh). The gate reappears with the buy widget.
+  </Accordion>
+
+  <Accordion title="Does Vault Mode work for tools?">
+    Not currently. Vault Mode is supported on **agents** and **prompts** because those are the entity types eligible for tokenization on the marketplace today.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## See also
+
+- [Monetization Models](/docs/marketplace/tokenization) — Free, paid, and tokenized launch options.
+- [Frenzy Mode](/docs/marketplace/frenzy-mode) — 2× bonding curve fees and leaderboard placement.
+- [Self-Tokenizing Agents Tutorial](/docs/marketplace/launchpad-tokenize-your-agent-tutorial) — End-to-end tokenized launch walkthrough.
+- [Token Launch API](/docs/marketplace/token-launch-api) — Programmatic tokenized launches.

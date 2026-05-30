@@ -1,0 +1,171 @@
+---
+title: "Frenzy Mode"
+description: "Double the bonding curve fees on your tokenized agent or prompt and earn a featured spot on the Frenzy leaderboard"
+---
+
+**Frenzy Mode** is a tokenization upgrade that doubles the bonding curve fees collected on every trade of your agent's token — and lists it on the **Frenzy leaderboard** for maximum visibility.
+
+If Vault Mode is *who* can access your agent, Frenzy Mode is *how much* every trade earns. The two stack: a Vaulted agent can also be in Frenzy.
+
+<Info>
+Frenzy Mode is configured at launch time. You can enable it from the [swarms.world/launch](https://swarms.world/launch) Launchpad UI or via the [Token Launch API](/docs/marketplace/token-launch-api) with `fee_selection: "frenzy"`.
+</Info>
+
+---
+
+## What is Frenzy Mode?
+
+Setting an agent or prompt to Frenzy Mode routes its token launch through a 2× fee Jupiter configuration. This:
+
+- **Doubles the bonding curve fees** collected from every buy and sell on the token.
+- **Lists your token on the Frenzy leaderboard**, giving it prominent placement for traders browsing high-activity tokens on the marketplace.
+- Adds an animated orange **FRENZY** badge to your listing header.
+- Has **no effect** on the SOL launch cost — creators still pay roughly 0.04 SOL to mint.
+
+Frenzy works with either bonding-curve denomination:
+
+- `"SOL"` (default) — SOL-denominated curve.
+- `"USDC"` — USDC-denominated curve.
+
+---
+
+## Benefits
+
+<CardGroup cols={2}>
+  <Card title="2× Fees" icon="coins">
+    Every trade on the bonding curve collects double the standard fee, accruing to the creator.
+  </Card>
+  <Card title="Leaderboard Placement" icon="trophy">
+    Frenzy tokens appear on a curated, high-visibility leaderboard surface across the marketplace.
+  </Card>
+  <Card title="Animated Badge" icon="fire">
+    Listings render a flickering orange FRENZY tag that signals high-fee, high-attention status.
+  </Card>
+  <Card title="Stacks With Vault Mode" icon="layer-group">
+    Combine with Vault Mode to gate access *and* maximize fees on every entry/exit.
+  </Card>
+</CardGroup>
+
+---
+
+## How to enable Frenzy Mode
+
+<Tabs>
+  <Tab title="From the Launchpad UI">
+    <Steps>
+      <Step title="Sign in">
+        Sign into your account at [swarms.world/signin](https://swarms.world/signin).
+      </Step>
+      <Step title="Open the Launchpad">
+        Go to [swarms.world/launch](https://swarms.world/launch) and start a new agent or prompt listing.
+      </Step>
+      <Step title="Select Tokenize">
+        Choose **Tokenize** as your monetization option and fill in the token name, ticker, and image.
+      </Step>
+      <Step title="Toggle Frenzy Mode">
+        In the Tokenize panel, flip the **Frenzy Mode** switch to on. The UI confirms: *Earn 2× fees on every trade.*
+      </Step>
+      <Step title="Launch">
+        Submit the listing. The token is minted with the 2× fee schedule and your agent shows the FRENZY badge.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="From the Token Launch API">
+    Pass `fee_selection: "frenzy"` to `/api/token/launch`:
+
+    ```bash
+    curl -X POST https://swarms.world/api/token/launch \
+      -H "Authorization: Bearer YOUR_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "Frenzy Research Agent",
+        "description": "An AI research agent launched in Frenzy mode.",
+        "ticker": "FRNZ",
+        "private_key": "[1,2,3,...]",
+        "fee_selection": "frenzy",
+        "quote_mint": "SOL"
+      }'
+    ```
+
+    A complete walkthrough with Python and TypeScript examples lives at the [Frenzy Launch Example](/docs/marketplace/token-launch-frenzy-example) page.
+  </Tab>
+</Tabs>
+
+<Tip>
+Combine `fee_selection: "frenzy"` with `vault_mode: true` to launch a token-gated, 2×-fee agent in a single shot.
+</Tip>
+
+---
+
+## How fees work
+
+The Frenzy fee multiplier applies to the **bonding curve trading fees** charged by the underlying Jupiter Dynamic Bonding Curve config — not to the token creation cost.
+
+- **Standard launch:** 1× bonding curve fees on every trade.
+- **Frenzy launch:** 2× bonding curve fees on every trade.
+
+Fees accrue to the creator's wallet and can be claimed via the standard fee-claiming flow. See [Creator Fees](/docs/marketplace/creator-fees) and [Claim Fees API](/docs/marketplace/claim-fees-api) for details on collection and payout.
+
+The 2× multiplier is set at launch time and is **immutable for the life of the token** — it's baked into the pool config, not a toggle on the listing.
+
+---
+
+## Visual indicators
+
+A Frenzy-mode listing displays an animated **FRENZY** pill next to the entity title:
+
+- Orange flame icon with a flicker animation.
+- Bold uppercase "FRENZY" label.
+- Renders inline next to the entity title and, when applicable, alongside the purple **VAULTED** tag.
+
+---
+
+## When to use Frenzy Mode
+
+Frenzy Mode is best suited for:
+
+- **High-utility agents** you expect to see frequent trading activity — more volume × 2× fees compounds quickly.
+- **Launches where visibility matters** — leaderboard placement drives early discovery.
+- **Combined Vault + Frenzy plays** — gated agents where every holder entry/exit contributes elevated fees.
+
+Standard (non-Frenzy) launches remain a good default for:
+
+- Long-tail or experimental agents.
+- Cases where you want the lowest possible friction for early traders.
+
+---
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="Does Frenzy change my launch cost?">
+    No. The SOL required to launch (~0.04 SOL for creation/pool config fees) is the same whether or not Frenzy is enabled.
+  </Accordion>
+
+  <Accordion title="Can I switch a token from standard to Frenzy after launch?">
+    No. The fee schedule is set when the bonding curve config is created and cannot be modified afterwards. Choose Frenzy at launch time if you want 2× fees.
+  </Accordion>
+
+  <Accordion title="Does Frenzy Mode work with USDC-denominated bonding curves?">
+    Yes. Pass `quote_mint: "USDC"` alongside `fee_selection: "frenzy"` to launch a Frenzy USDC pool. Default market cap targets shift to `initialMarketCap: 4000 USDC` and `migrationMarketCap: 9000 USDC`.
+  </Accordion>
+
+  <Accordion title="Can I combine Frenzy Mode with Vault Mode?">
+    Yes. Enable both at launch — Vault Mode gates the listing to holders, Frenzy Mode doubles the fees on every trade that brings new holders in (or lets existing ones out).
+  </Accordion>
+
+  <Accordion title="Where do the 2× fees go?">
+    To the creator wallet, claimable through the standard fee-claim flow. See [Creator Fees](/docs/marketplace/creator-fees) and [Claim Fees API](/docs/marketplace/claim-fees-api).
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## See also
+
+- [Frenzy Launch Example](/docs/marketplace/token-launch-frenzy-example) — Full cURL / Python / TypeScript walkthrough.
+- [Vault Mode](/docs/marketplace/vault-mode) — Token-gate the listing to holders only.
+- [Token Launch API](/docs/marketplace/token-launch-api) — Full token launch parameter reference.
+- [Creator Fees](/docs/marketplace/creator-fees) — How creator fees accrue and can be claimed.
+- [Claim Fees API](/docs/marketplace/claim-fees-api) — Programmatically claim accrued fees.
