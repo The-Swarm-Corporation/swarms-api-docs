@@ -190,28 +190,6 @@
         ]
       },
       {
-        "tab": "ATP Protocol",
-        "groups": [
-          {
-            "group": "Getting Started",
-            "pages": [
-              "docs/atp/vision",
-              "docs/atp/overview",
-              "docs/atp/installation",
-              "docs/documentation/getting-started/atp-quickstart"
-            ]
-          },
-          {
-            "group": "Components",
-            "pages": [
-              "docs/atp/middleware",
-              "docs/atp/facilitator",
-              "docs/atp/client"
-            ]
-          }
-        ]
-      },
-      {
         "tab": "API Reference",
         "openapi": "https://api.swarms.world/openapi.json"
       },
