@@ -210,6 +210,7 @@
               "docs/examples/examples/structured-outputs",
               "docs/examples/examples/streaming",
               "docs/examples/examples/search-enabled",
+              "docs/examples/examples/exa-function-calling",
               "docs/examples/examples/vision-capabilities",
               "docs/examples/examples/image-with-marketplace-prompt",
               "docs/examples/examples/mcp-integration",
