@@ -77,7 +77,6 @@
               "docs/documentation/multi-agent/majority_voting",
               "docs/documentation/multi-agent/hierarchical_swarm",
               "docs/documentation/multi-agent/agent_rearrange",
-              "docs/documentation/multi-agent/advanced_research",
               "docs/documentation/multi-agent/graph_workflow",
               "docs/documentation/multi-agent/debate_with_judge",
               "docs/documentation/multi-agent/heavy_swarm",
@@ -252,9 +251,7 @@
           {
             "group": "Finance & Investing",
             "pages": [
-              "docs/examples/examples/247-autonomous-equity-research-analyst",
               "docs/examples/examples/ai-hedge-fund",
-              "docs/examples/examples/advanced-research-investor-memos",
               "docs/examples/examples/etf-analysis-grid",
               "docs/examples/examples/real-estate-investment-memo",
               "docs/examples/examples/crypto-quant-agent",
@@ -307,7 +304,6 @@
           {
             "group": "Marketing, Content & Founder Tools",
             "pages": [
-              "docs/examples/examples/yc-application-market-research",
               "docs/guides/guides/monetize-agent-on-marketplace",
               "docs/examples/examples/personal-ai-chief-of-staff",
               "docs/examples/examples/daily-slack-ai-briefings",

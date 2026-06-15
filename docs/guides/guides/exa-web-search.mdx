@@ -314,31 +314,6 @@ research_team = client.swarms.run(
 print(research_team)
 ```
 
-### Advanced Research with Director-Worker Architecture
-
-For comprehensive research tasks, use the Advanced Research endpoint which provides a director-worker architecture optimized for Exa search.
-
-```python
-payload = {
-    "config": {
-        "name": "Climate Tech Investment Analysis",
-        "description": "Research climate technology investment opportunities",
-        "worker_model_name": "gpt-4.1-mini",
-        "director_model_name": "gpt-4.1",
-        "max_loops": 2,
-        "exa_search_num_results": 5,
-        "exa_search_max_characters": 400
-    },
-    "task": "Identify the most promising climate technology sectors for investment in 2024, including key companies, funding trends, and market potential."
-}
-
-response = requests.post(
-    f"{BASE_URL}/v1/advanced-research/completions",
-    headers=headers,
-    json=payload
-)
-```
-
 ## Best Practices
 
 ### 1. Craft Effective Search-Oriented Prompts
@@ -512,5 +487,4 @@ efficient_config = {
 ## Related Resources
 
 - [Search-Enabled Agents](/docs/examples/examples/search-enabled) - Basic search configuration
-- [Advanced Research](/docs/examples/examples/advanced-research) - Director-worker research architecture
 - [Multi-Agent Workflows](/docs/documentation/multi-agent/swarm_types) - Combining search with swarms

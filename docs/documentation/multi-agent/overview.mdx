@@ -38,13 +38,17 @@ The request body uses the `SwarmSpec` schema. All parameters are organized in th
 | `tasks` | `array[string]` | No | - | A list of tasks that the swarm should complete. Used for workflows that handle multiple tasks. |
 | `agents` | `array[AgentSpec]` | No | - | A list of agents or specifications that define the agents participating in the swarm. See Agent Configuration table below. |
 | `rearrange_flow` | `string` | No | - | Instructions on how to rearrange the flow of tasks among agents, if applicable. Used with `AgentRearrange` swarm type. |
-| `rules` | `string` | No | - | Guidelines or constraints that govern the behavior and interactions of the agents within the swarm. |
 | `messages` | `array[object] \| object` | No | - | A list of messages or a message object that the swarm should process. Used for conversational workflows like `GroupChat`. |
 | `img` | `string` | No | - | An optional image URL or base64-encoded image that may be associated with the swarm's task or representation. |
 | `stream` | `boolean` | No | `false` | A flag indicating whether the swarm should stream its output in real-time. |
-| `heavy_swarm_loops_per_agent` | `integer` | No | `1` | The number of loops to run per agent in the heavy swarm. |
-| `heavy_swarm_question_agent_model_name` | `string` | No | `"gpt-4.1"` | The model name to use for the question agent in the heavy swarm. |
-| `heavy_swarm_worker_model_name` | `string` | No | `"claude-sonnet-4-20250514"` | The model name to use for the worker agent in the heavy swarm. |
+| `multi_agent_collab_prompt` | `boolean` | No | `true` | Inject the multi-agent collaboration prompt so agents coordinate with one another. Set to `false` to disable. |
+| `list_all_agents` | `boolean` | No | `false` | Whether to list all agents and their descriptions to one another so each agent is aware of the others. |
+| `heavy_swarm_question_agent_model_name` | `string` | No | `"gpt-4.1"` | For `HeavySwarm`: the model name to use for the question agent. |
+| `heavy_swarm_worker_model_name` | `string` | No | `"claude-sonnet-4-20250514"` | For `HeavySwarm`: the model name to use for the worker agent. |
+| `heavy_swarm_max_loops` | `integer` | No | `1` | For `HeavySwarm`: the maximum number of loops each agent in the heavy swarm may run. |
+| `heavy_swarm_variant` | `string` | No | `"default"` | For `HeavySwarm`: which agent variant to run. One of `"default"`, `"medium"`, or `"heavy"`. |
+| `council_judge_model_name` | `string` | No | `"gpt-5.4"` | For `CouncilAsAJudge`: the model name used by the judge that delivers the final ruling. |
+| `chairman_model` | `string` | No | `"gpt-5.1"` | For `LLMCouncil`: the model name used by the chairman that synthesizes the council's responses. |
 
 #### Agent Configuration Parameters (AgentSpec)
 
@@ -132,7 +136,6 @@ Each multi-agent architecture type is designed for specific use cases and can be
 | `MajorityVoting` | Consensus-based decision-making across multiple agents | [Learn More](/docs/documentation/multi-agent/majority_voting) |
 | `BatchedGridWorkflow` | Execute multiple tasks across multiple agents in a grid pattern | [Learn More](/docs/documentation/multi-agent/batched_grid_workflow) |
 | `GraphWorkflow` | Execute a graph workflow with directed agent nodes and edges | [Learn More](/docs/documentation/multi-agent/graph_workflow) |
-| `AdvancedResearch` | Advanced multi-agent research workflows and strategies | [Learn More](/docs/documentation/multi-agent/advanced_research) |
 | `GroupChat` | Collaborative problem-solving through conversation | - |
 | `AutoSwarmBuilder` | Automated swarm generation | - |
 | `MALT` | Multi-agent learning and training | - |
