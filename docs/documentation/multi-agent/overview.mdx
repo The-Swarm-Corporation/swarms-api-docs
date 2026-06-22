@@ -137,7 +137,6 @@ Each multi-agent architecture type is designed for specific use cases and can be
 | `BatchedGridWorkflow` | Execute multiple tasks across multiple agents in a grid pattern | [Learn More](/docs/documentation/multi-agent/batched_grid_workflow) |
 | `GraphWorkflow` | Execute a graph workflow with directed agent nodes and edges | [Learn More](/docs/documentation/multi-agent/graph_workflow) |
 | `GroupChat` | Collaborative problem-solving through conversation | - |
-| `AutoSwarmBuilder` | Automated swarm generation | - |
 | `MALT` | Multi-agent learning and training | - |
 | `CouncilAsAJudge` | Council-based evaluation system | - |
 | `InteractiveGroupChat` | Interactive collaborative sessions | - |
@@ -153,7 +152,7 @@ This section outlines production-grade best practices for using the Swarms API e
 
 ### Choosing the Right Swarm Architecture
 
-Selecting the optimal swarm architecture is crucial for achieving your desired outcomes. Start by analyzing your task complexity: simple tasks work well with `AutoSwarmBuilder`, while complex tasks benefit from `HierarchicalSwarm` or `MultiAgentRouter`. For dynamic tasks that require adaptive processing, consider `AgentRearrange`. 
+Selecting the optimal swarm architecture is crucial for achieving your desired outcomes. Start by analyzing your task complexity: complex tasks benefit from `HierarchicalSwarm` or `MultiAgentRouter`. For dynamic tasks that require adaptive processing, consider `AgentRearrange`. 
 
 When evaluating workflow patterns, use `SequentialWorkflow` for linear processes where each step depends on the previous one, `ConcurrentWorkflow` for parallel operations that can run independently, and `GroupChat` for collaborative tasks requiring interactive problem-solving. For multi-domain expertise requirements, `MixtureOfAgents` combines diverse specialist agents effectively, while `MajorityVoting` provides consensus-based decision-making for quality assurance needs.
 

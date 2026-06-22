@@ -100,7 +100,6 @@
               "docs/documentation/capabilities/sub_agents",
               "docs/documentation/capabilities/mcp_integration",
               "docs/documentation/capabilities/tools",
-              "docs/documentation/capabilities/marketplace_agents",
               "docs/documentation/capabilities/agents_list"
             ]
           },
@@ -218,7 +217,6 @@
               "docs/examples/examples/claude-opus-4-8",
               "docs/examples/examples/reasoning-agents-tutorial",
               "docs/examples/examples/conversation-history",
-              "docs/examples/examples/auto-generate-agent",
               "docs/examples/api_examples/agent_completion_single_agent",
               "docs/examples/api_examples/autonomous_agent_tutorial",
               "docs/examples/examples/openai-compatible"
@@ -236,13 +234,11 @@
               "docs/examples/examples/group-chat",
               "docs/examples/examples/graph-workflow",
               "docs/examples/examples/graph-workflows-production",
-              "docs/examples/examples/advanced-research",
               "docs/examples/examples/debate-with-judge",
               "docs/examples/examples/heavy-swarm",
               "docs/examples/examples/round-robin",
               "docs/examples/examples/llm-council",
               "docs/examples/examples/council-as-judge",
-              "docs/examples/examples/auto-swarm-builder-tutorial",
               "docs/examples/examples/tools-in-swarms",
               "docs/examples/examples/swarm-streaming",
               "docs/examples/examples/graph-workflow-edge-formats",
@@ -320,14 +316,12 @@
               "docs/examples/examples/available-tools",
               "docs/examples/examples/swarm-types",
               "docs/examples/examples/reasoning-agent-types",
-              "docs/examples/examples/marketplace-agents",
               "docs/examples/examples/list-agents",
               "docs/examples/api_examples/rate_limits",
               "docs/examples/examples/pricing-details-basic",
               "docs/examples/examples/pricing-cost-estimator",
               "docs/examples/examples/account-credits",
-              "docs/examples/examples/usage-report",
-              "docs/examples/examples/auto-swarm-builder-execution-types"
+              "docs/examples/examples/usage-report"
             ]
           },
           {
