@@ -1,0 +1,185 @@
+---
+title: "Workflow Builder"
+description: "Visually design, run, and export multi-agent workflows on Swarms Cloud. Drag agents onto a canvas, connect them into a directed graph, then run on the platform or export the request as code."
+---
+
+<Warning>
+  Premium: The Workflow Builder runs on the Graph Workflow Completions API, which is available only on Pro and Ultra plans. See <a href="/docs/documentation/resources/pricing">Pricing</a>.
+</Warning>
+
+## Overview
+
+The Workflow Builder (`https://swarms.world/platform/workflow-builder`) is a visual editor for building multi-agent systems on Swarms Cloud. Agents are nodes on a canvas, and the connections between them define how work flows from one agent to the next.
+
+Instead of writing orchestration code by hand, you compose the system visually: drag agents onto the canvas, configure each one, wire them into a directed graph, and run the whole thing in one click. What you build is backed by the [Graph Workflow Completions API](/docs/documentation/multi-agent/graph_workflow), so anything you can draw you can also run in production.
+
+When a workflow is ready, you can execute it directly in the interface or export the exact API request as Python, TypeScript, Go, or cURL.
+
+## Key Features
+
+- **Visual canvas**: Drag, drop, and connect agents into sequential, parallel, or multi-layer graphs
+
+- **Full agent configuration**: Set any model, system prompt, role, temperature, tokens, reasoning, tools, MCP, and autonomous looping per node
+
+- **One-click execution**: Run the entire graph on the platform and inspect each node's output
+
+- **Export to code**: Generate the equivalent request in Python, TypeScript, Go, cURL, or raw JSON
+
+- **Automatic entry and end points**: Start and finish nodes are derived from the graph topology
+
+- **Live request preview**: The exported code updates as you edit the graph, so the canvas and the code always stay in sync
+
+## Interface Overview
+
+The builder is a full-screen canvas with a few floating controls:
+
+- **Top toolbar**: Workflow name, plus actions to add an agent, open settings, view the exported code, and view run output
+
+- **Canvas**: The graph itself, with pan, zoom, a minimap, and standard zoom controls
+
+- **Node inspector**: A side panel for configuring the selected agent
+
+- **Task bar**: A docked bar at the bottom for the workflow task and the Run button
+
+## Building a Workflow
+
+<Steps>
+  <Step title="Add agents">
+    Click **Add agent** to drop a new node onto the canvas. Each node represents one agent and uses its name as its unique node ID.
+  </Step>
+  <Step title="Configure each agent">
+    Select a node to open the inspector, then set its model, system prompt, role, and generation parameters. See [Configuring an Agent](#configuring-an-agent) for the full list of options.
+  </Step>
+  <Step title="Connect the agents">
+    Drag from a node's right handle to another node's left handle to create an edge. The edge defines the direction work flows. Build sequential chains, fan several agents into one, or fan one out to many.
+  </Step>
+  <Step title="Set the task">
+    Enter the task for the workflow in the bottom bar. This is the instruction the graph executes.
+  </Step>
+  <Step title="Run or export">
+    Click **Run** to execute on the platform and view each node's output, or open the **Code** panel to export the request in your language of choice.
+  </Step>
+</Steps>
+
+## Configuring an Agent
+
+Each node exposes the full agent schema. The model field accepts any model id the platform supports, not just the presets.
+
+| Setting | Description |
+| --- | --- |
+| `agent_name` | Unique name that identifies the node in the graph |
+| `model_name` | Any supported model id, for example `gpt-4.1`, `openai/o3-mini`, or `claude-sonnet-4-20250514` |
+| `system_prompt` | Instruction that guides the agent's behavior |
+| `description` | Short summary of the agent's purpose |
+| `role` | Role within the workflow, such as worker or analyst |
+| `temperature` | Controls randomness of the output |
+| `max_tokens` | Maximum tokens the agent can generate |
+| `max_loops` | Fixed iteration count, or `auto` for autonomous looping until the task is complete |
+| `auto_generate_prompt` | Let the agent write its own system prompt from the task |
+| `dynamic_temperature_enabled` | Adjust temperature automatically per task |
+| `streaming_on` | Stream output tokens as they are produced |
+| `reasoning_enabled` | Enable reasoning, with `reasoning_effort` and `thinking_tokens` |
+| `tool_call_summary` | Summarize tool-call output |
+| `mcp_url` | Connect the agent to an MCP server |
+| `selected_tools` | Restrict the autonomous looper to a chosen set of tools |
+| `llm_args` | Extra model arguments such as `top_p` or `frequency_penalty` |
+
+<Tip>
+  Set `max_loops` to `auto` to turn a node into an autonomous agent that decides how many steps it needs. When autonomous, you can restrict it to specific tools with `selected_tools`.
+</Tip>
+
+## Entry and End Points
+
+You do not need to declare which nodes start or finish the workflow. The builder derives them from the graph:
+
+- **Entry points** are nodes with no incoming edge
+
+- **End points** are nodes with no outgoing edge
+
+These are shown as badges on the canvas and sent automatically as `entry_points` and `end_points` in the request.
+
+## Running on the Platform
+
+Click **Run** to execute the graph through the Graph Workflow Completions API. The output panel shows:
+
+- Each node's output, keyed by agent name
+
+- Total token usage and cost for the run
+
+## Exporting to Code
+
+The **Code** panel mirrors the exact request the platform sends, and updates live as you edit the graph. Switch between Python, TypeScript, Go, cURL, and JSON, then copy the snippet into your application.
+
+This is the same payload documented in the [Graph Workflow Completions API](/docs/documentation/multi-agent/graph_workflow). A typical exported request looks like this:
+
+```python theme={null}
+import os
+import requests
+
+payload = {
+    "name": "Research-Analysis-Workflow",
+    "agents": [
+        {
+            "agent_name": "ResearchAgent",
+            "model_name": "gpt-4.1",
+            "role": "worker",
+            "system_prompt": "You are an expert researcher.",
+            "max_loops": 1,
+            "max_tokens": 4000,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "AnalysisAgent",
+            "model_name": "gpt-4.1",
+            "role": "analyst",
+            "system_prompt": "You analyze research and extract key insights.",
+            "max_loops": 1,
+            "max_tokens": 4000,
+            "temperature": 0.3,
+        },
+    ],
+    "edges": [
+        {"source": "ResearchAgent", "target": "AnalysisAgent"},
+    ],
+    "entry_points": ["ResearchAgent"],
+    "end_points": ["AnalysisAgent"],
+    "task": "What are the latest trends in AI development?",
+    "auto_compile": True,
+}
+
+response = requests.post(
+    "https://api.swarms.world/v1/graph-workflow/completions",
+    headers={
+        "x-api-key": os.environ["SWARMS_API_KEY"],
+        "Content-Type": "application/json",
+    },
+    json=payload,
+)
+response.raise_for_status()
+print(response.json())
+```
+
+## Best Practices
+
+- **Use descriptive agent names**: Names are node IDs and must be unique, so make them specific
+
+- **Keep prompts focused**: One strong instruction per agent beats several weak ones
+
+- **Prototype visually, ship as code**: Build and test in the canvas, then export the request into your own service
+
+- **Choose models per task**: Use stronger models for synthesis and lighter models for simple steps to control cost
+
+## Availability
+
+The Workflow Builder is available to Pro and Ultra users. For details on Graph Workflow pricing and limits, see the [Pricing](/docs/documentation/resources/pricing) page.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Graph Workflow API" icon="diagram-project" href="/docs/documentation/multi-agent/graph_workflow">
+    The API that powers the Workflow Builder.
+  </Card>
+  <Card title="Multi-Agent Architectures" icon="sitemap" href="/docs/documentation/multi-agent/overview">
+    Explore every multi-agent architecture in the Swarms API.
+  </Card>
+</CardGroup>

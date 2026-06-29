@@ -121,6 +121,12 @@
               "docs/documentation/resources/referral",
               "docs/documentation/resources/contributors"
             ]
+          },
+          {
+            "group": "Swarms Cloud",
+            "pages": [
+              "docs/documentation/workflow-builder/overview"
+            ]
           }
         ]
       },
