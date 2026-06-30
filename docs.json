@@ -164,21 +164,16 @@
           {
             "group": "API",
             "pages": [
-              "docs/marketplace/api-overview",
-              "docs/marketplace/agents-api",
-              "docs/marketplace/prompts-api",
               "docs/marketplace/reviews",
               "docs/marketplace/token-launch-api",
               "docs/marketplace/token-launch-frenzy-example",
               "docs/marketplace/token-launch-batch-api",
-              "docs/marketplace/claim-fees-api",
-              "docs/marketplace/examples"
+              "docs/marketplace/claim-fees-api"
             ]
           },
           {
             "group": "Examples",
             "pages": [
-              "docs/marketplace/marketplace_examples_overview",
               "docs/marketplace/marketplace_prompt_loading",
               "docs/marketplace/launchpad-tokenize-your-agent-tutorial",
               "docs/marketplace/marketplace_publishing_quickstart"
