@@ -7,7 +7,7 @@ description: '3-step tutorial: create a Swarms agent that processes images using
 This tutorial shows how to run a **vision-capable agent** that uses a **prebuilt prompt from the Swarms marketplace**. You'll encode a local image to base64, configure the agent with a `marketplace_prompt_id`, and get a response (e.g., "What city is this image of?").
 
 <Info>
-You need an API key and the Python client. Get your key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys). Find marketplace prompts on [swarms.world](https://swarms.world) or via the [Query Prompts API](/docs/marketplace/prompts-api#query-prompts).
+You need an API key and the Python client. Get your key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys). Find marketplace prompts on [swarms.world](https://swarms.world/marketplace).
 </Info>
 
 ## Step 1 — Set up the client and API key
@@ -60,7 +60,7 @@ image_path = "img.jpg"  # or your image path
 image_base64 = encode_image_to_base64(image_path)
 ```
 
-Choose a **marketplace prompt ID** for your agent. The prompt defines the agent's system prompt, name, and description. You can browse prompts on [swarms.world](https://swarms.world) or query them via the [Prompts API](/docs/marketplace/prompts-api). Use a prompt that fits vision or general analysis. Example ID used below: `72021048-6f31-48b6-b624-7732e6f93437`.
+Choose a **marketplace prompt ID** for your agent. The prompt defines the agent's system prompt, name, and description. Browse prompts on [swarms.world](https://swarms.world/marketplace) to find one that fits vision or general analysis. Example ID used below: `72021048-6f31-48b6-b624-7732e6f93437`.
 
 ## Step 3 — Run the agent with the image and task
 
@@ -143,4 +143,4 @@ Here is the full script in one place:
 | **2** | Encoded a local image to base64 and chose a `marketplace_prompt_id`. |
 | **3** | Ran the agent with `agent_config`, `task`, and `img=image_base64`. |
 
-For more details, see [Vision Capabilities](/docs/examples/examples/vision-capabilities) and [Using marketplace prompts with agents](/docs/marketplace/prompts-api#using-marketplace-prompts-with-agents).
+For more details, see [Vision Capabilities](/docs/examples/examples/vision-capabilities).
