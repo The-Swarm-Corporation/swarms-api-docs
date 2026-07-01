@@ -3,6 +3,12 @@ title: "Claude Fable 5"
 description: "Run single agents, sequential pipelines, concurrent fan-outs, hierarchical swarms, and group chats on Anthropic's most capable model via the Swarms API."
 ---
 
+## Overview
+
+This tutorial shows how to run Claude Fable 5 — Anthropic's most capable model, positioned above the Opus family — on the Swarms API. Fable 5 is built for the hardest reasoning and long-horizon agentic work: multi-step analysis, deep synthesis, and debates where agents must genuinely engage with each other's arguments.
+
+Using it requires exactly two things in your agent config: set `model_name` to `anthropic/claude-fable-5`, and leave `temperature` as `None` (the model rejects numeric sampling parameters). Everything else about your existing agents and swarms stays the same. The examples below walk through the full range of agent types — a standalone single agent, a sequential pipeline, a concurrent specialist fan-out, a director-led hierarchical swarm, a multi-agent group chat, and a cost-efficient mixed-model pattern that reserves Fable 5 for the synthesis step.
+
 ## What This Example Shows
 
 - The correct model name to use (`anthropic/claude-fable-5`)
