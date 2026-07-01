@@ -1,0 +1,387 @@
+---
+title: "Claude Fable 5"
+description: "Run single agents, sequential pipelines, concurrent fan-outs, hierarchical swarms, and group chats on Anthropic's most capable model via the Swarms API."
+---
+
+## What This Example Shows
+
+- The correct model name to use (`anthropic/claude-fable-5`)
+- Why `temperature` must be `None` for this model — never a number
+- A single agent on Claude Fable 5
+- A `SequentialWorkflow` research pipeline
+- A `ConcurrentWorkflow` fan-out across specialist agents
+- A `HierarchicalSwarm` with an auto-generated director
+- A `GroupChat` debate between opposing analysts
+- A mixed-model pattern: Fable 5 as the aggregator, cheaper models as workers
+
+<Info>
+Claude Fable 5 is Anthropic's most capable generally available model, sitting above the Opus family. It is built for the hardest reasoning and long-horizon agentic work, and it is wired into every multi-agent primitive on the Swarms platform. Switching an existing agent to Fable 5 is a one-line change in your agent config.
+</Info>
+
+<Warning>
+Claude Fable 5 does **not** accept the `temperature` parameter (or `top_p`). The field must be `None` — either leave it out of your `agent_config` entirely or set it explicitly to `None`, and the Swarms API will omit it from the upstream call. Passing any numeric value is rejected by Anthropic with a 400 error.
+</Warning>
+
+## Step 1: Get Your API Key
+
+1. Visit [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys)
+2. Sign in or create an account
+3. Generate a new API key
+4. Set it as an environment variable:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## Step 2: Install the Swarms Python Client
+
+```bash
+pip install swarms-client python-dotenv
+```
+
+## Step 3: Create the Client
+
+Every example below reuses this client:
+
+```python
+import json
+import os
+
+from dotenv import load_dotenv
+from swarms_client import SwarmsClient
+
+load_dotenv()
+
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+    base_url="https://api.swarms.world",
+    timeout=1000,
+)
+```
+
+<Note>
+Fable 5 reasons deeply before answering, so individual calls can take noticeably longer than smaller models — especially on hard tasks. Keep the client `timeout` generous.
+</Note>
+
+## Single Agent on Claude Fable 5
+
+The minimal case. Note that `temperature` is explicitly `None` — this is the only sampling configuration Fable 5 accepts.
+
+```python
+result = client.agent.run(
+    agent_config={
+        "agent_name": "Quant Research Analyst",
+        "description": "A quantitative analyst specializing in derivatives pricing and risk.",
+        "system_prompt": (
+            "You are a senior quantitative research analyst. You reason carefully "
+            "through multi-step financial problems, state your assumptions explicitly, "
+            "and show the intermediate calculations that support your conclusion."
+        ),
+        "model_name": "anthropic/claude-fable-5",
+        "temperature": None,  # required: Fable 5 rejects numeric temperature
+        "max_loops": 1,
+        "max_tokens": 8192,
+    },
+    task=(
+        "A 6-month European call on a non-dividend stock trades at $7.20. "
+        "Spot is $100, strike is $105, and the risk-free rate is 4%. "
+        "Back out the implied volatility and sanity-check it against a 25% "
+        "historical vol. Is the option rich or cheap?"
+    ),
+)
+
+print(json.dumps(result, indent=4))
+```
+
+**What changed from a typical agent call:**
+
+| Field | Before | With Fable 5 |
+| --- | --- | --- |
+| `model_name` | `gpt-4.1`, `anthropic/claude-opus-4-8`, etc. | `anthropic/claude-fable-5` |
+| `temperature` | `0.5` (or any float) | `None` — or omit the field entirely |
+| Everything else | — | unchanged |
+
+## SequentialWorkflow: Research → Analysis → Report
+
+Agents run one after another; each receives the previous agent's output. Fable 5's long-horizon reasoning makes it a strong fit for every stage of a pipeline like this.
+
+```python
+result = client.swarms.run(
+    name="Fable 5 Research Pipeline",
+    description="Researcher gathers facts, analyst interprets them, writer produces the deliverable.",
+    swarm_type="SequentialWorkflow",
+    task="Produce a briefing on the current state of solid-state battery commercialization.",
+    max_loops=1,
+    agents=[
+        {
+            "agent_name": "Researcher",
+            "description": "Gathers and organizes the relevant facts.",
+            "system_prompt": (
+                "You are a research specialist. Collect the key facts, players, and "
+                "timelines relevant to the task. Output a structured fact sheet."
+            ),
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+        {
+            "agent_name": "Analyst",
+            "description": "Interprets the research and extracts implications.",
+            "system_prompt": (
+                "You are an industry analyst. Take the fact sheet you are given and "
+                "identify the three most important implications, with reasoning."
+            ),
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+        {
+            "agent_name": "Report Writer",
+            "description": "Turns the analysis into a polished briefing.",
+            "system_prompt": (
+                "You are a professional writer. Turn the analysis you receive into a "
+                "concise executive briefing with a clear bottom line up front."
+            ),
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+    ],
+)
+
+print(json.dumps(result, indent=4))
+```
+
+## ConcurrentWorkflow: Specialist Fan-Out
+
+All agents receive the same task in parallel and answer independently — ideal when you want several expert perspectives at once.
+
+```python
+result = client.swarms.run(
+    name="Fable 5 Deal Review Panel",
+    description="Three specialists review the same acquisition target concurrently.",
+    swarm_type="ConcurrentWorkflow",
+    task=(
+        "Evaluate the acquisition of a 200-person B2B SaaS company with $30M ARR, "
+        "110% net revenue retention, and 18 months of runway. Flag the biggest risk "
+        "from your specialty's point of view."
+    ),
+    max_loops=1,
+    agents=[
+        {
+            "agent_name": "Financial Diligence",
+            "description": "Reviews the financial profile of the target.",
+            "system_prompt": "You are an M&A financial diligence expert. Assess unit economics, burn, and valuation risk.",
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+        {
+            "agent_name": "Technical Diligence",
+            "description": "Reviews the technology and engineering organization.",
+            "system_prompt": "You are a technical diligence expert. Assess architecture risk, technical debt, and key-person risk.",
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+        {
+            "agent_name": "Legal Diligence",
+            "description": "Reviews contracts, IP, and compliance exposure.",
+            "system_prompt": "You are a legal diligence expert. Assess contract concentration, IP ownership, and regulatory exposure.",
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+    ],
+)
+
+print(json.dumps(result, indent=4))
+```
+
+## HierarchicalSwarm: Director + Workers
+
+You define only the workers — the framework auto-generates a director that decomposes the task, routes subtasks to each worker, and synthesizes the final answer.
+
+```python
+result = client.swarms.run(
+    name="Fable 5 Markets Swarm",
+    description="Director coordinates an ETF analyst and a stocks analyst.",
+    swarm_type="HierarchicalSwarm",
+    task=(
+        "Compare the outlook for the SPY ETF and NVDA stock for the next quarter. "
+        "Highlight the strongest signal for each."
+    ),
+    max_loops=1,
+    agents=[
+        {
+            "agent_name": "ETF Analyst",
+            "description": "Analyzes broad-market and sector ETFs.",
+            "system_prompt": (
+                "You are an ETF analyst. Given a ticker, summarize the fund's "
+                "exposure, recent flows, and near-term outlook in under 200 words."
+            ),
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+        {
+            "agent_name": "Stocks Analyst",
+            "description": "Analyzes individual equities.",
+            "system_prompt": (
+                "You are an equity analyst. Given a ticker, summarize the company's "
+                "fundamentals, catalysts, and near-term outlook in under 200 words."
+            ),
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "role": "worker",
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+    ],
+)
+
+print(json.dumps(result, indent=4))
+```
+
+## GroupChat: Opposing Analysts Debate
+
+Agents discuss the task together and can respond to each other's arguments. Fable 5 is notably strong at pushing back on weak reasoning, which makes debates substantive rather than agreeable.
+
+```python
+result = client.swarms.run(
+    name="Fable 5 Investment Debate",
+    description="A bull and a bear debate the thesis; a moderator keeps score.",
+    swarm_type="GroupChat",
+    task="Debate: should a long-term portfolio overweight AI infrastructure stocks at current valuations?",
+    max_loops=2,
+    agents=[
+        {
+            "agent_name": "Bull",
+            "description": "Argues the optimistic case.",
+            "system_prompt": "You argue the strongest honest bull case. Engage directly with the bear's specific points.",
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+        {
+            "agent_name": "Bear",
+            "description": "Argues the pessimistic case.",
+            "system_prompt": "You argue the strongest honest bear case. Engage directly with the bull's specific points.",
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+        {
+            "agent_name": "Moderator",
+            "description": "Weighs both sides and summarizes.",
+            "system_prompt": "You are a neutral moderator. After each round, identify which arguments landed and which were rebutted.",
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 4096,
+        },
+    ],
+)
+
+print(json.dumps(result, indent=4))
+```
+
+## Cost Pattern: Fable 5 Aggregator, Cheaper Workers
+
+Fable 5 is priced above the Opus tier, so a common production pattern is `MixtureOfAgents` with inexpensive workers doing the breadth work and Fable 5 doing the final synthesis, where its reasoning matters most.
+
+```python
+result = client.swarms.run(
+    name="Mixed-Model Mixture of Agents",
+    description="Cheap workers draft perspectives; Fable 5 synthesizes the final answer.",
+    swarm_type="MixtureOfAgents",
+    task="What are the best practices for securing a multi-tenant Kubernetes cluster?",
+    max_loops=1,
+    agents=[
+        {
+            "agent_name": "Network Security Worker",
+            "description": "Covers network policy and segmentation.",
+            "system_prompt": "You are a network security engineer. Cover network policies, segmentation, and ingress hardening.",
+            "model_name": "claude-haiku-4-5-20251001",
+            "max_loops": 1,
+            "max_tokens": 2048,
+        },
+        {
+            "agent_name": "Identity Worker",
+            "description": "Covers RBAC and workload identity.",
+            "system_prompt": "You are an identity engineer. Cover RBAC, service accounts, and workload identity.",
+            "model_name": "claude-haiku-4-5-20251001",
+            "max_loops": 1,
+            "max_tokens": 2048,
+        },
+        {
+            "agent_name": "Synthesizer",
+            "description": "Merges worker outputs into one authoritative answer.",
+            "system_prompt": (
+                "You are the lead security architect. Merge the specialist inputs into a "
+                "single prioritized checklist, resolving any conflicts between them."
+            ),
+            "model_name": "anthropic/claude-fable-5",
+            "temperature": None,
+            "max_loops": 1,
+            "max_tokens": 8192,
+        },
+    ],
+)
+
+print(json.dumps(result, indent=4))
+```
+
+## Using Fable 5 in Other Swarm Types
+
+Every other swarm architecture takes the same `model_name`. Drop `"model_name": "anthropic/claude-fable-5"` (with `temperature` left as `None`) into any agent inside any of these swarm configs:
+
+- `SequentialWorkflow`
+- `ConcurrentWorkflow`
+- `AgentRearrange`
+- `MixtureOfAgents`
+- `GroupChat`
+- `MajorityVoting`
+- `CouncilAsAJudge`
+- `MultiAgentRouter`
+- `HeavySwarm`
+- `LLMCouncil`
+- `DebateWithJudge`
+- `BatchedGridWorkflow`
+- `RoundRobin`
+- `PlannerWorkerSwarm`
+- `auto`
+
+## Common Pitfalls
+
+<AccordionGroup>
+  <Accordion title="400 error mentioning temperature, top_p, or top_k">
+    You passed a numeric sampling parameter. Fable 5 removed `temperature`, `top_p`, and `top_k` entirely. Set `temperature` to `None` (or delete the field) in every agent config that uses `anthropic/claude-fable-5` — the Swarms API strips `None` fields before calling Anthropic.
+  </Accordion>
+  <Accordion title="Requests take longer than with other models">
+    Expected. Fable 5 always reasons before answering and hard tasks can run for several minutes. Raise your client `timeout`, and prefer swarm architectures that parallelize independent work (`ConcurrentWorkflow`, `MixtureOfAgents`) over long sequential chains when latency matters.
+  </Accordion>
+  <Accordion title="A request returns empty content with a refusal stop reason">
+    Fable 5 ships with additional safety classifiers and may decline certain requests (notably deep cybersecurity and research-biology content) that other models answer. If your workload lives near those domains, route it to `anthropic/claude-opus-4-8` instead.
+  </Accordion>
+  <Accordion title="Where do I find pricing?">
+    Fable 5 pricing follows Anthropic's published rates ($10/$50 per million input/output tokens) and is reflected in the Swarms cost-tracking endpoints. See the [pricing page](/docs/documentation/resources/pricing) for current rates.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- Browse the [Multi-Agent Architectures](/docs/documentation/multi-agent/overview) catalog for more swarm types
+- Read the [Single Agent Overview](/docs/examples/examples/agent-overview) for the full agent config surface
+- See the [Claude Opus 4.8 example](/docs/examples/examples/claude-opus-4-8) for the lower-cost Anthropic tier with the same no-temperature rule
+- See [Streaming](/docs/examples/examples/streaming) to stream Fable 5 tokens to your client in real time

@@ -224,6 +224,7 @@
               "docs/examples/examples/agent-handoffs",
               "docs/examples/examples/sub-agent-delegation",
               "docs/examples/examples/claude-opus-4-8",
+              "docs/examples/examples/claude-fable-5",
               "docs/examples/examples/reasoning-agents-tutorial",
               "docs/examples/examples/conversation-history",
               "docs/examples/api_examples/agent_completion_single_agent",
