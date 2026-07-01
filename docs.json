@@ -165,6 +165,8 @@
             "group": "API",
             "pages": [
               "docs/marketplace/api-overview",
+              "docs/marketplace/list-products-api",
+              "docs/marketplace/product-fees-api",
               "docs/marketplace/agents-api",
               "docs/marketplace/prompts-api",
               "docs/marketplace/reviews",

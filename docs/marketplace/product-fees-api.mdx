@@ -1,0 +1,183 @@
+---
+title: "Product Fees API"
+description: "Check how much in creator fees a tokenized product has generated, via the Jupiter partner API"
+---
+
+**GET** `https://swarms.world/api/product/fees`
+
+Returns the creator fees that the authenticated user has generated for one of their **tokenized** products (an agent or prompt with a launched token). Fee data is read live from the Jupiter partner API and reported in **SOL**.
+
+Identify the product by its **ticker**, its **product UUID**, or its **full Swarms product URL**. The endpoint resolves the product against your account, determines the fee-vault wallet, and returns the product name and UUID along with its total, unclaimed, and claimed fees and the time of the read.
+
+Authenticate with your Swarms API key in the `Authorization` header.
+
+<Note>
+Only tokenized agents and prompts have creator fees. Tools and bundles are not tokenized and cannot be queried here.
+</Note>
+
+---
+
+## Request
+
+### Headers
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `Authorization` | string | Yes | `Bearer YOUR_API_KEY`. Get your key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys). |
+
+### Query Parameters
+
+Provide **one** of the following to identify the product. If multiple are supplied, they are checked in the order below.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `url` | string | Full Swarms product URL, e.g. `https://swarms.world/agent/<uuid>`. |
+| `id` | string | Product UUID. |
+| `ticker` | string | Token ticker / symbol. A leading `$` is optional. |
+| `product` | string | Convenience parameter that auto-detects whether the value is a URL, UUID, or ticker. |
+
+---
+
+## Response
+
+### Success (HTTP 200)
+
+Fee amounts are in **SOL**.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string \| null | Product name. |
+| `uuid` | string | Product UUID. |
+| `claimedFees` | number | Fees already claimed, in SOL. |
+| `unclaimedFees` | number | Fees available to claim, in SOL. |
+| `totalFees` | number | Total fees earned (unclaimed + claimed), in SOL. |
+| `timestamp` | string | ISO 8601 server time when the fees were read. |
+
+**Example success response:**
+
+```json
+{
+  "name": "Research Analyst",
+  "uuid": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+  "claimedFees": 1.08,
+  "unclaimedFees": 0.42,
+  "totalFees": 1.5,
+  "timestamp": "2026-07-01T18:30:00.000Z"
+}
+```
+
+If the product exists but Jupiter has no fee data yet (for example the pool is not ready or no fees have been generated), the fee amounts are returned as `0`.
+
+### HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success. |
+| `400` | Bad request: no product identifier provided, or the URL did not contain a valid product UUID. |
+| `401` | Unauthorized: API key is missing or invalid. |
+| `404` | No tokenized product found for the given identifier under your account. |
+| `500` | Internal server error. |
+
+---
+
+## Example Request
+
+<CodeGroup>
+
+```bash cURL
+# By ticker
+curl -X GET "https://swarms.world/api/product/fees?ticker=RSRCH" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# By UUID
+curl -X GET "https://swarms.world/api/product/fees?id=1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# By full Swarms URL (auto-detected via `product`)
+curl -X GET "https://swarms.world/api/product/fees?product=https://swarms.world/agent/1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```python Python
+import requests
+
+BASE_URL = "https://swarms.world"
+API_KEY = "YOUR_API_KEY"
+
+# `product` auto-detects a ticker, UUID, or full Swarms URL
+response = requests.get(
+    f"{BASE_URL}/api/product/fees",
+    headers={"Authorization": f"Bearer {API_KEY}"},
+    params={"product": "RSRCH"},
+    timeout=60,
+)
+
+data = response.json()
+if response.ok:
+    print(f"{data['name']} ({data['uuid']})")
+    print(f"  Total:     {data['totalFees']} SOL")
+    print(f"  Unclaimed: {data['unclaimedFees']} SOL")
+    print(f"  Claimed:   {data['claimedFees']} SOL")
+    print(f"  As of:     {data['timestamp']}")
+else:
+    print("Error:", data.get("error", response.text))
+```
+
+```typescript TypeScript
+interface ProductFeesResponse {
+  name: string | null;
+  uuid: string;
+  claimedFees: number;
+  unclaimedFees: number;
+  totalFees: number;
+  timestamp: string;
+}
+
+async function getProductFees(
+  apiKey: string,
+  product: string // ticker, UUID, or full Swarms URL
+): Promise<ProductFeesResponse> {
+  const url = new URL("https://swarms.world/api/product/fees");
+  url.searchParams.set("product", product);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Unknown error");
+  }
+  return data as ProductFeesResponse;
+}
+
+// Usage
+getProductFees("YOUR_API_KEY", "RSRCH").then((data) => {
+  console.log(`${data.name} (${data.uuid})`);
+  console.log(`  Total: ${data.totalFees} SOL`);
+  console.log(`  Unclaimed: ${data.unclaimedFees} SOL`);
+  console.log(`  Claimed: ${data.claimedFees} SOL`);
+});
+```
+
+</CodeGroup>
+
+---
+
+## Related Resources
+
+<CardGroup cols={2}>
+<Card title="Claim Fees API" icon="coins" href="/docs/marketplace/claim-fees-api">
+Claim the unclaimed fees returned here
+</Card>
+<Card title="List Products API" icon="list" href="/docs/marketplace/list-products-api">
+List all products you've posted
+</Card>
+<Card title="Creator Fees" icon="percent" href="/docs/marketplace/creator-fees">
+Understand how creator fees work
+</Card>
+<Card title="Tokenization" icon="rocket" href="/docs/marketplace/tokenization">
+Launch a token for your agent or prompt
+</Card>
+</CardGroup>

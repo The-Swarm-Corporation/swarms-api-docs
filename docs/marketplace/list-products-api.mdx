@@ -1,0 +1,208 @@
+---
+title: "List Products API"
+description: "List every product you've posted to the Swarms Marketplace - agents, prompts, tools, and bundles"
+---
+
+**GET** `https://swarms.world/api/product/list`
+
+Returns every product the authenticated user has posted to the marketplace across **agents, prompts, tools, and bundles**. Each product includes its name, description, time posted, type, and public listing URL. Results are returned as a single flat list sorted newest-first, along with per-type counts.
+
+Authenticate with your Swarms API key in the `Authorization` header.
+
+---
+
+## Request
+
+### Headers
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `Authorization` | string | Yes | `Bearer YOUR_API_KEY`. Get your key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys). |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `type` | string | No | Restrict results to a single product type. One of `all` (default), `agent`, `prompt`, `tool`, or `bundle`. |
+
+---
+
+## Response
+
+### Success (HTTP 200)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user_id` | string | The authenticated user's ID. |
+| `total` | number | Total number of products returned. |
+| `counts` | object | Count of products by type. |
+| `counts.agents` | number | Number of agents. |
+| `counts.prompts` | number | Number of prompts. |
+| `counts.tools` | number | Number of tools. |
+| `counts.bundles` | number | Number of bundles. |
+| `products` | array | Flat list of products, sorted newest-first. |
+| `products[].id` | string | Product ID (for bundles, the UUID used in the public URL). |
+| `products[].type` | string | `agent`, `prompt`, `tool`, or `bundle`. |
+| `products[].name` | string \| null | Product name. |
+| `products[].description` | string \| null | Product description. |
+| `products[].created_at` | string | ISO 8601 timestamp of when the product was posted. |
+| `products[].url` | string | Public listing URL on swarms.world. |
+
+**Example success response:**
+
+```json
+{
+  "user_id": "6a5ca266-caff-46a5-8e29-fba2085e4e5f",
+  "total": 3,
+  "counts": {
+    "agents": 1,
+    "prompts": 1,
+    "tools": 0,
+    "bundles": 1
+  },
+  "products": [
+    {
+      "id": "f92f99fb-88fc-42f8-a8dc-d1b30973cf21",
+      "type": "bundle",
+      "name": "Medical Agent Suite",
+      "description": "A comprehensive bundle of healthcare AI agents and prompts.",
+      "created_at": "2026-06-18T14:10:58.392803+00:00",
+      "url": "https://swarms.world/bundle/f92f99fb-88fc-42f8-a8dc-d1b30973cf21"
+    },
+    {
+      "id": "8db782df-5634-4b39-b41f-d55890eca198",
+      "type": "prompt",
+      "name": "Book Distillation Agent",
+      "description": "Transforms full-length books into information-dense reports.",
+      "created_at": "2026-06-17T09:22:11.100000+00:00",
+      "url": "https://swarms.world/prompt/8db782df-5634-4b39-b41f-d55890eca198"
+    },
+    {
+      "id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+      "type": "agent",
+      "name": "Research Analyst",
+      "description": "Scans sources and produces structured research briefs.",
+      "created_at": "2026-06-15T18:00:00.000000+00:00",
+      "url": "https://swarms.world/agent/1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+    }
+  ]
+}
+```
+
+### HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success. |
+| `401` | Unauthorized: API key is missing or invalid. |
+| `500` | Internal server error. |
+
+---
+
+## Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://swarms.world/api/product/list" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# Filter to a single type
+curl -X GET "https://swarms.world/api/product/list?type=bundle" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```python Python
+import requests
+
+BASE_URL = "https://swarms.world"
+API_KEY = "YOUR_API_KEY"
+
+response = requests.get(
+    f"{BASE_URL}/api/product/list",
+    headers={"Authorization": f"Bearer {API_KEY}"},
+    params={"type": "all"},  # all | agent | prompt | tool | bundle
+    timeout=30,
+)
+
+data = response.json()
+if response.ok:
+    print(f"Total products: {data['total']}")
+    print(f"Counts: {data['counts']}")
+    for p in data["products"]:
+        print(f"[{p['type']}] {p['name']} - posted {p['created_at']}")
+        print(f"    {p['url']}")
+else:
+    print("Error:", data.get("error", response.text))
+```
+
+```typescript TypeScript
+interface Product {
+  id: string;
+  type: "agent" | "prompt" | "tool" | "bundle";
+  name: string | null;
+  description: string | null;
+  created_at: string;
+  url: string;
+}
+
+interface ListProductsResponse {
+  user_id: string;
+  total: number;
+  counts: {
+    agents: number;
+    prompts: number;
+    tools: number;
+    bundles: number;
+  };
+  products: Product[];
+}
+
+async function listProducts(
+  apiKey: string,
+  type: string = "all"
+): Promise<ListProductsResponse> {
+  const url = new URL("https://swarms.world/api/product/list");
+  url.searchParams.set("type", type);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Unknown error");
+  }
+  return data as ListProductsResponse;
+}
+
+// Usage
+listProducts("YOUR_API_KEY").then((data) => {
+  console.log(`Total products: ${data.total}`);
+  for (const p of data.products) {
+    console.log(`[${p.type}] ${p.name} - ${p.url}`);
+  }
+});
+```
+
+</CodeGroup>
+
+---
+
+## Related Resources
+
+<CardGroup cols={2}>
+<Card title="Product Fees API" icon="coins" href="/docs/marketplace/product-fees-api">
+Check creator fees generated by a tokenized product
+</Card>
+<Card title="Agents API" icon="robot" href="/docs/marketplace/agents-api">
+Create, update, and query agents
+</Card>
+<Card title="Prompts API" icon="file-lines" href="/docs/marketplace/prompts-api">
+Create, update, and query prompts
+</Card>
+<Card title="API Overview" icon="book" href="/docs/marketplace/api-overview">
+Quick reference for all Marketplace APIs
+</Card>
+</CardGroup>
