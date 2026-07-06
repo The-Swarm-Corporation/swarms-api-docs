@@ -4,13 +4,9 @@ description: 'Retrieve a summary of your core usage metrics in a single call'
 ---
 
 
-The Metrics Summary endpoint (`/v1/metrics/summary`) returns an at-a-glance overview of your account's core usage metrics across **all** of your API keys — how many unique agents you've used and completion-call counts derived from your request history — in a single response.
+The Metrics Summary endpoint (`/v1/metrics/summary`) returns an at-a-glance overview of your account's core usage metrics — how many unique agents you've used and completion-call counts derived from your request history — in a single response.
 
 This is the endpoint to power a usage dashboard: unique agents used, lifetime completion calls, and recent-window activity.
-
-<Info>
-All counts are computed with database count queries, so your totals stay accurate even after your account passes **1,000 lifetime executions** (Supabase's default row cap). Counting rows client-side would silently plateau at 1,000 — this endpoint does not.
-</Info>
 
 ## Endpoint Information
 
@@ -27,7 +23,7 @@ The endpoint returns a JSON object with the following fields:
 | ------------------------ | ------- | ------------------------------------------------------------------------------- |
 | `success`                | boolean | Indicates the summary was retrieved successfully.                               |
 | `unique_agents`          | integer | Number of unique agent configurations you have used.                            |
-| `total_completion_calls` | integer | Lifetime count of completion calls (accurate past 1,000).                       |
+| `total_completion_calls` | integer | Lifetime count of completion calls.                                             |
 | `successful_completions` | integer | Lifetime count of completions with status `"success"`.                          |
 | `completions_last_24h`   | integer | Completion calls in the last 24 hours.                                           |
 | `completions_last_7d`    | integer | Completion calls in the last 7 days.                                             |
@@ -49,8 +45,7 @@ The endpoint returns a JSON object with the following fields:
 
 ## Use Cases
 
-- **Usage dashboards**: Populate headline tiles (executions, success rate, unique agents) from a single, cheap request.
-- **Accurate lifetime totals**: Report true all-time completion counts without transferring — or capping at — thousands of log rows.
+- **Usage dashboards**: Populate headline tiles (executions, success rate, unique agents) from a single request.
 - **Activity monitoring**: Track 24-hour and 7-day completion volume to spot spikes or drop-offs.
 
 <Tabs>
@@ -141,5 +136,5 @@ The endpoint returns a JSON object with the following fields:
 </Tabs>
 
 <Note>
-The numeric counts reflect true lifetime totals regardless of how many logs exist. To list your agent configurations, use [`/v1/agents/list`](/docs/documentation/capabilities/agents_list); for full request logs, use [`/v1/swarm/logs`](/docs/examples/examples/swarm-logs).
+To list your agent configurations, use [`/v1/agents/list`](/docs/documentation/capabilities/agents_list); for full request logs, use [`/v1/swarm/logs`](/docs/examples/examples/swarm-logs).
 </Note>

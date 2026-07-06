@@ -6,10 +6,6 @@ description: 'Quick start tutorial for the /v1/metrics/summary endpoint'
 
 The `/v1/metrics/summary` endpoint gives you all of your core usage metrics in a single call — perfect for powering a dashboard. In this tutorial you'll fetch your metrics and print a small summary.
 
-<Info>
-Counts come from database count queries, so `total_completion_calls` stays accurate even after your account passes 1,000 lifetime executions.
-</Info>
-
 ## Step 1 — Get your API key
 
 Create an API key in your dashboard: `https://swarms.world/platform/api-keys`
@@ -130,7 +126,7 @@ Completions (7d):       1151
 | Field                    | What it's for                                             |
 | ------------------------ | --------------------------------------------------------- |
 | `unique_agents`          | How many distinct agents you've used                      |
-| `total_completion_calls` | Lifetime completion calls (accurate past 1,000)           |
+| `total_completion_calls` | Lifetime completion calls                                 |
 | `successful_completions` | Completions that finished with status `success`           |
 | `completions_last_24h`   | Volume in the last day (for deltas / spike detection)     |
 | `completions_last_7d`    | Volume in the last week                                   |
