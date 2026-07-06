@@ -1,0 +1,153 @@
+---
+title: 'User Metrics Summary'
+description: 'Retrieve a summary of your core usage metrics in a single call'
+---
+
+
+The Metrics Summary endpoint (`/v1/metrics/summary`) returns an at-a-glance overview of your account's core usage metrics across **all** of your API keys. It combines your unique agent configurations (from [`/v1/agents/list`](/docs/documentation/capabilities/agents_list)) with completion-call counts derived from your request history into one response, so you don't have to call and aggregate those endpoints yourself.
+
+This is the endpoint to power a usage dashboard: unique agents used, lifetime completion calls, and recent-window activity.
+
+<Info>
+All counts are computed with database count queries, so your totals stay accurate even after your account passes **1,000 lifetime executions** (Supabase's default row cap). Counting rows client-side would silently plateau at 1,000 — this endpoint does not.
+</Info>
+
+## Endpoint Information
+
+- **URL**: `/v1/metrics/summary`
+- **Method**: `GET`
+- **Authentication**: Required (`x-api-key` header)
+- **Rate Limiting**: Subject to tier-based rate limits
+
+## Response Format
+
+The endpoint returns a JSON object with the following fields:
+
+| Field                    | Type    | Description                                                                     |
+| ------------------------ | ------- | ------------------------------------------------------------------------------- |
+| `success`                | boolean | Indicates the summary was retrieved successfully.                               |
+| `unique_agents`          | integer | Number of unique agent configurations you have used.                            |
+| `total_completion_calls` | integer | Lifetime count of completion calls (accurate past 1,000).                       |
+| `successful_completions` | integer | Lifetime count of completions with status `"success"`.                          |
+| `completions_last_24h`   | integer | Completion calls in the last 24 hours.                                           |
+| `completions_last_7d`    | integer | Completion calls in the last 7 days.                                             |
+| `agents`                 | array   | Your unique agent configurations, sorted by last used (same as `/v1/agents/list`). |
+| `timestamp`              | string  | ISO 8601 UTC timestamp when the summary was generated.                          |
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "unique_agents": 80,
+  "total_completion_calls": 25583,
+  "successful_completions": 13516,
+  "completions_last_24h": 2,
+  "completions_last_7d": 1151,
+  "agents": [
+    {
+      "agent_name": "Research Assistant",
+      "model_name": "gpt-4.1",
+      "last_used": "2026-07-06T07:51:21.942717+00:00"
+    }
+  ],
+  "timestamp": "2026-07-06T11:54:17.401905+00:00"
+}
+```
+
+## Use Cases
+
+- **Usage dashboards**: Populate headline tiles (executions, success rate, unique agents) from a single, cheap request.
+- **Accurate lifetime totals**: Report true all-time completion counts without transferring — or capping at — thousands of log rows.
+- **Activity monitoring**: Track 24-hour and 7-day completion volume to spot spikes or drop-offs.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import json
+    import os
+    from typing import Any, Dict
+
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    BASE_URL = "https://api.swarms.world"
+
+    HEADERS = {
+        "x-api-key": os.getenv("SWARMS_API_KEY"),
+        "Content-Type": "application/json",
+    }
+
+    def get_metrics_summary() -> Dict[str, Any]:
+        """Retrieve a summary of your core usage metrics"""
+        try:
+            response = requests.get(
+                f"{BASE_URL}/v1/metrics/summary",
+                headers=HEADERS,
+            )
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+            data = response.json()
+
+            print(json.dumps(data, indent=4))
+            print(f"Unique agents:           {data['unique_agents']}")
+            print(f"Total completion calls:  {data['total_completion_calls']}")
+            print(f"Successful completions:  {data['successful_completions']}")
+            print(f"Last 24h / 7d:           {data['completions_last_24h']} / {data['completions_last_7d']}")
+            return data
+        except Exception as e:
+            print(str(e))
+            return {}
+
+    if __name__ == "__main__":
+        get_metrics_summary()
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    require('dotenv').config();
+
+    const BASE_URL = "https://api.swarms.world";
+    const API_KEY = process.env.SWARMS_API_KEY;
+
+    async function getMetricsSummary() {
+      const url = `${BASE_URL}/v1/metrics/summary`;
+      const resp = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!resp.ok) {
+        console.error(`Error: ${resp.status} - ${await resp.text()}`);
+        return;
+      }
+      const data = await resp.json();
+      console.log(JSON.stringify(data, null, 2));
+      console.log(`Unique agents:          ${data.unique_agents}`);
+      console.log(`Total completion calls: ${data.total_completion_calls}`);
+      console.log(`Successful completions: ${data.successful_completions}`);
+      console.log(`Last 24h / 7d:          ${data.completions_last_24h} / ${data.completions_last_7d}`);
+    }
+
+    getMetricsSummary().catch(console.error);
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    #!/usr/bin/env bash
+
+    BASE_URL="https://api.swarms.world"
+
+    curl -X GET "${BASE_URL}/v1/metrics/summary" \
+      -H "x-api-key: ${SWARMS_API_KEY}" \
+      -H "Content-Type: application/json"
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+The `agents` array mirrors the data returned by [`/v1/agents/list`](/docs/documentation/capabilities/agents_list) — the numeric counts, however, reflect true lifetime totals regardless of how many logs exist. For full request logs, use [`/v1/swarm/logs`](/docs/examples/examples/swarm-logs).
+</Note>

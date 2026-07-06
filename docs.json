@@ -100,7 +100,8 @@
               "docs/documentation/capabilities/sub_agents",
               "docs/documentation/capabilities/mcp_integration",
               "docs/documentation/capabilities/tools",
-              "docs/documentation/capabilities/agents_list"
+              "docs/documentation/capabilities/agents_list",
+              "docs/documentation/capabilities/metrics_summary"
             ]
           },
           {
@@ -327,6 +328,7 @@
               "docs/examples/examples/swarm-types",
               "docs/examples/examples/reasoning-agent-types",
               "docs/examples/examples/list-agents",
+              "docs/examples/examples/metrics-summary",
               "docs/examples/api_examples/rate_limits",
               "docs/examples/examples/pricing-details-basic",
               "docs/examples/examples/pricing-cost-estimator",

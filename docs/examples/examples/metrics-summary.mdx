@@ -1,0 +1,141 @@
+---
+title: 'Build a Usage Dashboard'
+description: 'Quick start tutorial for the /v1/metrics/summary endpoint'
+---
+
+
+The `/v1/metrics/summary` endpoint gives you all of your core usage metrics in a single call — perfect for powering a dashboard. In this tutorial you'll fetch your metrics and print a small summary.
+
+<Info>
+Counts come from database count queries, so `total_completion_calls` stays accurate even after your account passes 1,000 lifetime executions.
+</Info>
+
+## Step 1 — Get your API key
+
+Create an API key in your dashboard: `https://swarms.world/platform/api-keys`
+
+## Step 2 — Add it to .env
+
+```bash
+SWARMS_API_KEY=your-api-key-here
+```
+
+## Step 3 — Fetch your metrics
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    BASE_URL = "https://api.swarms.world"
+    headers = {
+        "x-api-key": os.getenv("SWARMS_API_KEY"),
+        "Content-Type": "application/json",
+    }
+
+    resp = requests.get(
+        f"{BASE_URL}/v1/metrics/summary",
+        headers=headers,
+    )
+    print(resp.status_code)
+    data = resp.json()
+    print(json.dumps(data, indent=2))
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    require('dotenv').config();
+
+    const BASE_URL = "https://api.swarms.world";
+    const API_KEY = process.env.SWARMS_API_KEY;
+
+    async function main() {
+      const res = await fetch(`${BASE_URL}/v1/metrics/summary`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log(res.status);
+      const data = await res.json();
+      console.log(JSON.stringify(data, null, 2));
+    }
+
+    main().catch(console.error);
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X GET "https://api.swarms.world/v1/metrics/summary" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json"
+    ```
+  </Tab>
+</Tabs>
+
+## Step 4 — Render the dashboard tiles
+
+Pull the headline numbers out of the response and compute a success rate. These are the values you'd wire into dashboard cards.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    total = data["total_completion_calls"]
+    success = data["successful_completions"]
+    success_rate = (success / total * 100) if total else 0.0
+
+    print("── Usage Summary ─────────────")
+    print(f"Unique agents used:     {data['unique_agents']}")
+    print(f"Total completions:      {total}")
+    print(f"Successful completions: {success}  ({success_rate:.1f}%)")
+    print(f"Completions (24h):      {data['completions_last_24h']}")
+    print(f"Completions (7d):       {data['completions_last_7d']}")
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const total = data.total_completion_calls;
+    const success = data.successful_completions;
+    const successRate = total ? (success / total * 100).toFixed(1) : "0.0";
+
+    console.log("── Usage Summary ─────────────");
+    console.log(`Unique agents used:     ${data.unique_agents}`);
+    console.log(`Total completions:      ${total}`);
+    console.log(`Successful completions: ${success}  (${successRate}%)`);
+    console.log(`Completions (24h):      ${data.completions_last_24h}`);
+    console.log(`Completions (7d):       ${data.completions_last_7d}`);
+    ```
+  </Tab>
+</Tabs>
+
+Example output:
+
+```text
+── Usage Summary ─────────────
+Unique agents used:     80
+Total completions:      25583
+Successful completions: 13516  (52.8%)
+Completions (24h):      2
+Completions (7d):       1151
+```
+
+## What you get back
+
+| Field                    | What it's for                                             |
+| ------------------------ | --------------------------------------------------------- |
+| `unique_agents`          | How many distinct agents you've used                      |
+| `total_completion_calls` | Lifetime completion calls (accurate past 1,000)           |
+| `successful_completions` | Completions that finished with status `success`           |
+| `completions_last_24h`   | Volume in the last day (for deltas / spike detection)     |
+| `completions_last_7d`    | Volume in the last week                                   |
+| `agents`                 | Your agent configs, sorted by last used                   |
+
+<Note>
+For a full field reference and use cases, see the [User Metrics Summary](/docs/documentation/capabilities/metrics_summary) capability page.
+</Note>
