@@ -73,6 +73,26 @@ Best for growing teams and production workloads that need higher limits and secu
   - Priority region/zone routing
   - Full access to Premium Endpoints
 
+### Premium-Only Models
+
+Free tier accounts are blocked from requesting the following models on any endpoint (including `/v1/agent/completions` and `/v1/swarm/completions`), regardless of available credits. Any active Pro or Ultra subscription unlocks all of them — there is no separate model tier between Pro and Ultra:
+
+- `gpt-5`
+- `gpt-4.1`
+- `gemini-2.5-pro`
+- `claude-4-opus-20250514`
+- `claude-4-sonnet-20250514`
+- `claude-haiku-4-5`
+- `claude-opus-4-1`
+- `claude-sonnet-4-5`
+- `xai/grok-4`
+- `xai/grok-4-fast-reasoning`
+- `xai/grok-4-fast-non-reasoning`
+- `xai/grok-4-latest`
+- Any `groq/*` model
+
+Requesting one of these models on the free tier returns a 403 error with suggested free-tier alternatives.
+
 ### Enterprise
 Critical support, compliance, and control for large-scale enterprises.
 
@@ -100,7 +120,6 @@ Pay only for what you use with transparent, per-operation pricing. All API endpo
 | **Exa Search Tool** | \$0.04 | per search | Charged per search execution |
 | **Web Scraper Tool** | \$0.15 | per scrape | Charged per scrape execution |
 | **Night-time Discount** | 50% off tokens | 8 PM - 6 AM PT | Swarm Completions only |
-| **Frenzy Mode** | \$0.00 | all requests | Black Friday (24 hours) - all free |
 
 ### Unified Pricing
 
@@ -120,8 +139,6 @@ This applies to:
 
 **Night Time Discount**: Swarm completions receive a 50% discount on token costs during 8 PM - 6 AM Pacific Time. Agent costs remain the same.
 
-**Frenzy Mode**: All API requests are free during Black Friday (4th Friday of November) for 24 hours. Automatically applied.
-
 ### Retrieving Current Costs
 
 You can retrieve the current pricing using the `/v1/usage/costs` endpoint:
@@ -133,15 +150,19 @@ GET /v1/usage/costs
 **Example Response:**
 ```json
 {
-  "swarm_completions_agent_cost": 0.01,
-  "swarm_completions_input_cost_per_1m": 6.5,
-  "swarm_completions_output_cost_per_1m": 18.5,
-  "agent_completions_input_cost_per_1m": 6.5,
-  "agent_completions_output_cost_per_1m": 18.5,
-  "agent_completions_img_cost": 0.25,
-  "agent_completions_mcp_cost": 0.1,
-  "night_time_discount": 0.5,
-  "frenzy_mode_active": false
+  "usage_pricing": {
+    "swarm_completions_agent_cost": 0.01,
+    "swarm_completions_input_cost_per_1m": 6.5,
+    "swarm_completions_output_cost_per_1m": 18.5,
+    "agent_completions_input_cost_per_1m": 6.5,
+    "agent_completions_output_cost_per_1m": 18.5,
+    "agent_completions_img_cost": 0.25,
+    "agent_completions_mcp_cost": 0.1,
+    "search_cost": 0.04,
+    "scrape_cost": 0.15,
+    "night_time_discount": 0.5
+  },
+  "timestamp": "2026-03-29T18:30:00+00:00"
 }
 ```
 

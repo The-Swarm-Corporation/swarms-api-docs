@@ -5,7 +5,7 @@ description: "Wire one conversational Swarms agent into Gmail, Google Calendar, 
 
 ## What This Example Shows
 
-- Plugging three live MCP servers (Gmail, Google Calendar, Notion) into a single agent via the `mcp_url` array
+- Plugging three live MCP servers (Gmail, Google Calendar, Notion) into a single agent via `mcp_configs`
 - Carrying conversation history across a full day so the agent remembers what you talked about at 9am when you ping it again at 4pm
 - Sub-agent delegation: a main Chief of Staff that hands off to specialists (Inbox Triager, Meeting Prep, Notion Logger) when it's time to do real work
 - Structured outputs for clean calendar slots and Notion rows
@@ -112,7 +112,12 @@ MEETING_PREP = {
     ),
     "model_name": "gpt-4.1-mini",
     "max_loops": "auto",
-    "mcp_url": [GCAL_MCP_URL, GMAIL_MCP_URL],
+    "mcp_configs": {
+        "connections": [
+            {"url": GCAL_MCP_URL},
+            {"url": GMAIL_MCP_URL},
+        ]
+    },
 }
 
 NOTION_LOGGER = {
@@ -136,7 +141,7 @@ Sub-agents inherit `max_loops="auto"` so they can call MCP tools repeatedly unti
 
 ## Step 3: Wire Up the Main Chief of Staff Agent
 
-The main agent gets all three MCP servers attached *and* a roster of the three sub-agents under `agents`. It uses `claude-sonnet-4.5` because the orchestration model matters most — it's the one deciding when to delegate vs. just answer.
+The main agent gets all three MCP servers attached *and* a roster of the three sub-agents under `handoffs`. It uses `claude-sonnet-4.5` because the orchestration model matters most — it's the one deciding when to delegate vs. just answer.
 
 ```python
 def build_cos_config():
@@ -165,8 +170,14 @@ def build_cos_config():
         "max_loops": "auto",
         "max_tokens": 8192,
         "temperature": 0.2,
-        "mcp_url": [GMAIL_MCP_URL, GCAL_MCP_URL, NOTION_MCP_URL],
-        "agents": [INBOX_TRIAGER, MEETING_PREP, NOTION_LOGGER],
+        "mcp_configs": {
+            "connections": [
+                {"url": GMAIL_MCP_URL},
+                {"url": GCAL_MCP_URL},
+                {"url": NOTION_MCP_URL},
+            ]
+        },
+        "handoffs": [INBOX_TRIAGER, MEETING_PREP, NOTION_LOGGER],
     }
 
 

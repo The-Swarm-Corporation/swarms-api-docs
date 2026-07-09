@@ -8,7 +8,7 @@ description: 'Agents with web search capabilities for real-time information retr
 The Swarms API supports search-enabled agents that can access real-time web information using integrated search capabilities. This allows agents to provide up-to-date answers and research current topics.
 
 <Info>
-Enable web search by setting `"search_enabled": true` to access current information and real-time data.
+Enable web search by setting `"tools_enabled": ["auto_search"]` in your request to access current information and real-time data.
 </Info>
 
 ## Quick Start
@@ -37,7 +37,7 @@ Enable web search by setting `"search_enabled": true` to access current informat
             "temperature": 0.7
         },
         "task": "What are the latest developments in quantum computing?",
-        "search_enabled": True
+        "tools_enabled": ["auto_search"]
     }
 
     response = requests.post(
@@ -70,7 +70,7 @@ Enable web search by setting `"search_enabled": true` to access current informat
             temperature: 0.6
         },
         task: "What are the latest headlines about artificial intelligence regulations?",
-        search_enabled: true
+        tools_enabled: ["auto_search"]
     };
 
     fetch(`${BASE_URL}/v1/agent/completions`, {
@@ -98,7 +98,7 @@ Enable web search by setting `"search_enabled": true` to access current informat
           "temperature": 0.7
         },
         "task": "What are the latest developments in quantum computing?",
-        "search_enabled": true
+        "tools_enabled": ["auto_search"]
       }'
     ```
   </Tab>
@@ -106,7 +106,7 @@ Enable web search by setting `"search_enabled": true` to access current informat
 
 ## Search Integration
 
-When `search_enabled` is set to `true`, the agent can:
+When `tools_enabled` includes `"auto_search"`, the agent can:
 
 - Access real-time web information
 - Search for current news and developments
@@ -127,7 +127,7 @@ payload = {
         "max_tokens": 2048
     },
     "task": "Summarize the latest developments in climate change policy.",
-    "search_enabled": True
+    "tools_enabled": ["auto_search"]
 }
 ```
 
@@ -142,7 +142,7 @@ payload = {
         "max_tokens": 4096
     },
     "task": "What are the current market trends in electric vehicles?",
-    "search_enabled": True
+    "tools_enabled": ["auto_search"]
 }
 ```
 
@@ -157,7 +157,7 @@ payload = {
         "max_tokens": 4096
     },
     "task": "What are the latest advancements in machine learning algorithms?",
-    "search_enabled": True
+    "tools_enabled": ["auto_search"]
 }
 ```
 
@@ -172,7 +172,7 @@ payload = {
         "max_tokens": 2048
     },
     "task": "Compare the latest smartphones from different manufacturers.",
-    "search_enabled": True
+    "tools_enabled": ["auto_search"]
 }
 ```
 
@@ -189,7 +189,7 @@ payload = {
         "max_tokens": 2048
     },
     "task": "Verify the accuracy of recent claims about renewable energy adoption rates.",
-    "search_enabled": True
+    "tools_enabled": ["auto_search"]
 }
 ```
 
@@ -204,7 +204,7 @@ payload = {
         "max_tokens": 2048
     },
     "task": "What are the most recent developments in space exploration from the past week?",
-    "search_enabled": True
+    "tools_enabled": ["auto_search"]
 }
 ```
 
@@ -221,7 +221,7 @@ payload = {
         "max_tokens": 4096
     },
     "task": "Based on our previous discussion about AI, what are the latest regulatory developments?",
-    "search_enabled": True,
+    "tools_enabled": ["auto_search"],
     "history": {
         "previous_context": {
             "role": "user",
@@ -264,10 +264,6 @@ try:
         result = response.json()
         print("Search Results:", result['outputs'])
 
-        # Check if search was actually used
-        if 'search_results' in result:
-            print("Search sources:", result['search_results'])
-
     elif response.status_code == 429:
         print("Rate limit exceeded for search operations")
     else:
@@ -283,25 +279,29 @@ except Exception as e:
 
 ## Search Result Format
 
-Search-enabled agents typically return:
+Search-enabled agents return the standard `/v1/agent/completions` response shape. The agent's answer (with any web-sourced facts woven into the text) appears in `outputs`, and the search tool's cost is deducted from your credits and reflected in `total_cost`:
 
 ```json
 {
-  "outputs": "Comprehensive analysis based on current web data...",
-  "search_results": [
+  "job_id": "agent-09a9c0f9ba19419abf64f5538b4b7d59",
+  "success": true,
+  "name": "Research Assistant",
+  "outputs": [
     {
-      "title": "Latest AI Developments",
-      "url": "https://example.com/ai-news",
-      "snippet": "Recent breakthroughs in artificial intelligence...",
-      "date": "2024-01-15"
+      "role": "Research Assistant",
+      "content": "Comprehensive analysis based on current web data...",
+      "timestamp": "2026-02-05T00:58:15.121915",
+      "message_id": "85b70f9d-e281-4a98-b9ad-5a2d39f8ffcb"
     }
   ],
   "usage": {
     "input_tokens": 150,
     "output_tokens": 300,
-    "search_cost": 0.05,
-    "total_cost": 0.008
-  }
+    "total_tokens": 450,
+    "img_cost": 0.0,
+    "total_cost": 0.0088
+  },
+  "timestamp": "2026-02-05T00:58:15.252392+00:00"
 }
 ```
 

@@ -24,7 +24,7 @@ The HeavySwarm follows a structured 5-phase workflow:
 2. **Parallel Execution** — Four specialized agents (Research, Analysis, Alternatives, Verification) execute their questions simultaneously
 3. **Result Collection** — Outputs are validated and collected from all agents
 4. **Synthesis** — A fifth Synthesis agent integrates all results into a comprehensive report
-5. **Iterative Refinement** — When `heavy_swarm_loops_per_agent` > 1, the process repeats with context from previous iterations
+5. **Iterative Refinement** — When `heavy_swarm_max_loops` > 1, the process repeats with context from previous iterations
 
 ### Specialized Agents
 
@@ -42,9 +42,10 @@ Since HeavySwarm manages its own agents, it uses dedicated parameters at the swa
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `heavy_swarm_loops_per_agent` | `integer` | `1` | Number of execution loops per agent. Higher values enable iterative refinement for deeper analysis. |
+| `heavy_swarm_max_loops` | `integer` | `1` | Number of execution loops per agent. Higher values enable iterative refinement for deeper analysis. |
 | `heavy_swarm_question_agent_model_name` | `string` | `"gpt-4.1"` | Model used for the question generation phase. This agent decomposes the task into specialized questions. |
 | `heavy_swarm_worker_model_name` | `string` | `"claude-sonnet-4-20250514"` | Model used for all five specialized worker agents (Research, Analysis, Alternatives, Verification, Synthesis). |
+| `heavy_swarm_variant` | `string` | `"default"` | Which agent variant to run. One of `"default"`, `"medium"`, or `"heavy"`. |
 
 ## Use Cases
 
@@ -71,7 +72,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
     "swarm_type": "HeavySwarm",
     "task": "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
     "agents": [],
-    "heavy_swarm_loops_per_agent": 1,
+    "heavy_swarm_max_loops": 1,
     "heavy_swarm_question_agent_model_name": "gpt-4.1",
     "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
     "max_loops": 1
@@ -98,7 +99,7 @@ swarm_config = {
     "swarm_type": "HeavySwarm",
     "task": "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
     "agents": [],
-    "heavy_swarm_loops_per_agent": 1,
+    "heavy_swarm_max_loops": 1,
     "heavy_swarm_question_agent_model_name": "gpt-4.1",
     "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
     "max_loops": 1
@@ -134,7 +135,7 @@ const swarmConfig = {
     swarm_type: "HeavySwarm",
     task: "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
     agents: [],
-    heavy_swarm_loops_per_agent: 1,
+    heavy_swarm_max_loops: 1,
     heavy_swarm_question_agent_model_name: "gpt-4.1",
     heavy_swarm_worker_model_name: "claude-sonnet-4-20250514",
     max_loops: 1
@@ -174,7 +175,7 @@ type SwarmConfig struct {
     SwarmType                     string        `json:"swarm_type"`
     Task                          string        `json:"task"`
     Agents                        []interface{} `json:"agents"`
-    HeavySwarmLoopsPerAgent       int           `json:"heavy_swarm_loops_per_agent"`
+    HeavySwarmMaxLoops            int           `json:"heavy_swarm_max_loops"`
     HeavySwarmQuestionAgentModel  string        `json:"heavy_swarm_question_agent_model_name"`
     HeavySwarmWorkerModel         string        `json:"heavy_swarm_worker_model_name"`
     MaxLoops                      int           `json:"max_loops"`
@@ -190,7 +191,7 @@ func main() {
         SwarmType:                     "HeavySwarm",
         Task:                          "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
         Agents:                        []interface{}{},
-        HeavySwarmLoopsPerAgent:       1,
+        HeavySwarmMaxLoops:            1,
         HeavySwarmQuestionAgentModel:  "gpt-4.1",
         HeavySwarmWorkerModel:         "claude-sonnet-4-20250514",
         MaxLoops:                      1,
@@ -233,7 +234,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "swarm_type": "HeavySwarm",
         "task": "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
         "agents": [],
-        "heavy_swarm_loops_per_agent": 1,
+        "heavy_swarm_max_loops": 1,
         "heavy_swarm_question_agent_model_name": "gpt-4.1",
         "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
         "max_loops": 1
@@ -278,7 +279,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
     "swarm_type": "HeavySwarm",
     "task": "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
     "agents": [],
-    "heavy_swarm_loops_per_agent": 3,
+    "heavy_swarm_max_loops": 3,
     "heavy_swarm_question_agent_model_name": "gpt-4.1",
     "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
     "max_loops": 2
@@ -305,7 +306,7 @@ swarm_config = {
     "swarm_type": "HeavySwarm",
     "task": "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
     "agents": [],
-    "heavy_swarm_loops_per_agent": 3,
+    "heavy_swarm_max_loops": 3,
     "heavy_swarm_question_agent_model_name": "gpt-4.1",
     "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
     "max_loops": 2
@@ -341,7 +342,7 @@ const swarmConfig = {
     swarm_type: "HeavySwarm",
     task: "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
     agents: [],
-    heavy_swarm_loops_per_agent: 3,
+    heavy_swarm_max_loops: 3,
     heavy_swarm_question_agent_model_name: "gpt-4.1",
     heavy_swarm_worker_model_name: "claude-sonnet-4-20250514",
     max_loops: 2
@@ -381,7 +382,7 @@ type SwarmConfig struct {
     SwarmType                     string        `json:"swarm_type"`
     Task                          string        `json:"task"`
     Agents                        []interface{} `json:"agents"`
-    HeavySwarmLoopsPerAgent       int           `json:"heavy_swarm_loops_per_agent"`
+    HeavySwarmMaxLoops            int           `json:"heavy_swarm_max_loops"`
     HeavySwarmQuestionAgentModel  string        `json:"heavy_swarm_question_agent_model_name"`
     HeavySwarmWorkerModel         string        `json:"heavy_swarm_worker_model_name"`
     MaxLoops                      int           `json:"max_loops"`
@@ -397,7 +398,7 @@ func main() {
         SwarmType:                     "HeavySwarm",
         Task:                          "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
         Agents:                        []interface{}{},
-        HeavySwarmLoopsPerAgent:       3,
+        HeavySwarmMaxLoops:            3,
         HeavySwarmQuestionAgentModel:  "gpt-4.1",
         HeavySwarmWorkerModel:         "claude-sonnet-4-20250514",
         MaxLoops:                      2,
@@ -440,7 +441,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "swarm_type": "HeavySwarm",
         "task": "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
         "agents": [],
-        "heavy_swarm_loops_per_agent": 3,
+        "heavy_swarm_max_loops": 3,
         "heavy_swarm_question_agent_model_name": "gpt-4.1",
         "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
         "max_loops": 2
@@ -509,7 +510,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     ],
     "number_of_agents": 5,
-    "service_tier": "standard",
     "execution_time": 62.4,
     "usage": {
         "input_tokens": 85,
@@ -526,7 +526,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 5485
                 },
                 "num_agents": 5,
-                "service_tier": "standard",
                 "night_time_discount_applied": false
             },
             "total_cost": 0.161255,
@@ -541,7 +540,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 ## Best Practices
 
 - Use HeavySwarm for complex tasks that benefit from multi-perspective analysis rather than simple queries
-- Start with `heavy_swarm_loops_per_agent: 1` and increase only when deeper iterative analysis is needed
+- Start with `heavy_swarm_max_loops: 1` and increase only when deeper iterative analysis is needed
 - Choose the question agent model carefully — it determines the quality of task decomposition which drives the entire workflow
 - Use a capable worker model (e.g., `claude-sonnet-4-20250514`) for the specialized agents to get high-quality research, analysis, and verification
 - HeavySwarm requires an empty `agents` array (`"agents": []`) in the request — all five agents are created and managed internally

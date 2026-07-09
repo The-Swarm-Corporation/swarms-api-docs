@@ -15,7 +15,7 @@ LangGraph lets you define multi-agent workflows as a compiled `StateGraph` where
 | State dict (`TypedDict`) | Outputs from each agent automatically forwarded downstream |
 | `graph.compile()` | Not needed — configuration is declarative JSON |
 | `graph.invoke({"messages": [...]})` | `"task": "..."` top-level field in the request body |
-| `ToolNode` / `bind_tools` | `"tools": ["browser", "code_interpreter"]` on agent |
+| `ToolNode` / `bind_tools` | `"tools_enabled": ["auto_search", "web_scraper"]` on the request, or `tools_list_dictionary` on the agent for custom function schemas |
 
 ---
 
@@ -263,13 +263,15 @@ result = requests.post(
     "https://api.swarms.world/v1/agent/completions",
     headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
     json={
-        "agent_name": "news_researcher",
-        "system_prompt": "You are a research assistant. Search for and summarize the latest AI news.",
         "task": "What are the latest AI news?",
-        "model_name": "gpt-4.1",
-        "tools": ["browser"],
-        "max_loops": 1,
-        "temperature": 0.3,
+        "tools_enabled": ["auto_search"],
+        "agent_config": {
+            "agent_name": "news_researcher",
+            "system_prompt": "You are a research assistant. Search for and summarize the latest AI news.",
+            "model_name": "gpt-4.1",
+            "max_loops": 1,
+            "temperature": 0.3,
+        },
     },
     timeout=60,
 ).json()
@@ -316,7 +318,7 @@ graph.add_conditional_edges("classifier", route, {
 
 ```python
 result = requests.post(
-    "https://api.swarms.world/v1/swarms/completions",
+    "https://api.swarms.world/v1/swarm/completions",
     headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
     json={
         "name": "Smart Router",
@@ -389,7 +391,7 @@ def writer(state: State) -> State:
 |---|---|---|
 | Graph compilation | Required (`graph.compile()`) | Not needed — JSON is declarative |
 | State persistence | Explicit `TypedDict` with reducers | Outputs automatically forwarded via edges |
-| Streaming | `astream_events()` | Dedicated `/stream` endpoint |
+| Streaming | `astream_events()` | Set `"streaming_on": true` on the agent config (SSE response from the same endpoint) |
 | Human-in-the-loop | `interrupt_before` / `interrupt_after` | Not currently supported |
 | Memory / checkpointing | `MemorySaver`, `SqliteSaver` | Stateless per-request; use external DB for cross-request memory |
 | Local dev | `langgraph dev` server | No local setup; call the REST API directly |

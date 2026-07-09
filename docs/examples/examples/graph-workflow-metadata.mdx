@@ -8,7 +8,7 @@ description: "Attach severity, priority, and routing metadata to graph edges in 
 - A real production use case: a content moderation graph where edges carry severity and priority tags
 - The shape of edge `metadata` in the Graph Workflow request payload
 - How to encode severity (`low`/`medium`/`high`/`critical`), routing target, and audit labels at the edge level
-- How the metadata flows through the response so downstream systems can read it
+- Why the API doesn't echo metadata back in the response, and how to correlate it client-side so downstream systems can still read it
 - Concrete ops patterns — log filters, SLO grouping, audit queries — that the metadata enables
 
 <Warning>
@@ -17,7 +17,7 @@ The Graph Workflow endpoint (`POST /v1/graph-workflow/completions`) is a premium
 
 ## Why This Matters
 
-Content moderation is a routing problem masquerading as a classification problem. A post comes in, a classifier labels it, and the label has to get to the right place — `critical` to on-call humans inside an SLA, `medium` to a review queue, `low` to passive logging — each with different retry policies, audit requirements, and downstream tooling. When this routing logic lives inside agent prompts, it's invisible to ops; when it lives in glue code, it's not auditable. Edge metadata moves the routing semantics to where they belong: the edges of the DAG. Once ops can read `severity: "critical"` straight off the edge, dashboards group correctly, audit queries become one-liners, and the agents stay focused on the classification job. This tutorial shows the pattern in a content moderation DAG and then shows how downstream systems consume the metadata that comes back in the response.
+Content moderation is a routing problem masquerading as a classification problem. A post comes in, a classifier labels it, and the label has to get to the right place — `critical` to on-call humans inside an SLA, `medium` to a review queue, `low` to passive logging — each with different retry policies, audit requirements, and downstream tooling. When this routing logic lives inside agent prompts, it's invisible to ops; when it lives in glue code, it's not auditable. Edge metadata moves the routing semantics to where they belong: the edges of the DAG. Once ops can read `severity: "critical"` straight off the edge, dashboards group correctly, audit queries become one-liners, and the agents stay focused on the classification job. This tutorial shows the pattern in a content moderation DAG and then shows how downstream systems consume that metadata by correlating it, client-side, against the response.
 
 ## Step 1: Setup
 
@@ -221,7 +221,7 @@ result = response.json()
 
 ## Step 6: How the Metadata Flows Through the Response
 
-Edge metadata is preserved with the compiled graph, surfaced in the workflow's audit log, and made available to downstream systems in two places: the per-agent outputs (so a downstream consumer can correlate a result back to the edge that fed it) and the usage telemetry (so cost can be attributed to the edge's `cost_center`).
+The `/v1/graph-workflow/completions` response (`outputs` keyed by `agent_name`, plus a flat `usage` object) does not echo edge metadata back to you — the API only returns per-node outputs and aggregate token usage, not a per-edge breakdown. The correlation has to happen client-side: since you already have the `edges` list you submitted, build a local index from it and join that against the `outputs` you get back.
 
 A downstream system reading the response typically does this:
 
@@ -251,14 +251,17 @@ for downstream in ["HumanEscalation", "ReviewQueueRouter", "PassiveLogger"]:
     }
     print(json.dumps(record, indent=2))
 
-# 2. Attribute cost back to the edge's cost_center
+# 2. The `usage` object is a workflow-level total, not broken down per edge
+#    or per cost_center — if you need per-cost-center attribution, divide it
+#    up yourself (e.g. proportionally by node) using the cost_center tags in
+#    your local edge_index.
 usage = result.get("usage", {})
 print(f"\nTotal token cost: ${usage.get('token_cost', 0):.4f}")
 print(f"Cost per agent: ${usage.get('cost_per_agent', 0):.4f}")
 ```
 
 <Info>
-The edge metadata you submitted is the same metadata your downstream code keys on. The platform doesn't transform it — what you put in is what you get back to correlate against. Treat the metadata block as a forward contract between the graph and your moderation infrastructure.
+The API doesn't return edge metadata in the response — you correlate against the same `edges` list you already built and submitted (as `edge_index` does above). Treat the metadata block as a forward contract between your request payload and your moderation infrastructure, not as something the platform hands back to you.
 </Info>
 
 ## Step 7: Critical-Severity Escalation — Read the Tagged Output

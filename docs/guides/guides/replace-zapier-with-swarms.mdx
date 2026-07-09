@@ -8,7 +8,7 @@ description: "Stop paying per-task fees and patching brittle if/then graphs — 
 
 - The strategic case for retiring no-code automation graphs in favor of one agent call with reasoning
 - Three universal migrations: Slack triage, inbound-email extraction to CRM, and lead enrichment for outreach
-- The exact `/v1/agent/completions` request shape: `agent_config`, `tools_list_dictionary`, `mcp_url`, and `output_type`
+- The exact `/v1/agent/completions` request shape: `agent_config`, `tools_list_dictionary`, and `mcp_url`
 - Side-by-side Zap-graph "before" descriptions vs. ~50 lines of "after" Python
 - A concrete cost comparison: Zapier Professional at \$73/mo for 2K tasks vs. ~\$50 for 10K agent calls
 - When you should *not* migrate — the linear flows Zapier still wins on
@@ -186,11 +186,10 @@ payload = {
         "system_prompt": (
             "You parse inbound sales emails into a structured CRM record. "
             "Use ONLY information present in the email — never invent fields. "
-            "If a field is unknown, omit it. Output must conform to the schema."
+            "If a field is unknown, omit it. Respond with ONLY a raw JSON object "
+            f"conforming to this schema, no prose, no markdown fences: {json.dumps(crm_schema)}"
         ),
         "model_name": "gpt-4.1-mini",
-        "output_type": "json",
-        "structured_output_schema": crm_schema,
         "max_tokens": 1024,
         "temperature": 0.0,
     },
@@ -266,7 +265,6 @@ payload = {
         ),
         "model_name": "gemini-2.5-pro",
         "mcp_url": "https://mcp.example.com/web-search",
-        "output_type": "json",
         "max_tokens": 2048,
         "temperature": 0.5,
     },

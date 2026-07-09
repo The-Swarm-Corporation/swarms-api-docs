@@ -164,7 +164,7 @@ results = run_overnight_batch(batch_payload)
 ```
 
 <Info>
-The endpoint returns one entry per swarm in the same order as the request, each with its own `job_id`, `status`, `usage`, and `output`. Persist the array to disk before you start parsing — partial network failures are easier to recover from when you have the raw response saved.
+The endpoint returns one entry per swarm in the same order as the request, each with its own `status`, `swarm_name`, `usage`, and `result` (there is no `job_id` on batch entries — that only appears on the single-swarm `/v1/swarm/completions` response). Persist the array to disk before you start parsing — partial network failures are easier to recover from when you have the raw response saved.
 </Info>
 
 ## Step 5: Persist Per-Memo Files
@@ -184,7 +184,7 @@ def persist_results(results: list[dict], watchlist: list[tuple[str, str]]) -> Pa
         total_cost += float(cost or 0.0)
 
         memo_path = out_dir / f"{ticker}_{name.replace(' ', '_')}.md"
-        output = swarm_result.get("output") or swarm_result.get("outputs") or {}
+        output = swarm_result.get("result") or {}
         memo_path.write_text(
             f"# {name} ({ticker})\n\n"
             f"Status: {status}\n\n"

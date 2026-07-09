@@ -1,31 +1,27 @@
 ---
 title: 'Usage Report'
-description: 'API reference for the GET /v1/usage/report endpoint — retrieve daily usage breakdowns including token counts, request counts, and costs.'
+description: 'API reference for the GET /v1/usage/costs endpoint — retrieve the current per-operation pricing used to calculate your usage costs.'
 ---
 
 
-The Usage Report endpoint returns a daily breakdown of your API usage for a given time period. It aggregates data from request history, giving you visibility into token consumption, request volume, and costs.
+<Info>
+There is no dedicated endpoint that returns a historical, day-by-day breakdown of your spend. The Swarms API exposes the **current pricing model** via `/v1/usage/costs`, plus a handful of related endpoints for checking your balance and activity — see [Related Endpoints](#related-endpoints) below.
+</Info>
+
+The Usage endpoint returns the unified pricing model the API uses to calculate costs for every operation (token costs, agent costs, search/scrape costs, and the night-time discount). Use it to compute expected costs before you run a request, or to keep your own cost estimates in sync with the live pricing.
 
 ## Endpoint Information
 
-- **URL**: `/v1/usage/report`
+- **URL**: `/v1/usage/costs`
 - **Method**: `GET`
-- **Authentication**: Required (`x-api-key` header or `Authorization: Bearer <key>`)
+- **Authentication**: Required (`x-api-key` header)
 - **Rate Limiting**: Subject to tier-based rate limits
 
 ---
 
 ## Query Parameters
 
-| Parameter | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `period` | `string` | No | `month` | Predefined time window: `day` (last 24 hours), `week` (last 7 days), or `month` (last 30 days) |
-| `start_date` | `string` | No | — | Custom range start in `YYYY-MM-DD` format. When both `start_date` and `end_date` are provided, they override `period` |
-| `end_date` | `string` | No | — | Custom range end in `YYYY-MM-DD` format. Required when `start_date` is set |
-
-<Info>
-Custom date ranges take precedence over the `period` parameter. If you pass both `start_date`/`end_date` and `period`, the custom range is used.
-</Info>
+None. This endpoint always returns the current pricing model in effect.
 
 ---
 
@@ -48,30 +44,12 @@ Custom date ranges take precedence over the `period` parameter. If you pass both
         "Content-Type": "application/json",
     }
 
-    # Predefined period
-    response = requests.get(
-        f"{BASE_URL}/v1/usage/report",
-        headers=headers,
-        params={"period": "week"},
-    )
+    response = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers)
     data = response.json()
 
-    print(f"Period: {data['period']} ({data['start_date']} to {data['end_date']})")
-    for day in data["results"]:
-        print(
-            f"  {day['day']}: "
-            f"cost=${day['total_cost']:.4f}, "
-            f"in={day['input_tokens']:,}, "
-            f"out={day['output_tokens']:,}, "
-            f"reqs={day['request_count']}"
-        )
-
-    # Custom date range
-    response = requests.get(
-        f"{BASE_URL}/v1/usage/report",
-        headers=headers,
-        params={"start_date": "2026-03-01", "end_date": "2026-03-31"},
-    )
+    pricing = data["usage_pricing"]
+    print(f"Agent completions input cost: ${pricing['agent_completions_input_cost_per_1m']} / 1M tokens")
+    print(f"Agent completions output cost: ${pricing['agent_completions_output_cost_per_1m']} / 1M tokens")
     ```
   </Tab>
   <Tab title="TypeScript">
@@ -85,180 +63,25 @@ Custom date ranges take precedence over the `period` parameter. If you pass both
       throw new Error("SWARMS_API_KEY is not set");
     }
 
-    interface UsageReportDay {
-      day: string;
-      total_cost: number;
-      input_tokens: number;
-      output_tokens: number;
-      request_count: number;
-    }
-
-    interface UsageReportOutput {
-      results: UsageReportDay[];
-      period: string;
-      start_date: string;
-      end_date: string;
-      timestamp: string;
-    }
-
-    const res = await fetch(
-      `${BASE_URL}/v1/usage/report?period=week`,
-      {
-        method: "GET",
-        headers: {
-          "x-api-key": API_KEY,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const res = await fetch(`${BASE_URL}/v1/usage/costs`, {
+      method: "GET",
+      headers: {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+      },
+    });
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     }
 
-    const data = (await res.json()) as UsageReportOutput;
-
-    console.log(`Period: ${data.period} (${data.start_date} to ${data.end_date})`);
-    for (const day of data.results) {
-      console.log(
-        `  ${day.day}: ` +
-        `cost=$${day.total_cost.toFixed(4)}, ` +
-        `in=${day.input_tokens.toLocaleString()}, ` +
-        `out=${day.output_tokens.toLocaleString()}, ` +
-        `reqs=${day.request_count}`
-      );
-    }
-    ```
-  </Tab>
-  <Tab title="Rust">
-    ```rust
-    use std::env;
-    use reqwest::blocking::Client;
-    use serde::Deserialize;
-
-    #[derive(Debug, Deserialize)]
-    struct UsageReportDay {
-        day: String,
-        total_cost: f64,
-        input_tokens: u64,
-        output_tokens: u64,
-        request_count: u64,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct UsageReportOutput {
-        results: Vec<UsageReportDay>,
-        period: String,
-        start_date: String,
-        end_date: String,
-        timestamp: String,
-    }
-
-    fn main() -> Result<(), Box<dyn std::error::Error>> {
-        let api_key = env::var("SWARMS_API_KEY")
-            .expect("SWARMS_API_KEY environment variable is required");
-
-        let client = Client::new();
-
-        let response = client
-            .get("https://api.swarms.world/v1/usage/report?period=week")
-            .header("x-api-key", &api_key)
-            .header("Content-Type", "application/json")
-            .send()?;
-
-        let data: UsageReportOutput = response.json()?;
-
-        println!(
-            "Period: {} ({} to {})",
-            data.period, data.start_date, data.end_date,
-        );
-        for day in &data.results {
-            println!(
-                "  {}: cost=${:.4}, in={}, out={}, reqs={}",
-                day.day, day.total_cost, day.input_tokens,
-                day.output_tokens, day.request_count,
-            );
-        }
-
-        Ok(())
-    }
-    ```
-  </Tab>
-  <Tab title="Go">
-    ```go
-    package main
-
-    import (
-        "encoding/json"
-        "fmt"
-        "log"
-        "net/http"
-        "os"
-    )
-
-    type UsageReportDay struct {
-        Day          string  `json:"day"`
-        TotalCost    float64 `json:"total_cost"`
-        InputTokens  int     `json:"input_tokens"`
-        OutputTokens int     `json:"output_tokens"`
-        RequestCount int     `json:"request_count"`
-    }
-
-    type UsageReportOutput struct {
-        Results   []UsageReportDay `json:"results"`
-        Period    string           `json:"period"`
-        StartDate string           `json:"start_date"`
-        EndDate   string           `json:"end_date"`
-        Timestamp string           `json:"timestamp"`
-    }
-
-    func main() {
-        apiKey := os.Getenv("SWARMS_API_KEY")
-        if apiKey == "" {
-            log.Fatal("SWARMS_API_KEY environment variable is required")
-        }
-
-        req, err := http.NewRequest("GET", "https://api.swarms.world/v1/usage/report?period=week", nil)
-        if err != nil {
-            log.Fatal(err)
-        }
-
-        req.Header.Set("x-api-key", apiKey)
-        req.Header.Set("Content-Type", "application/json")
-
-        resp, err := http.DefaultClient.Do(req)
-        if err != nil {
-            log.Fatal(err)
-        }
-        defer resp.Body.Close()
-
-        var data UsageReportOutput
-        if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-            log.Fatal(err)
-        }
-
-        fmt.Printf("Period: %s (%s to %s)\n", data.Period, data.StartDate, data.EndDate)
-        for _, day := range data.Results {
-            fmt.Printf("  %s: cost=$%.4f, in=%d, out=%d, reqs=%d\n",
-                day.Day, day.TotalCost, day.InputTokens,
-                day.OutputTokens, day.RequestCount,
-            )
-        }
-    }
+    const data = await res.json();
+    console.log(data.usage_pricing);
     ```
   </Tab>
   <Tab title="cURL">
     ```bash
-    # Default period (month)
-    curl -X GET "https://api.swarms.world/v1/usage/report" \
-      -H "x-api-key: $SWARMS_API_KEY"
-
-    # Last 7 days
-    curl -X GET "https://api.swarms.world/v1/usage/report?period=week" \
-      -H "x-api-key: $SWARMS_API_KEY"
-
-    # Custom date range
-    curl -X GET "https://api.swarms.world/v1/usage/report?start_date=2026-03-01&end_date=2026-03-31" \
+    curl -X GET "https://api.swarms.world/v1/usage/costs" \
       -H "x-api-key: $SWARMS_API_KEY"
     ```
   </Tab>
@@ -268,49 +91,44 @@ Custom date ranges take precedence over the `period` parameter. If you pass both
 
 ## Response Schema
 
-### UsageReportOutput Object
+### PricingDetailsOutput Object
 
 | Field | Type | Description |
 |---|---|---|
-| `results` | `List[UsageReportDay]` | Daily usage breakdown, sorted ascending by date |
-| `period` | `string` | The period that was applied: `day`, `week`, `month`, or `custom` |
-| `start_date` | `string` | Start date of the report (`YYYY-MM-DD`) |
-| `end_date` | `string` | End date of the report (`YYYY-MM-DD`) |
-| `timestamp` | `string` | ISO timestamp when the report was generated |
+| `usage_pricing` | `object` | All per-operation costs — token costs, agent costs, search/scrape costs, night-time discount |
+| `timestamp` | `string` | ISO timestamp when the pricing information was retrieved |
 
-### UsageReportDay Object
+### usage_pricing Object
 
 | Field | Type | Description |
 |---|---|---|
-| `day` | `string` | Date in `YYYY-MM-DD` format |
-| `total_cost` | `number` | Total cost in USD for this day |
-| `input_tokens` | `integer` | Total input tokens consumed |
-| `output_tokens` | `integer` | Total output tokens consumed |
-| `request_count` | `integer` | Total number of API requests |
+| `swarm_completions_agent_cost` | `number` | Cost per agent in swarm completions (USD) |
+| `swarm_completions_input_cost_per_1m` | `number` | Cost per 1M input tokens for swarm completions (USD) |
+| `swarm_completions_output_cost_per_1m` | `number` | Cost per 1M output tokens for swarm completions (USD) |
+| `agent_completions_input_cost_per_1m` | `number` | Cost per 1M input tokens for agent completions (USD) |
+| `agent_completions_output_cost_per_1m` | `number` | Cost per 1M output tokens for agent completions (USD) |
+| `agent_completions_img_cost` | `number` | Cost per image for agent completions (USD) |
+| `agent_completions_mcp_cost` | `number` | Cost per MCP call for agent completions (USD) |
+| `search_cost` | `number` | Cost per search operation (USD) |
+| `scrape_cost` | `number` | Cost per scrape operation (USD) |
+| `night_time_discount` | `number` | Discount multiplier applied to swarm completion token costs, 8 PM - 6 AM PT (0.5 = 50% off) |
 
 ### Example Response
 
 ```json
 {
-  "results": [
-    {
-      "day": "2026-03-28",
-      "total_cost": 1.234567,
-      "input_tokens": 42000,
-      "output_tokens": 9800,
-      "request_count": 15
-    },
-    {
-      "day": "2026-03-29",
-      "total_cost": 0.856234,
-      "input_tokens": 28000,
-      "output_tokens": 6200,
-      "request_count": 8
-    }
-  ],
-  "period": "week",
-  "start_date": "2026-03-23",
-  "end_date": "2026-03-29",
+  "usage_pricing": {
+    "swarm_completions_agent_cost": 0.01,
+    "swarm_completions_input_cost_per_1m": 6.5,
+    "swarm_completions_output_cost_per_1m": 18.5,
+    "agent_completions_input_cost_per_1m": 6.5,
+    "agent_completions_output_cost_per_1m": 18.5,
+    "agent_completions_img_cost": 0.25,
+    "agent_completions_mcp_cost": 0.1,
+    "search_cost": 0.04,
+    "scrape_cost": 0.15,
+    "night_time_discount": 0.5
+  },
   "timestamp": "2026-03-29T18:30:00+00:00"
 }
 ```
@@ -321,18 +139,22 @@ Custom date ranges take precedence over the `period` parameter. If you pass both
 
 | HTTP Status | Cause |
 |---|---|
-| 400 | `start_date` is after `end_date` |
 | 401 | Missing or invalid API key |
 | 429 | Rate limit exceeded |
-| 500 | Internal error generating the report |
+| 500 | Internal error retrieving pricing information |
 
 ---
 
-## How Data is Aggregated
+## Related Endpoints
 
-The endpoint reads from API request logs and groups entries by calendar day (UTC). For each completion log, the response `usage` object contributes `input_tokens`, `output_tokens`, and `total_cost` to that day's totals. Every logged request increments the daily `request_count`.
+For actual usage and spend tracking (rather than the pricing model itself), use:
 
-Days with zero activity are omitted from the results.
+| Need | Endpoint | Returns |
+|---|---|---|
+| Current credit balance | `GET /v1/account/credits` | `credit`, `free_credit`, `referral_credits`, `total_credits` |
+| Lifetime/recent completion counts | `GET /v1/metrics/summary` | Unique agents used, lifetime and successful completion counts, completions in the last 24h/7d |
+| Raw request history | `GET /v1/swarm/logs` | All logged API requests for your account, which you can aggregate client-side into a custom report |
+| Current rate limit usage | `GET /v1/rate/limits` | Requests used/remaining per minute, hour, and day |
 
 ---
 

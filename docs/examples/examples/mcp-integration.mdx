@@ -165,16 +165,16 @@ payload = {
         "system_prompt": "You have access to multiple MCP servers for comprehensive analysis.",
         "model_name": "gpt-4.1",
         "max_tokens": 8192,
-        "mcp_configs": [
-            {
-                "url": "http://localhost:8001/sse",
-                "name": "customer_db"
-            },
-            {
-                "url": "http://localhost:8002/sse",
-                "name": "market_data"
-            }
-        ]
+        "mcp_configs": {
+            "connections": [
+                {
+                    "url": "http://localhost:8001/sse"
+                },
+                {
+                    "url": "http://localhost:8002/sse"
+                }
+            ]
+        }
     },
     "task": "Combine customer data with market trends to provide business insights."
 }
@@ -193,10 +193,8 @@ payload = {
         "mcp_config": {
             "url": "http://localhost:8001/sse",
             "timeout": 30,
-            "retry_attempts": 3,
-            "headers": {
-                "Authorization": "Bearer your-token"
-            }
+            "authorization_token": "your-token",
+            "transport": "streamable_http"
         }
     },
     "task": "Perform complex data analysis using the MCP server tools."

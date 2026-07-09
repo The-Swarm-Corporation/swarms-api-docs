@@ -169,18 +169,14 @@ for stage_num, stage_agents in enumerate(stages, 1):
             print(f"\n[{agent_name}]")
             print(str(output)[:300] + "...\n")
 
-# Display cost and timing info
+# Display cost info (the graph-workflow endpoint returns a flat `usage`
+# object with `token_cost`, not the nested `billing_info` shape used by
+# /v1/swarm/completions)
 usage = result.get('usage', {})
-if 'billing_info' in usage:
-    print(f"\nTotal cost: ${usage['billing_info']['total_cost']:.4f}")
-elif 'total_cost' in usage:
-    print(f"\nTotal cost: ${usage['total_cost']:.4f}")
+if 'token_cost' in usage:
+    print(f"\nTotal cost: ${usage['token_cost']:.4f}")
 else:
     print(f"\nTotal cost: Not available")
-
-execution_time = result.get('execution_time')
-if execution_time:
-    print(f"Execution time: {execution_time}s")
 ```
 
 **Expected Output:**
@@ -270,7 +266,6 @@ H2: The Road Ahead: AI Healthcare in 2030
 - Link to "AI Ethics" resource page...
 
 Total cost: $0.1456
-Execution time: 78.3s
 ```
 
 <Note>

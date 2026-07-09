@@ -94,15 +94,22 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     # Get reasoning agent types
     curl -X GET "https://api.swarms.world/v1/reasoning-agent/types" \
       -H "x-api-key: your-api-key" \
-      -H "Content-Type": "application/json"
+      -H "Content-Type: application/json"
 
     # Example response:
     # {
-    #   "reasoning-agent": "Basic reasoning agent",
-    #   "reasoning-duo": "Two-agent reasoning system",
-    #   "self-consistency": "Multiple samples for consistency",
-    #   "ire": "Iterative refinement",
-    #   "consistency-agent": "Consistency-focused agent"
+    #   "status": "success",
+    #   "agent_types": [
+    #     "reasoning-duo",
+    #     "self-consistency",
+    #     "ire",
+    #     "reasoning-agent",
+    #     "consistency-agent",
+    #     "ire-agent",
+    #     "ReflexionAgent",
+    #     "GKPAgent",
+    #     "AgentJudge"
+    #   ]
     # }
     ```
   </Tab>
@@ -110,13 +117,18 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
 
 ## Reasoning Agent Type Comparison
 
+The `/v1/reasoning-agent/types` endpoint currently returns 9 reasoning agent types:
+
 | Type | Description | Best For | Samples | Quality Focus |
 |------|-------------|----------|---------|---------------|
 | **reasoning-agent** | Basic reasoning with structured thinking | Simple reasoning tasks | 1 | Balanced |
 | **reasoning-duo** | Two agents with different approaches | Comparative analysis | 2 | Diversity |
 | **self-consistency** | Multiple samples for consistency checking | High-stakes decisions | 3-5 | Consistency |
-| **ire** | Iterative refinement through multiple passes | Complex problem-solving | Variable | Accuracy |
+| **ire** / **ire-agent** | Iterative refinement through multiple passes | Complex problem-solving | Variable | Accuracy |
 | **consistency-agent** | Focus on logical consistency | Mathematical/logical problems | 3 | Logical rigor |
+| **ReflexionAgent** | Self-critiques and revises its own output across iterations | Tasks that benefit from self-correction | Variable | Self-improvement |
+| **GKPAgent** | Generated Knowledge Prompting — generates supporting knowledge before answering | Knowledge-intensive tasks | Variable | Grounding |
+| **AgentJudge** | Evaluates and scores candidate outputs | Output evaluation / grading | Variable | Evaluation |
 
 ## Usage Examples
 

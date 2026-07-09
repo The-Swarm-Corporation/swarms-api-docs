@@ -285,28 +285,50 @@ Each item in the batch is a full `SwarmSpec` (the same structure used for `/v1/s
 
 ## Interpreting the Response
 
-The endpoint returns an array of swarm completion results, one per item in the batch:
+The endpoint returns an array of results, one per item in the batch, in the same order as the request. Each entry is leaner than the single-swarm `/v1/swarm/completions` response — there is no `job_id`, `swarm_type`, or `execution_time` field, and the swarm's output is under `result`, not `output`:
 
 ```json
 [
   {
-    "job_id": "batch-job-1",
-    "status": "completed",
+    "status": "success",
     "swarm_name": "Market Analysis Swarm",
-    "description": "Sequential research swarm for market analysis",
-    "swarm_type": "SequentialWorkflow",
-    "output": { "summary": "..." },
-    "number_of_agents": 1,
-    "execution_time": 12.3,
+    "result": { "summary": "..." },
     "usage": {
       "input_tokens": 8500,
       "output_tokens": 3200,
       "total_tokens": 11700,
-      "token_cost": 0.0123
+      "billing_info": {
+        "cost_breakdown": {
+          "agent_cost": 0.01,
+          "input_token_cost": 0.055,
+          "output_token_cost": 0.0592,
+          "token_counts": {
+            "total_input_tokens": 8500,
+            "total_output_tokens": 3200,
+            "total_tokens": 11700
+          },
+          "num_agents": 1,
+          "night_time_discount_applied": false
+        },
+        "total_cost": 0.1242,
+        "discount_active": false,
+        "discount_type": "none",
+        "discount_percentage": 0
+      }
     }
   }
 ]
 ```
 
-Use the `job_id` and `usage` fields for **auditing**, **cost tracking**, and **monitoring** across your batch workloads.
+If a swarm in the batch fails, its entry has `"status": "error"` and a `detail` message instead of `result`/`usage`:
+
+```json
+{
+  "status": "error",
+  "swarm_name": "Technical Review Swarm",
+  "detail": "Failed to run swarm: ..."
+}
+```
+
+Use `swarm_name`, `status`, and `usage.billing_info.total_cost` for **auditing**, **cost tracking**, and **monitoring** across your batch workloads. Check each entry's `status` before reading `result` — a failed swarm does not raise an HTTP error for the whole batch, it just reports `"status": "error"` in its own slot.
 

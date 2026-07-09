@@ -101,7 +101,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-These are OpenAI-format function schemas the agents call to pull data and run mechanical math. Define them once; attach via `tools_dictionary` to whichever agent needs them.
+These are OpenAI-format function schemas the agents call to pull data and run mechanical math. Define them once; attach via `tools_list_dictionary` to whichever agent needs them.
 
 ```python
 FETCH_INCOME_STATEMENT = {
@@ -327,7 +327,7 @@ def reasoning_assumptions_agent_config(ticker: str) -> dict:
         "max_loops": 1,
         "max_tokens": 8000,
         "temperature": 0.2,
-        "tools_dictionary": ALL_DATA_TOOLS,
+        "tools_list_dictionary": ALL_DATA_TOOLS,
     }
 ```
 
@@ -392,7 +392,7 @@ def build_dcf_swarm(ticker: str, reasoning_output: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 3000,
                 "temperature": 0.0,
-                "tools_dictionary": MODEL_TOOLS,
+                "tools_list_dictionary": MODEL_TOOLS,
             },
             {
                 "agent_name": "Sensitivity Tables",
@@ -413,7 +413,7 @@ def build_dcf_swarm(ticker: str, reasoning_output: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 4000,
                 "temperature": 0.0,
-                "tools_dictionary": MODEL_TOOLS,
+                "tools_list_dictionary": MODEL_TOOLS,
             },
             {
                 "agent_name": "Memo Writer",

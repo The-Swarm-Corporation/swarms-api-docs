@@ -5,7 +5,7 @@ description: "A ~50-line ConcurrentWorkflow swarm that posts your morning news, 
 
 ## What This Example Shows
 
-- A `ConcurrentWorkflow` swarm with three search-enabled agents running in parallel — News Curator, Market Watcher, Calendar Briefer
+- A `ConcurrentWorkflow` swarm with three agents running in parallel — News Curator, Market Watcher, Calendar Briefer
 - How to fan a swarm's outputs into a Slack `blocks` payload via an incoming webhook
 - A real cron schedule — `0 7 * * 1-5` — that ships a useful briefing to your team channel before standup
 - The full pipeline in roughly 55 lines of Python with `requests` and `python-dotenv` only
@@ -56,7 +56,7 @@ Here's what shows up in your Slack channel at 7:00:01 every weekday:
         │                    │                    │
  ┌──────▼──────┐      ┌──────▼──────┐      ┌──────▼──────┐
  │News Curator │      │Market Watcher│      │Calendar     │
- │(search on)  │      │(search on)   │      │Briefer      │
+ │             │      │              │      │Briefer      │
  └──────┬──────┘      └──────┬──────┘      └──────┬──────┘
         └────────────────────┼────────────────────┘
                              │ fan-in
@@ -91,7 +91,7 @@ CALENDAR_TODAY="09:30 Weekly eng sync (45m); 11:00 Acme renewal (30m); 14:00 1:1
 
 ## Step 2: Define Three Concurrent Agents
 
-Each agent is search-enabled where it needs to be, and each system prompt is under four sentences. Tight prompts keep the output Slack-shaped instead of essay-shaped.
+Each system prompt is under four sentences to keep the output Slack-shaped instead of essay-shaped.
 
 ```python
 AGENTS = [
@@ -104,7 +104,6 @@ AGENTS = [
             "No preamble, no closing remarks."
         ),
         "model_name": "gemini-2.5-pro",
-        "search_enabled": True,
         "max_loops": 1,
         "temperature": 0.3,
     },
@@ -117,7 +116,6 @@ AGENTS = [
             "No commentary, no disclaimers."
         ),
         "model_name": "grok-4",
-        "search_enabled": True,
         "max_loops": 1,
         "temperature": 0.2,
     },
@@ -134,6 +132,10 @@ AGENTS = [
     },
 ]
 ```
+
+<Note>
+There's no per-agent live-search toggle for agents inside a `/v1/swarm/completions` request — `AgentSpec` has no `search_enabled` field, so setting one is a silent no-op. News Curator and Market Watcher answer from the underlying model's own training knowledge here, not a live feed. If you need guaranteed real-time data, either wire a real tool (`tools_list_dictionary` or `mcp_url`/`mcp_config` pointed at a news/market data source) into those two agent configs, or pull them out of the swarm and call `/v1/agent/completions` for each with the top-level `"tools_enabled": ["auto_search"]` field, which does enable a live Exa-backed search tool for that endpoint.
+</Note>
 
 ## Step 3: Run the Concurrent Swarm
 
@@ -234,7 +236,7 @@ AGENTS = [
             "Output exactly 3 bullets, each one line, with the source in parentheses. "
             "No preamble."
         ),
-        "model_name": "gemini-2.5-pro", "search_enabled": True, "max_loops": 1, "temperature": 0.3,
+        "model_name": "gemini-2.5-pro", "max_loops": 1, "temperature": 0.3,
     },
     {
         "agent_name": "Market Watcher",
@@ -243,7 +245,7 @@ AGENTS = [
             "two notable single-stock moves, and BTC/ETH levels. "
             "Output 3 bullets max, one line each, numbers first. No disclaimers."
         ),
-        "model_name": "grok-4", "search_enabled": True, "max_loops": 1, "temperature": 0.2,
+        "model_name": "grok-4", "max_loops": 1, "temperature": 0.2,
     },
     {
         "agent_name": "Calendar Briefer",
@@ -287,18 +289,18 @@ if __name__ == "__main__":
 
 ## Variations
 
-- **Swap News Curator for a Hacker News Curator** — change the system prompt to "Top 3 HN front-page stories from the last 24h with comment counts" and keep `search_enabled: True`.
-- **Add a Weather Briefer** — fourth concurrent agent, `search_enabled: True`, prompt: "One-line forecast and high/low for {city}".
+- **Swap News Curator for a Hacker News Curator** — change the system prompt to "Top 3 HN front-page stories from the last 24h with comment counts".
+- **Add a Weather Briefer** — fourth concurrent agent, prompt: "One-line forecast and high/low for {city}".
 - **Post to Discord instead of Slack** — Discord webhooks accept the same JSON shape with `content` instead of `blocks`; swap the synthesizer.
 - **Send via email** — replace the Slack POST with `smtplib.SMTP` and render the same string as plain text.
 - **Post at end-of-day with a wrap-up** — flip the cron to `0 17 * * 1-5`, retarget the prompts to "today's closing recap" and "what shipped on HN today".
 
 ## Real Cost
 
-Three agents, one run per weekday, ~21 runs/month. Each run uses roughly 1,500 input tokens and 600 output tokens across the swarm, plus two web-search calls. At current pricing, that's about **\$0.012 per briefing × 21 runs = ~\$0.25/month**. Under \$0.30/month for a deployment your team will notice if it ever fails.
+Three agents, one run per weekday, ~21 runs/month. Each run uses roughly 1,500 input tokens and 600 output tokens across the swarm. At current pricing, that's about **\$0.012 per briefing × 21 runs = ~\$0.25/month**. Under \$0.30/month for a deployment your team will notice if it ever fails. Add a live search tool per the note in Step 2 and factor in its per-call cost on top of this.
 
 ## Next Steps
 
 - [Concurrent Workflow](/docs/examples/examples/concurrent-workflow) — the full pattern for parallel agents and when to reach for it
-- [Search-Enabled Agents](/docs/examples/examples/search-enabled) — every option on the `search_enabled` flag, including how to inspect the citations
+- [Search-Enabled Agents](/docs/examples/examples/search-enabled) — how to wire a live search tool into an agent, including how to inspect the citations
 - [Batch Processing](/docs/examples/examples/batch-processing) — when one briefing isn't enough and you want a briefing per team, per region, or per portfolio company on one cron tick

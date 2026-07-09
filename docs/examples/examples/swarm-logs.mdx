@@ -48,7 +48,7 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
     logs_data = get_swarm_logs()
     if logs_data:
         print("✅ Logs retrieved successfully!")
-        print(f"Total logs: {logs_data.get('count', 0)}")
+        print(f"Total logs: {len(logs_data.get('logs', []))}")
         print(json.dumps(logs_data, indent=2))
     ```
   </Tab>
@@ -75,7 +75,7 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
 
             const data = await response.json();
             console.log("✅ Logs retrieved successfully!");
-            console.log(`Total logs: ${data.count || 0}`);
+            console.log(`Total logs: ${(data.logs || []).length}`);
             console.log(JSON.stringify(data, null, 2));
             return data;
         } catch (error) {
@@ -93,12 +93,11 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
     # Get API request logs
     curl -X GET "https://api.swarms.world/v1/swarm/logs" \
       -H "x-api-key: your-api-key" \
-      -H "Content-Type": "application/json"
+      -H "Content-Type: application/json"
 
     # Example response:
     # {
     #   "status": "success",
-    #   "count": 150,
     #   "logs": [
     #     {
     #       "timestamp": "2024-01-01T10:30:00Z",
@@ -123,7 +122,6 @@ The logs endpoint returns structured information about your API usage:
 ```json
 {
   "status": "success",
-  "count": 150,
   "logs": [
     {
       "timestamp": "2024-01-01T10:30:00Z",
@@ -140,6 +138,10 @@ The logs endpoint returns structured information about your API usage:
   "timestamp": "2024-01-01T12:00:00Z"
 }
 ```
+
+<Note>
+The response does not include a top-level `count` field — compute the number of entries from `len(logs)` (or `logs.length` in JavaScript) instead.
+</Note>
 
 ## Log Analysis and Filtering
 
@@ -162,7 +164,8 @@ The logs endpoint returns structured information about your API usage:
         successful_requests = len([log for log in logs if log.get('status_code') == 200])
         failed_requests = total_requests - successful_requests
 
-        print("📊 API Usage Analysis"        print("=" * 50)
+        print("📊 API Usage Analysis")
+        print("=" * 50)
         print(f"Total Requests: {total_requests}")
         print(f"Successful: {successful_requests} ({successful_requests/total_requests*100:.1f}%)")
         print(f"Failed: {failed_requests} ({failed_requests/total_requests*100:.1f}%)")
@@ -170,13 +173,15 @@ The logs endpoint returns structured information about your API usage:
 
         # Endpoint usage
         endpoint_counts = Counter(log.get('endpoint', 'unknown') for log in logs)
-        print("🔗 Endpoint Usage:"        for endpoint, count in endpoint_counts.most_common():
+        print("🔗 Endpoint Usage:")
+        for endpoint, count in endpoint_counts.most_common():
             print(f"  {endpoint}: {count} requests")
         print()
 
         # Model usage
         model_counts = Counter(log.get('model_name', 'unknown') for log in logs if 'model_name' in log)
-        print("🤖 Model Usage:"        for model, count in model_counts.most_common():
+        print("🤖 Model Usage:")
+        for model, count in model_counts.most_common():
             print(f"  {model}: {count} requests")
         print()
 
@@ -184,9 +189,12 @@ The logs endpoint returns structured information about your API usage:
         total_cost = sum(log.get('cost', 0) for log in logs)
         total_tokens = sum(log.get('tokens_used', 0) for log in logs)
 
-        print("💰 Cost Analysis:"        print(f"  Total Cost: ${total_cost:.4f}")
+        print("💰 Cost Analysis:")
+        print(f"  Total Cost: ${total_cost:.4f}")
         print(f"  Total Tokens: {total_tokens}")
-        print(".4f"        print()
+        avg_cost = total_cost / total_requests if total_requests else 0
+        print(f"  Average Cost per Request: ${avg_cost:.4f}")
+        print()
 
         # Response time analysis
         response_times = [log.get('response_time', 0) for log in logs if log.get('response_time')]
@@ -195,7 +203,11 @@ The logs endpoint returns structured information about your API usage:
             max_response_time = max(response_times)
             min_response_time = min(response_times)
 
-            print("⏱️  Response Time Analysis:"            print(".2f"            print(".2f"            print(".2f"
+            print("⏱️  Response Time Analysis:")
+            print(f"  Average: {avg_response_time:.2f}s")
+            print(f"  Max: {max_response_time:.2f}s")
+            print(f"  Min: {min_response_time:.2f}s")
+
     def filter_logs_by_date(logs_data, days=7):
         """Filter logs by date range"""
         if not logs_data or not logs_data.get('logs'):
@@ -555,7 +567,7 @@ The logs endpoint returns structured information about your API usage:
             if not logs_data.get('logs'):
                 return
 
-            current_count = logs_data['count']
+            current_count = len(logs_data.get('logs', []))
 
             if self.last_log_count > 0:
                 new_logs = current_count - self.last_log_count
@@ -577,7 +589,9 @@ The logs endpoint returns structured information about your API usage:
                 recent_cost = sum(log.get('cost', 0) for log in recent_logs)
                 self.cost_accumulator += recent_cost
 
-                print(".4f"                print(".4f"
+                print(f"💵 Recent cost: ${recent_cost:.4f}")
+                print(f"💵 Total accumulated cost: ${self.cost_accumulator:.4f}")
+
         def check_for_anomalies(self, logs_data):
             """Check for unusual patterns or anomalies"""
             if not logs_data.get('logs'):
@@ -589,12 +603,15 @@ The logs endpoint returns structured information about your API usage:
             if recent_logs:
                 error_rate = len([log for log in recent_logs if log.get('status_code', 200) >= 400]) / len(recent_logs)
                 if error_rate > 0.1:  # More than 10% errors
-                    print(".1%"                # Check for unusual response times
+                    print(f"🚨 High error rate detected: {error_rate:.1%}")
+
+                # Check for unusual response times
                 response_times = [log.get('response_time', 0) for log in recent_logs if log.get('response_time')]
                 if response_times:
                     avg_response_time = sum(response_times) / len(response_times)
                     if avg_response_time > 10:  # More than 10 seconds average
-                        print(".2f"
+                        print(f"🐢 Slow responses detected: {avg_response_time:.2f}s average")
+
         def get_recent_logs(self, logs_data, hours=1):
             """Get logs from the last N hours"""
             if not logs_data.get('logs'):
@@ -612,11 +629,14 @@ The logs endpoint returns structured information about your API usage:
 
         def generate_monitoring_report(self):
             """Generate a final monitoring report"""
-            print("\n📊 Monitoring Report"            print("=" * 50)
-            print(".4f"            print(f"Monitoring Duration: {self.check_interval}s intervals")
+            print("\n📊 Monitoring Report")
+            print("=" * 50)
+            print(f"Total Accumulated Cost: ${self.cost_accumulator:.4f}")
+            print(f"Monitoring Duration: {self.check_interval}s intervals")
 
             if self.error_counts:
-                print("\nError Summary:"                for error_code, count in self.error_counts.items():
+                print("\nError Summary:")
+                for error_code, count in self.error_counts.items():
                     print(f"  HTTP {error_code}: {count} occurrences")
 
     # Usage
@@ -665,7 +685,7 @@ The logs endpoint returns structured information about your API usage:
         async analyzeRecentActivity(logsData) {
             if (!logsData.logs) return;
 
-            const currentCount = logsData.count;
+            const currentCount = (logsData.logs || []).length;
 
             if (this.lastLogCount > 0) {
                 const newLogs = currentCount - this.lastLogCount;

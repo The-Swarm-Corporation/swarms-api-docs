@@ -161,6 +161,21 @@ print("=" * 60)
 print(json.dumps(result, indent=2)[:3000])
 ```
 
+The response (`result` above) is a `ReasoningAgentCompletionOutput` object with these top-level fields:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `job_id` | `string` | Unique identifier for the reasoning agent run |
+| `status` | `string` | Run status, `"success"` on completion |
+| `outputs` | `any` | The reasoning output — shape varies by `swarm_type` and `output_type` (see below) |
+| `timestamp` | `string` | ISO-formatted timestamp of when the run was executed |
+| `agent_name` | `string` | Name of the agent (the `agent_name` you passed in the request) |
+| `agent_type` | `string` | The `swarm_type` used for this run, e.g. `"self-consistency"` |
+| `agent_id` | `string` | Unique identifier for the agent instance |
+| `usage` | `object` | Token usage: `input_tokens`, `output_tokens`, `total_tokens` |
+
+`outputs` is where the reasoning content lives, and its internal shape depends on `output_type` — with `output_type: "dict-final"` it resolves to a dict containing the convergent final answer, which is what Step 5 below extracts.
+
 ## Step 5: Extract the Answer
 
 `output_type: "dict-final"` returns the convergent final answer as a dictionary alongside the per-sample chains. The convergent answer is the one to trust; the per-sample chains are the audit trail.

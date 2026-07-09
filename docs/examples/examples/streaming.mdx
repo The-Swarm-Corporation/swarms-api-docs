@@ -159,21 +159,30 @@ For more complex streaming scenarios, you can customize the agent configuration:
 The API returns data in Server-Sent Events (SSE) format:
 
 ```
-event: metadata
-data: {"job_id": "abc123", "name": "Creative Writer"}
+data: {"job_id": "abc123", "success": true, "name": "Creative Writer", "description": "A creative writing specialist", "temperature": 0.8, "timestamp": "2026-02-05T00:58:15.121915+00:00", "stream": true, "type": "metadata"}
+
+event: start
+data: {"message": "Starting agent processing..."}
 
 event: chunk
-data: {"content": "Once upon a time"}
+data: {"content": "Once upon a time", "timestamp": "2026-02-05T00:58:15.200000+00:00"}
 
 event: chunk
-data: {"content": ", in a workshop filled with"}
+data: {"content": ", in a workshop filled with", "timestamp": "2026-02-05T00:58:15.250000+00:00"}
 
 event: usage
-data: {"tokens_used": 150, "cost": 0.003}
+data: {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "img_cost": 0.0, "total_cost": 0.002735}
+
+event: end
+data: {"job_id": "abc123", "usage": {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "img_cost": 0.0, "total_cost": 0.002735}, "timestamp": "2026-02-05T00:58:16.000000+00:00", "complete": true}
 
 event: done
-data: {"status": "finished"}
+data: {"message": "Agent processing complete"}
 ```
+
+<Note>
+The first frame (initial metadata) is sent without an `event:` line, so it arrives as a default `message` event. Only `content` chunks include the `content` key, which is what the example consumer code above checks for.
+</Note>
 
 ## Key Benefits
 

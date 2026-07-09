@@ -8,7 +8,7 @@ Every 5 minutes during market hours, an unusual-activity watchlist lands in Slac
 ## What This Example Shows
 
 - A `ConcurrentWorkflow` of three specialist agents — Flow Scanner, Greeks Analyzer, Vol Surface Watcher — fanning out in parallel on the same options snapshot
-- Per-agent `tools_dictionary` wired to live options market-data endpoints (Polygon / Tradier) and a Slack webhook
+- Per-agent `tools_list_dictionary` wired to live options market-data endpoints (Polygon / Tradier) and a Slack webhook
 - An intraday cron firing every 5 minutes (`*/5 9-16 * * 1-5`) that turns into ~80 swarm runs per session
 - The rate-limit math: a 5-minute cadence blows through Free per-hour caps inside the first 60 minutes — Premium is not optional for production
 - Model diversification across providers — `gpt-4.1-mini`, `gpt-4.1`, `claude-haiku-4.5`, `claude-sonnet-4.5` — each picked for what that node actually needs
@@ -88,7 +88,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Tools are OpenAI function-call schemas attached per-agent via `tools_dictionary`. The agents decide when to call them — your backend executes them against Polygon / Tradier / Slack and feeds results back into the loop.
+Tools are OpenAI function-call schemas attached per-agent via `tools_list_dictionary`. The agents decide when to call them — your backend executes them against Polygon / Tradier / Slack and feeds results back into the loop.
 
 ```python
 FETCH_OPTIONS_CHAIN = {
@@ -278,7 +278,7 @@ def build_options_flow_swarm(universe: list[str]) -> dict:
                 "max_loops": 1,
                 "max_tokens": 4096,
                 "temperature": 0.2,
-                "tools_dictionary": [FETCH_OPTIONS_CHAIN, VOLUME_VS_OI_RATIO],
+                "tools_list_dictionary": [FETCH_OPTIONS_CHAIN, VOLUME_VS_OI_RATIO],
             },
             {
                 "agent_name": "Greeks Analyzer",
@@ -289,7 +289,7 @@ def build_options_flow_swarm(universe: list[str]) -> dict:
                 "max_loops": 1,
                 "max_tokens": 4096,
                 "temperature": 0.2,
-                "tools_dictionary": [COMPUTE_GREEKS],
+                "tools_list_dictionary": [COMPUTE_GREEKS],
             },
             {
                 "agent_name": "Vol Surface Watcher",
@@ -300,7 +300,7 @@ def build_options_flow_swarm(universe: list[str]) -> dict:
                 "max_loops": 1,
                 "max_tokens": 4096,
                 "temperature": 0.2,
-                "tools_dictionary": [COMPUTE_IV_RANK, FETCH_OPTIONS_CHAIN],
+                "tools_list_dictionary": [COMPUTE_IV_RANK, FETCH_OPTIONS_CHAIN],
             },
             {
                 "agent_name": "Trade Idea Generator",
@@ -311,10 +311,9 @@ def build_options_flow_swarm(universe: list[str]) -> dict:
                 "max_loops": 1,
                 "max_tokens": 6144,
                 "temperature": 0.3,
-                "tools_dictionary": [POST_SLACK_ALERT],
+                "tools_list_dictionary": [POST_SLACK_ALERT],
             },
         ],
-        "output_type": "dict",
     }
 ```
 

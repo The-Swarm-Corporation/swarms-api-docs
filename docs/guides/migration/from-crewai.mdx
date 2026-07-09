@@ -10,11 +10,11 @@ CrewAI models multi-agent work as a **Crew** of role-playing Agents executing Ta
 |---|---|
 | `Agent(role, goal, backstory, llm)` | `agent` with `agent_name`, `system_prompt`, `model_name` |
 | `Task(description, agent, expected_output)` | Top-level `task` string; role in `system_prompt` |
-| `Crew(agents, tasks, process=sequential)` | `SequentialWorkflow` via `/v1/swarms/completions` |
-| `Crew(agents, tasks, process=hierarchical)` | `HierarchicalSwarm` via `/v1/swarms/completions` |
-| `crew.kickoff()` | `POST /v1/swarms/completions` |
+| `Crew(agents, tasks, process=sequential)` | `SequentialWorkflow` via `/v1/swarm/completions` |
+| `Crew(agents, tasks, process=hierarchical)` | `HierarchicalSwarm` via `/v1/swarm/completions` |
+| `crew.kickoff()` | `POST /v1/swarm/completions` |
 | `crew.kickoff_async()` | Same endpoint; async via `httpx.AsyncClient` |
-| `@tool` / `BaseTool` | `"tools"` array on agent spec |
+| `@tool` / `BaseTool` | `tools_list_dictionary` (OpenAI-style function schemas) on agent spec |
 | `manager_llm` | Director agent in `HierarchicalSwarm` |
 | `memory=True` | Stateless per-request; add external memory for cross-session |
 | `verbose=True` | Full agent outputs returned in `outputs` response field |
@@ -89,7 +89,7 @@ import os
 import requests
 
 result = requests.post(
-    "https://api.swarms.world/v1/swarms/completions",
+    "https://api.swarms.world/v1/swarm/completions",
     headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
     json={
         "name": "AI Research and Writing Crew",
@@ -207,7 +207,7 @@ import os
 import requests
 
 result = requests.post(
-    "https://api.swarms.world/v1/swarms/completions",
+    "https://api.swarms.world/v1/swarm/completions",
     headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
     json={
         "name": "Financial Report Crew",
@@ -300,17 +300,19 @@ result = requests.post(
     "https://api.swarms.world/v1/agent/completions",
     headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
     json={
-        "agent_name": "Market Researcher",
-        "system_prompt": (
-            "You are an expert Market Researcher with access to real-time data. "
-            "Research current EV market trends, top players, and growth forecasts. "
-            "Return a comprehensive market research report with data and sources."
-        ),
         "task": "Research the current electric vehicle market trends, top players, and growth forecasts.",
-        "model_name": "gpt-4.1",
-        "tools": ["browser"],
-        "max_loops": 1,
-        "temperature": 0.3,
+        "tools_enabled": ["auto_search"],
+        "agent_config": {
+            "agent_name": "Market Researcher",
+            "system_prompt": (
+                "You are an expert Market Researcher with access to real-time data. "
+                "Research current EV market trends, top players, and growth forecasts. "
+                "Return a comprehensive market research report with data and sources."
+            ),
+            "model_name": "gpt-4.1",
+            "max_loops": 1,
+            "temperature": 0.3,
+        },
     },
     timeout=90,
 ).json()
@@ -428,7 +430,7 @@ import os
 async def run():
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            "https://api.swarms.world/v1/swarms/completions",
+            "https://api.swarms.world/v1/swarm/completions",
             headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
             json={ ... },
             timeout=300,
@@ -448,7 +450,7 @@ asyncio.run(run())
 | Agent memory | `memory=True` per agent | Stateless; use external DB (Redis, Postgres) |
 | Inter-task context | `context=[task_a, task_b]` | Automatic in sequential workflows; use `edges` in graph workflows |
 | Human input | `human_input=True` on Task | Not currently supported in API |
-| Output parsing | `output_pydantic`, `output_json` | Use `response_format` for structured outputs via agent endpoint |
+| Output parsing | `output_pydantic`, `output_json` | Not a dedicated field; instruct the model to return structured JSON via `system_prompt`/`task`, or define a schema in `tools_list_dictionary` |
 | Rate limiting | Depends on LLM provider | Managed by the API; see [rate limits](/docs/documentation/resources/ratelimits) |
 | Cost tracking | External | `usage.token_cost` in every response |
 

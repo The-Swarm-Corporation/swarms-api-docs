@@ -7,6 +7,10 @@ description: 'Retrieve daily usage breakdowns with token counts, request counts,
 
 Retrieve a daily breakdown of your API usage from the `/v1/usage/report` endpoint. The report includes token consumption, request counts, and costs for each day in the requested period.
 
+<Warning>
+`GET /v1/usage/report` is not yet live on the production API — it exists only on an unmerged feature branch. Calling it against `https://api.swarms.world` will currently return a 404. For live per-operation pricing, use [`/v1/usage/costs`](/docs/examples/examples/pricing-details-basic) instead.
+</Warning>
+
 <Info>
 The endpoint supports predefined periods (`day`, `week`, `month`) and custom date ranges via `start_date` and `end_date` query parameters. See the [API Reference](/docs/documentation/resources/usage-report) for the full schema.
 </Info>

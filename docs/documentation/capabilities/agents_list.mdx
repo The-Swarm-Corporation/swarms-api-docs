@@ -24,6 +24,7 @@ When you create agents using the Swarms API (via the `/v1/agent/completions` end
 
 The endpoint returns a JSON object containing:
 
+- **`success`**: A boolean indicating whether the agent list was retrieved successfully
 - **`count`**: An integer representing the total number of unique agent configurations in your account
 - **`agents`**: An array of agent definition objects, each containing the complete configuration details of agents you've previously created, including:
   - Agent name and description
@@ -32,6 +33,7 @@ The endpoint returns a JSON object containing:
   - Tool configurations
   - MCP integrations
   - Other agent-specific settings
+- **`timestamp`**: An ISO 8601 UTC timestamp indicating when the list was generated
 
 ## Use Cases
 

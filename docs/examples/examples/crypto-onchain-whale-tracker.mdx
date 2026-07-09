@@ -299,7 +299,7 @@ def build_whale_swarm(block_targets: dict[str, int]) -> dict:
             "max_loops": 1,
             "max_tokens": 4096,
             "temperature": 0.1,
-            "tools_dictionary": CHAIN_TOOLS,
+            "tools_list_dictionary": CHAIN_TOOLS,
             "mcp_url": MCP_URLS[chain],
         })
 
@@ -312,7 +312,7 @@ def build_whale_swarm(block_targets: dict[str, int]) -> dict:
         "max_loops": 1,
         "max_tokens": 6144,
         "temperature": 0.2,
-        "tools_dictionary": CLASSIFIER_TOOLS,
+        "tools_list_dictionary": CLASSIFIER_TOOLS,
     }
 
     alert_generator = {
@@ -324,7 +324,7 @@ def build_whale_swarm(block_targets: dict[str, int]) -> dict:
         "max_loops": 1,
         "max_tokens": 2048,
         "temperature": 0.3,
-        "tools_dictionary": ALERT_TOOLS,
+        "tools_list_dictionary": ALERT_TOOLS,
     }
 
     return {
@@ -338,7 +338,6 @@ def build_whale_swarm(block_targets: dict[str, int]) -> dict:
             + json.dumps(block_targets)
         ),
         "agents": chain_agents + [classifier, alert_generator],
-        "output_type": "dict",
     }
 ```
 

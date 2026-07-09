@@ -140,8 +140,8 @@ response = requests.post(
 if response.status_code == 200:
     result = response.json()
     print("MajorityVoting swarm completed successfully!")
-    print(f"Cost: ${result['metadata']['billing_info']['total_cost']}")
-    print(f"Execution time: {result['metadata']['execution_time_seconds']} seconds")
+    print(f"Cost: ${result['usage']['billing_info']['total_cost']}")
+    print(f"Execution time: {result['execution_time']} seconds")
     print(f"Voting results: {result['output']}")
 else:
     print(f"Error: {response.status_code} - {response.text}")
@@ -209,8 +209,8 @@ fetch(`${API_BASE_URL}/v1/swarm/completions`, {
 .then(result => {
     if (result.status === "success") {
         console.log("MajorityVoting swarm completed successfully!");
-        console.log(`Cost: $${result.metadata.billing_info.total_cost}`);
-        console.log(`Execution time: ${result.metadata.execution_time_seconds} seconds`);
+        console.log(`Cost: $${result.usage.billing_info.total_cost}`);
+        console.log(`Execution time: ${result.execution_time} seconds`);
         console.log("Voting results:", result.output);
     }
 })
@@ -401,28 +401,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
     "output": [
         {
             "role": "Marketing Expert",
-            "content": "VOTE: YES. The content effectively communicates the value proposition and uses compelling language that would resonate with business audiences.",
-            "vote": "YES"
+            "content": "VOTE: YES. The content effectively communicates the value proposition and uses compelling language that would resonate with business audiences."
         },
         {
             "role": "Technical Reviewer",
-            "content": "VOTE: NO. The claim of '300% productivity increase' is not substantiated and could be considered misleading without specific data.",
-            "vote": "NO"
+            "content": "VOTE: NO. The claim of '300% productivity increase' is not substantiated and could be considered misleading without specific data."
         },
         {
             "role": "Legal Compliance",
-            "content": "VOTE: NO. The unsubstantiated productivity claim could potentially violate advertising standards and truth-in-advertising regulations.",
-            "vote": "NO"
+            "content": "VOTE: NO. The unsubstantiated productivity claim could potentially violate advertising standards and truth-in-advertising regulations."
         },
         {
             "role": "Brand Guardian",
-            "content": "VOTE: YES. The content aligns well with our brand voice of innovation and transformation.",
-            "vote": "YES"
+            "content": "VOTE: YES. The content aligns well with our brand voice of innovation and transformation."
         }
     ],
-    "voting_result": "REJECTED (2 NO votes, 2 YES votes - requires majority)",
     "number_of_agents": 4,
-    "service_tier": "standard",
     "execution_time": 28.7,
     "usage": {
         "input_tokens": 50,
@@ -439,13 +433,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 1850
                 },
                 "num_agents": 4,
-                "service_tier": "standard",
                 "night_time_discount_applied": true
             },
             "total_cost": 0.06715,
             "discount_active": true,
             "discount_type": "night_time",
-            "discount_percentage": 75
+            "discount_percentage": 50
         }
     }
 }

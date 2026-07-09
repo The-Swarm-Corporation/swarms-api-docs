@@ -228,7 +228,6 @@ if match:
 
 usage = result.get("usage", {})
 print(f"\nTotal cost: ${usage.get('token_cost', 0):.4f}")
-print(f"Execution time: {result.get('execution_time', 0):.1f}s")
 ```
 
 ## Why This Beats Sequential + Concurrent Stacking
@@ -242,7 +241,7 @@ You could build the same pipeline by calling `ConcurrentWorkflow` for the three 
 | Glue code you maintain | "wait for all 3, then build prompt, then call next workflow" | **None** — declared in `edges` |
 | Server-side parallelism | Yes for first hop only | **Yes across the whole DAG** |
 | Wall clock | Sum of (slowest researcher + synth + scorer) plus 2 round-trips | **Slowest researcher + synth + scorer**, single round-trip |
-| Failure handling | You retry whichever hop failed | **Server-side retry on individual nodes** |
+| Failure handling | You retry whichever hop failed | A node failure raises an error for the whole request — retry the request, or budget extra `max_loops` on flaky nodes (see below) |
 | Auditability | Two job IDs in your logs | **One `job_id` you can replay** |
 
 ## Adding Conditional Paths and Retries
@@ -251,10 +250,10 @@ Two production patterns to layer on top:
 
 **Conditional gating (early exit on cold leads).** Add a `Qualifier` node before the heavy research and let the synthesizer's prompt instruct it to output "SKIP" if the lead score's company profile fails a hard filter (e.g., < 50 employees, US-only). Downstream nodes still run, but their prompts can be written to no-op when they see "SKIP" upstream.
 
-**Retries on a flaky node.** The graph compiler retries failed nodes automatically when `auto_compile: true`. For nodes that touch external services (search, scrapers, CRM enrichment), set `max_loops: 2` on just that node — the upstream and downstream nodes will only see the successful run.
+**Retries on a flaky node.** `auto_compile: true` pre-validates the graph (auto-setting entry/end points, checking structure) and caches the compiled execution plan — it does not retry failed nodes. If any node raises an unhandled exception, the whole `/v1/graph-workflow/completions` request fails and the caller needs to retry the request. What you *can* do per-node is raise that agent's own `max_loops`, which gives it more internal iterations to recover from a bad tool call or malformed output within its own run before handing off to downstream nodes — that's agent-level resilience, not graph-level, automatic retry-on-failure.
 
 ```python
-agents[2]["max_loops"] = 2  # TriggerResearcher gets one retry
+agents[2]["max_loops"] = 2  # TriggerResearcher gets extra internal iterations
 ```
 
 ## Scaling the Pattern

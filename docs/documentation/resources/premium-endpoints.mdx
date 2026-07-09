@@ -33,13 +33,23 @@ Free tier users attempting to access these endpoints will receive a **403 Forbid
 
 ```json
 {
-  "detail": "This endpoint is limited to premium subscribers. Your current account is on the free tier and does not include access to this feature. To unlock this endpoint and other premium features, please consider upgrading your account at https://swarms.world/platform/account. Premium subscriptions provide access to high-throughput batch processing, concurrent execution, and enterprise-scale workflow capabilities."
+  "error": {
+    "type": "premium_access_required",
+    "message": "Premium subscription required",
+    "detail": "Access to Batch Agent Completions requires a premium subscription. This feature allows you to process multiple agent tasks concurrently in a single request. Your current account is on the free tier, which does not include access to premium features. To unlock this and other premium capabilities, please upgrade your account at https://swarms.world/platform/account. Premium subscriptions provide access to high-throughput batch processing, concurrent execution, advanced reasoning agents, and enterprise-scale workflow orchestration.",
+    "status_code": 403,
+    "upgrade_url": "https://swarms.world/platform/account",
+    "documentation": "https://docs.swarms.ai"
+  }
 }
 ```
+
+The `detail` message is tailored per endpoint (naming the specific feature you tried to access).
 
 ### Notes
 - These endpoints may have different rate limits aligned with premium tiers.
 - Ensure your API key is associated with a Pro, Ultra, or Premium subscription.
+- Beyond these five endpoints, certain models (e.g. GPT-5, Claude 4 Opus/Sonnet, Gemini 2.5 Pro) are also gated to premium subscribers on regular endpoints like `/v1/agent/completions` and `/v1/swarm/completions` — see [Pricing](/docs/documentation/resources/pricing) for the current list.
 - For endpoint schemas and examples, see related documentation pages.
 
 

@@ -39,7 +39,7 @@ headers = {
 HeavySwarm creates its own five specialized agents internally — pass an empty `agents` array and configure the swarm using HeavySwarm-specific parameters:
 
 ```python
-def run_heavy_analysis(task: str, loops_per_agent: int = 1, max_loops: int = 1) -> dict:
+def run_heavy_analysis(task: str, heavy_swarm_max_loops: int = 1, max_loops: int = 1) -> dict:
     """Run a deep multi-perspective analysis using HeavySwarm."""
 
     swarm_config = {
@@ -48,7 +48,7 @@ def run_heavy_analysis(task: str, loops_per_agent: int = 1, max_loops: int = 1) 
         "swarm_type": "HeavySwarm",
         "task": task,
         "agents": [],
-        "heavy_swarm_loops_per_agent": loops_per_agent,
+        "heavy_swarm_max_loops": heavy_swarm_max_loops,
         "heavy_swarm_question_agent_model_name": "gpt-4.1",
         "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
         "max_loops": max_loops
@@ -201,13 +201,13 @@ key findings:
 
 ### Step 5: Multi-Loop Deep Dive (Optional)
 
-For tasks requiring deeper analysis, increase `loops_per_agent` and `max_loops`. Each iteration builds on previous results:
+For tasks requiring deeper analysis, increase `heavy_swarm_max_loops` and `max_loops`. Each iteration builds on previous results:
 
 ```python
 # Run a deeper 2-loop analysis for thorough due diligence
 deep_result = run_heavy_analysis(
     task="Conduct due diligence on CoreWeave as a potential investment. Evaluate their GPU cloud infrastructure business model, competitive positioning against AWS/Azure/GCP, financial health, customer concentration risk, and long-term defensibility.",
-    loops_per_agent=2,
+    heavy_swarm_max_loops=2,
     max_loops=2
 )
 

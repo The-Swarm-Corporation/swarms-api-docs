@@ -49,7 +49,7 @@ The first 80% of any API integration is happy-path code. The last 20% — the pa
 
 - [ ] Before any batch run, call `/v1/account/credits` and refuse to submit if `total_credits < estimated_cost * 1.5`
 - [ ] After every run, persist `result["usage"]["billing_info"]["total_cost"]` to your warehouse keyed by request ID
-- [ ] Run a daily cron against `/v1/usage/report` and alert on day-over-day cost > 2x the trailing 7-day mean
+- [ ] Run a daily cron against `/v1/usage/costs` and alert on day-over-day cost > 2x the trailing 7-day mean
 - [ ] Set hard budget caps in your wrapper — a runaway loop should fail fast, not bleed credits
 - [ ] Reference: [Production Observability](/docs/guides/guides/production-observability), [Usage Report](/docs/examples/examples/usage-report), [Get Credit Balance](/docs/examples/examples/account-credits)
 
@@ -61,7 +61,7 @@ The first 80% of any API integration is happy-path code. The last 20% — the pa
 
 ### Premium Tier Thresholds
 
-Upgrade to premium when **any** of these are true. The premium tier is \$100/month and gives you 20x the per-minute, 200x the per-hour, and 83x the per-day quota — and 10x the per-agent token budget.
+Upgrade to premium when **any** of these are true. The premium tier is \$100/month and gives you 20x the per-minute, 29x the per-hour, and 83x the per-day quota — and 10x the per-agent token budget.
 
 - [ ] You hit a `429` more than once per day in production
 - [ ] You need to run more than 1,200 requests per day

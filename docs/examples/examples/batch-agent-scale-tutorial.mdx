@@ -5,10 +5,10 @@ description: "Score 10,000 sales leads or triage 10,000 support tickets in a sin
 
 ## What This Example Shows
 
-- How to score or triage tens of thousands of records in one batch submission
+- How to score or triage tens of thousands of records with `/v1/agent/batch/completions`
 - A real lead-scoring workload built on `/v1/agent/batch/completions`
 - Per-record cost math you can take to your CFO
-- How to chunk a large input list to stay inside request limits
+- How to chunk a large input list to stay inside the endpoint's hard batch-size limit, and how to submit those chunks concurrently so throughput doesn't collapse
 - Where this beats hand-rolled `asyncio.gather` against the single-agent endpoint
 
 <Warning>
@@ -105,34 +105,42 @@ batch_items = [lead_to_batch_item(lead) for lead in leads]
 
 ## Step 5: Submit in Chunks
 
-Send the full list in chunks of 500-1000 to keep request bodies reasonable and to let you checkpoint progress. Each chunk is one POST.
+`/v1/agent/batch/completions` enforces a **hard server-side cap of 10 items per request** — send more than 10 `AgentCompletion` objects in one call and you get back an HTTP 400 ("BATCH SIZE EXCEEDED"). For 10,000 leads that means 1,000 chunked requests, so submit the chunks concurrently with a small thread pool instead of one at a time, or wall-clock time balloons.
 
 ```python
+import concurrent.futures
+
+CHUNK_SIZE = 10  # hard cap enforced by the server; larger chunks return HTTP 400
+
+
 def run_chunk(chunk: list[dict]) -> list[dict]:
     response = requests.post(
         f"{BASE_URL}/v1/agent/batch/completions",
         headers=headers,
         json=chunk,
-        timeout=900,
+        timeout=120,
     )
     response.raise_for_status()
-    return response.json()
+    # The endpoint returns an envelope, not a bare list:
+    # {"batch_id", "total_requests", "results", "execution_time", "timestamp"}
+    return response.json()["results"]
 
 
-CHUNK_SIZE = 500
+chunks = [
+    batch_items[start : start + CHUNK_SIZE]
+    for start in range(0, len(batch_items), CHUNK_SIZE)
+]
+
 all_results: list[dict] = []
-
-for start in range(0, len(batch_items), CHUNK_SIZE):
-    chunk = batch_items[start : start + CHUNK_SIZE]
-    print(f"Submitting leads {start} - {start + len(chunk) - 1}")
-    chunk_results = run_chunk(chunk)
-    all_results.extend(chunk_results)
+with concurrent.futures.ThreadPoolExecutor(max_workers=25) as executor:
+    for chunk_results in executor.map(run_chunk, chunks):
+        all_results.extend(chunk_results)
 
 print(f"Scored {len(all_results)} leads.")
 ```
 
 <Info>
-The server parallelizes inside each chunk. You are not pinging a token-per-second loop — you are submitting one job that fans out behind the gateway. Chunking exists to keep your local memory and request bodies sane, not to throttle the server.
+Each request is capped at 10 items, but the server processes those 10 concurrently, and Pro/Ultra/Premium keys allow up to 2,000 requests per minute — so a pool of 20-30 worker threads submitting 10-item chunks in parallel gets you back to job-like throughput without tripping the per-request limit or the per-minute rate limit.
 </Info>
 
 ## Step 6: Aggregate and Route
@@ -172,7 +180,7 @@ Pricing varies by model and current token rates — these numbers are illustrati
 | --- | --- | --- | --- |
 | Human SDR scoring 10,000 leads | ~400 hours | \$20,000 at \$50/hr | \$30,000+ with overhead |
 | Single-agent endpoint, sequential | ~6 hours | ~\$30 | \$30 + 6 hours of your time |
-| **Batch endpoint, 20 chunks of 500** | **~25 minutes** | **~\$30** | **\$30 + 25 minutes** |
+| **Batch endpoint, 1,000 chunks of 10 (25 concurrent workers)** | **~15-25 minutes** | **~\$30** | **\$30 + 15-25 minutes** |
 
 <Warning>
 **This batch costs roughly \$25-\$35 to run on gpt-4.1 with short outputs. A human SDR team would take ~400 hours at \$50/hour to produce the same triage — about \$20,000 in direct labor.** Run the same job nightly and you have replaced a full-time research desk with a recurring cron and an API key.

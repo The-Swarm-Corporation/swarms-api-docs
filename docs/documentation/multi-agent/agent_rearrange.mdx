@@ -140,8 +140,8 @@ response = requests.post(
 if response.status_code == 200:
     result = response.json()
     print("AgentRearrange swarm completed successfully!")
-    print(f"Cost: ${result['metadata']['billing_info']['total_cost']}")
-    print(f"Execution time: {result['metadata']['execution_time_seconds']} seconds")
+    print(f"Cost: ${result['usage']['billing_info']['total_cost']}")
+    print(f"Execution time: {result['execution_time']} seconds")
     print(f"Dynamic results: {result['output']}")
 else:
     print(f"Error: {response.status_code} - {response.text}")
@@ -209,8 +209,8 @@ fetch(`${API_BASE_URL}/v1/swarm/completions`, {
 .then(result => {
     if (result.status === "success") {
         console.log("AgentRearrange swarm completed successfully!");
-        console.log(`Cost: $${result.metadata.billing_info.total_cost}`);
-        console.log(`Execution time: ${result.metadata.execution_time_seconds} seconds`);
+        console.log(`Cost: $${result.usage.billing_info.total_cost}`);
+        console.log(`Execution time: ${result.execution_time} seconds`);
         console.log("Dynamic results:", result.output);
     }
 })
@@ -416,9 +416,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             "content": "I've edited the content for clarity and flow while maintaining technical accuracy and financial precision..."
         }
     ],
-    "agent_rearrangement": "Agents successfully reorganized based on content creation workflow",
     "number_of_agents": 4,
-    "service_tier": "standard",
     "execution_time": 38.2,
     "usage": {
         "input_tokens": 45,
@@ -435,13 +433,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 2845
                 },
                 "num_agents": 4,
-                "service_tier": "standard",
                 "night_time_discount_applied": true
             },
             "total_cost": 0.082135,
             "discount_active": true,
             "discount_type": "night_time",
-            "discount_percentage": 75
+            "discount_percentage": 50
         }
     }
 }

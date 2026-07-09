@@ -54,10 +54,10 @@ The table below maps every major concept from each framework to its Swarms API e
 
 | Framework | Their Concept | Swarms API Equivalent |
 |---|---|---|
-| LangGraph | `ToolNode` / `bind_tools` | `tools` array on agent (e.g. `"browser"`, `"code_interpreter"`) |
-| CrewAI | `@tool` decorated functions | `tools` array on agent |
-| AutoGen | `register_function` | `tools` array on agent |
-| LangChain | `Tool` / `BaseTool` | `tools` array on agent |
+| LangGraph | `ToolNode` / `bind_tools` | `tools_enabled` array on the request (e.g. `"auto_search"`, `"web_scraper"`), or custom function schemas via `tools_list_dictionary` |
+| CrewAI | `@tool` decorated functions | `tools_list_dictionary` (OpenAI-style function schemas) on the agent |
+| AutoGen | `register_function` | `tools_list_dictionary` (OpenAI-style function schemas) on the agent |
+| LangChain | `Tool` / `BaseTool` | `tools_list_dictionary` (OpenAI-style function schemas) on the agent |
 
 ---
 

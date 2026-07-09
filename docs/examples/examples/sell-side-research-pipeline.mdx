@@ -298,7 +298,7 @@ def build_swarm_for_note(pdf_ref: str, ticker: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 4096,
                 "temperature": 0.1,
-                "tools_dictionary": [
+                "tools_list_dictionary": [
                     PARSE_PDF_TOOL,
                     LOOKUP_CONSENSUS_TOOL,
                     IS_ABOVE_CONSENSUS_TOOL,
@@ -314,7 +314,7 @@ def build_swarm_for_note(pdf_ref: str, ticker: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 1024,
                 "temperature": 0.0,
-                "tools_dictionary": [EXTRACT_RATING_TOOL],
+                "tools_list_dictionary": [EXTRACT_RATING_TOOL],
             },
             {
                 "agent_name": "Price Target Tracker",
@@ -325,7 +325,7 @@ def build_swarm_for_note(pdf_ref: str, ticker: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 1024,
                 "temperature": 0.0,
-                "tools_dictionary": [EXTRACT_TARGET_TOOL],
+                "tools_list_dictionary": [EXTRACT_TARGET_TOOL],
             },
             {
                 "agent_name": "Key Driver Extractor",
@@ -336,7 +336,7 @@ def build_swarm_for_note(pdf_ref: str, ticker: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 2048,
                 "temperature": 0.2,
-                "tools_dictionary": [EXTRACT_DRIVERS_TOOL],
+                "tools_list_dictionary": [EXTRACT_DRIVERS_TOOL],
             },
         ],
     }

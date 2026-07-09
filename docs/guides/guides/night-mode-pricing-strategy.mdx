@@ -18,10 +18,10 @@ The single highest-ROI cost lever the Swarms API offers is its overnight discoun
 
 ## How the Discount Works
 
-The discount is applied server-side, in `api/utils.py` ([line 128](https://github.com/kyegomez/swarms-api)). When a swarm completion finishes, the billing function checks the current hour in `America/Los_Angeles`:
+The discount is applied server-side, in `api/swarm_completions.py`, inside the `calculate_swarm_cost` function. When a swarm completion finishes, the billing function checks the current hour in `America/Los_Angeles`:
 
 ```python
-# Excerpt from api/utils.py — the billing path
+# Excerpt from api/swarm_completions.py — the billing path
 california_tz = pytz.timezone("America/Los_Angeles")
 current_time = datetime.now(california_tz)
 is_night_time = current_time.hour >= 20 or current_time.hour < 6  # 8 PM to 6 AM

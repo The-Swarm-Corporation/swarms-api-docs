@@ -17,7 +17,7 @@ AutoGen models multi-agent collaboration as a **conversation** — agents exchan
 | `llm_config = {"model": "gpt-4.1", "api_key": ...}` | `"model_name": "gpt-4.1"` on agent spec |
 | `max_consecutive_auto_reply` | `max_loops` on agent spec |
 | `is_termination_msg` | Handled by workflow `max_loops` |
-| `code_execution_config` | `"tools": ["code_interpreter"]` on agent spec |
+| `code_execution_config` | Not directly supported — the API does not offer a sandboxed code-execution tool; use `tools_list_dictionary` to call your own code-execution function |
 
 ---
 
@@ -70,12 +70,14 @@ result = requests.post(
     "https://api.swarms.world/v1/agent/completions",
     headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
     json={
-        "agent_name": "assistant",
-        "system_prompt": "You are a helpful AI assistant.",
         "task": "Explain the difference between supervised and unsupervised learning.",
-        "model_name": "gpt-4.1",
-        "max_loops": 1,
-        "temperature": 0.5,
+        "agent_config": {
+            "agent_name": "assistant",
+            "system_prompt": "You are a helpful AI assistant.",
+            "model_name": "gpt-4.1",
+            "max_loops": 1,
+            "temperature": 0.5,
+        },
     },
     timeout=60,
 ).json()
@@ -161,7 +163,7 @@ import os
 import requests
 
 result = requests.post(
-    "https://api.swarms.world/v1/swarms/completions",
+    "https://api.swarms.world/v1/swarm/completions",
     headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
     json={
         "name": "Software Development GroupChat",
@@ -252,6 +254,8 @@ user_proxy.initiate_chat(
 
 ### Swarms API
 
+The Swarms API does not provide a sandboxed code-execution tool (`/v1/tools/available` only exposes `auto_search` and `web_scraper`), so there is no direct equivalent of AutoGen's Docker/subprocess code execution. The agent below writes the code; you run it yourself (or call your own execution function via `tools_list_dictionary`).
+
 ```python
 import os
 import requests
@@ -260,13 +264,14 @@ result = requests.post(
     "https://api.swarms.world/v1/agent/completions",
     headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
     json={
-        "agent_name": "coding_assistant",
-        "system_prompt": "You are an expert programmer. Write correct, efficient Python code and explain what it does.",
         "task": "Write a Python script that calculates the first 20 Fibonacci numbers.",
-        "model_name": "gpt-4.1",
-        "tools": ["code_interpreter"],
-        "max_loops": 1,
-        "temperature": 0.2,
+        "agent_config": {
+            "agent_name": "coding_assistant",
+            "system_prompt": "You are an expert programmer. Write correct, efficient Python code and explain what it does.",
+            "model_name": "gpt-4.1",
+            "max_loops": 1,
+            "temperature": 0.2,
+        },
     },
     timeout=90,
 ).json()
@@ -336,7 +341,7 @@ import os
 import requests
 
 result = requests.post(
-    "https://api.swarms.world/v1/swarms/completions",
+    "https://api.swarms.world/v1/swarm/completions",
     headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
     json={
         "name": "AI Jobs Debate",
@@ -459,8 +464,8 @@ agent = autogen.UserProxyAgent(
 |---|---|---|
 | Conversation history | Managed in-memory per session | Stateless; each request is independent |
 | Human input | `human_input_mode="ALWAYS"` | Not supported in API mode |
-| Code execution | Docker or local subprocess | Cloud sandbox via `"tools": ["code_interpreter"]` |
-| Function calling | `register_function()` | `"tools"` array with built-in tool names |
+| Code execution | Docker or local subprocess | Not built in — no sandboxed execution tool is provided |
+| Function calling | `register_function()` | `tools_list_dictionary` (OpenAI-style function schemas) on the agent |
 | Nested chats | `register_nested_chats()` | Use `HierarchicalSwarm` or `GraphWorkflow` |
 | Cost / token tracking | Via OpenAI usage logs | `usage.token_cost` in every response |
 | Caching | `cache_seed` on `llm_config` | Not applicable; no local cache |

@@ -7,7 +7,7 @@ description: "A single-agent build for event catering discovery — strict JSON 
 
 - A focused single-agent build for a real applied domain — event catering discovery
 - A strict, behaviorally-scoped `system_prompt` that pins the agent to structured JSON output
-- The `search_enabled` flag for live vendor lookups with citations
+- The top-level `tools_enabled` list (`"auto_search"`) for live vendor lookups with citations
 - How to parse the structured response and surface it to an end user
 - A cost callout: a single API call vs. hiring a catering consultant for an event
 
@@ -54,7 +54,7 @@ You are Caterly — a professional event catering discovery assistant. Your task
 
 Behavior rules:
 1. Ask only necessary clarifying questions (if absolutely needed) — otherwise assume missing common defaults (guest_count=50, budget_per_person=$30, date=flexible).
-2. When search_enabled is true, perform web lookups and verify vendor contact and availability information; include citation for each vendor where possible.
+2. When web search is enabled, perform web lookups and verify vendor contact and availability information; include citation for each vendor where possible.
 3. For each recommended caterer, provide: name, short description, service types, price per person or range, contact info, menu highlights, dietary accommodations, travel/fee considerations, and a confidence rating with explanation.
 4. Quote prices clearly and compute total estimated event cost = guest_count * price_per_person + service/travel fees.
 5. Provide a "next steps" checklist and a ready-to-send caterer outreach message.
@@ -71,7 +71,7 @@ Rule 7 is the load-bearing one. Without an explicit "never invent contact data" 
 
 ## Step 3: Build the Agent Payload
 
-The `search_enabled` flag is what turns Caterly from a vibes-only recommender into a web-grounded one. Setting it both at the top level of the payload and inside `agent_config` ensures the agent and the platform both authorize the search calls.
+The top-level `tools_enabled` list is what turns Caterly from a vibes-only recommender into a web-grounded one. Passing `"auto_search"` in that list authorizes the platform to attach a live web-search tool (backed by Exa) to the agent for this request; `"web_scraper"` is also available if you need full-page scrapes instead of search snippets.
 
 ```python
 def create_agent_payload(task: str, search_enabled: bool = True) -> Dict[str, Any]:
@@ -93,12 +93,11 @@ def create_agent_payload(task: str, search_enabled: bool = True) -> Dict[str, An
             "temperature": 0.5,
             "role": "worker",
             "max_loops": 1,
-            "search_enabled": search_enabled,
             "tool_call_summary": True,
             "dynamic_temperature_enabled": True,
         },
         "task": task,
-        "search_enabled": search_enabled,
+        "tools_enabled": ["auto_search"] if search_enabled else [],
     }
 ```
 

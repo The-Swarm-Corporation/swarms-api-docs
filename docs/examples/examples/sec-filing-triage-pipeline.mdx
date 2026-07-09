@@ -239,7 +239,7 @@ PIPELINE_AGENTS = [
         "max_loops": 1,
         "max_tokens": 1024,
         "temperature": 0.0,
-        "tools_dictionary": [FETCH_EDGAR_FILING],
+        "tools_list_dictionary": [FETCH_EDGAR_FILING],
     },
     {
         "agent_name": "Section Extractor",
@@ -259,7 +259,7 @@ PIPELINE_AGENTS = [
         "max_loops": 1,
         "max_tokens": 8192,
         "temperature": 0.1,
-        "tools_dictionary": [PARSE_MDA_SECTION, EXTRACT_RISK_FACTORS],
+        "tools_list_dictionary": [PARSE_MDA_SECTION, EXTRACT_RISK_FACTORS],
     },
     {
         "agent_name": "Diff Engine",
@@ -281,7 +281,7 @@ PIPELINE_AGENTS = [
         "max_loops": 1,
         "max_tokens": 8192,
         "temperature": 0.2,
-        "tools_dictionary": [FETCH_EDGAR_FILING, PARSE_MDA_SECTION,
+        "tools_list_dictionary": [FETCH_EDGAR_FILING, PARSE_MDA_SECTION,
                              EXTRACT_RISK_FACTORS, DIFF_SECTIONS],
     },
     {
@@ -303,7 +303,7 @@ PIPELINE_AGENTS = [
         "max_loops": 1,
         "max_tokens": 4096,
         "temperature": 0.2,
-        "tools_dictionary": [SCORE_MATERIALITY],
+        "tools_list_dictionary": [SCORE_MATERIALITY],
     },
     {
         "agent_name": "Memo Writer",

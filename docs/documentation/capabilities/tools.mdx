@@ -108,23 +108,35 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
 
 ## Stream Format
 
-The API uses Server-Sent Events (SSE) format. Each response contains event types and data:
+The API uses Server-Sent Events (SSE) format. Each frame is a `data:` line, optionally preceded by an `event:` line naming the event type. The very first frame (job metadata) is sent **without** an `event:` line — identify it by `"type": "metadata"` inside the payload:
 
 ```
-event: metadata
-data: {"job_id": "abc123", "name": "Research Analyst"}
+data: {"job_id": "abc123", "success": true, "name": "Research Analyst", "temperature": 0.7, "stream": true, "type": "metadata"}
+
+event: start
+data: {"message": "Starting agent processing..."}
 
 event: chunk
-data: {"content": "Based on current research"}
+data: {"content": "Based on current research", "timestamp": "2026-07-09T12:00:00Z"}
 
 event: chunk
-data: {"content": ", AI development shows"}
+data: {"content": ", AI development shows", "timestamp": "2026-07-09T12:00:01Z"}
 
 event: usage
-data: {"tokens_used": 150, "cost": 0.003}
+data: {"input_tokens": 42, "output_tokens": 108, "total_tokens": 150, "input_cost": 0.00021, "output_cost": 0.00054, "total_cost": 0.00075}
+
+event: end
+data: {"job_id": "abc123", "usage": {"...": "..."}, "timestamp": "2026-07-09T12:00:02Z", "complete": true}
 
 event: done
-data: {"status": "finished"}
+data: {"message": "Agent processing complete"}
+```
+
+On failure, a single `error` event is sent instead of `usage`/`end`/`done`:
+
+```
+event: error
+data: {"error": "AgentCompletionError: ...", "timestamp": "2026-07-09T12:00:02Z"}
 ```
 
 ## Parsing Streams
@@ -155,20 +167,28 @@ Here's how to parse streaming responses in different languages:
                 try:
                     data = json.loads(line[6:])
                     
-                    if current_event == "metadata":
+                    # The first frame has no "event:" line — identify it by
+                    # its "type" field instead.
+                    if current_event is None and data.get("type") == "metadata":
                         print(f"Job ID: {data.get('job_id')}")
                         print(f"Agent: {data.get('name')}")
                         print("-" * 40)
-                    
+
+                    elif current_event == "start":
+                        print(data.get("message", "Starting..."))
+
                     elif current_event == "chunk":
                         content = data.get("content", "")
                         full_content += content
                         print(content, end="", flush=True)
                     
                     elif current_event == "usage":
-                        print(f"\nTokens used: {data.get('tokens_used')}")
-                        print(f"Cost: ${data.get('cost', 0):.4f}")
-                    
+                        print(f"\nTokens used: {data.get('total_tokens')}")
+                        print(f"Cost: ${data.get('total_cost', 0):.4f}")
+
+                    elif current_event == "end":
+                        print(f"\nJob {data.get('job_id')} complete")
+
                     elif current_event == "done":
                         print("\n✅ Complete!")
                     
@@ -207,17 +227,23 @@ Here's how to parse streaming responses in different languages:
                     try {
                         const data = JSON.parse(line.substring(6));
                         
-                        if (currentEvent === 'metadata') {
+                        // The first frame has no "event: " line — identify it
+                        // by its "type" field instead.
+                        if (currentEvent === null && data.type === 'metadata') {
                             console.log(`Job ID: ${data.job_id}`);
                             console.log(`Agent: ${data.name}`);
                             console.log("-".repeat(40));
+                        } else if (currentEvent === 'start') {
+                            console.log(data.message || "Starting...");
                         } else if (currentEvent === 'chunk') {
                             const content = data.content || "";
                             fullContent += content;
                             process.stdout.write(content);
                         } else if (currentEvent === 'usage') {
-                            console.log(`\nTokens used: ${data.tokens_used}`);
-                            console.log(`Cost: $${data.cost?.toFixed(4) || 0}`);
+                            console.log(`\nTokens used: ${data.total_tokens}`);
+                            console.log(`Cost: $${data.total_cost?.toFixed(4) || 0}`);
+                        } else if (currentEvent === 'end') {
+                            console.log(`\nJob ${data.job_id} complete`);
                         } else if (currentEvent === 'done') {
                             console.log("\n✅ Complete!");
                         } else if (currentEvent === 'error') {
@@ -256,16 +282,20 @@ Here's how to parse streaming responses in different languages:
                 }
                 
                 switch currentEvent {
-                case "metadata":
-                    fmt.Printf("Job ID: %s\n", data.JobID)
-                    fmt.Printf("Agent: %s\n", data.Name)
-                    fmt.Println(strings.Repeat("-", 40))
+                case "":
+                    // The first frame has no "event: " line — identify it by
+                    // its "type" field instead.
+                    if data.Type == "metadata" {
+                        fmt.Printf("Job ID: %s\n", data.JobID)
+                        fmt.Printf("Agent: %s\n", data.Name)
+                        fmt.Println(strings.Repeat("-", 40))
+                    }
                 case "chunk":
                     fullContent.WriteString(data.Content)
                     fmt.Print(data.Content)
                 case "usage":
-                    fmt.Printf("\nTokens used: %d\n", data.TokensUsed)
-                    fmt.Printf("Cost: $%.4f\n", data.Cost)
+                    fmt.Printf("\nTokens used: %d\n", data.TotalTokens)
+                    fmt.Printf("Cost: $%.4f\n", data.TotalCost)
                 case "done":
                     fmt.Println("\n✅ Complete!")
                 case "error":
@@ -424,11 +454,13 @@ Here's how to parse streaming responses in different languages:
 
 | Event | Description | Data Fields |
 |-------|-------------|-------------|
-| `metadata` | Job information | `job_id`, `name`, `temperature` |
-| `chunk` | Content piece | `content` |
-| `usage` | Token usage | `tokens_used`, `cost` |
-| `done` | Completion | `status` |
-| `error` | Error info | `error`, `message` |
+| *(none — first frame)* | Job metadata, sent before any `event:` line | `job_id`, `success`, `name`, `description`, `temperature`, `timestamp`, `stream`, `type` (`"metadata"`) |
+| `start` | Agent processing has begun | `message` |
+| `chunk` | Content piece | `content`, `timestamp` |
+| `usage` | Token usage and cost, sent once near the end | `input_tokens`, `output_tokens`, `total_tokens`, `input_cost`, `output_cost`, `total_cost` |
+| `end` | Final job metadata | `job_id`, `usage`, `timestamp`, `complete` |
+| `done` | Stream finished | `message` |
+| `error` | Error info | `error`, `timestamp` |
 
 ## Best Practices
 

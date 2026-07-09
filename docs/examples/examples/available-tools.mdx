@@ -91,17 +91,14 @@ Tools extend agent capabilities by providing access to external services, APIs, 
     # Get available tools
     curl -X GET "https://api.swarms.world/v1/tools/available" \
       -H "x-api-key: your-api-key" \
-      -H "Content-Type": "application/json"
+      -H "Content-Type: application/json"
 
     # Example response:
     # {
     #   "status": "success",
     #   "tools": [
-    #     "web_search",
-    #     "calculator",
-    #     "database_query",
-    #     "file_processor",
-    #     "api_integrator"
+    #     "auto_search",
+    #     "web_scraper"
     #   ]
     # }
     ```
@@ -110,99 +107,32 @@ Tools extend agent capabilities by providing access to external services, APIs, 
 
 ## Tool Integration
 
+Enable a tool on an agent by adding its name to `tools_enabled` in `agent_config`. Only one of the two tools is applied per request — if `auto_search` is present it takes precedence over `web_scraper`.
+
 <Tabs>
-  <Tab title="Web Search">
+  <Tab title="Auto Search">
     ```python
     payload = {
         "agent_config": {
             "agent_name": "Research Assistant",
             "model_name": "gpt-4.1",
             "max_tokens": 2048,
-            "tools_enabled": ["web_search"]
+            "tools_enabled": ["auto_search"]
         },
         "task": "Find the latest developments in quantum computing and summarize the key breakthroughs."
     }
     ```
   </Tab>
-  <Tab title="Calculator">
-    ```python
-    payload = {
-        "agent_config": {
-            "agent_name": "Math Assistant",
-            "model_name": "gpt-4.1",
-            "max_tokens": 1024,
-            "tools_enabled": ["calculator"]
-        },
-        "task": "Calculate the compound interest on $10,000 at 5% annual interest over 10 years."
-    }
-    ```
-  </Tab>
-  <Tab title="File Processor">
+  <Tab title="Web Scraper">
     ```python
     payload = {
         "agent_config": {
             "agent_name": "Document Analyst",
             "model_name": "gpt-4.1",
             "max_tokens": 2048,
-            "tools_enabled": ["file_processor"]
+            "tools_enabled": ["web_scraper"]
         },
-        "task": "Analyze the attached PDF document and extract the key findings and recommendations."
-    }
-    ```
-  </Tab>
-  <Tab title="API Integrator">
-    ```python
-    payload = {
-        "agent_config": {
-            "agent_name": "Data Collector",
-            "model_name": "gpt-4.1",
-            "max_tokens": 2048,
-            "tools_enabled": ["api_integrator"]
-        },
-        "task": "Fetch the latest weather data for New York City and provide a forecast summary."
-    }
-    ```
-  </Tab>
-</Tabs>
-
-## Advanced Tool Configuration
-
-<Tabs>
-  <Tab title="Multiple Tools">
-    ```python
-    payload = {
-        "agent_config": {
-            "agent_name": "Multi-Tool Assistant",
-            "model_name": "gpt-4.1",
-            "max_tokens": 4096,
-            "tools_enabled": [
-                "web_search",
-                "calculator",
-                "file_processor",
-                "database_query"
-            ]
-        },
-        "task": "Research the latest stock prices for tech companies, calculate the average, and generate a report."
-    }
-    ```
-  </Tab>
-  <Tab title="Tool-Specific Configuration">
-    ```python
-    payload = {
-        "agent_config": {
-            "agent_name": "Advanced Analyst",
-            "model_name": "gpt-4.1",
-            "max_tokens": 4096,
-            "tools_enabled": ["web_search"],
-            "tool_config": {
-                "web_search": {
-                    "max_results": 5,
-                    "search_engine": "google",
-                    "include_images": false
-                }
-            }
-        },
-        "task": "Find recent articles about artificial intelligence ethics."
+        "task": "Scrape and summarize the content at https://example.com/article."
     }
     ```
   </Tab>
@@ -210,13 +140,14 @@ Tools extend agent capabilities by providing access to external services, APIs, 
 
 ## Tool Categories
 
-| Category | Tools | Description |
-|----------|-------|-------------|
-| **Search & Discovery** | `web_search`, `database_query` | Find and retrieve information from various sources |
-| **Computation** | `calculator`, `data_analyzer` | Perform calculations and data analysis |
-| **File Processing** | `file_processor`, `document_parser` | Handle and analyze files and documents |
-| **Integration** | `api_integrator`, `webhook_handler` | Connect with external APIs and services |
-| **Communication** | `email_sender`, `notification_service` | Send messages and notifications |
+| Tool | Description | Billed As |
+|------|-------------|-----------|
+| `auto_search` | Web search powered by Exa, used to ground agent responses in current information | `agent-completions-tool-usage-exa-search` (per search) |
+| `web_scraper` | Fetches and formats the content of a URL for the agent to read | `agent-completions-tool-usage-web-scraper` (per scrape) |
+
+<Note>
+Search and scrape costs are billed per use — see [Pricing Details](/docs/examples/examples/pricing-details-basic) for current `search_cost` and `scrape_cost` rates.
+</Note>
 
 ## Best Practices
 

@@ -5,12 +5,12 @@ description: "Attach OpenAI-style function tools to agents inside a multi-agent 
 
 ## What This Example Shows
 
-- How to pass `tools_dictionary` on a per-agent basis inside a swarm
+- How to pass `tools_list_dictionary` on a per-agent basis inside a swarm
 - How the same tool schema can be shared across multiple worker agents
 - A `ConcurrentWorkflow` of two financial analysts that both call a structured `search_topic` tool
 
 <Info>
-Every multi-agent architecture on Swarms accepts the same per-agent `tools_dictionary`. The pattern below works identically for `SequentialWorkflow`, `HierarchicalSwarm`, `AgentRearrange`, `GroupChat`, `MixtureOfAgents`, and the rest — only the `swarm_type` changes.
+Every multi-agent architecture on Swarms accepts the same per-agent `tools_list_dictionary`. The pattern below works identically for `SequentialWorkflow`, `HierarchicalSwarm`, `AgentRearrange`, `GroupChat`, `MixtureOfAgents`, and the rest — only the `swarm_type` changes.
 </Info>
 
 ## Step 1: Setup
@@ -86,7 +86,7 @@ def run_financial_swarm() -> dict:
                 "max_loops": 1,
                 "max_tokens": 8192,
                 "temperature": 0.5,
-                "tools_dictionary": [SEARCH_TOOL],
+                "tools_list_dictionary": [SEARCH_TOOL],
             },
             {
                 "agent_name": "Economic Forecaster",
@@ -97,10 +97,9 @@ def run_financial_swarm() -> dict:
                 "max_loops": 1,
                 "max_tokens": 8192,
                 "temperature": 0.5,
-                "tools_dictionary": [SEARCH_TOOL],
+                "tools_list_dictionary": [SEARCH_TOOL],
             },
         ],
-        "output_type": "dict",
     }
 
     response = requests.post(
@@ -135,4 +134,4 @@ To switch to a different swarm topology, only `swarm_type` changes:
 | Route the task to whichever analyst fits | `MultiAgentRouter` |
 | Vote on the best answer | `MajorityVoting` |
 
-The `tools_dictionary` on each agent stays exactly the same.
+The `tools_list_dictionary` on each agent stays exactly the same.

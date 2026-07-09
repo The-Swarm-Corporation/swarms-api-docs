@@ -48,7 +48,8 @@ The `/v1/models/available` endpoint returns all models currently supported by th
     models_data = get_available_models()
     if models_data:
         print("✅ Available models retrieved successfully!")
-        print(json.dumps(models_data, indent=2))
+        print(models_data)
+        print(len(models_data["models"]))
     ```
   </Tab>
   <Tab title="JavaScript">
@@ -96,11 +97,16 @@ The `/v1/models/available` endpoint returns all models currently supported by th
     # Example response:
     # {
     #   "success": true,
-    #   "models": {
-    #     "openai": ["gpt-4.1", "gpt-4.1-mini", "gpt-4-turbo"],
-    #     "anthropic": ["claude-sonnet-4-20250514", "claude-haiku-3.5"],
-    #     "groq": ["llama-3.1-70b", "mixtral-8x7b"]
-    #   }
+    #   "count": 42,
+    #   "models": [
+    #     "gpt-4.1",
+    #     "gpt-4.1-mini",
+    #     "gpt-4-turbo",
+    #     "claude-sonnet-4-20250514",
+    #     "claude-haiku-3.5",
+    #     "groq/llama-3.1-70b-versatile",
+    #     "openrouter/aion-labs/aion-3.0"
+    #   ]
     # }
     ```
   </Tab>
@@ -108,38 +114,33 @@ The `/v1/models/available` endpoint returns all models currently supported by th
 
 ## Understanding the Response
 
-The models endpoint returns a structured response with information about all available models:
+The models endpoint returns a flat list of all available model identifiers, filtered by your subscription tier:
 
 ```json
 {
   "success": true,
-  "models": {
-    "openai": [
-      "gpt-4.1",
-      "gpt-4.1-mini",
-      "gpt-4-turbo",
-      "gpt-4",
-      "gpt-3.5-turbo"
-    ],
-    "anthropic": [
-      "claude-sonnet-4-20250514",
-      "claude-sonnet-3.5",
-      "claude-haiku-3.5",
-      "claude-opus-4"
-    ],
-    "groq": [
-      "llama-3.1-70b-versatile",
-      "llama-3.1-8b-instant",
-      "mixtral-8x7b-instruct",
-      "gemma-7b-it"
-    ],
-    "other_providers": [
-      "custom-model-1",
-      "custom-model-2"
-    ]
-  }
+  "count": 42,
+  "models": [
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4-turbo",
+    "gpt-4",
+    "gpt-3.5-turbo",
+    "claude-sonnet-4-20250514",
+    "claude-haiku-3.5",
+    "groq/llama-3.1-70b-versatile",
+    "groq/llama-3.1-8b-instant"
+  ]
 }
 ```
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `success` | boolean | Whether the request succeeded |
+| `count` | integer | Number of models in the `models` list |
+| `models` | array of strings | Flat list of available model identifiers, filtered by your subscription tier (free tier accounts won't see premium or Groq models) |
+
+By default, this list also includes models fetched live from OpenRouter (cached for 5 minutes) and prefixed with `openrouter/` (e.g. `openrouter/aion-labs/aion-3.0`).
 
 ## Model Selection Guide
 
@@ -263,25 +264,25 @@ The models endpoint returns a structured response with information about all ava
         if not models_data or not models_data.get("success"):
             return "gpt-4.1-mini"  # Fallback
 
-        available_models = models_data.get("models", {})
+        available_models = models_data.get("models", [])
 
         # Model selection logic
         if task_type == "creative":
             if priority == "quality":
-                return "gpt-4.1" if "gpt-4.1" in available_models.get("openai", []) else "claude-sonnet-4-20250514"
+                return "gpt-4.1" if "gpt-4.1" in available_models else "claude-sonnet-4-20250514"
             elif priority == "speed":
-                return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models.get("openai", []) else "claude-haiku-3.5"
+                return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models else "claude-haiku-3.5"
             else:  # balanced
                 return "gpt-4.1-mini"
 
         elif task_type == "analytical":
-            return "gpt-4.1" if "gpt-4.1" in available_models.get("openai", []) else "claude-sonnet-4-20250514"
+            return "gpt-4.1" if "gpt-4.1" in available_models else "claude-sonnet-4-20250514"
 
         elif task_type == "fast":
-            return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models.get("openai", []) else "llama-3.1-8b-instant"
+            return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models else "llama-3.1-8b-instant"
 
         elif task_type == "vision":
-            return "gpt-4.1" if "gpt-4.1" in available_models.get("openai", []) else "gpt-4-turbo"
+            return "gpt-4.1" if "gpt-4.1" in available_models else "gpt-4-turbo"
 
         return "gpt-4.1-mini"  # Default fallback
 
@@ -409,34 +410,34 @@ The models endpoint returns a structured response with information about all ava
             if response.status_code == 200:
                 data = response.json()
                 if data.get("success"):
-                    return data.get("models", {})
+                    return data.get("models", [])
                 else:
                     print("❌ API returned success=false")
-                    return {}
+                    return []
             elif response.status_code == 401:
                 print("❌ Authentication failed. Check your API key.")
-                return {}
+                return []
             elif response.status_code == 429:
                 print("❌ Rate limit exceeded. Please wait before retrying.")
-                return {}
+                return []
             else:
                 print(f"❌ HTTP {response.status_code}: {response.text}")
-                return {}
+                return []
 
         except requests.exceptions.Timeout:
             print("❌ Request timed out")
-            return {}
+            return []
         except requests.exceptions.ConnectionError:
             print("❌ Connection error")
-            return {}
+            return []
         except Exception as e:
             print(f"❌ Unexpected error: {e}")
-            return {}
+            return []
 
     # Use with fallback
     models = get_available_models_with_fallback()
     if models:
-        print(f"Available providers: {list(models.keys())}")
+        print(f"Available models: {len(models)}")
     ```
   </Tab>
   <Tab title="JavaScript">
@@ -462,17 +463,17 @@ The models endpoint returns a structured response with information about all ava
                 } else {
                     console.log(`❌ HTTP ${response.status}: ${await response.text()}`);
                 }
-                return {};
+                return [];
             }
 
             const data = await response.json();
 
             if (!data.success) {
                 console.log("❌ API returned success=false");
-                return {};
+                return [];
             }
 
-            return data.models || {};
+            return data.models || [];
 
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -482,14 +483,14 @@ The models endpoint returns a structured response with information about all ava
             } else {
                 console.log(`❌ Unexpected error: ${error.message}`);
             }
-            return {};
+            return [];
         }
     }
 
     // Use with fallback
     getAvailableModelsWithFallback().then(models => {
-        if (Object.keys(models).length > 0) {
-            console.log(`Available providers: ${Object.keys(models)}`);
+        if (models.length > 0) {
+            console.log(`Available models: ${models.length}`);
         }
     });
     ```

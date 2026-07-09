@@ -1,6 +1,6 @@
 ---
 title: "Production Observability with Swarms"
-description: "Wire /v1/swarm/logs, /v1/usage/report, /v1/account/credits, and X-RateLimit-* headers into a single operator dashboard for cost, error, and quota visibility."
+description: "Wire /v1/swarm/logs, /v1/usage/costs, /v1/account/credits, and X-RateLimit-* headers into a single operator dashboard for cost, error, and quota visibility."
 ---
 
 ## What This Covers
@@ -19,11 +19,11 @@ Most teams discover their observability gap the day a customer asks "what did th
 | Signal | Endpoint / Source | Time grain | Answers |
 | --- | --- | --- | --- |
 | Per-request logs | `GET /v1/swarm/logs` | Per request | "What ran? Did it succeed? How much did it cost?" |
-| Daily usage rollup | `GET /v1/usage/report` | Per day | "What's our trend? Are we forecasting under budget?" |
+| Live pricing rates | `GET /v1/usage/costs` | Snapshot (current rate card) | "What are we billed per token / agent / search right now?" |
 | Credit balance | `GET /v1/account/credits` | Snapshot | "Do we have headroom for the next batch job?" |
 | Rate-limit headers | `X-RateLimit-*` on every response | Per request | "Are we about to get 429'd? Do we need to back off?" |
 
-The rule of thumb: **headers for the next millisecond, logs for the last hour, usage report for the last month, credits before you submit a batch.**
+The rule of thumb: **headers for the next millisecond, logs for the last hour (and for trend analysis — there's no separate daily-rollup endpoint), live rates before you estimate a job's cost, credits before you submit a batch.**
 
 ## Step 1: Configure the Client
 
@@ -115,15 +115,21 @@ if __name__ == "__main__":
 The exact shape of each log entry can vary slightly — `swarm_type`, `agent_name`, and `model_name` may appear at the top level or nested under `data`. The code above is defensive against both. See the [Swarm Logs reference](/docs/examples/examples/swarm-logs) for the full schema.
 </Note>
 
-## Step 3: Reconcile Logs Against the Daily Rollup
+## Step 3: Reconcile Logged Costs Against Live Pricing
 
-Logs are per-request; the usage report is the authoritative daily rollup. They should agree within rounding. Use this to catch missing log entries from high-volume periods.
+`/v1/usage/costs` is not a historical rollup — it returns the current rate card (`usage_pricing`) the platform is billing right now, plus a timestamp. There's no per-day or per-period usage-history endpoint in the API; `/v1/swarm/logs` is the only durable, per-request record of what you actually spent. Use the live rate card to sanity-check that the costs your logs recorded still match the rates you expect — this catches a pricing change you didn't notice, or a client-side cost estimate that's gone stale.
 
 ```python
+def fetch_current_pricing() -> dict:
+    resp = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers, timeout=30)
+    resp.raise_for_status()
+    return resp.json()["usage_pricing"]
+
+
 def reconcile_today():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    # Logs side: sum all of today's entries
+    # Logs side: sum all of today's entries (the only durable record of spend)
     logs = fetch_logs().get("logs", [])
     logs_cost = sum(
         float(log.get("cost", 0) or 0)
@@ -131,27 +137,18 @@ def reconcile_today():
         if (log.get("timestamp") or "").startswith(today)
     )
 
-    # Rollup side: pull the usage report and find today
-    resp = requests.get(
-        f"{BASE_URL}/v1/usage/report",
-        headers=headers,
-        params={"period": "day"},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    report = resp.json()
+    # Rates side: pull the live pricing rate card
+    pricing = fetch_current_pricing()
 
-    rollup_cost = next(
-        (d["total_cost"] for d in report.get("results", []) if d["day"] == today),
-        0.0,
+    print(f"Logs total ({today}):       ${logs_cost:.4f}")
+    print(f"Swarm input rate (live):    ${pricing['swarm_completions_input_cost_per_1m']}/1M tokens")
+    print(f"Swarm output rate (live):   ${pricing['swarm_completions_output_cost_per_1m']}/1M tokens")
+    print(f"Per-agent rate (live):      ${pricing['swarm_completions_agent_cost']}/agent")
+    print(
+        "Sanity-check: if the per-request costs in your logs don't line up "
+        "with what these rates would produce, either the rate card changed "
+        "mid-day or your client-side cost estimate is stale."
     )
-
-    drift = abs(logs_cost - rollup_cost)
-    print(f"Logs total ({today}):    ${logs_cost:.4f}")
-    print(f"Rollup total ({today}):  ${rollup_cost:.4f}")
-    print(f"Drift:                   ${drift:.4f}")
-    if drift > 0.05 and rollup_cost > 0:
-        print("WARN: drift > $0.05 — investigate missing log entries.")
 ```
 
 ## Step 4: Check Credits Before a Batch Job
@@ -226,8 +223,8 @@ The platform's existing log retention is suitable for debugging and operational 
 
 A pragmatic daily cron looks like this:
 
-1. **00:05 UTC** — pull `/v1/usage/report?period=day` for yesterday; record total cost in your warehouse
-2. **00:10 UTC** — pull `/v1/swarm/logs`; archive yesterday's entries to S3 / your log lake; aggregate by `swarm_type` and `model_name` for finance
+1. **00:05 UTC** — pull `/v1/usage/costs` to snapshot the current rate card; diff it against yesterday's snapshot to catch pricing changes
+2. **00:10 UTC** — pull `/v1/swarm/logs`; archive yesterday's entries to S3 / your log lake; aggregate by `swarm_type` and `model_name` for finance — this log aggregation is also where your daily total cost comes from, since there's no separate daily-rollup endpoint
 3. **00:15 UTC** — pull `/v1/account/credits`; alert if `total_credits < daily_budget * 7`
 4. **Continuously** — every production request logs its `X-RateLimit-Remaining-Minute`; alert if a rolling 5-minute average drops below 20% of `X-RateLimit-Limit-Minute`
 

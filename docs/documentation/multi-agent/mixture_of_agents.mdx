@@ -140,8 +140,8 @@ response = requests.post(
 if response.status_code == 200:
     result = response.json()
     print("MixtureOfAgents swarm completed successfully!")
-    print(f"Cost: ${result['metadata']['billing_info']['total_cost']}")
-    print(f"Execution time: {result['metadata']['execution_time_seconds']} seconds")
+    print(f"Cost: ${result['usage']['billing_info']['total_cost']}")
+    print(f"Execution time: {result['execution_time']} seconds")
     print(f"Collaborative results: {result['output']}")
 else:
     print(f"Error: {response.status_code} - {response.text}")
@@ -209,8 +209,8 @@ fetch(`${API_BASE_URL}/v1/swarm/completions`, {
 .then(result => {
     if (result.status === "success") {
         console.log("MixtureOfAgents swarm completed successfully!");
-        console.log(`Cost: $${result.metadata.billing_info.total_cost}`);
-        console.log(`Execution time: ${result.metadata.execution_time_seconds} seconds`);
+        console.log(`Cost: $${result.usage.billing_info.total_cost}`);
+        console.log(`Execution time: ${result.execution_time} seconds`);
         console.log("Collaborative results:", result.output);
     }
 })
@@ -417,7 +417,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     ],
     "number_of_agents": 4,
-    "service_tier": "standard",
     "execution_time": 32.1,
     "usage": {
         "input_tokens": 40,
@@ -434,13 +433,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 2840
                 },
                 "num_agents": 4,
-                "service_tier": "standard",
                 "night_time_discount_applied": true
             },
             "total_cost": 0.08212,
             "discount_active": true,
             "discount_type": "night_time",
-            "discount_percentage": 75
+            "discount_percentage": 50
         }
     }
 }

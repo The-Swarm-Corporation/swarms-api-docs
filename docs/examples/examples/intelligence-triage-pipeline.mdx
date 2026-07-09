@@ -280,7 +280,7 @@ Procurement and IG reviews almost always ask the same two questions: who ran wha
 logs = requests.get(f"{BASE_URL}/v1/swarm/logs", headers=headers, timeout=60).json()
 
 # Aggregated usage and cost for billing reconciliation
-usage = requests.get(f"{BASE_URL}/v1/usage", headers=headers, timeout=60).json()
+usage = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers, timeout=60).json()
 ```
 
 Every swarm run is logged with its inputs, agent outputs, token counts, and the model used per agent. This is the same trail your auditor will ask for during a contract review.

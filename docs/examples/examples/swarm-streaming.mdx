@@ -52,10 +52,10 @@ When `stream=true` is set on a `SequentialWorkflow` or `AgentRearrange` swarm, t
 | `metadata` | Once, at the start | `job_id`, `swarm_name`, `swarm_type`, `number_of_agents` |
 | `start` | Once, before agents run | Swarm-level status |
 | `agent_start` | Once per agent, when it begins | `agent` (name) |
-| `chunk` | Many per agent — one per token (or small group) | `agent`, `content` (the token text), `output` (running aggregate) |
-| `agent_end` | Once per agent, when it finishes | `agent`, final per-agent content |
+| `chunk` | Many per agent — one per token (or small group) | `agent`, `content` (the token text) |
+| `agent_end` | Once per agent, when it finishes | `agent` (final per-agent content is not included in this event — collect it from the `chunk` events) |
 | `usage` | Once, near the end | `input_tokens`, `output_tokens`, `total_tokens`, `billing_info` |
-| `end` | Once, terminal | `execution_time`, final aggregated output |
+| `end` | Once, terminal | `execution_time`, `status` (does not include the aggregated output — collect it from the `chunk`/`agent_end` events as you stream) |
 
 <Note>
 The defining feature of swarm streaming is that **every `chunk` event carries an `agent` field**. That's how you attribute a token to the correct worker when multiple agents are running. Single-agent streaming on `/v1/agent/completions` does not need this — there is only one agent.

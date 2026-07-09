@@ -36,7 +36,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `model_name` | `string` | No | `"gpt-4.1"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. For example: gpt-4.1, gpt-4.1, openai/o3-mini |
 | `auto_generate_prompt` | `boolean` | No | `false` | A flag indicating whether the agent should automatically create prompts based on the task requirements |
 | `max_tokens` | `integer` | No | `8192` | The maximum number of tokens that the agent is allowed to generate in its responses, limiting output length |
-| `temperature` | `float` | No | `0.5` | A parameter that controls the randomness of the agent's output; lower values result in more deterministic responses |
+| `temperature` | `float` | No | - | A parameter that controls the randomness of the agent's output; lower values result in more deterministic responses. If omitted, no temperature is sent to the model (the provider's own default applies) |
 | `role` | `string` | No | `"worker"` | The designated role of the agent within the swarm, which influences its behavior and interaction with other agents |
 | `max_loops` | `Union[int, string]` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer for a fixed count, or 'auto' to allow the system to determine the necessary number based on the task's complexity |
 | `tools_list_dictionary` | `List[Dict]` | No | - | A dictionary of tools that the agent can use to complete its task |
@@ -48,7 +48,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `mcp_config` | `MCPConnection` | No | - | The MCP connection to use for the agent |
 | `mcp_configs` | `MultipleMCPConnections` | No | - | The MCP connections to use for the agent. This is a list of MCP connections. Includes multiple MCP connections |
 | `tool_call_summary` | `boolean` | No | `true` | A parameter enabling an agent to summarize tool calls |
-| `reasoning_effort` | `string` | No | - | The effort to put into reasoning |
+| `reasoning_effort` | `string` | No | `"low"` | The effort to put into reasoning. Options: `low`, `medium`, `high` |
 | `thinking_tokens` | `integer` | No | - | The number of tokens to use for thinking |
 | `reasoning_enabled` | `boolean` | No | `false` | A parameter enabling an agent to use reasoning |
 | `publish_to_marketplace` | `boolean` | No | `false` | A flag indicating whether to publish this agent to the Swarms marketplace |
@@ -95,7 +95,7 @@ The response includes detailed usage metrics:
 
 ### 1. Multi-Model Support
 - **OpenAI Models**: gpt-4.1, gpt-4.1-mini, gpt-4.1
-- **Anthropic Models**: claude-sonnet-4-20250514-20240620
+- **Anthropic Models**: claude-sonnet-4-20250514
 - **Custom Models**: Any model supported by LiteLLM
 - **Vision Models**: Support for image analysis with gpt-4.1 and compatible models
 

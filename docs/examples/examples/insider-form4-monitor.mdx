@@ -88,7 +88,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Each agent calls into one or more of these tools. The schemas are OpenAI function-call shape and are attached per-agent via `tools_dictionary`.
+Each agent calls into one or more of these tools. The schemas are OpenAI function-call shape and are attached per-agent via `tools_list_dictionary`.
 
 ```python
 FETCH_FORM4 = {
@@ -308,7 +308,7 @@ def build_form4_pipeline(accession: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 1024,
                 "temperature": 0.1,
-                "tools_dictionary": [FETCH_FORM4],
+                "tools_list_dictionary": [FETCH_FORM4],
             },
             {
                 "agent_name": "Insider Profile Lookup",
@@ -319,7 +319,7 @@ def build_form4_pipeline(accession: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 1024,
                 "temperature": 0.1,
-                "tools_dictionary": [LOOKUP_INSIDER_HISTORY, COMPUTE_AVG_POSITION_SIZE],
+                "tools_list_dictionary": [LOOKUP_INSIDER_HISTORY, COMPUTE_AVG_POSITION_SIZE],
             },
             {
                 "agent_name": "Cluster Detector",
@@ -330,7 +330,7 @@ def build_form4_pipeline(accession: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 1024,
                 "temperature": 0.2,
-                "tools_dictionary": [COUNT_RECENT_INSIDER_BUYS],
+                "tools_list_dictionary": [COUNT_RECENT_INSIDER_BUYS],
             },
             {
                 "agent_name": "Signal Scorer",
@@ -341,7 +341,7 @@ def build_form4_pipeline(accession: str) -> dict:
                 "max_loops": 1,
                 "max_tokens": 1024,
                 "temperature": 0.2,
-                "tools_dictionary": [SCORE_SIGNIFICANCE],
+                "tools_list_dictionary": [SCORE_SIGNIFICANCE],
             },
         ],
     }

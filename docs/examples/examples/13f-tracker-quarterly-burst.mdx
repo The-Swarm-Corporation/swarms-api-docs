@@ -7,13 +7,13 @@ description: "Parse ~5,000 13F filings in a 48-hour quarterly burst with a fan-o
 
 - A `GraphWorkflow` shaped as fan-out → fan-in: thousands of per-fund parser nodes run in parallel, then converge into a cross-fund aggregator and a Theme Synthesizer
 - How to parse raw SEC EDGAR 13F-HR filings (CIK + accession number) into structured holdings, then diff against the prior quarter
-- The batch volume math for the quarterly burst: ~5,000 filings dropping in 48 hours, dispatched via `/v1/swarm/batch/completions` and priced under night-mode
+- The batch volume math for the quarterly burst: ~5,000 filings dropping in 48 hours, dispatched concurrently against `/v1/graph-workflow/completions` and priced under night-mode
 - Model diversification across the DAG: `gpt-4.1-mini` for mechanical parsing, `gpt-4.1` for aggregation, `claude-sonnet-4.5` for the synthesis layer
 - Journalist-grade output: ranked sector adds/cuts, new positions crossing \$100M of cumulative flow, eliminated positions, and named emerging themes with the funds driving them
 - A reusable pattern for any high-volume regulatory-filing burst (Form 4, N-PORT, NPX)
 
 <Info>
-This tutorial leans hard on two premium features: the batch swarm endpoint (`/v1/swarm/batch/completions`) for the burst, and **night-mode pricing** for the burst itself. 13Fs become public after-hours on the 45-day lag — fire the batch between 11pm and 5am Pacific and you pay the night-mode rate. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule.
+This tutorial leans hard on two premium features: the graph workflow endpoint (`/v1/graph-workflow/completions`), dispatched concurrently across the filing list for the burst, and **night-mode pricing** for the burst itself. 13Fs become public after-hours on the 45-day lag — fire the burst between 11pm and 5am Pacific and you pay the night-mode rate. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule.
 </Info>
 
 ## Why This Matters
@@ -58,6 +58,7 @@ export SWARMS_API_KEY="your-api-key-here"
 ```python
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -279,7 +280,7 @@ def build_13f_workflow_for_filing(cik: str, accession: str, fund_name: str, sub_
             "max_tokens": 3000,
             "temperature": 0.1,
             "max_loops": 1,
-            "tools_dictionary": PARSER_TOOLS,
+            "tools_list_dictionary": PARSER_TOOLS,
         }
         for sub in sub_funds
     ]
@@ -297,7 +298,7 @@ def build_13f_workflow_for_filing(cik: str, accession: str, fund_name: str, sub_
         "max_tokens": 4000,
         "temperature": 0.2,
         "max_loops": 1,
-        "tools_dictionary": AGGREGATOR_TOOLS,
+        "tools_list_dictionary": AGGREGATOR_TOOLS,
     }
 
     synthesizer_agent = {
@@ -315,7 +316,7 @@ def build_13f_workflow_for_filing(cik: str, accession: str, fund_name: str, sub_
         "max_tokens": 6000,
         "temperature": 0.4,
         "max_loops": 1,
-        "tools_dictionary": SYNTHESIZER_TOOLS,
+        "tools_list_dictionary": SYNTHESIZER_TOOLS,
     }
 
     edges = (
@@ -326,7 +327,6 @@ def build_13f_workflow_for_filing(cik: str, accession: str, fund_name: str, sub_
     return {
         "name": f"13F-Tracker — {fund_name}",
         "description": f"Per-fund GraphWorkflow for {fund_name} ({cik}) filing {accession}.",
-        "swarm_type": "GraphWorkflow",
         "max_loops": 1,
         "task": (
             f"Process the 13F-HR filing for {fund_name} (CIK {cik}, accession "
@@ -348,7 +348,7 @@ Smoke-test the shape against a single filing before you fire the burst. Pershing
 def run_single_filing(cik: str, accession: str, fund_name: str, sub_funds: list[str]) -> dict:
     payload = build_13f_workflow_for_filing(cik, accession, fund_name, sub_funds)
     response = requests.post(
-        f"{BASE_URL}/v1/swarm/completions",
+        f"{BASE_URL}/v1/graph-workflow/completions",
         headers=headers,
         json=payload,
         timeout=300,
@@ -396,26 +396,42 @@ QUARTERLY_FILINGS = [
 ]
 
 
-def run_quarterly_burst(filings: list[dict]) -> list[dict]:
-    batch_payload = [
-        build_13f_workflow_for_filing(
-            cik=f["cik"],
-            accession=f["accession"],
-            fund_name=f["fund_name"],
-            sub_funds=f["sub_funds"],
-        )
-        for f in filings
-    ]
-    print(f"Dispatching batch of {len(batch_payload)} GraphWorkflows.")
-
+def _run_one_filing(filing: dict) -> dict:
+    payload = build_13f_workflow_for_filing(
+        cik=filing["cik"],
+        accession=filing["accession"],
+        fund_name=filing["fund_name"],
+        sub_funds=filing["sub_funds"],
+    )
     response = requests.post(
-        f"{BASE_URL}/v1/swarm/batch/completions",
+        f"{BASE_URL}/v1/graph-workflow/completions",
         headers=headers,
-        json=batch_payload,
-        timeout=7200,  # the burst can run for an hour or more server-side
+        json=payload,
+        timeout=300,
     )
     response.raise_for_status()
     return response.json()
+
+
+def run_quarterly_burst(filings: list[dict], max_workers: int = 50) -> list[dict]:
+    """
+    There is no bulk endpoint for graph workflows, so the burst is a pool of
+    concurrent single calls to /v1/graph-workflow/completions rather than one
+    request carrying the whole list. Tune max_workers against your account's
+    concurrency and rate limits — see /v1/rate/limits.
+    """
+    print(f"Dispatching burst of {len(filings)} GraphWorkflows across {max_workers} workers.")
+
+    results: list[dict] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(_run_one_filing, f): f for f in filings}
+        for future in as_completed(futures):
+            filing = futures[future]
+            try:
+                results.append(future.result())
+            except requests.HTTPError as exc:
+                results.append({"error": str(exc), "cik": filing["cik"], "accession": filing["accession"]})
+    return results
 
 
 results = run_quarterly_burst(QUARTERLY_FILINGS)

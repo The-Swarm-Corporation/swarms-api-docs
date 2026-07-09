@@ -135,11 +135,11 @@ Each multi-agent architecture type is designed for specific use cases and can be
 | `HierarchicalSwarm` | Multi-level structures with delegation and escalation | [Learn More](/docs/documentation/multi-agent/hierarchical_swarm) |
 | `MajorityVoting` | Consensus-based decision-making across multiple agents | [Learn More](/docs/documentation/multi-agent/majority_voting) |
 | `BatchedGridWorkflow` | Execute multiple tasks across multiple agents in a grid pattern | [Learn More](/docs/documentation/multi-agent/batched_grid_workflow) |
-| `GraphWorkflow` | Execute a graph workflow with directed agent nodes and edges | [Learn More](/docs/documentation/multi-agent/graph_workflow) |
+| `GraphWorkflow` | Execute a graph workflow with directed agent nodes and edges (available via a dedicated `/v1/graph-workflow/completions` endpoint rather than the `swarm_type` field) | [Learn More](/docs/documentation/multi-agent/graph_workflow) |
 | `GroupChat` | Collaborative problem-solving through conversation | - |
-| `MALT` | Multi-agent learning and training | - |
+| `AutoSwarmBuilder` | Automatically designs and assembles a team of specialized agents for a task using a boss agent | - |
 | `CouncilAsAJudge` | Council-based evaluation system | - |
-| `InteractiveGroupChat` | Interactive collaborative sessions | - |
+| `PlannerWorkerSwarm` | Separates planning from execution: planner agents break the task into sub-tasks that worker agents pull from a shared queue | - |
 | `HeavySwarm` | High-capacity swarm processing | [Learn More](/docs/documentation/multi-agent/heavy_swarm) |
 | `LLMCouncil` | Language model council for decisions | - |
 | `DebateWithJudge` | Structured debate with judgment | [Learn More](/docs/documentation/multi-agent/debate_with_judge) |

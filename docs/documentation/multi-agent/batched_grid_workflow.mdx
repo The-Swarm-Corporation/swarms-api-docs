@@ -508,7 +508,7 @@ else:
 | `agent_completions` | array | Yes | List of agent configurations (see AgentSpec below) |
 | `tasks` | array | Yes | List of tasks that each agent will process |
 | `max_loops` | integer | No | Number of iterations for refinement (default: 1) |
-| `imgs` | array | No | List of image URLs for vision-enabled models |
+| `imgs` | array | No | Accepted for forward compatibility, but not currently used in execution — passing images here has no effect on the run |
 
 ### AgentSpec
 
@@ -517,11 +517,11 @@ else:
 | `agent_name` | string | Yes | Unique name for the agent |
 | `description` | string | No | Description of the agent's role |
 | `system_prompt` | string | Yes | System prompt defining agent behavior |
-| `model_name` | string | Yes | Model to use (e.g., "gpt-4.1", "claude-3-5-sonnet-20241022") |
-| `max_loops` | integer | No | Max loops per agent (default: 1) |
-| `temperature` | float | No | Sampling temperature 0.0-1.0 (default: 0.5) |
-| `context_length` | integer | No | Maximum context window size |
-| `user_name` | string | No | User name for the agent |
+| `model_name` | string | No | Model to use (e.g., "gpt-4.1", "claude-3-5-sonnet-20241022"); defaults to `gpt-4.1` |
+| `max_loops` | integer or string | No | Max loops per agent, or `"auto"` (default: 1) |
+| `max_tokens` | integer | No | Maximum tokens the agent can generate (default: 8192) |
+| `temperature` | float | No | Sampling temperature; if omitted, the provider's own default applies |
+| `role` | string | No | Agent's role within the swarm (default: "worker") |
 
 ## Response Schema
 
