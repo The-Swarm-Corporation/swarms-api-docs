@@ -1,5 +1,5 @@
 ---
-name: "Multi-Agent Best Practices"
+title: "Multi-Agent Best Practices"
 description: "Production-grade best practices for using the Swarms API effectively. Learn how to choose the right swarm architecture, optimize costs, and implement robust error handling."
 ---
 
@@ -15,13 +15,18 @@ This comprehensive guide outlines production-grade best practices for using the 
 |------------|----------|------------|
 | `AgentRearrange` | Dynamic workflows | • Complex task decomposition<br/>• Adaptive processing<br/>• Multi-stage analysis<br/>• Dynamic resource allocation |
 | `MixtureOfAgents` | Diverse expertise | • Cross-domain problems<br/>• Comprehensive analysis<br/>• Multi-perspective tasks<br/>• Research synthesis |
-| `SpreadSheetSwarm` | Data processing | • Financial analysis<br/>• Data transformation<br/>• Batch calculations<br/>• Report generation |
+| `BatchedGridWorkflow` | Data processing | • Financial analysis<br/>• Data transformation<br/>• Batch calculations<br/>• Report generation |
 | `SequentialWorkflow` | Linear processes | • Document processing<br/>• Step-by-step analysis<br/>• Quality control<br/>• Content pipeline |
 | `ConcurrentWorkflow` | Parallel tasks | • Batch processing<br/>• Independent analyses<br/>• High-throughput needs<br/>• Multi-market analysis |
 | `GroupChat` | Collaborative solving | • Brainstorming<br/>• Decision making<br/>• Problem solving<br/>• Strategy development |
 | `MultiAgentRouter` | Task distribution | • Load balancing<br/>• Specialized processing<br/>• Resource optimization<br/>• Service routing |
 | `HierarchicalSwarm` | Complex organization | • Project management<br/>• Research analysis<br/>• Enterprise workflows<br/>• Team automation |
 | `MajorityVoting` | Consensus needs | • Quality assurance<br/>• Decision validation<br/>• Risk assessment<br/>• Content moderation |
+| `DebateWithJudge` | Adversarial review | • Contested decisions<br/>• Red-teaming<br/>• Argument stress-testing |
+| `HeavySwarm` | Deep multi-pass analysis | • High-stakes research<br/>• Exhaustive due diligence |
+| `RoundRobin` | Even task rotation | • Fair load distribution<br/>• Sequential specialist review |
+
+See [Available Architectures](/docs/documentation/multi-agent/available-architectures) for the full, current list of swarm types.
 
 ### Application Patterns
 
@@ -98,7 +103,7 @@ Use this framework to select the optimal swarm architecture for your use case:
 
 3. **Domain Requirements**
     - Multi-domain expertise → `MixtureOfAgents`
-    - Data processing → `SpreadSheetSwarm`
+    - Data processing → `BatchedGridWorkflow`
     - Quality assurance → `MajorityVoting`
 
 ### Industry-Specific Recommendations
@@ -109,7 +114,7 @@ Use this framework to select the optimal swarm architecture for your use case:
 - Risk Analysis: `HierarchicalSwarm`
 - Market Research: `MixtureOfAgents`
 - Trading Strategies: `ConcurrentWorkflow`
-- Portfolio Management: `SpreadSheetSwarm`
+- Portfolio Management: `BatchedGridWorkflow`
 
 #### Healthcare
 
