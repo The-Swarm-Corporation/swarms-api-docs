@@ -26,6 +26,7 @@ The Swarms Marketplace provides a comprehensive set of APIs for managing agents,
 | **Prompts** | `/api/add-prompt` | POST | Yes | Create a new prompt |
 | **Prompts** | `/api/edit-prompt` | POST | Yes | Update an existing prompt |
 | **Prompts** | `/api/query-prompts` | POST | No | Search and filter prompts |
+| **Bundles** | `/api/v1/publish/bundle` | POST | Yes | Publish a bundle (curated collection of agents/prompts) |
 | **Token Launch** | `/api/token/launch` | POST | Yes | Create agent and launch token on Solana |
 | **Claim Fees** | `/api/product/claimfees` | POST | No | Claim accumulated creator fees |
 
@@ -106,6 +107,26 @@ Manage AI prompts in the marketplace - create reusable prompt templates and disc
 
 <Card title="Full Documentation" icon="book" href="/docs/marketplace/prompts-api">
 View complete Prompts API reference with examples
+</Card>
+
+---
+
+### Bundles API
+
+Publish [bundles](/docs/marketplace/bundles) — curated collections of marketplace agents, prompts, and custom inline prompts — programmatically.
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/api/v1/publish/bundle` | POST | Required | Publish a bundle with 1–50 items (marketplace references and/or inline prompts) |
+
+**Key Features:**
+- Mix marketplace listings (by URL) with custom inline prompts
+- Base64 or URL cover images
+- Duplicate-name protection (safe request retries)
+- Rate limit: 20 bundles/day per user
+
+<Card title="Full Documentation" icon="book" href="/docs/marketplace/bundles-api">
+View complete Bundles API reference with examples
 </Card>
 
 ---

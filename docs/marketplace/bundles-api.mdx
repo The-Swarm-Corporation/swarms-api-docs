@@ -1,0 +1,204 @@
+---
+title: "Bundles API"
+description: "Publish bundles to the Swarms marketplace programmatically"
+---
+
+Publish a [Bundle](/docs/marketplace/bundles) — a curated collection of marketplace agents, prompts, and custom inline prompts — straight from your code or CI pipeline, in **3 easy steps**:
+
+1. **Authenticate**: Secure your request with an API key.
+2. **Publish**: POST your bundle's name, description, and items.
+3. **Get your listing**: Instantly receive the public bundle URL.
+
+---
+
+## Step 1: Authentication
+
+Send your API key in the `Authorization` header as a Bearer token:
+
+```
+Authorization: Bearer <your-api-key>
+```
+
+<Note>
+Get your API key from [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+</Note>
+
+## Base URL
+
+```
+https://swarms.world
+```
+
+---
+
+## Step 2: Publish a Bundle
+
+### Endpoint
+
+```
+POST /api/v1/publish/bundle
+```
+
+### Input schema
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Bundle display name (2–200 characters). Names containing `test` or `example` are rejected. |
+| `description` | string | No | What the bundle is for (max 10,000 characters) |
+| `items` | array | Yes | 1–50 bundle items — see item shape below |
+| `tags` | string | No | Comma-separated tags (max 500 characters) |
+| `image_url` | string | No | Public cover image URL |
+| `image_base64` | string | No | Base64-encoded cover image (alternative to `image_url`; may include a `data:image/...;base64,` prefix) |
+| `links` | array | No | Supporting links; each `{ "name": string, "url": string }` (max 20) |
+| `business_model` | string | No | Optional business model label |
+
+### Item shape
+
+Each entry in `items` is **one of two kinds**:
+
+| Kind | Fields | Description |
+|------|--------|-------------|
+| Marketplace reference | `url` | Link to an existing agent or prompt listing, e.g. `https://swarms.world/agent/<id>`. The bundle page enriches it with the live name and description. |
+| Custom inline prompt | `name` (required), `description`, `content` | A prompt bundled directly without publishing it as a standalone listing |
+
+<Note>
+Every item needs either a `url` or a `name`. A bundle must contain at least one item. Bundles are free products — free to publish and free to access.
+</Note>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://swarms.world/api/v1/publish/bundle \
+  -H "Authorization: Bearer $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Financial Analysis Starter Kit",
+    "description": "Everything you need to analyze equities: a research agent, a summarizer prompt, and my custom risk checklist.",
+    "tags": "finance,research,analysis",
+    "items": [
+      { "url": "https://swarms.world/agent/2d5bd840-2830-4b2f-9709-02cab69a442b" },
+      { "url": "https://swarms.world/prompt/e0686b13-7f41-44f4-adc4-6c1f468793fb" },
+      {
+        "name": "Risk Checklist",
+        "description": "Pre-trade risk review",
+        "content": "Before recommending any position, verify: 1) liquidity..."
+      }
+    ],
+    "links": [
+      { "name": "GitHub", "url": "https://github.com/your-org/finance-kit" }
+    ]
+  }'
+```
+
+```python Python
+import os
+import requests
+
+response = requests.post(
+    "https://swarms.world/api/v1/publish/bundle",
+    headers={
+        "Authorization": f"Bearer {os.environ['SWARMS_API_KEY']}",
+        "Content-Type": "application/json",
+    },
+    json={
+        "name": "Financial Analysis Starter Kit",
+        "description": "Everything you need to analyze equities.",
+        "tags": "finance,research,analysis",
+        "items": [
+            {"url": "https://swarms.world/agent/2d5bd840-2830-4b2f-9709-02cab69a442b"},
+            {
+                "name": "Risk Checklist",
+                "description": "Pre-trade risk review",
+                "content": "Before recommending any position, verify: ...",
+            },
+        ],
+    },
+    timeout=30,
+)
+print(response.json())
+```
+
+```typescript TypeScript
+const response = await fetch("https://swarms.world/api/v1/publish/bundle", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.SWARMS_API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    name: "Financial Analysis Starter Kit",
+    description: "Everything you need to analyze equities.",
+    tags: "finance,research,analysis",
+    items: [
+      { url: "https://swarms.world/agent/2d5bd840-2830-4b2f-9709-02cab69a442b" },
+      {
+        name: "Risk Checklist",
+        description: "Pre-trade risk review",
+        content: "Before recommending any position, verify: ...",
+      },
+    ],
+  }),
+});
+console.log(await response.json());
+```
+
+</CodeGroup>
+
+---
+
+## Step 3: Get Your Listing
+
+### Success response
+
+```json
+{
+  "success": true,
+  "id": "b3f1c2d4-5678-4abc-9def-0123456789ab",
+  "listing_url": "https://swarms.world/bundle/b3f1c2d4-5678-4abc-9def-0123456789ab",
+  "item_count": 3
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | `true` when the bundle was published |
+| `id` | string | The bundle's public identifier (UUID) |
+| `listing_url` | string | Public marketplace URL of your bundle |
+| `item_count` | number | Number of items saved in the bundle |
+
+### Error responses
+
+| Status | Error | Meaning |
+|--------|-------|---------|
+| `400` | Validation error | Request body failed schema validation — see the `errors` array for details |
+| `400` | Invalid name | Name contains a blocked word (`test`, `example`) |
+| `401` | Authentication required | Missing or invalid API key |
+| `405` | Method not allowed | Only `POST` is accepted |
+| `409` | Duplicate bundle | You already have a bundle with this name — the response includes `existing_id` and `existing_url` |
+| `429` | Daily limit exceeded | Maximum 20 bundles per user per day |
+| `500` | Database error / Internal server error | Something went wrong on our side — retry later |
+
+<Note>
+**Rate limit:** 20 bundles per user per UTC day. Duplicate names (same user, same bundle name) are rejected with `409` so retried requests never double-publish.
+</Note>
+
+---
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Bundles Overview" icon="box" href="/docs/marketplace/bundles">
+    What bundles are and how they work on the marketplace
+  </Card>
+  <Card title="List Your Products" icon="list" href="/docs/marketplace/list-products-api">
+    Fetch everything you've published, including bundles
+  </Card>
+  <Card title="Agents API" icon="robot" href="/docs/marketplace/agents-api">
+    Publish agents programmatically
+  </Card>
+  <Card title="API Keys" icon="key" href="/docs/marketplace/apikeys">
+    Create and manage your API keys
+  </Card>
+</CardGroup>
