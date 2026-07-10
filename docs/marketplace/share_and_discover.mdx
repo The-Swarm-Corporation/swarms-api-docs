@@ -47,6 +47,21 @@ APIs, integrations, and utilities that extend agent capabilities:
 - **Communication Tools**: Integrations with messaging platforms and services
 
 
+### 📦 Bundles
+
+Curated collections that package agents and prompts into a single, shareable toolkit:
+
+- **Research Stacks**: Research, summarization, and citation agents and prompts bundled together
+
+- **Team Onboarding Kits**: A vetted set of tools to get new teammates productive fast
+
+- **Custom Prompts**: Inline prompts written directly into the bundle, without a standalone listing
+
+- **Related Links**: Supporting docs, GitHub repos, or demos alongside the bundled items
+
+See the [Bundles](/docs/marketplace/bundles) guide for details, or publish one programmatically via the [Bundles API](/docs/marketplace/bundles-api).
+
+
 ## Browsing and Discovery
 
 ### Category-Based Navigation
@@ -227,6 +242,26 @@ Tools extend the capabilities of the Swarms ecosystem - share your integrations 
 - **Reliable Performance**: Tested and optimized for production use
 
 
+### Adding a Bundle
+
+Bundles package existing agents and prompts—plus your own custom prompts—into a single reusable toolkit.
+
+**Step-by-Step Process:**
+
+1. **Click "Add Bundle"** from the marketplace interface (or select "Bundle" as the product type at [swarms.world/publish](https://swarms.world/publish))
+2. **Fill Required Fields:**
+
+   - **Name**: Descriptive title (min. 2 characters)
+
+   - **Description**: What the bundle is for and who it's for
+
+3. **Add Items**: Reference existing agents/prompts by marketplace URL, or write custom prompts inline (name, description, content). A bundle needs at least one item.
+4. **Enhance Your Submission:** Add a cover image, comma-separated tags, and optional related links (docs, GitHub, demos)
+5. **Submit**: Review and publish—bundles are free to create and free to access
+
+Bundles can also be published programmatically via the [Bundles API](/docs/marketplace/bundles-api) (`POST /api/v1/publish/bundle`), which is handy for CI pipelines or bulk-publishing curated kits.
+
+
 ## Content Quality Guidelines
 
 ### Writing Effective Descriptions
@@ -393,6 +428,6 @@ Technical Detagentls:
 
 The Swarms Marketplace thrives on community participation. Whether you're sharing a simple prompt or a complex multi-agent system, your contribution makes the entire ecosystem stronger. Start exploring, contributing, and collaborating today!
 
-**Ready to contribute?** Visit `https://swarms.world` and click "Add Prompt," "Add Agent," or "Add Tool" to share your innovation with the world.
+**Ready to contribute?** Visit `https://swarms.world` and click "Add Prompt," "Add Agent," "Add Tool," or "Add Bundle" to share your innovation with the world.
 
 Together, we're building the future of agent collaboration, one contribution at a time.

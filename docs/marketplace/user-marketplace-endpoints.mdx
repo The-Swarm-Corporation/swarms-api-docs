@@ -133,6 +133,22 @@ Count of the authenticated user's prompts.
 
 ---
 
+## Bundles
+
+### `POST /api/v1/publish/bundle`
+
+Publish a bundle — a curated collection of marketplace agents/prompts (by URL) and/or custom inline prompts.
+
+- **Body:** `name`, `description`, `items[]` (1–50, each either `{ url }` or `{ name, description, content }`), `tags`, `image_url` / `image_base64`, `links[]`, `business_model`
+- **Returns:** `success`, `id`, `listing_url`, `item_count`
+- **Notes:** Bundles are free to publish. Rate limit: 20 bundles/day per user. Duplicate names (same user) return `409`.
+
+<Card title="Full reference" icon="box" href="/docs/marketplace/bundles-api">
+Bundles API — request/response details and code examples
+</Card>
+
+---
+
 ## Token Launch
 
 ### `POST /api/token/launch`
@@ -180,6 +196,7 @@ Submit a review for an agent / prompt / tool (one per user per item).
 | POST | `/api/edit-prompt` | Prompts |
 | GET | `/api/get-prompts/[id]/full` | Prompts |
 | GET | `/api/get-prompts/fetch-prompt-count` | Prompts |
+| POST | `/api/v1/publish/bundle` | Bundles |
 | POST | `/api/token/launch` | Token Launch |
 | POST | `/api/token/launch/batch` | Token Launch |
 | POST | `/api/reviews` | Reviews |
