@@ -17,49 +17,47 @@ Model Context Protocol (MCP) is a standardized way for AI agents to interact wit
 
 ## Key Components
 
-### 1. MCP URL Configuration
-
-The `mcp_url` field in your agent configuration specifies the MCP server endpoint:
-
-```python
-"mcp_url": "https://your-mcp-server.com/financial-data"
-```
-
-### 2. MCP URL Configuration
+### 1. MCP URL Configuration (`mcp_url`)
 
 The `mcp_url` field is all you need to connect your agent to an MCP server:
 
-```python
-"mcp_url": "https://your-mcp-server.com/financial-data"
+```json
+{
+    "mcp_url": "https://your-mcp-server.com/financial-data"
+}
 ```
 
 The MCP server will automatically provide the available tools and capabilities to your agent.
 
-### 3. Single MCP Connection (`mcp_config`)
+### 2. Single MCP Connection (`mcp_config`)
 
 For more control over the connection (custom headers, an authorization token, transport, or a timeout), use `mcp_config` instead of `mcp_url`:
 
-```python
-"mcp_config": {
-    "type": "mcp",
-    "url": "https://your-mcp-server.com/financial-data",
-    "transport": "streamable_http",
-    "authorization_token": "your-mcp-server-token",
-    "headers": {"X-Custom-Header": "value"},
-    "timeout": 10
+```json
+{
+    "mcp_config": {
+        "type": "mcp",
+        "url": "https://your-mcp-server.com/financial-data",
+        "transport": "streamable_http",
+        "authorization_token": "your-mcp-server-token",
+        "headers": {"X-Custom-Header": "value"},
+        "timeout": 10
+    }
 }
 ```
 
-### 4. Multiple MCP Connections (`mcp_configs`)
+### 3. Multiple MCP Connections (`mcp_configs`)
 
 To connect a single agent to more than one MCP server at once, use `mcp_configs` with a list of connection objects (each using the same shape as `mcp_config`):
 
-```python
-"mcp_configs": {
-    "connections": [
-        {"type": "mcp", "url": "https://your-mcp-server.com/financial-data"},
-        {"type": "mcp", "url": "https://your-mcp-server.com/market-news"}
-    ]
+```json
+{
+    "mcp_configs": {
+        "connections": [
+            {"type": "mcp", "url": "https://your-mcp-server.com/financial-data"},
+            {"type": "mcp", "url": "https://your-mcp-server.com/market-news"}
+        ]
+    }
 }
 ```
 

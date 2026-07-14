@@ -372,8 +372,8 @@ for node, output in result.get("outputs", {}).items():
         output = " ".join(str(o) for o in output)
     print(str(output)[:600])
 
-print(f"\nCost: ${result['usage']['billing_info']['total_cost']:.4f}")
-print(f"Execution time: {result['execution_time']:.1f}s")
+print(f"\nToken cost: {result['usage']['token_cost']:.4f} credits")
+print(f"Status: {result['status']}")
 ```
 
 <Note>

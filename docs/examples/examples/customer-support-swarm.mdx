@@ -261,7 +261,7 @@ def build_support_swarm(ticket_payload: str) -> dict:
 ```
 
 <Note>
-The Triage Manager runs on `gpt-4.1` because misrouting cascades into the wrong specialist and burns the whole pipeline. Specialists run on `gpt-4.1-mini` — they are doing template-shaped writing and the cost difference is what makes \$0.02/ticket possible. The Quality Reviewer goes back to `gpt-4.1` because the escalation decision is load-bearing.
+The Triage Manager runs on `claude-sonnet-4.5` because misrouting cascades into the wrong specialist and burns the whole pipeline. Specialists run on cheaper models (`gpt-4.1-mini`, `claude-haiku-4.5`, `grok-4`) — they are doing template-shaped writing and the cost difference is what makes \$0.02/ticket possible. The Quality Reviewer steps up to `claude-opus-4-8` because the escalation decision is load-bearing.
 </Note>
 
 ## Step 3: Process a Single Ticket
@@ -496,7 +496,7 @@ A 500-ticket backlog at this swarm shape runs about \$10 end-to-end and finishes
 
 | Scenario | Cost per ticket | Cost per month (10K tickets) | Throughput |
 | --- | --- | --- | --- |
-| Customer support swarm (gpt-4.1 + 4.1-mini) | ~\$0.02 | ~\$200 | minutes per batch |
+| Customer support swarm (claude-sonnet-4.5 + mini-tier specialists) | ~\$0.02 | ~\$200 | minutes per batch |
 | Tier-1 agent (fully loaded ~\$50k, ~30/day) | ~\$1.50 | ~\$15,000 | bounded by headcount |
 | BPO outsourced floor | ~\$0.80–\$2.50 | ~\$8,000–\$25,000 | hours to days |
 

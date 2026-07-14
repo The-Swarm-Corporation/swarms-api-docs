@@ -12,7 +12,7 @@ description: "Run a single specialized agent across 10,000 claim rows in paralle
 - A real cost comparison against a human claims-adjuster floor
 
 <Info>
-This tutorial uses `/v1/agent/batch/completions` — the highest-throughput endpoint on the platform. For sustained batches above 1,000 rows or production SLAs, upgrade to Pro or Premium at [https://swarms.world/platform/account](https://swarms.world/platform/account) for the parallel-execution and rate-limit headroom you need.
+This tutorial uses `/v1/agent/batch/completions` — the highest-throughput endpoint on the platform. It is premium-only and accepts up to 10 tasks per request, so larger workloads are submitted in chunks. For sustained batches above 1,000 rows or production SLAs, upgrade to Pro, Ultra, or Premium at [https://swarms.world/platform/account](https://swarms.world/platform/account) for access and the rate-limit headroom you need.
 </Info>
 
 ## Why This Matters
@@ -109,12 +109,12 @@ print(f"Loaded {len(claims_df)} claims for triage")
 ```
 
 <Note>
-For 10,000 rows the batch endpoint handles execution in parallel server-side. You do not need to thread the requests on your end — submit the list and wait.
+The batch endpoint executes each request's tasks in parallel server-side, up to 10 tasks per request. You do not need to thread the requests on your end — submit each chunk and wait.
 </Note>
 
 ## Step 4: Submit Claims in Chunks
 
-Submit in chunks of 500 to keep individual request bodies manageable and to make retries cheap if a single chunk fails.
+Submit in chunks of 10 — the maximum batch size the endpoint accepts per request — which also makes retries cheap if a single chunk fails.
 
 ```python
 def run_batch(payloads: list[dict]) -> list[dict]:
@@ -126,10 +126,12 @@ def run_batch(payloads: list[dict]) -> list[dict]:
     )
     if response.status_code != 200:
         raise RuntimeError(f"Batch failed: {response.status_code} — {response.text[:300]}")
-    return response.json()
+    # Response shape: {"batch_id", "total_requests", "execution_time",
+    # "timestamp", "results": [...]} — the per-task outputs live in "results".
+    return response.json()["results"]
 
 
-def triage_dataframe(df: pd.DataFrame, chunk_size: int = 500) -> pd.DataFrame:
+def triage_dataframe(df: pd.DataFrame, chunk_size: int = 10) -> pd.DataFrame:
     all_results: list[dict[str, Any]] = []
     for start in range(0, len(df), chunk_size):
         chunk = df.iloc[start : start + chunk_size]
@@ -150,8 +152,8 @@ The agent returns strict JSON in its output — parse it, expand into columns, a
 ```python
 def extract_decision(result_row: dict) -> dict:
     """Pull the JSON decision out of the agent response."""
-    # The batch response carries the agent's text output under 'outputs' or 'output'
-    # depending on schema version. Handle both.
+    # Each item in "results" is an AgentCompletionOutput dict — the agent's
+    # text lives under 'outputs'. Keep a fallback to 'output' for robustness.
     text = result_row.get("outputs") or result_row.get("output") or ""
     if isinstance(text, list):
         # Sometimes a list of message dicts — take the last assistant content

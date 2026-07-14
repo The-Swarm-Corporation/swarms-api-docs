@@ -49,7 +49,7 @@ The `/v1/models/available` endpoint returns all models currently supported by th
     if models_data:
         print("✅ Available models retrieved successfully!")
         print(models_data)
-        print(len(models_data["models"]))
+        print(f"Model count: {models_data['count']}")
     ```
   </Tab>
   <Tab title="JavaScript">
@@ -140,7 +140,46 @@ The models endpoint returns a flat list of all available model identifiers, filt
 | `count` | integer | Number of models in the `models` list |
 | `models` | array of strings | Flat list of available model identifiers, filtered by your subscription tier (free tier accounts won't see premium or Groq models) |
 
-By default, this list also includes models fetched live from OpenRouter (cached for 5 minutes) and prefixed with `openrouter/` (e.g. `openrouter/aion-labs/aion-3.0`).
+By default, this list also includes models fetched live from OpenRouter (cached for 5 minutes) and prefixed with `openrouter/` (e.g. `openrouter/aion-labs/aion-3.0`). The base catalog is precomputed and cached server-side, so this endpoint is cheap to call.
+
+## OpenAI-Compatible Model List
+
+If you use the OpenAI SDK (or any client that discovers models via `GET /v1/models`), the same tier-filtered catalog is available in the standard OpenAI list format:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=API_KEY,
+        base_url="https://api.swarms.world/v1",
+    )
+
+    models = client.models.list()
+    print(f"{len(models.data)} models available")
+    for model in models.data[:10]:
+        print(f"{model.id} (owned_by: {model.owned_by})")
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X GET "https://api.swarms.world/v1/models" \
+      -H "x-api-key: your-api-key"
+
+    # Example response:
+    # {
+    #   "object": "list",
+    #   "data": [
+    #     {"id": "gpt-4.1", "object": "model", "created": 0, "owned_by": "openai"},
+    #     {"id": "claude-sonnet-4-20250514", "object": "model", "created": 0, "owned_by": "anthropic"}
+    #   ]
+    # }
+    ```
+  </Tab>
+</Tabs>
+
+Each entry has `id` (the model identifier you pass as `model_name` or `model`), `object` (always `"model"`), `created`, and `owned_by` (the resolved provider, e.g. `openai`, `anthropic`). See the [OpenAI-Compatible Endpoint](/docs/documentation/capabilities/openai-compatible) reference for using these models with the OpenAI SDK.
 
 ## Model Selection Guide
 

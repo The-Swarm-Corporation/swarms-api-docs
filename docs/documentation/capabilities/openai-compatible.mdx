@@ -60,7 +60,7 @@ Each message in the `messages` array:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `role` | `string` | Yes | One of `system`, `user`, or `assistant` |
-| `content` | `string` or `List[ContentPart]` | Yes | Text content, or an array of content parts for multimodal input |
+| `content` | `string` or `List[ContentPart]` | No | Text content, or an array of content parts for multimodal input. Defaults to `null` |
 | `name` | `string` | No | An optional name for the participant |
 
 #### ContentPart (Multimodal)
@@ -977,11 +977,25 @@ The `model` field accepts any model supported by the Swarms API. Common options:
 
 | Provider | Models |
 |---|---|
-| OpenAI | `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o3-mini` |
+| OpenAI | `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o3-mini` |
 | Anthropic | `claude-sonnet-4-20250514`, `claude-3-7-sonnet-latest` |
 | Groq | `groq/llama3-70b-8192`, `groq/deepseek-r1-distill-llama-70b` |
 
-For the full list, call `GET /v1/models/available` with your API key.
+For the full list, call `GET /v1/models` (standard OpenAI list format — works with `client.models.list()` in the OpenAI SDK) or `GET /v1/models/available` (Swarms format with a `count` field) with your API key. Both return the same catalog, filtered by your subscription tier:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="your-swarms-api-key",
+    base_url="https://api.swarms.world/v1",
+)
+
+models = client.models.list()
+print(f"{len(models.data)} models available")
+for model in models.data[:10]:
+    print(f"{model.id} (owned_by: {model.owned_by})")
+```
 
 ---
 

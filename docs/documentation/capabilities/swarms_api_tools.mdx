@@ -16,17 +16,26 @@ Structured outputs guarantee that an agent's response conforms to a JSON schema 
 
 Add a `response_format` object inside `llm_args` in your agent configuration. The API passes this directly to the underlying LLM via LiteLLM.
 
-```python
-"agent_config": {
-    "agent_name": "Data Extractor",
-    "model_name": "gpt-4.1",
-    "llm_args": {
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "your_schema",
-                "strict": true,
-                "schema": { ... }
+```json
+{
+    "agent_config": {
+        "agent_name": "Data Extractor",
+        "model_name": "gpt-4o",
+        "llm_args": {
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "your_schema",
+                    "strict": true,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "field_name": { "type": "string" }
+                        },
+                        "required": ["field_name"],
+                        "additionalProperties": false
+                    }
+                }
             }
         }
     }

@@ -15,7 +15,7 @@ Every weekday at 5:30pm ET, a ranked digest of the day's most-significant inside
 - `/v1/swarm/batch/completions` running the whole day's filings in a single overnight job
 
 <Info>
-EDGAR publishes 500-1000 Form 4s every trading day. Single-shot `/v1/swarm/completions` calls breach Free-tier rate caps by mid-morning. The batch endpoint is the right tool — see [Rate Limits](/docs/documentation/resources/ratelimits) for the per-tier numbers and upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) for Pro/Ultra/Premium throughput.
+EDGAR publishes 500-1000 Form 4s every trading day. Single-shot `/v1/swarm/completions` calls breach Free-tier rate caps by mid-morning. The batch endpoint is the right tool — note that it requires a premium tier (Pro, Ultra, or Premium) — see [Rate Limits](/docs/documentation/resources/ratelimits) for the per-tier numbers and upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) for Pro/Ultra/Premium throughput.
 </Info>
 
 ## Why This Matters
@@ -50,7 +50,7 @@ EDGAR Form 4 RSS (500-1000/day)
    │              │               │
    │              ▼               │
    │ 4. Signal Scorer             │
-   │    (claude-sonnet-4.5)       │
+   │    (claude-sonnet-4-5)       │
    │    final 0-100 score         │
    └──────────────────────────────┘
             │
@@ -247,7 +247,7 @@ POST_SLACK_DIGEST = {
 
 ## Step 3: Define the Four Pipeline Agents
 
-The first two stages are mechanical parsing and history retrieval — `gpt-4.1-mini` handles them cheaply. Cluster detection needs a stronger model that can reason about overlap windows; `gpt-4.1` does that work. The final significance score is the only step that exercises real judgment, so `claude-sonnet-4.5` gets the closing call.
+The first two stages are mechanical parsing and history retrieval — `gpt-4.1-mini` handles them cheaply. Cluster detection needs a stronger model that can reason about overlap windows; `gpt-4.1` does that work. The final significance score is the only step that exercises real judgment, so `claude-sonnet-4-5` gets the closing call.
 
 ```python
 PARSER_PROMPT = (
@@ -336,7 +336,7 @@ def build_form4_pipeline(accession: str) -> dict:
                 "agent_name": "Signal Scorer",
                 "description": "Issues the final 0-100 significance score and conviction.",
                 "system_prompt": SIGNAL_SCORER_PROMPT,
-                "model_name": "claude-sonnet-4.5",
+                "model_name": "claude-sonnet-4-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 1024,
@@ -348,7 +348,7 @@ def build_form4_pipeline(accession: str) -> dict:
 ```
 
 <Note>
-The Parser and Profile Lookup stages are pure extraction — they almost never need to think. Reserving `claude-sonnet-4.5` for the Signal Scorer is where the cost-per-Form-4 math stays under three cents.
+The Parser and Profile Lookup stages are pure extraction — they almost never need to think. Reserving `claude-sonnet-4-5` for the Signal Scorer is where the cost-per-Form-4 math stays under three cents.
 </Note>
 
 ## Step 4: Process One Form 4 End-to-End
@@ -424,8 +424,13 @@ def run_eod_batch() -> list[dict]:
 
 
 def extract_final_signal(result: dict) -> dict | None:
-    """Pull the Signal Scorer's JSON output from a single swarm result."""
-    for output in result.get("output", []):
+    """Pull the Signal Scorer's JSON output from a single batch result.
+
+    Each item in the batch response is shaped
+    {"status", "swarm_name", "result", "usage"} — the swarm's
+    conversation lives under "result", not "output".
+    """
+    for output in result.get("result", []):
         if "Signal Scorer" in output.get("role", ""):
             content = output["content"]
             if isinstance(content, list):
@@ -481,7 +486,7 @@ Run `fetch_todays_form4_accessions` once at 5:30pm ET — that captures the full
 
 ## Real Cost vs. Quantitative Signal Provider
 
-Per-Form-4 cost is dominated by the Signal Scorer's `claude-sonnet-4.5` call; the three preceding mini/gpt-4.1 stages add only fractions of a cent.
+Per-Form-4 cost is dominated by the Signal Scorer's `claude-sonnet-4-5` call; the three preceding mini/gpt-4.1 stages add only fractions of a cent.
 
 | Scope | Cost |
 | --- | --- |

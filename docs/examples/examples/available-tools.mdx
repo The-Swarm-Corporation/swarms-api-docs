@@ -107,7 +107,7 @@ Tools extend agent capabilities by providing access to external services, APIs, 
 
 ## Tool Integration
 
-Enable a tool on an agent by adding its name to `tools_enabled` in `agent_config`. Only one of the two tools is applied per request — if `auto_search` is present it takes precedence over `web_scraper`.
+Enable a tool on an agent by adding its name to the top-level `tools_enabled` field of the request (alongside `agent_config` and `task`). Only one of the two tools is applied per request — if `auto_search` is present it takes precedence over `web_scraper`.
 
 <Tabs>
   <Tab title="Auto Search">
@@ -116,10 +116,10 @@ Enable a tool on an agent by adding its name to `tools_enabled` in `agent_config
         "agent_config": {
             "agent_name": "Research Assistant",
             "model_name": "gpt-4.1",
-            "max_tokens": 2048,
-            "tools_enabled": ["auto_search"]
+            "max_tokens": 2048
         },
-        "task": "Find the latest developments in quantum computing and summarize the key breakthroughs."
+        "task": "Find the latest developments in quantum computing and summarize the key breakthroughs.",
+        "tools_enabled": ["auto_search"]
     }
     ```
   </Tab>
@@ -129,10 +129,10 @@ Enable a tool on an agent by adding its name to `tools_enabled` in `agent_config
         "agent_config": {
             "agent_name": "Document Analyst",
             "model_name": "gpt-4.1",
-            "max_tokens": 2048,
-            "tools_enabled": ["web_scraper"]
+            "max_tokens": 2048
         },
-        "task": "Scrape and summarize the content at https://example.com/article."
+        "task": "Scrape and summarize the content at https://example.com/article.",
+        "tools_enabled": ["web_scraper"]
     }
     ```
   </Tab>

@@ -1,20 +1,20 @@
 ---
 title: 'Rate Limit Headers'
-description: 'Every authenticated API response includes X-RateLimit-* headers so you can track your usage and remaining quota in real time without making a separate API call.'
+description: 'Rate-limited API responses include X-RateLimit-* headers so you can track your usage and remaining quota in real time without making a separate API call.'
 ---
 
 
-All authenticated Swarms API responses include rate limit headers. These headers let you monitor your usage programmatically — build retry logic, display quota dashboards, or throttle requests before hitting limits.
+Swarms API responses include rate limit headers whenever the rate limiter runs on the request. These headers let you monitor your usage programmatically — build retry logic, display quota dashboards, or throttle requests before hitting limits.
 
 <Info>
-Rate limit headers are included on **every** authenticated response, including error responses. You do not need to make a separate API call to check your quota.
+Rate limit headers are present on every response where the rate limiter ran — including 429 rate-limit rejections and `/v1/rate/limits` itself. Errors returned before rate limiting runs (such as 402 insufficient-credit or 403 premium-required rejections from the authentication layer) do not carry these headers.
 </Info>
 
 ---
 
 ## Headers
 
-Every response includes these headers:
+Rate-limited responses include these headers:
 
 | Header | Type | Description |
 |--------|------|-------------|
@@ -103,7 +103,7 @@ Retry-After: 42
         json={
             "agent_config": {
                 "agent_name": "test",
-                "model_name": "gpt-4.1",
+                "model_name": "gpt-4o-mini",
                 "system_prompt": "You are helpful.",
                 "max_loops": 1,
             },
@@ -139,7 +139,7 @@ Retry-After: 42
       body: JSON.stringify({
         agent_config: {
           agent_name: "test",
-          model_name: "gpt-4.1",
+          model_name: "gpt-4o-mini",
           system_prompt: "You are helpful.",
           max_loops: 1,
         },
@@ -173,7 +173,7 @@ Retry-After: 42
             .body(r#"{
                 "agent_config": {
                     "agent_name": "test",
-                    "model_name": "gpt-4.1",
+                    "model_name": "gpt-4o-mini",
                     "system_prompt": "You are helpful.",
                     "max_loops": 1
                 },
@@ -222,7 +222,7 @@ Retry-After: 42
         body := strings.NewReader(`{
             "agent_config": {
                 "agent_name": "test",
-                "model_name": "gpt-4.1",
+                "model_name": "gpt-4o-mini",
                 "system_prompt": "You are helpful.",
                 "max_loops": 1
             },
@@ -261,7 +261,7 @@ Retry-After: 42
       -d '{
         "agent_config": {
           "agent_name": "test",
-          "model_name": "gpt-4.1",
+          "model_name": "gpt-4o-mini",
           "system_prompt": "You are helpful.",
           "max_loops": 1
         },

@@ -1,6 +1,6 @@
 ---
 title: 'Agent Completions Reference'
-description: 'Learn how to build individual agents and their capabilties with swarms'
+description: 'Learn how to build individual agents and their capabilities with swarms'
 ---
 
 The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute individual AI agents with specific tasks, configurations, and capabilities. This endpoint provides a flexible way to run single agents with various models, tools, and configurations.
@@ -9,7 +9,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 
 - **URL**: `/v1/agent/completions`
 - **Method**: `POST`
-- **Authentication**: Required (`x-api-key` header)
+- **Authentication**: Required (`x-api-key` header; `Authorization: Bearer <key>` is also accepted)
 - **Rate Limiting**: Subject to tier-based rate limits
 
 ## Request Schema
@@ -23,7 +23,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `history` | `Union[Dict, List[Dict]]` | No | The history of the agent's previous tasks and responses. Can be either a dictionary or a list of message objects |
 | `img` | `string` | No | A base64 encoded image for the agent to process. Encode your image file to base64 and pass it here |
 | `imgs` | `List[string]` | No | A list of base64 encoded images for the agent to process. Encode your image files to base64 and pass them here |
-| `tools_enabled` | `List[string]` | No | A list of tools that the agent should use to complete its task |
+| `tools_enabled` | `List[string]` | No | Built-in tools for the agent. Supported values: `auto_search` (web search) and `web_scraper` (web scraping). Only one tool is attached per request: if both are listed, `auto_search` takes precedence and `web_scraper` is ignored. Enabling a tool is billed once per request (a flat search or scrape fee), regardless of how many times the agent uses it |
 
 ### AgentSpec Object
 
@@ -33,7 +33,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `description` | `string` | No | - | A detailed explanation of the agent's purpose, capabilities, and any specific tasks it is designed to perform |
 | `system_prompt` | `string` | No | - | The initial instruction or context provided to the agent, guiding its behavior and responses during execution |
 | `marketplace_prompt_id` | `string` | No | - | The ID of a prompt from the Swarms marketplace to use as the system prompt. If provided, the prompt will be automatically retrieved from the marketplace |
-| `model_name` | `string` | No | `"gpt-4.1"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. For example: gpt-4.1, gpt-4.1, openai/o3-mini |
+| `model_name` | `string` | No | `"gpt-4.1"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. For example: gpt-4o, gpt-4.1, openai/o3-mini |
 | `auto_generate_prompt` | `boolean` | No | `false` | A flag indicating whether the agent should automatically create prompts based on the task requirements |
 | `max_tokens` | `integer` | No | `8192` | The maximum number of tokens that the agent is allowed to generate in its responses, limiting output length |
 | `temperature` | `float` | No | - | A parameter that controls the randomness of the agent's output; lower values result in more deterministic responses. If omitted, no temperature is sent to the model (the provider's own default applies) |
@@ -94,7 +94,7 @@ The response includes detailed usage metrics:
 ## Features and Capabilities
 
 ### 1. Multi-Model Support
-- **OpenAI Models**: gpt-4.1, gpt-4.1-mini, gpt-4.1
+- **OpenAI Models**: gpt-4.1, gpt-4.1-mini, gpt-4o
 - **Anthropic Models**: claude-sonnet-4-20250514
 - **Custom Models**: Any model supported by LiteLLM
 - **Vision Models**: Support for image analysis with gpt-4.1 and compatible models
@@ -110,7 +110,7 @@ The response includes detailed usage metrics:
 - Automatic history formatting and token counting
 
 ### 4. Tool Integration
-- Enable specific tools via `tools_enabled` parameter
+- Enable built-in tools via `tools_enabled` parameter (`auto_search`, `web_scraper`)
 - MCP (Model Context Protocol) server integration
 - Custom tool dictionaries via `tools_list_dictionary`
 - Tool call summarization
@@ -307,7 +307,7 @@ let payload = json!({
 
 ### Agent with Search Capabilities
 
-Enable web search functionality for your agent by including search tools in the `tools_enabled` parameter. This allows the agent to search the web for real-time information to complete tasks.
+Enable web search functionality for your agent by including `auto_search` in the `tools_enabled` parameter. This allows the agent to search the web for real-time information to complete tasks. Alternatively, pass `web_scraper` to let the agent scrape and format web pages. Note that only one of these tools can be active per request: if both are listed, `auto_search` takes precedence and `web_scraper` is ignored.
 
 <Tabs>
 <Tab title="Python">
@@ -322,7 +322,7 @@ payload = {
         "max_tokens": 8192
     },
     "task": "Find the latest developments in quantum computing",
-    "tools_enabled": ["search"]
+    "tools_enabled": ["auto_search"]
 }
 ```
 
@@ -339,7 +339,7 @@ const payload = {
         max_tokens: 8192
     },
     task: "Find the latest developments in quantum computing",
-    tools_enabled: ["search"]
+    tools_enabled: ["auto_search"]
 };
 ```
 
@@ -358,7 +358,7 @@ let payload = json!({
         "max_tokens": 8192
     },
     "task": "Find the latest developments in quantum computing",
-    "tools_enabled": ["search"]
+    "tools_enabled": ["auto_search"]
 });
 ```
 
@@ -499,6 +499,138 @@ let payload = json!({
 
 </Tab>
 </Tabs>
+
+### Agent with Structured Outputs
+
+Use `tools_list_dictionary` to give the agent one or more OpenAI function-calling-style JSON schemas. The agent responds with structured tool calls that conform to your schema instead of free-form text — ideal for extraction, classification, and any workflow where downstream code parses the result.
+
+<Tabs>
+<Tab title="Python">
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Invoice Extractor",
+        "description": "Extracts structured invoice data from raw text",
+        "system_prompt": "You extract invoice fields from documents. Always respond using the provided tool schema.",
+        "model_name": "gpt-4o",
+        "max_tokens": 1024,
+        "temperature": 0.1,
+        "tools_list_dictionary": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "extract_invoice",
+                    "description": "Extract structured fields from an invoice",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "vendor": {"type": "string", "description": "Vendor or supplier name"},
+                            "invoice_number": {"type": "string", "description": "Invoice identifier"},
+                            "total_amount": {"type": "number", "description": "Total amount due in USD"},
+                            "due_date": {"type": "string", "description": "Payment due date, ISO 8601"}
+                        },
+                        "required": ["vendor", "invoice_number", "total_amount"]
+                    }
+                }
+            }
+        ]
+    },
+    "task": "Invoice ACME-2024-001 from Acme Corp: total $4,250.00, due 2026-08-01"
+}
+```
+
+</Tab>
+<Tab title="TypeScript">
+
+```typescript
+const payload = {
+    agent_config: {
+        agent_name: "Invoice Extractor",
+        description: "Extracts structured invoice data from raw text",
+        system_prompt: "You extract invoice fields from documents. Always respond using the provided tool schema.",
+        model_name: "gpt-4o",
+        max_tokens: 1024,
+        temperature: 0.1,
+        tools_list_dictionary: [
+            {
+                type: "function",
+                function: {
+                    name: "extract_invoice",
+                    description: "Extract structured fields from an invoice",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            vendor: { type: "string", description: "Vendor or supplier name" },
+                            invoice_number: { type: "string", description: "Invoice identifier" },
+                            total_amount: { type: "number", description: "Total amount due in USD" },
+                            due_date: { type: "string", description: "Payment due date, ISO 8601" }
+                        },
+                        required: ["vendor", "invoice_number", "total_amount"]
+                    }
+                }
+            }
+        ]
+    },
+    task: "Invoice ACME-2024-001 from Acme Corp: total $4,250.00, due 2026-08-01"
+};
+```
+
+</Tab>
+<Tab title="Rust">
+
+```rust
+use serde_json::json;
+
+let payload = json!({
+    "agent_config": {
+        "agent_name": "Invoice Extractor",
+        "description": "Extracts structured invoice data from raw text",
+        "system_prompt": "You extract invoice fields from documents. Always respond using the provided tool schema.",
+        "model_name": "gpt-4o",
+        "max_tokens": 1024,
+        "temperature": 0.1,
+        "tools_list_dictionary": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "extract_invoice",
+                    "description": "Extract structured fields from an invoice",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "vendor": {"type": "string", "description": "Vendor or supplier name"},
+                            "invoice_number": {"type": "string", "description": "Invoice identifier"},
+                            "total_amount": {"type": "number", "description": "Total amount due in USD"},
+                            "due_date": {"type": "string", "description": "Payment due date, ISO 8601"}
+                        },
+                        "required": ["vendor", "invoice_number", "total_amount"]
+                    }
+                }
+            }
+        ]
+    },
+    "task": "Invoice ACME-2024-001 from Acme Corp: total $4,250.00, due 2026-08-01"
+});
+```
+
+</Tab>
+</Tabs>
+
+The agent's `outputs` content contains the structured tool call. The `function.arguments` field arrives as a JSON string, so parse it before use:
+
+```python
+import json
+
+result = response.json()
+tool_calls = result["outputs"][-1]["content"]
+invoice = json.loads(tool_calls[0]["function"]["arguments"])
+print(invoice["vendor"], invoice["total_amount"])
+```
+
+<Note>
+For schema-enforced plain-JSON responses without tool calls, you can alternatively pass `response_format` inside `llm_args`. See [Structured Outputs](/docs/examples/examples/structured-outputs) for a comparison of both approaches.
+</Note>
 
 ### Agent with Max Loops
 
@@ -963,7 +1095,7 @@ The API returns appropriate HTTP status codes and error messages:
 
 Rate limits are tier-based:
 
-- **Free Tier**: 100 requests/minute, 50 requests/hour, 50*24 requests/day
+- **Free Tier**: 100 requests/minute, 350 requests/hour, 50*24 requests/day
 - **Premium Tier**: 2000 requests/minute, 10000 requests/hour, 100000 requests/day
 
 ## Cost Calculation

@@ -61,16 +61,20 @@ The Swarms API supports multiple AI model providers:
 
 **OpenAI Models:**
 - gpt-4: High-quality reasoning and complex task handling
-- gpt-4.1: Optimized version with improved performance
+- gpt-4.1: Optimized version with improved performance (premium tier only)
 - gpt-4.1-mini: Lightweight version for faster responses
 
 **Anthropic Models:**
-- claude-sonnet-4-20250514-20240620: Balanced performance and reasoning
+- claude-sonnet-4-20250514: Balanced performance and reasoning
 - claude-3-7-sonnet-latest: Latest Claude model with enhanced capabilities
 
-**Groq Models:**
+**Groq Models (premium tier only):**
 - groq/llama3-70b-8192: High-performance open-source model
 - groq/deepseek-r1-distill-llama-70b: Specialized reasoning model
+
+Note that some models are restricted to premium-tier accounts: `gpt-4.1` and all `groq/*` models are rejected for free-tier API keys.
+
+For the complete, up-to-date list of supported models, call `GET /v1/models` (or `GET /v1/models/available` for model metadata).
 </Accordion>
 
 <Accordion title="How much does it cost?">
@@ -114,7 +118,9 @@ Rate limits are tier-based to ensure fair usage:
 | **Requests per Day** | 1,200 | 100,000 | 24 hours |
 | **Tokens per Agent** | 200,000 | 2,000,000 | Per request |
 | **Prompt Length** | 200,000 | 200,000 | Per request |
-| **Batch Size** | 10 | 10 | Per request |
+| **Batch Size** | 50 | — | Per request |
+
+A batch size limit of 50 is defined for the free tier; the premium tier does not define a separate batch size limit.
 
 **Premium Tier Benefits:**
 - 20x more requests per minute (2,000 vs 100)
@@ -183,7 +189,7 @@ Create specialized tools using OpenAPI-style function specifications for enhance
 
 **Authentication Errors:**
 - Verify your API key is correct and active
-- Check that the `x-api-key` header is properly set
+- Check that the `x-api-key` header is properly set (the `Authorization: Bearer <key>` header is also accepted)
 - Ensure your API key has the necessary permissions
 
 **Rate Limit Exceeded:**
@@ -268,11 +274,11 @@ Yes! The Swarms API is designed for production use with:
 **Model Selection Guidelines:**
 
 **For Complex Analysis:**
-- Use GPT-4 or Claude-3.5-Sonnet for tasks requiring deep reasoning
+- Use GPT-4 or Claude Sonnet 4 for tasks requiring deep reasoning
 - Higher token limits for comprehensive analysis
 
 **For Fast Responses:**
-- Choose GPT-4o-mini for quick, straightforward tasks
+- Choose gpt-4.1-mini for quick, straightforward tasks
 - Lower costs for high-volume applications
 
 **For Creative Tasks:**

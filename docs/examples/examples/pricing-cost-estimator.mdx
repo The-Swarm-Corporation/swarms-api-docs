@@ -20,7 +20,7 @@ The following examples:
   - Swarm completions (input/output tokens + per‑agent fee)
   - Agent completions (input/output tokens)
   - Images, MCP calls, search, and scrape operations
-  - Optional **night-time discount** multiplier
+  - Optional **night-time discount** multiplier (applies to swarm completion token costs only)
 
 <Tabs>
   <Tab title="Python">
@@ -57,9 +57,15 @@ The following examples:
 
         cost = 0.0
 
-        # Swarm completions
-        cost += tokens_to_m(swarm_input_tokens) * up["swarm_completions_input_cost_per_1m"]
-        cost += tokens_to_m(swarm_output_tokens) * up["swarm_completions_output_cost_per_1m"]
+        # Swarm completions (the night-time discount applies only to
+        # swarm input/output token costs, not the per-agent fee)
+        swarm_token_cost = (
+            tokens_to_m(swarm_input_tokens) * up["swarm_completions_input_cost_per_1m"]
+            + tokens_to_m(swarm_output_tokens) * up["swarm_completions_output_cost_per_1m"]
+        )
+        if night_time:
+            swarm_token_cost *= up["night_time_discount"]
+        cost += swarm_token_cost
         cost += swarm_agents * up["swarm_completions_agent_cost"]
 
         # Agent completions
@@ -71,9 +77,6 @@ The following examples:
         cost += mcp_calls * up["agent_completions_mcp_cost"]
         cost += searches * up["search_cost"]
         cost += scrapes * up["scrape_cost"]
-
-        if night_time:
-            cost *= up["night_time_discount"]
 
         return round(cost, 6)
 
@@ -171,8 +174,13 @@ The following examples:
 
       let cost = 0
 
-      cost += tokensToM(swarmInputTokens) * up.swarm_completions_input_cost_per_1m
-      cost += tokensToM(swarmOutputTokens) * up.swarm_completions_output_cost_per_1m
+      // Swarm completions (the night-time discount applies only to
+      // swarm input/output token costs, not the per-agent fee)
+      let swarmTokenCost =
+        tokensToM(swarmInputTokens) * up.swarm_completions_input_cost_per_1m +
+        tokensToM(swarmOutputTokens) * up.swarm_completions_output_cost_per_1m
+      if (nightTime) swarmTokenCost *= up.night_time_discount
+      cost += swarmTokenCost
       cost += swarmAgents * up.swarm_completions_agent_cost
 
       cost += tokensToM(agentInputTokens) * up.agent_completions_input_cost_per_1m
@@ -182,8 +190,6 @@ The following examples:
       cost += mcpCalls * up.agent_completions_mcp_cost
       cost += searches * up.search_cost
       cost += scrapes * up.scrape_cost
-
-      if (nightTime) cost *= up.night_time_discount
 
       return Number(cost.toFixed(6))
     }
@@ -250,9 +256,15 @@ The following examples:
 
         let mut cost = 0.0;
 
-        // Swarm completions
-        cost += tokens_to_m(swarm_input_tokens) * up.swarm_completions_input_cost_per_1m;
-        cost += tokens_to_m(swarm_output_tokens) * up.swarm_completions_output_cost_per_1m;
+        // Swarm completions (the night-time discount applies only to
+        // swarm input/output token costs, not the per-agent fee)
+        let mut swarm_token_cost = tokens_to_m(swarm_input_tokens)
+            * up.swarm_completions_input_cost_per_1m
+            + tokens_to_m(swarm_output_tokens) * up.swarm_completions_output_cost_per_1m;
+        if night_time {
+            swarm_token_cost *= up.night_time_discount;
+        }
+        cost += swarm_token_cost;
         cost += swarm_agents as f64 * up.swarm_completions_agent_cost;
 
         // Agent completions
@@ -264,10 +276,6 @@ The following examples:
         cost += mcp_calls as f64 * up.agent_completions_mcp_cost;
         cost += searches as f64 * up.search_cost;
         cost += scrapes as f64 * up.scrape_cost;
-
-        if night_time {
-            cost *= up.night_time_discount;
-        }
 
         (cost * 1_000_000.0).round() / 1_000_000.0
     }
@@ -339,8 +347,14 @@ The following examples:
 
         cost := 0.0
 
-        cost += tokensToM(swarmInputTokens) * up.SwarmCompletionsInputCostPer1M
-        cost += tokensToM(swarmOutputTokens) * up.SwarmCompletionsOutputCostPer1M
+        // Swarm completions (the night-time discount applies only to
+        // swarm input/output token costs, not the per-agent fee)
+        swarmTokenCost := tokensToM(swarmInputTokens)*up.SwarmCompletionsInputCostPer1M +
+            tokensToM(swarmOutputTokens)*up.SwarmCompletionsOutputCostPer1M
+        if nightTime {
+            swarmTokenCost *= up.NightTimeDiscount
+        }
+        cost += swarmTokenCost
         cost += float64(swarmAgents) * up.SwarmCompletionsAgentCost
 
         cost += tokensToM(agentInputTokens) * up.AgentCompletionsInputCostPer1M
@@ -350,10 +364,6 @@ The following examples:
         cost += float64(mcpCalls) * up.AgentCompletionsMcpCost
         cost += float64(searches) * up.SearchCost
         cost += float64(scrapes) * up.ScrapeCost
-
-        if nightTime {
-            cost *= up.NightTimeDiscount
-        }
 
         return float64(int64(cost*1_000_000)) / 1_000_000.0
     }

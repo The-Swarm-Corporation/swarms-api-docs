@@ -87,8 +87,9 @@ print(response)
 
 ## Client Configuration
 
+### Environment Variable
 
-Then load it in your code:
+Set `SWARMS_API_KEY` in your environment (or a `.env` file), then load it in your code:
 
 ```python
 import os
@@ -161,19 +162,40 @@ print(rate_limits)
 
 ```python
 import asyncio
+import os
 from swarms_client import AsyncSwarmsClient
 
 async def main():
     client = AsyncSwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
-    
+
     # Run multiple operations concurrently
-    tasks = [
-        client.swarms.run(name="Task 1", ...),
-        client.swarms.run(name="Task 2", ...),
-        client.models.list_available()
-    ]
-    
-    results = await asyncio.gather(*tasks)
+    results = await asyncio.gather(
+        client.swarms.run(
+            name="Task 1",
+            swarm_type="ConcurrentWorkflow",
+            task="Analyze customer feedback for Q1",
+            agents=[
+                {
+                    "agent_name": "Feedback Analyst",
+                    "system_prompt": "You analyze customer feedback and summarize key themes.",
+                    "model_name": "gpt-4.1",
+                }
+            ],
+        ),
+        client.swarms.run(
+            name="Task 2",
+            swarm_type="ConcurrentWorkflow",
+            task="Generate a monthly report summary",
+            agents=[
+                {
+                    "agent_name": "Report Writer",
+                    "system_prompt": "You write concise executive report summaries.",
+                    "model_name": "gpt-4.1",
+                }
+            ],
+        ),
+        client.models.list_available(),
+    )
     return results
 
 # Run the async function
@@ -209,16 +231,18 @@ The client provides convenient helper methods for common operations:
 
 ```python
 # Quick health check
-if client.health.check()['status'] == 'healthy':
+if client.health.check()['status'] == 'ok':
     print("API is healthy!")
 
 # Get available models with formatting
 models = client.models.list_available()
-print(f"Available models: {len(models)}")
+print(f"Available models: {models['count']}")
 
 # Check rate limits
 limits = client.client.rate.get_limits()
-print(f"Current usage: {limits['current_usage']}/{limits['requests_per_minute']}")
+minute = limits['rate_limits']['minute']
+print(f"Current usage (last minute): {minute['count']}/{minute['limit']}")
+print(f"Tier: {limits['tier']}")
 ```
 
 

@@ -49,6 +49,7 @@ The `detail` message is tailored per endpoint (naming the specific feature you t
 ### Notes
 - These endpoints may have different rate limits aligned with premium tiers.
 - Ensure your API key is associated with a Pro, Ultra, or Premium subscription.
+- Premium endpoints are also billable: your account's total credit balance must be above \$1.00, or the request is rejected with a **402 Payment Required** error before any work runs. Check your balance with `GET /v1/account/credits`.
 - Beyond these five endpoints, certain models (e.g. GPT-5, Claude 4 Opus/Sonnet, Gemini 2.5 Pro) are also gated to premium subscribers on regular endpoints like `/v1/agent/completions` and `/v1/swarm/completions` — see [Pricing](/docs/documentation/resources/pricing) for the current list.
 - For endpoint schemas and examples, see related documentation pages.
 

@@ -302,7 +302,7 @@ That JSON is your evidence that the memo was produced from a specific question, 
 
 ## Step 9: Overnight Queue with `/v1/swarm/batch/completions`
 
-Medical-affairs and policy teams rarely have just one open question. The same pipeline can be fanned across a queue of questions in a single API call using `/v1/swarm/batch/completions`. Scheduled overnight (8 PM to 6 AM Pacific) the platform also applies a **50% night-time discount** on token costs (see `calculate_swarm_cost` in `api/utils.py`).
+Medical-affairs and policy teams rarely have just one open question. The same pipeline can be fanned across a queue of questions in a single API call using `/v1/swarm/batch/completions`. Scheduled overnight (8 PM to 6 AM Pacific) the platform also applies a **50% night-time discount** on token costs (see `calculate_swarm_cost` in `api/swarm_completions.py`).
 
 ```python
 def build_payload(question: str) -> dict:

@@ -95,7 +95,8 @@ Different swarm types are optimized for different workflows - choose the right a
 
     # Example response:
     # {
-    #   "success": true,
+    #   "status": true,
+    #   "timestamp": "2026-07-13T19:37:41.821232",
     #   "swarm_types": [
     #     "AgentRearrange",
     #     "MixtureOfAgents",
@@ -222,7 +223,7 @@ Different swarm types are optimized for different workflows - choose the right a
             }
         ],
         "swarm_type": "AgentRearrange",
-        "rearrange_flow": "optimize_based_on_complexity",
+        "rearrange_flow": "Primary Analyst -> Secondary Analyst",
         "task": "Analyze complex business data"
     }
     ```
@@ -284,7 +285,6 @@ The `/v1/swarms/available` endpoint currently returns 17 swarm types:
             }
         ],
         "swarm_type": "HierarchicalSwarm",
-        "rules": "CEO delegates to managers, managers coordinate analysts",
         "task": "Conduct comprehensive market analysis"
     }
     ```
@@ -318,9 +318,9 @@ The `/v1/swarms/available` endpoint currently returns 17 swarm types:
         ],
         "swarm_type": "GroupChat",
         "messages": [
-            "Let's brainstorm innovative product ideas",
-            "What are the technical challenges?",
-            "How can we monetize this?"
+            {"role": "user", "content": "Let's brainstorm innovative product ideas"},
+            {"role": "user", "content": "What are the technical challenges?"},
+            {"role": "user", "content": "How can we monetize this?"}
         ],
         "task": "Brainstorm and evaluate new product concepts"
     }
@@ -339,23 +339,20 @@ The `/v1/swarms/available` endpoint currently returns 17 swarm types:
         resource_count = len(available_resources)
 
         if task_count > resource_count * 2:
-            # High load - use concurrent processing
+            # High load - run every task in parallel via the "tasks" list
             return {
                 "swarm_type": "ConcurrentWorkflow",
-                "max_concurrent": resource_count,
-                "task_distribution": "round_robin"
+                "tasks": tasks
             }
         elif task_count > resource_count:
             # Medium load - use mixture of agents
             return {
-                "swarm_type": "MixtureOfAgents",
-                "load_balancing": True
+                "swarm_type": "MixtureOfAgents"
             }
         else:
             # Low load - use sequential for quality
             return {
-                "swarm_type": "SequentialWorkflow",
-                "optimize_quality": True
+                "swarm_type": "SequentialWorkflow"
             }
     ```
   </Tab>
@@ -363,24 +360,28 @@ The `/v1/swarms/available` endpoint currently returns 17 swarm types:
     ```python
     def optimize_swarm_for_cost(task_complexity, budget_limit):
         """Optimize swarm for cost efficiency"""
+        # model_name and max_tokens are per-agent settings — apply them to
+        # every entry in the payload's "agents" list.
         if budget_limit < 0.1:  # Very low budget
             return {
                 "swarm_type": "ConcurrentWorkflow",
-                "model_preference": "gpt-4.1-mini",
-                "max_tokens": 512,
-                "parallel_execution": True
+                "agents": [
+                    {"agent_name": "Worker", "model_name": "gpt-4.1-mini", "max_tokens": 512}
+                ]
             }
         elif budget_limit < 0.5:  # Medium budget
             return {
                 "swarm_type": "SequentialWorkflow",
-                "model_preference": "gpt-4.1-mini",
-                "selective_upgrade": True  # Use better model for complex steps
+                "agents": [
+                    {"agent_name": "Worker", "model_name": "gpt-4.1-mini"}
+                ]
             }
         else:  # High budget
             return {
                 "swarm_type": "MixtureOfAgents",
-                "model_preference": "gpt-4.1",
-                "quality_optimization": True
+                "agents": [
+                    {"agent_name": "Expert", "model_name": "gpt-4.1"}
+                ]
             }
     ```
   </Tab>
@@ -389,24 +390,19 @@ The `/v1/swarms/available` endpoint currently returns 17 swarm types:
     def optimize_swarm_for_quality(requirements):
         """Optimize swarm for maximum quality"""
         if requirements.get("consensus_required"):
+            # Use an odd number of agents in the payload's "agents" list
+            # so MajorityVoting can always reach a decision
             return {
-                "swarm_type": "MajorityVoting",
-                "voting_agents": 5,
-                "consensus_threshold": 0.7,
-                "review_process": True
+                "swarm_type": "MajorityVoting"
             }
         elif requirements.get("iterative_improvement"):
             return {
                 "swarm_type": "AgentRearrange",
-                "iterations": 3,
-                "feedback_loop": True,
-                "quality_metrics": ["accuracy", "completeness", "coherence"]
+                "max_loops": 3
             }
         else:
             return {
-                "swarm_type": "MixtureOfAgents",
-                "specialized_agents": True,
-                "cross_validation": True
+                "swarm_type": "MixtureOfAgents"
             }
     ```
   </Tab>

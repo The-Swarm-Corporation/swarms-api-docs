@@ -9,10 +9,10 @@ description: "A four-stage GraphWorkflow that ingests multi-source open reportin
 - Three parallel domain analysts (Geopolitical, Cyber, Open-Source HUMINT) running concurrently against the same packet
 - A dedicated Red Team agent whose only job is to attack the analysts' conclusions before they reach the brief
 - A Synthesis Editor that produces a structured PIR-style executive brief tagged with confidence levels (HIGH / MODERATE / LOW)
-- How to scale the same pipeline overnight across a 200-report inbox using `/v1/swarm/batch/completions`
+- How to scale the same pipeline overnight across a 200-report inbox with concurrent requests to `/v1/graph-workflow/completions`
 
 <Warning>
-**Premium tier required.** `GraphWorkflow` and `/v1/swarm/batch/completions` are available on Pro, Ultra, and Premium plans. Upgrade or manage your subscription at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+**Premium tier required.** `GraphWorkflow` (`/v1/graph-workflow/completions`) is available on Pro, Ultra, and Premium plans. Upgrade or manage your subscription at [https://swarms.world/platform/account](https://swarms.world/platform/account).
 </Warning>
 
 <Warning>
@@ -234,41 +234,41 @@ for label, names in stages:
             print(f"\n[{name}]\n{str(output)[:500]}...")
 
 usage = result.get("usage", {})
-billing = usage.get("billing_info", {})
-print(f"\nTotal cost: ${billing.get('total_cost', usage.get('total_cost', 0)):.4f}")
-print(f"Execution time: {result.get('execution_time', 'n/a')}s")
+print(f"\nTotal cost: ${usage.get('token_cost', 0):.4f}")
+print(f"Total tokens: {usage.get('total_tokens', 0)}")
 ```
 
 <Note>
 The Red Team agent never produces a final judgment — it produces a list of challenges that the Synthesis Editor must explicitly address. This is the analytic discipline IC analysts call "structured analytic techniques": you cannot get to the brief without first surviving your strongest critic.
 </Note>
 
-## Step 4: Run the Full Overnight Inbox via Batch
+## Step 4: Run the Full Overnight Inbox in Parallel
 
-A real watch floor does not run one packet at a time. It runs the whole inbox between midnight and 0500Z so the brief is on desks at 0700. Use `/v1/swarm/batch/completions` to fan out the same pipeline across every packet in parallel.
+A real watch floor does not run one packet at a time. It runs the whole inbox between midnight and 0500Z so the brief is on desks at 0700. Fan out the same pipeline across every packet with concurrent requests to `/v1/graph-workflow/completions`.
 
 ```python
-def build_batch_payload(packets: list[str]) -> list[dict]:
-    return [build_triage_workflow(p) for p in packets]
+from concurrent.futures import ThreadPoolExecutor
+
+def run_triage(p: str) -> dict:
+    response = requests.post(
+        f"{BASE_URL}/v1/graph-workflow/completions",
+        headers=headers,
+        json=build_triage_workflow(p),
+        timeout=1800,
+    )
+    return response.json()
 
 # Imagine `inbox` is 200 packets pulled from your collection pipeline.
 inbox = [packet]  # replace with your real list
 
-batch_payload = build_batch_payload(inbox)
+with ThreadPoolExecutor(max_workers=10) as pool:
+    briefs = list(pool.map(run_triage, inbox))
 
-batch_response = requests.post(
-    f"{BASE_URL}/v1/swarm/batch/completions",
-    headers=headers,
-    json=batch_payload,
-    timeout=1800,
-)
-
-batch_result = batch_response.json()
-print(f"Briefs produced: {len(batch_result)}")
+print(f"Briefs produced: {len(briefs)}")
 ```
 
 <Note>
-The batch endpoint accepts a list of full swarm specifications and runs them in parallel server-side. For 200 packets this typically completes in well under an hour — overnight is more than enough buffer for the morning brief cycle.
+Each graph workflow runs as its own request, so the fan-out happens client-side with a thread pool. (`/v1/swarm/batch/completions` accepts a list of standard swarm specifications — it does not run graph workflows.) For 200 packets this typically completes in well under an hour — overnight is more than enough buffer for the morning brief cycle.
 </Note>
 
 ## Step 5: Audit Trail and Cost Reconciliation
@@ -288,7 +288,7 @@ Every swarm run is logged with its inputs, agent outputs, token counts, and the 
 ## Cost vs. a Human Triage Cycle
 
 <Info>
-**Real numbers.** A typical analyst (fully-loaded GS-13 or contractor equivalent at roughly \$120/hour) spends six hours triaging an overnight inbox of 200 open-source reports — about **\$720 of labor per morning, per analyst**, and most shops staff two to three on the cycle. Running this pipeline across the same 200-report inbox via `/v1/swarm/batch/completions` typically lands in the **single-digit dollars** range total, and produces a draft brief the analyst signs in fifteen minutes instead of writing from scratch. The analyst is still in the loop — but the loop is review-and-sign, not read-and-write.
+**Real numbers.** A typical analyst (fully-loaded GS-13 or contractor equivalent at roughly \$120/hour) spends six hours triaging an overnight inbox of 200 open-source reports — about **\$720 of labor per morning, per analyst**, and most shops staff two to three on the cycle. Running this pipeline across the same 200-report inbox via concurrent `/v1/graph-workflow/completions` requests typically lands in the **single-digit dollars** range total, and produces a draft brief the analyst signs in fifteen minutes instead of writing from scratch. The analyst is still in the loop — but the loop is review-and-sign, not read-and-write.
 </Info>
 
 ## Next Steps

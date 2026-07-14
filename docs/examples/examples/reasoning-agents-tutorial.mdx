@@ -8,7 +8,7 @@ description: "Solve a competition-grade multi-step accrual accounting problem en
 - One real, hard analytical problem solved end-to-end with `POST /v1/reasoning-agent/completions`
 - Why a normal agent call hallucinates on this and how `swarm_type: "self-consistency"` fixes it
 - How to tune `num_samples` and `max_loops` for the depth-vs-cost tradeoff on a single high-stakes question
-- How to read the structured output (`output_type: "dict-final"`) to extract the answer programmatically
+- How to read the structured `outputs` payload (returned in `dict-all-except-first` format) to extract the answer programmatically
 - A direct side-by-side: same task, plain agent vs. reasoning agent, real failure modes
 
 <Warning>
@@ -131,7 +131,7 @@ reasoning_payload = {
         "ASC 606 revenue recognition specialist with self-consistency "
         "deliberation across multiple independent reasoning chains."
     ),
-    "model_name": "anthropic/claude-opus-4-8",
+    "model_name": "claude-sonnet-4-20250514",
     "system_prompt": (
         "You are a CPA specializing in ASC 606 revenue recognition. "
         "When solving a problem, derive the total transaction price first, "
@@ -142,7 +142,7 @@ reasoning_payload = {
     "swarm_type": "self-consistency",
     "num_samples": 5,
     "max_loops": 1,
-    "output_type": "dict-final",
+    "output_type": "dict-all-except-first",
     "task": problem,
 }
 
@@ -174,24 +174,32 @@ The response (`result` above) is a `ReasoningAgentCompletionOutput` object with 
 | `agent_id` | `string` | Unique identifier for the agent instance |
 | `usage` | `object` | Token usage: `input_tokens`, `output_tokens`, `total_tokens` |
 
-`outputs` is where the reasoning content lives, and its internal shape depends on `output_type` — with `output_type: "dict-final"` it resolves to a dict containing the convergent final answer, which is what Step 5 below extracts.
+`outputs` is where the reasoning content lives. The API returns it in `dict-all-except-first` format (the `output_type` default) — a conversation-style structure of role/content entries covering every reasoning step after the initial prompt, ending with the convergent final answer that Step 5 below extracts.
 
 ## Step 5: Extract the Answer
 
-`output_type: "dict-final"` returns the convergent final answer as a dictionary alongside the per-sample chains. The convergent answer is the one to trust; the per-sample chains are the audit trail.
+With the default `output_type` (`dict-all-except-first`), `outputs` contains the per-sample reasoning chains with the convergent final answer last. The convergent answer is the one to trust; the per-sample chains are the audit trail.
 
 ```python
-import re
-
-outputs = result.get("outputs", {})
-final = outputs.get("final_answer") if isinstance(outputs, dict) else None
-
-if not final:
-    # Some response shapes nest the JSON in a string — extract it
+# outputs is a list of role/content entries (dict-all-except-first format);
+# the convergent final answer is the last entry's content
+outputs = result.get("outputs", [])
+if isinstance(outputs, list) and outputs:
+    blob = str(outputs[-1].get("content", ""))
+else:
     blob = json.dumps(outputs)
-    match = re.search(r"\{[^{}]*transaction_price[^{}]*\}", blob, re.DOTALL)
-    if match:
-        final = json.loads(match.group(0))
+
+# The system prompt asked for a single JSON object as the final line —
+# scan the content from the end for the first line that parses
+final = None
+for line in reversed(blob.splitlines()):
+    line = line.strip().strip("`").strip()  # tolerate a fenced code block
+    if line.startswith("{") and line.endswith("}"):
+        try:
+            final = json.loads(line)
+            break
+        except json.JSONDecodeError:
+            continue
 
 print("\nExtracted answer:")
 print(json.dumps(final, indent=2))
@@ -240,8 +248,15 @@ The right read on convergence: if all 5 samples produce the same final JSON, shi
 | `ire` | Iterative refinement — each loop critiques the prior | Algorithmic / proof-style problems |
 | `reasoning-duo` | Two agents debate two approaches | Contrarian framing, strategy reviews |
 | `consistency-agent` | Logical-consistency focused | Pure math and logic puzzles |
+| `ReflexionAgent` | Self-critiques and revises its own output | Drafts that improve with self-correction |
+| `GKPAgent` | Generates supporting knowledge before answering | Knowledge-intensive questions |
+| `AgentJudge` | Evaluates and scores candidate outputs | Grading another agent's answer |
 
 For accrual accounting, legal interpretation, and financial calculation work, `self-consistency` is the right default — the failure mode is "confidently wrong on one chain," and voting across chains is the specific antidote.
+
+<Note>
+The full list of supported values is returned by `GET /v1/reasoning-agent/types`: `reasoning-duo`, `self-consistency`, `ire`, `reasoning-agent`, `consistency-agent`, `ire-agent`, `ReflexionAgent`, `GKPAgent`, `AgentJudge`. For the `ire` / `ire-agent` types the API manages iteration internally and ignores `max_loops`.
+</Note>
 
 ## Cost vs. Hiring a Senior Associate
 
@@ -251,7 +266,7 @@ Concrete numbers for a high-stakes analytical question (the accrual problem abov
 | --- | --- | --- | --- |
 | Senior accounting associate | 25-40 min | ~\$80-130 fully-loaded labor | Yes (but variable) |
 | Plain `gpt-4` call | ~6 sec | ~\$0.05 | **No** — single confident chain, fails ~40-60% |
-| **Reasoning agent (self-consistency, 5 samples, Opus 4.8)** | **~30-60 sec** | **~\$0.20-0.50** | **Yes** — convergence is the signal |
+| **Reasoning agent (self-consistency, 5 samples, Claude Sonnet 4)** | **~30-60 sec** | **~\$0.20-0.50** | **Yes** — convergence is the signal |
 
 Use the reasoning agent for the questions where being wrong is expensive — accruals that hit a 10-K, tax allocations on a large deal, contract interpretations, complex underwriting. Use a plain agent for everything else. The reasoning agent is **~250x cheaper than the associate** *and* gives you a convergence signal the associate can't, because a single human only has one chain of thought.
 

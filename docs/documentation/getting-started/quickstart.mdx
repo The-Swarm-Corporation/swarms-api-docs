@@ -40,12 +40,11 @@ npm install axios dotenv
 
 #### Authentication
 
-The API uses API key authentication through the `x-api-key` header. Store your API key securely as an environment variable.
+The API uses API key authentication through the `x-api-key` header. For OpenAI SDK compatibility, the `Authorization: Bearer <your-api-key>` header is also accepted. Store your API key securely as an environment variable.
 
-**Base URLs:**
+**Base URL:**
 
 * Production: `https://api.swarms.world`
-* Alternative: `https://api.swarms.world`
 
 **Security Note:** Never hardcode API keys in your code. Always use environment variables or secure configuration management.
 
@@ -113,7 +112,7 @@ def run_single_agent():
                 "Your role is to analyze provided information, identify key insights, "
                 "and present findings in a clear, structured format."
             ),
-            "model_name": "claude-sonnet-4-20250514-20240620",
+            "model_name": "claude-sonnet-4-20250514",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 8192,
@@ -141,7 +140,7 @@ async function runSingleAgent() {
             agent_name: "Research Analyst",
             description: "An expert in analyzing and synthesizing research data",
             system_prompt: "You are a Research Analyst with expertise in data analysis and synthesis.",
-            model_name: "claude-sonnet-4-20250514-20240620",
+            model_name: "claude-sonnet-4-20250514",
             role: "worker",
             max_loops: 1,
             max_tokens: 8192,
@@ -187,7 +186,7 @@ def run_agent_with_history():
             "agent_name": "Conversation Agent",
             "description": "An agent that maintains conversation context",
             "system_prompt": "You are a helpful assistant that maintains context.",
-            "model_name": "claude-sonnet-4-20250514-20240620",
+            "model_name": "claude-sonnet-4-20250514",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 8192,
@@ -245,7 +244,7 @@ def run_sequential_swarm():
                 "agent_name": "Market Analyst",
                 "description": "Analyzes market trends",
                 "system_prompt": "You are a financial analyst expert specializing in market trend analysis.",
-                "model_name": "gpt-4.1",
+                "model_name": "gpt-4.1-mini",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 8192,
@@ -256,7 +255,7 @@ def run_sequential_swarm():
                 "agent_name": "Economic Forecaster",
                 "description": "Predicts economic trends",
                 "system_prompt": "You are an expert in economic forecasting. Use the market analysis to provide economic predictions.",
-                "model_name": "gpt-4.1",
+                "model_name": "gpt-4.1-mini",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 8192,
@@ -293,7 +292,7 @@ def run_concurrent_swarm():
                 "agent_name": "Lab Data Analyzer",
                 "description": "Analyzes lab report data",
                 "system_prompt": "You are a medical data analyst specializing in lab results interpretation.",
-                "model_name": "claude-sonnet-4-20250514-20240620",
+                "model_name": "claude-sonnet-4-20250514",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 8192,
@@ -304,7 +303,7 @@ def run_concurrent_swarm():
                 "agent_name": "Clinical Specialist",
                 "description": "Provides clinical interpretations",
                 "system_prompt": "You are an expert in clinical diagnosis and patient care recommendations.",
-                "model_name": "claude-sonnet-4-20250514-20240620",
+                "model_name": "claude-sonnet-4-20250514",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 8192,
@@ -454,26 +453,30 @@ When creating tools for your agents:
 
 Choose the appropriate model based on your use case requirements:
 
+<Note>
+Some models are restricted to premium-tier accounts. `gpt-4.1` and all `groq/*` models are rejected for free-tier API keys. Call `GET /v1/models` with your key to see the models available to your tier.
+</Note>
+
 #### OpenAI Models
 
 * **gpt-4**: High-quality reasoning and complex task handling
-* **gpt-4.1**: Optimized version with improved performance
+* **gpt-4.1**: Optimized version with improved performance (premium tier only)
 * **gpt-4.1-mini**: Lightweight version for faster responses
 
 #### Anthropic Models
 
-* **claude-sonnet-4-20250514-20240620**: Balanced performance and reasoning
+* **claude-sonnet-4-20250514**: Balanced performance and reasoning
 * **claude-3-7-sonnet-latest**: Latest Claude model with enhanced capabilities
 
-#### Groq Models
+#### Groq Models (premium tier only)
 
 * **groq/llama3-70b-8192**: High-performance open-source model
 * **groq/deepseek-r1-distill-llama-70b**: Specialized reasoning model
 
 #### Model Selection Guidelines
 
-* **Complex Analysis**: Use GPT-4 or Claude-3.5-Sonnet for tasks requiring deep reasoning
-* **Fast Responses**: Choose GPT-4o-mini for quick, straightforward tasks
+* **Complex Analysis**: Use GPT-4 or Claude Sonnet 4 for tasks requiring deep reasoning
+* **Fast Responses**: Choose gpt-4.1-mini for quick, straightforward tasks
 * **Creative Tasks**: Higher temperature settings work better with creative models
 * **Factual Tasks**: Lower temperature settings provide more consistent, factual responses
 
@@ -481,21 +484,28 @@ Choose the appropriate model based on your use case requirements:
 
 #### Endpoints
 
-**Single Agent Completions:**
-
-* `POST /v1/agent/completions`
-
-**Swarm Completions:**
-
-* `POST /v1/swarm/completions`
-
-**Batch Swarm Completions:**
-
-* `POST /v1/swarm/batch/completions`
-
-**Health Check:**
-
-* `GET /health`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check |
+| `POST` | `/v1/agent/completions` | Single agent completions |
+| `POST` | `/v1/agent/batch/completions` | Batch agent completions (premium) |
+| `POST` | `/v1/swarm/completions` | Swarm completions |
+| `POST` | `/v1/swarm/batch/completions` | Batch swarm completions (premium) |
+| `POST` | `/v1/reasoning-agent/completions` | Reasoning agent completions (premium) |
+| `GET` | `/v1/reasoning-agent/types` | List available reasoning agent types |
+| `POST` | `/v1/chat/completions` | OpenAI-compatible chat completions |
+| `POST` | `/v1/batched-grid-workflow/completions` | Batched grid workflow (premium) |
+| `POST` | `/v1/graph-workflow/completions` | Graph workflow (premium) |
+| `GET` | `/v1/swarms/available` | List available swarm types |
+| `GET` | `/v1/models` | List supported models |
+| `GET` | `/v1/models/available` | List available models with metadata |
+| `GET` | `/v1/tools/available` | List available tools |
+| `GET` | `/v1/agents/list` | List your agents |
+| `GET` | `/v1/swarm/logs` | Retrieve your API request logs |
+| `GET` | `/v1/rate/limits` | View your rate limits and usage |
+| `GET` | `/v1/metrics/summary` | Usage metrics summary |
+| `GET` | `/v1/usage/costs` | Usage cost breakdown |
+| `GET` | `/v1/account/credits` | Check your credit balance |
 
 ### Best Practices
 
@@ -572,7 +582,7 @@ def validate_payload(payload):
 **Authentication Errors:**
 
 * Verify your API key is correct and active
-* Check that the `x-api-key` header is properly set
+* Check that the `x-api-key` header (or `Authorization: Bearer <key>`) is properly set
 * Ensure your API key has the necessary permissions
 
 **Timeout Issues:**

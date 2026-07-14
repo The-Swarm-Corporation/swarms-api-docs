@@ -156,6 +156,10 @@ For actual usage and spend tracking (rather than the pricing model itself), use:
 | Raw request history | `GET /v1/swarm/logs` | All logged API requests for your account, which you can aggregate client-side into a custom report |
 | Current rate limit usage | `GET /v1/rate/limits` | Requests used/remaining per minute, hour, and day |
 
+<Note>
+Billable completion endpoints require your `total_credits` balance to be above \$1.00. This is checked before the request runs — if the balance is at or below the minimum, the API returns a **402 Payment Required** error without doing any work. Use `GET /v1/account/credits` to monitor your balance.
+</Note>
+
 ---
 
 ## Related

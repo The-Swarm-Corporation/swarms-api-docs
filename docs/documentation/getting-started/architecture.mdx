@@ -107,7 +107,7 @@ Reasoning agents leverage sophisticated reasoning techniques to solve complex pr
 payload = {
     "agent_name": "math-reasoner",
     "description": "Mathematical problem solver using dual perspectives",
-    "model_name": "claude-sonnet-4-20250514-20240620",
+    "model_name": "claude-sonnet-4-20250514",
     "system_prompt": "You are an expert mathematical reasoning agent...",
     "max_loops": 1,
     "swarm_type": "reasoning-duo",
@@ -131,7 +131,7 @@ Multi-agent swarms represent the most sophisticated tier, capable of orchestrati
 
 * **Massive Scale**: 3 to 10,000+ agents per swarm
 * **Coordinated Workflows**: Agents work together in structured processes
-* **Multiple Swarm Types**: 12+ different swarm architectures available
+* **Multiple Swarm Types**: 16+ different swarm architectures available
 * **Enterprise-Grade**: Built for complex business applications
 * **Dynamic Routing**: Intelligent task distribution and agent selection
 
@@ -148,6 +148,14 @@ Multi-agent swarms represent the most sophisticated tier, capable of orchestrati
 | **AgentRearrange**       | Dynamic agent reordering          | 3-100       | Adaptive workflows, optimization                 |
 | **MultiAgentRouter**     | Intelligent task routing          | 10-500      | Large-scale task distribution                    |
 | **HierarchicalSwarm**    | Nested agent hierarchies          | 10-1000     | Complex organizational structures                |
+| **HeavySwarm**           | Question, worker, and synthesis agents | 3-10   | Deep research, comprehensive analysis            |
+| **LLMCouncil**           | Council of models with a chairman | 3-10        | Multi-model deliberation, synthesis              |
+| **DebateWithJudge**      | Structured debate with a judge    | 3-5         | Argument evaluation, contested questions         |
+| **RoundRobin**           | Agents take turns in rotation     | 3-20        | Balanced participation, iterative refinement     |
+| **PlannerWorkerSwarm**   | Planner delegates to workers      | 3-50        | Task decomposition, project execution            |
+| **BatchedGridWorkflow**  | Grid of tasks across agents       | 2-100       | Running many task/agent combinations             |
+| **AutoSwarmBuilder**     | Automatically builds the swarm    | Dynamic     | When you don't want to define agents manually    |
+| **auto**                 | Automatically selects a swarm type | Dynamic    | Letting the API pick the best architecture       |
 
 **Use Cases**
 
@@ -176,7 +184,7 @@ payload = {
         {
             "agent_name": "writer",
             "description": "Create initial content",
-            "model_name": "claude-sonnet-4-20250514-20240620",
+            "model_name": "claude-sonnet-4-20250514",
             "role": "writer"
         },
         {
@@ -188,7 +196,7 @@ payload = {
         {
             "agent_name": "fact-checker",
             "description": "Verify accuracy and sources",
-            "model_name": "claude-sonnet-4-20250514-20240620",
+            "model_name": "claude-sonnet-4-20250514",
             "role": "validator"
         }
     ],

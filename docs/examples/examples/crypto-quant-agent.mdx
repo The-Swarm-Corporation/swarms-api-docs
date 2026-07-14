@@ -91,9 +91,12 @@ if __name__ == "__main__":
 To give the agent access to real-time market data, attach an MCP server URL. Any OKX/Binance/CoinGecko MCP server works as long as it exposes the right tools.
 
 ```python
-"agent_config": {
-    # ...existing fields...
-    "mcp_url": "http://your-okx-mcp:8001/sse",
+payload = {
+    "agent_config": {
+        # ...existing fields...
+        "mcp_url": "http://your-okx-mcp:8001/sse",
+    },
+    "task": task,
 }
 ```
 

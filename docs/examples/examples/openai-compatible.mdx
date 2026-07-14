@@ -11,6 +11,7 @@ description: 'Drop-in usage of the Swarms API with the OpenAI SDK — basic comp
 - Multi-turn conversations with conversation history
 - Sending images (multimodal / vision)
 - Multi-loop agent reasoning via `max_loops`
+- Discovering available models with `client.models.list()` (`GET /v1/models`)
 - Error handling with SDK-native exception classes
 - Working examples in Python, TypeScript, Go, and Rust
 
@@ -912,7 +913,73 @@ Use `max_loops` to let the agent iterate on its own output — useful for comple
 
 ---
 
-## 6. Putting It All Together — Research Assistant
+## 6. Model Discovery
+
+The SDK's built-in model listing works too — `GET /v1/models` returns every model available to your account (filtered by subscription tier) in the standard OpenAI list format.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = OpenAI(
+        api_key=os.environ["SWARMS_API_KEY"],
+        base_url="https://api.swarms.world/v1",
+    )
+
+    models = client.models.list()
+    print(f"{len(models.data)} models available\n")
+
+    for model in models.data[:10]:
+        print(f"{model.id} (owned_by: {model.owned_by})")
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from "openai";
+    import "dotenv/config";
+
+    const client = new OpenAI({
+      apiKey: process.env.SWARMS_API_KEY,
+      baseURL: "https://api.swarms.world/v1",
+    });
+
+    const models = await client.models.list();
+    console.log(`${models.data.length} models available\n`);
+
+    for (const model of models.data.slice(0, 10)) {
+      console.log(`${model.id} (owned_by: ${model.owned_by})`);
+    }
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X GET https://api.swarms.world/v1/models \
+      -H "Authorization: Bearer $SWARMS_API_KEY"
+
+    # Example response:
+    # {
+    #   "object": "list",
+    #   "data": [
+    #     {"id": "gpt-4.1", "object": "model", "created": 0, "owned_by": "openai"},
+    #     {"id": "claude-sonnet-4-20250514", "object": "model", "created": 0, "owned_by": "anthropic"}
+    #   ]
+    # }
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+Prefer a plain list of model names with a count? Use the native Swarms endpoint `GET /v1/models/available` instead — see [Available Models](/docs/examples/examples/models-available). Both endpoints return the same tier-filtered catalog.
+</Info>
+
+---
+
+## 7. Putting It All Together — Research Assistant
 
 A complete example that combines system prompts, multi-turn conversation, and streaming to build a simple research assistant.
 

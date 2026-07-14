@@ -69,6 +69,14 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.4
+      },
+      {
+        "agent_name": "Audience Advocate",
+        "description": "Represents the target audience perspective",
+        "system_prompt": "You are an audience advocate. Evaluate whether the content is clear, credible, and persuasive from the perspective of the target audience. Vote YES if the content would resonate with readers, NO if it would not.",
+        "model_name": "gpt-4.1",
+        "max_loops": 1,
+        "temperature": 0.3
       }
     ],
     "max_loops": 1
@@ -126,6 +134,14 @@ swarm_config = {
             "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.4
+        },
+        {
+            "agent_name": "Audience Advocate",
+            "description": "Represents the target audience perspective",
+            "system_prompt": "You are an audience advocate. Evaluate whether the content is clear, credible, and persuasive from the perspective of the target audience. Vote YES if the content would resonate with readers, NO if it would not.",
+            "model_name": "gpt-4.1",
+            "max_loops": 1,
+            "temperature": 0.3
         }
     ],
     "max_loops": 1
@@ -195,6 +211,14 @@ const swarmConfig = {
             model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.4
+        },
+        {
+            agent_name: "Audience Advocate",
+            description: "Represents the target audience perspective",
+            system_prompt: "You are an audience advocate. Evaluate whether the content is clear, credible, and persuasive from the perspective of the target audience. Vote YES if the content would resonate with readers, NO if it would not.",
+            model_name: "gpt-4.1",
+            max_loops: 1,
+            temperature: 0.3
         }
     ],
     max_loops: 1
@@ -290,6 +314,14 @@ func main() {
                 MaxLoops:     1,
                 Temperature:  0.4,
             },
+            {
+                AgentName:    "Audience Advocate",
+                Description:  "Represents the target audience perspective",
+                SystemPrompt: "You are an audience advocate. Evaluate whether the content is clear, credible, and persuasive from the perspective of the target audience. Vote YES if the content would resonate with readers, NO if it would not.",
+                ModelName:    "gpt-4.1",
+                MaxLoops:     1,
+                Temperature:  0.3,
+            },
         },
         MaxLoops: 1,
     }
@@ -362,6 +394,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4
+            },
+            {
+                "agent_name": "Audience Advocate",
+                "description": "Represents the target audience perspective",
+                "system_prompt": "You are an audience advocate. Evaluate whether the content is clear, credible, and persuasive from the perspective of the target audience. Vote YES if the content would resonate with readers, NO if it would not.",
+                "model_name": "gpt-4.1",
+                "max_loops": 1,
+                "temperature": 0.3
             }
         ],
         "max_loops": 1
@@ -414,9 +454,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         {
             "role": "Brand Guardian",
             "content": "VOTE: YES. The content aligns well with our brand voice of innovation and transformation."
+        },
+        {
+            "role": "Audience Advocate",
+            "content": "VOTE: NO. The '300% productivity increase' claim reads as implausible and undermines the credibility of the message for a business audience."
         }
     ],
-    "number_of_agents": 4,
+    "number_of_agents": 5,
     "execution_time": 28.7,
     "usage": {
         "input_tokens": 50,
@@ -424,7 +468,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "total_tokens": 1850,
         "billing_info": {
             "cost_breakdown": {
-                "agent_cost": 0.04,
+                "agent_cost": 0.05,
                 "input_token_cost": 0.00015,
                 "output_token_cost": 0.027,
                 "token_counts": {
@@ -432,10 +476,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_output_tokens": 1800,
                     "total_tokens": 1850
                 },
-                "num_agents": 4,
+                "num_agents": 5,
                 "night_time_discount_applied": true
             },
-            "total_cost": 0.06715,
+            "total_cost": 0.07715,
             "discount_active": true,
             "discount_type": "night_time",
             "discount_percentage": 50

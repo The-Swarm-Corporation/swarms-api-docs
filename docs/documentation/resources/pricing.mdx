@@ -170,6 +170,7 @@ GET /v1/usage/costs
 
 | Important Note                                                      | Description                                                                                  |
 |---------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| Minimum Balance                                                     | Billable completion endpoints require a total credit balance above \$1.00, checked before the request runs. Requests below this are rejected with a **402 Payment Required** error before any work is done. |
 | Credits Deduction                                                   | Credits are deducted automatically after each request completes.                              |
 | Credits Usage Order                                                 | Free credits are used first, followed by regular credits.                                    |
 | Token Counting                                                      | Token counts are calculated using model-specific tokenizers.                                  |

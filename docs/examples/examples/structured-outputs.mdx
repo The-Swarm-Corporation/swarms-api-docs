@@ -5,7 +5,7 @@ description: "Extract structured JSON data from unstructured text using schema-e
 
 ## Company Data Extractor
 
-This example demonstrates how to extract structured, schema-enforced JSON from unstructured text using `llm_args.response_format` - perfect for data extraction, classification, and form processing.
+This example demonstrates how to extract structured, schema-enforced JSON from unstructured text using `llm_args.response_format` - perfect for data extraction, classification, and form processing. A second approach using `tools_list_dictionary` (OpenAI function-calling schemas) is covered [below](#structured-outputs-via-tools_list_dictionary).
 
 ### Step 1: Get Your Swarms API Key
 
@@ -134,3 +134,219 @@ print(json.dumps(company_info, indent=2))
 <Note>
 The schema uses `"strict": true` and `"additionalProperties": false` to guarantee the response matches your schema exactly. Every field in `required` will always be present in the output.
 </Note>
+
+---
+
+## Structured Outputs via `tools_list_dictionary`
+
+A second way to get structured output is the `tools_list_dictionary` field on the agent config (`Optional[List[Dict]]` on `AgentSpec`). Instead of constraining the response format, you give the agent one or more OpenAI function-calling-style JSON schemas. The model responds by "calling" your function, and the arguments it passes are JSON that conforms to your `parameters` schema — effectively schema-enforced output.
+
+Each entry in `tools_list_dictionary` follows the OpenAI function calling format:
+
+```json
+{
+  "type": "function",
+  "function": {
+    "name": "function_name",
+    "description": "What this function does",
+    "parameters": {
+      "type": "object",
+      "properties": { "...": "..." },
+      "required": ["..."]
+    }
+  }
+}
+```
+
+### Example: Sentiment Classifier
+
+This agent classifies customer feedback by "calling" a `record_sentiment` function whose arguments are the structured result.
+
+<CodeGroup>
+
+```python Python
+import requests
+import json
+import os
+
+API_BASE_URL = "https://api.swarms.world"
+API_KEY = os.environ.get("SWARMS_API_KEY", "your_api_key_here")
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+payload = {
+    "agent_config": {
+        "agent_name": "Sentiment Classifier",
+        "description": "Classifies customer feedback into structured sentiment data",
+        "system_prompt": "You are a sentiment analysis expert. Analyze the provided feedback and record your findings using the record_sentiment function.",
+        "model_name": "gpt-4.1",
+        "max_loops": 1,
+        "max_tokens": 4096,
+        "temperature": 0.0,
+        "tools_list_dictionary": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "record_sentiment",
+                    "description": "Record the sentiment analysis of a piece of customer feedback",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "sentiment": {
+                                "type": "string",
+                                "enum": ["positive", "negative", "neutral", "mixed"],
+                                "description": "Overall sentiment of the feedback"
+                            },
+                            "confidence": {
+                                "type": "number",
+                                "description": "Confidence score between 0 and 1"
+                            },
+                            "topics": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Topics mentioned in the feedback"
+                            },
+                            "requires_followup": {
+                                "type": "boolean",
+                                "description": "Whether the feedback needs a human follow-up"
+                            }
+                        },
+                        "required": ["sentiment", "confidence", "topics", "requires_followup"]
+                    }
+                }
+            }
+        ]
+    },
+    "task": "The checkout flow was confusing and I was double-charged, but support refunded me quickly and was very friendly."
+}
+
+response = requests.post(
+    f"{API_BASE_URL}/v1/agent/completions",
+    headers=headers,
+    json=payload,
+    timeout=60
+)
+
+result = response.json()
+
+# The agent's tool call arguments are the structured output
+tool_calls = result["outputs"][0]["content"]
+for tool_call in tool_calls:
+    arguments = json.loads(tool_call["function"]["arguments"])
+    print(json.dumps(arguments, indent=2))
+```
+
+```bash cURL
+curl -X POST "https://api.swarms.world/v1/agent/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_config": {
+      "agent_name": "Sentiment Classifier",
+      "description": "Classifies customer feedback into structured sentiment data",
+      "system_prompt": "You are a sentiment analysis expert. Analyze the provided feedback and record your findings using the record_sentiment function.",
+      "model_name": "gpt-4.1",
+      "max_loops": 1,
+      "max_tokens": 4096,
+      "temperature": 0.0,
+      "tools_list_dictionary": [
+        {
+          "type": "function",
+          "function": {
+            "name": "record_sentiment",
+            "description": "Record the sentiment analysis of a piece of customer feedback",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "sentiment": {
+                  "type": "string",
+                  "enum": ["positive", "negative", "neutral", "mixed"],
+                  "description": "Overall sentiment of the feedback"
+                },
+                "confidence": {
+                  "type": "number",
+                  "description": "Confidence score between 0 and 1"
+                },
+                "topics": {
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "description": "Topics mentioned in the feedback"
+                },
+                "requires_followup": {
+                  "type": "boolean",
+                  "description": "Whether the feedback needs a human follow-up"
+                }
+              },
+              "required": ["sentiment", "confidence", "topics", "requires_followup"]
+            }
+          }
+        }
+      ]
+    },
+    "task": "The checkout flow was confusing and I was double-charged, but support refunded me quickly and was very friendly."
+  }'
+```
+
+</CodeGroup>
+
+**Expected Response:**
+
+When the agent uses a tool, `outputs[0].content` is an array of tool call objects. The `function.arguments` field is a JSON string that matches your `parameters` schema:
+
+```json
+{
+  "job_id": "agent-8c2f4c1de5a94b0f9d3e6a7b1c2d3e4f",
+  "success": true,
+  "name": "Sentiment Classifier",
+  "outputs": [
+    {
+      "role": "Sentiment Classifier",
+      "content": [
+        {
+          "function": {
+            "arguments": "{\"sentiment\":\"mixed\",\"confidence\":0.92,\"topics\":[\"checkout flow\",\"billing\",\"customer support\"],\"requires_followup\":true}",
+            "name": "record_sentiment"
+          },
+          "id": "call_x7YkQm2nPfWv4RzLbTe9AhGd",
+          "type": "function"
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 132,
+    "output_tokens": 58,
+    "total_tokens": 190,
+    "total_cost": 0.00073
+  }
+}
+```
+
+The parsed `arguments` give you the structured result:
+
+```json
+{
+  "sentiment": "mixed",
+  "confidence": 0.92,
+  "topics": ["checkout flow", "billing", "customer support"],
+  "requires_followup": true
+}
+```
+
+<Note>
+`function.arguments` is a **JSON string**, not a parsed object — decode it with `json.loads()` (Python) or `JSON.parse()` (JavaScript) before use.
+</Note>
+
+### Which approach should I use?
+
+| | `llm_args.response_format` | `tools_list_dictionary` |
+|---|---|---|
+| Enforces schema on | The response text itself | The function call arguments |
+| Best for | Pure data extraction and classification | Function calling, routing, and structured actions |
+| Response `content` type | JSON string | Array of tool call objects |
+| Model support | Models with native structured-output support (e.g. `gpt-4.1`, `gpt-4o`) | Any model with function calling |
+
+Both fields can be set on the same agent. For a deeper guide to tools and function calling, see [Structured Outputs & Tools](/docs/documentation/capabilities/swarms_api_tools).

@@ -255,6 +255,36 @@ payload = {
 The full list of available tools for autonomous agents: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. The `run_bash` tool is not permitted.
 </Note>
 
+## Pre-Defined Sub-Agents with `handoffs`
+
+If you already know which specialists an agent needs, you can define them up front with the `handoffs` field on `agent_config` instead of having the coordinator create them at runtime. `handoffs` takes a list of full agent specifications (the same shape as `agent_config`); these agents are created with the request and the parent agent can hand tasks off to them during execution. Unlike `create_sub_agent`, this does not require `max_loops="auto"`.
+
+```python
+payload = {
+    "agent_config": {
+        "agent_name": "Support-Triage",
+        "description": "Routes customer issues to the right specialist",
+        "model_name": "gpt-4.1",
+        "max_loops": 1,
+        "handoffs": [
+            {
+                "agent_name": "Billing-Specialist",
+                "description": "Handles billing and refund questions",
+                "system_prompt": "You resolve billing and refund issues.",
+                "model_name": "gpt-4.1"
+            },
+            {
+                "agent_name": "Technical-Support",
+                "description": "Handles technical product issues",
+                "system_prompt": "You debug and resolve technical product issues.",
+                "model_name": "gpt-4.1"
+            }
+        ]
+    },
+    "task": "A customer was double-charged last month and also cannot log in. Route this to the right specialists and resolve it."
+}
+```
+
 ## Sub-Agents vs Other Multi-Agent Patterns
 
 | Feature | Sub-Agent Delegation | Multi-Agent Swarms |

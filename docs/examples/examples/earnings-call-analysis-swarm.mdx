@@ -504,8 +504,11 @@ def run_one_call(ticker: str, period: str,
 
 
 def extract_synthesizer_json(swarm_result: dict) -> dict:
+    # Single-call responses carry the conversation under "output";
+    # batch items carry it under "result".
+    entries = swarm_result.get("output") or swarm_result.get("result") or []
     text = ""
-    for entry in swarm_result.get("output", []):
+    for entry in entries:
         if "Synthesizer" in entry.get("role", ""):
             content = entry.get("content", "")
             if isinstance(content, list):
@@ -541,7 +544,7 @@ The Synthesizer output is the row you persist. The four specialist outputs are t
 
 ## Step 5: Earnings-Season Batch Mode
 
-The single-call path is the prototype. The actual workload during peak earnings season is 125 calls a day. POST the entire list as one payload to `/v1/swarm/batch/completions` — the API executes the swarms in parallel and returns a list of results in input order.
+The single-call path is the prototype. The actual workload during peak earnings season is 125 calls a day. POST the entire list as one payload to `/v1/swarm/batch/completions` — the API executes the swarms in parallel and returns one item per swarm shaped `{"status", "swarm_name", "result", "usage"}`. Items arrive in completion order, not input order, so match them back to your calls by `swarm_name`.
 
 ```python
 def load_today_calls() -> list[dict]:
@@ -573,8 +576,15 @@ def persist_and_alert(calls: list[dict], results: list[dict]) -> None:
     out_path = Path(f"notes_{datetime.utcnow().strftime('%Y%m%d')}.jsonl")
     review_now = []
 
+    # Batch items arrive in completion order — join them back to the
+    # input calls by swarm_name.
+    by_name = {r.get("swarm_name", ""): r for r in results}
+
     with out_path.open("w") as f:
-        for call, result in zip(calls, results):
+        for call in calls:
+            result = by_name.get(
+                f"Earnings Call Analysis - {call['ticker']} {call['period']}", {}
+            )
             note = extract_synthesizer_json(result)
             note["_ticker"] = call["ticker"]
             note["_period"] = call["period"]

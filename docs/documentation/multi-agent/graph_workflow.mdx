@@ -3,7 +3,7 @@ title: "GraphWorkflow"
 description: "The Graph Workflow API enables you to create and execute complex multi-agent workflows using a directed graph structure. Agents serve as nodes in the graph, and edges define the flow of data and execution between agents. This allows for sophisticated parallel processing, sequential pipelines, and complex multi-layer workflows."
 ---
 <Warning>
-Premium: This endpoint is available only on Pro and Ultra plans. See <a href="/docs/documentation/resources/pricing">Pricing</a>.
+Premium: This endpoint is available only on Pro, Ultra, and Premium plans. See <a href="/docs/documentation/resources/pricing">Pricing</a>.
 </Warning>
 ## Overview
 
@@ -51,9 +51,9 @@ headers = {
 | `system_prompt` | `string` | No | `null` | Initial instruction or context provided to the agent |
 | `model_name` | `string` | No | `"gpt-4.1"` | AI model to use (e.g., "gpt-4.1", "gpt-4.1-mini", "claude-sonnet-4-20250514") |
 | `max_tokens` | `integer` | No | `8192` | Maximum number of tokens the agent can generate |
-| `temperature` | `float` | No | `0.5` | Randomness control (0.0-1.0, lower = more deterministic) |
+| `temperature` | `float` | No | `null` | Randomness control (lower = more deterministic). If omitted, the provider's own default applies |
 | `role` | `string` | No | `"worker"` | Agent's role within the swarm |
-| `max_loops` | `integer` | No | `1` | Maximum number of times the agent can repeat its task |
+| `max_loops` | `integer \| string` | No | `1` | Maximum number of times the agent can repeat its task, or `"auto"` |
 | `tools_list_dictionary` | `List[dict]` | No | `null` | List of tools the agent can use |
 | `selected_tools` | `string \| List[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. `run_bash` is not permitted |
 | `mcp_url` | `string` | No | `null` | URL of MCP server for the agent |
@@ -63,7 +63,7 @@ headers = {
 | `mcp_config` | `MCPConnection` | No | `null` | MCP connection configuration |
 | `mcp_configs` | `MultipleMCPConnections` | No | `null` | Multiple MCP connections configuration |
 | `tool_call_summary` | `boolean` | No | `true` | Whether to summarize tool calls |
-| `reasoning_effort` | `string` | No | `null` | Reasoning effort level |
+| `reasoning_effort` | `string` | No | `"low"` | Reasoning effort level: `"low"`, `"medium"`, or `"high"` |
 | `thinking_tokens` | `integer` | No | `null` | Number of tokens for thinking |
 | `reasoning_enabled` | `boolean` | No | `false` | Whether to enable reasoning capabilities |
 
@@ -883,13 +883,16 @@ if __name__ == "__main__":
 
 Rate limits are enforced per API key and subscription tier:
 
-- **Free Tier:** 100 requests per minute, 50 requests per hour, 1,200 requests per day
+- **Free Tier:** 100 requests per minute, 350 requests per hour, 1,200 requests per day
 - **Premium Tier:** 2,000 requests per minute, 10,000 requests per hour, 100,000 requests per day
 
 Rate limit information is returned in response headers:
-- `X-RateLimit-Limit`: Maximum requests allowed
-- `X-RateLimit-Remaining`: Remaining requests in current window
-- `X-RateLimit-Reset`: Timestamp when limit resets
+- `X-RateLimit-Limit-Minute`: Requests allowed per minute
+- `X-RateLimit-Remaining-Minute`: Requests remaining in the current minute
+- `X-RateLimit-Limit-Day`: Requests allowed per day
+- `X-RateLimit-Remaining-Day`: Requests remaining today
+- `X-RateLimit-Reset`: Unix timestamp when the minute window resets
+- `X-RateLimit-Tier`: Your current tier (`free` or `premium`)
 
 ## Support
 

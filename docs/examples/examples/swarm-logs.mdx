@@ -98,18 +98,28 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
     # Example response:
     # {
     #   "status": "success",
+    #   "count": null,
     #   "logs": [
     #     {
-    #       "timestamp": "2024-01-01T10:30:00Z",
-    #       "endpoint": "/v1/agent/completions",
-    #       "method": "POST",
-    #       "status_code": 200,
-    #       "response_time": 2.5,
-    #       "tokens_used": 150,
-    #       "cost": 0.003
+    #       "id": 12345,
+    #       "created_at": "2026-07-01T10:30:00+00:00",
+    #       "api_key": "sk-xxxxxxxx",
+    #       "category": "completion",
+    #       "data": {
+    #         "job_id": "agent-abc123",
+    #         "success": true,
+    #         "name": "Research Assistant",
+    #         "usage": {
+    #           "input_tokens": 45,
+    #           "output_tokens": 120,
+    #           "total_tokens": 165,
+    #           "total_cost": 0.002735
+    #         },
+    #         "timestamp": "2026-07-01T10:30:00+00:00"
+    #       }
     #     }
     #   ],
-    #   "timestamp": "2024-01-01T12:00:00Z"
+    #   "timestamp": "2026-07-01T12:00:00+00:00"
     # }
     ```
   </Tab>
@@ -117,30 +127,42 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
 
 ## Understanding Log Response
 
-The logs endpoint returns structured information about your API usage:
+The logs endpoint returns structured information about your API usage. Each log entry is a stored record with a `category` (e.g. `completion`) and a `data` payload containing the completion response that was logged:
 
 ```json
 {
   "status": "success",
+  "count": null,
   "logs": [
     {
-      "timestamp": "2024-01-01T10:30:00Z",
-      "endpoint": "/v1/agent/completions",
-      "method": "POST",
-      "status_code": 200,
-      "response_time": 2.5,
-      "tokens_used": 150,
-      "cost": 0.003,
-      "agent_name": "Research Assistant",
-      "model_name": "gpt-4.1-mini"
+      "id": 12345,
+      "created_at": "2026-07-01T10:30:00+00:00",
+      "api_key": "sk-xxxxxxxx",
+      "category": "completion",
+      "data": {
+        "job_id": "agent-abc123",
+        "success": true,
+        "name": "Research Assistant",
+        "description": "An agent that researches topics",
+        "temperature": 0.5,
+        "outputs": "...",
+        "usage": {
+          "input_tokens": 45,
+          "output_tokens": 120,
+          "total_tokens": 165,
+          "img_cost": 0.0,
+          "total_cost": 0.002735
+        },
+        "timestamp": "2026-07-01T10:30:00+00:00"
+      }
     }
   ],
-  "timestamp": "2024-01-01T12:00:00Z"
+  "timestamp": "2026-07-01T12:00:00+00:00"
 }
 ```
 
 <Note>
-The response does not include a top-level `count` field — compute the number of entries from `len(logs)` (or `logs.length` in JavaScript) instead.
+The top-level `count` field is always returned as `null` — compute the number of entries from `len(logs)` (or `logs.length` in JavaScript) instead. The shape of `data` depends on what was logged: agent completions carry `usage.total_cost`, while swarm completions carry `usage.billing_info.total_cost`, `swarm_name`, and `execution_time`. Entries containing client IP data, telemetry, and raw request inputs are excluded.
 </Note>
 
 ## Log Analysis and Filtering
@@ -148,8 +170,23 @@ The response does not include a top-level `count` field — compute the number o
 <Tabs>
   <Tab title="Python">
     ```python
-    from datetime import datetime, timedelta
-    from collections import defaultdict, Counter
+    from datetime import datetime, timedelta, timezone
+    from collections import Counter
+
+    def get_log_usage(log):
+        """Extract the usage dict from a log entry's data payload."""
+        data = log.get('data') or {}
+        if isinstance(data, dict):
+            return data.get('usage') or {}
+        return {}
+
+    def get_log_cost(log):
+        """Extract total cost from a log entry (agent or swarm completion)."""
+        usage = get_log_usage(log)
+        if 'total_cost' in usage:
+            return usage['total_cost'] or 0
+        # Swarm completions nest the cost under billing_info
+        return (usage.get('billing_info') or {}).get('total_cost', 0)
 
     def analyze_logs(logs_data):
         """Analyze API usage logs"""
@@ -161,33 +198,22 @@ The response does not include a top-level `count` field — compute the number o
 
         # Basic statistics
         total_requests = len(logs)
-        successful_requests = len([log for log in logs if log.get('status_code') == 200])
-        failed_requests = total_requests - successful_requests
 
         print("📊 API Usage Analysis")
         print("=" * 50)
-        print(f"Total Requests: {total_requests}")
-        print(f"Successful: {successful_requests} ({successful_requests/total_requests*100:.1f}%)")
-        print(f"Failed: {failed_requests} ({failed_requests/total_requests*100:.1f}%)")
+        print(f"Total Logged Requests: {total_requests}")
         print()
 
-        # Endpoint usage
-        endpoint_counts = Counter(log.get('endpoint', 'unknown') for log in logs)
-        print("🔗 Endpoint Usage:")
-        for endpoint, count in endpoint_counts.most_common():
-            print(f"  {endpoint}: {count} requests")
-        print()
-
-        # Model usage
-        model_counts = Counter(log.get('model_name', 'unknown') for log in logs if 'model_name' in log)
-        print("🤖 Model Usage:")
-        for model, count in model_counts.most_common():
-            print(f"  {model}: {count} requests")
+        # Category usage (e.g. "completion")
+        category_counts = Counter(log.get('category', 'unknown') for log in logs)
+        print("🔗 Category Usage:")
+        for category, count in category_counts.most_common():
+            print(f"  {category}: {count} requests")
         print()
 
         # Cost analysis
-        total_cost = sum(log.get('cost', 0) for log in logs)
-        total_tokens = sum(log.get('tokens_used', 0) for log in logs)
+        total_cost = sum(get_log_cost(log) for log in logs)
+        total_tokens = sum(get_log_usage(log).get('total_tokens', 0) for log in logs)
 
         print("💰 Cost Analysis:")
         print(f"  Total Cost: ${total_cost:.4f}")
@@ -196,28 +222,32 @@ The response does not include a top-level `count` field — compute the number o
         print(f"  Average Cost per Request: ${avg_cost:.4f}")
         print()
 
-        # Response time analysis
-        response_times = [log.get('response_time', 0) for log in logs if log.get('response_time')]
-        if response_times:
-            avg_response_time = sum(response_times) / len(response_times)
-            max_response_time = max(response_times)
-            min_response_time = min(response_times)
+        # Execution time analysis (present on swarm completion logs)
+        execution_times = [
+            log['data'].get('execution_time')
+            for log in logs
+            if isinstance(log.get('data'), dict) and log['data'].get('execution_time')
+        ]
+        if execution_times:
+            avg_execution_time = sum(execution_times) / len(execution_times)
+            max_execution_time = max(execution_times)
+            min_execution_time = min(execution_times)
 
-            print("⏱️  Response Time Analysis:")
-            print(f"  Average: {avg_response_time:.2f}s")
-            print(f"  Max: {max_response_time:.2f}s")
-            print(f"  Min: {min_response_time:.2f}s")
+            print("⏱️  Execution Time Analysis:")
+            print(f"  Average: {avg_execution_time:.2f}s")
+            print(f"  Max: {max_execution_time:.2f}s")
+            print(f"  Min: {min_execution_time:.2f}s")
 
     def filter_logs_by_date(logs_data, days=7):
         """Filter logs by date range"""
         if not logs_data or not logs_data.get('logs'):
             return logs_data
 
-        cutoff_date = datetime.now() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         filtered_logs = []
 
         for log in logs_data['logs']:
-            log_timestamp = datetime.fromisoformat(log['timestamp'].replace('Z', '+00:00'))
+            log_timestamp = datetime.fromisoformat(log['created_at'].replace('Z', '+00:00'))
             if log_timestamp >= cutoff_date:
                 filtered_logs.append(log)
 
@@ -227,14 +257,14 @@ The response does not include a top-level `count` field — compute the number o
             'count': len(filtered_logs)
         }
 
-    def filter_logs_by_status(logs_data, status_codes):
-        """Filter logs by HTTP status codes"""
+    def filter_logs_by_category(logs_data, categories):
+        """Filter logs by category (e.g. ["completion"])"""
         if not logs_data or not logs_data.get('logs'):
             return logs_data
 
         filtered_logs = [
             log for log in logs_data['logs']
-            if log.get('status_code') in status_codes
+            if log.get('category') in categories
         ]
 
         return {
@@ -253,13 +283,25 @@ The response does not include a top-level `count` field — compute the number o
         recent_logs = filter_logs_by_date(logs_data, days=7)
         print(f"\n📅 Recent Logs (7 days): {recent_logs['count']} requests")
 
-        # Filter for errors
-        error_logs = filter_logs_by_status(logs_data, [400, 401, 403, 404, 429, 500, 502, 503])
-        print(f"❌ Error Logs: {error_logs['count']} requests")
+        # Filter for completions
+        completion_logs = filter_logs_by_category(logs_data, ["completion"])
+        print(f"✅ Completion Logs: {completion_logs['count']} requests")
     ```
   </Tab>
   <Tab title="JavaScript">
     ```javascript
+    function getLogUsage(log) {
+        const data = log.data || {};
+        return data.usage || {};
+    }
+
+    function getLogCost(log) {
+        const usage = getLogUsage(log);
+        if (usage.total_cost !== undefined) return usage.total_cost || 0;
+        // Swarm completions nest the cost under billing_info
+        return (usage.billing_info || {}).total_cost || 0;
+    }
+
     function analyzeLogs(logsData) {
         if (!logsData || !logsData.logs) {
             console.log("No logs available for analysis");
@@ -270,34 +312,30 @@ The response does not include a top-level `count` field — compute the number o
 
         // Basic statistics
         const totalRequests = logs.length;
-        const successfulRequests = logs.filter(log => log.status_code === 200).length;
-        const failedRequests = totalRequests - successfulRequests;
 
         console.log("📊 API Usage Analysis");
         console.log("=".repeat(50));
-        console.log(`Total Requests: ${totalRequests}`);
-        console.log(`Successful: ${successfulRequests} (${(successfulRequests/totalRequests*100).toFixed(1)}%)`);
-        console.log(`Failed: ${failedRequests} (${(failedRequests/totalRequests*100).toFixed(1)}%)`);
+        console.log(`Total Logged Requests: ${totalRequests}`);
         console.log();
 
-        // Endpoint usage
-        const endpointCounts = {};
+        // Category usage (e.g. "completion")
+        const categoryCounts = {};
         logs.forEach(log => {
-            const endpoint = log.endpoint || 'unknown';
-            endpointCounts[endpoint] = (endpointCounts[endpoint] || 0) + 1;
+            const category = log.category || 'unknown';
+            categoryCounts[category] = (categoryCounts[category] || 0) + 1;
         });
 
-        console.log("🔗 Endpoint Usage:");
-        Object.entries(endpointCounts)
+        console.log("🔗 Category Usage:");
+        Object.entries(categoryCounts)
             .sort(([,a], [,b]) => b - a)
-            .forEach(([endpoint, count]) => {
-                console.log(`  ${endpoint}: ${count} requests`);
+            .forEach(([category, count]) => {
+                console.log(`  ${category}: ${count} requests`);
             });
         console.log();
 
         // Cost analysis
-        const totalCost = logs.reduce((sum, log) => sum + (log.cost || 0), 0);
-        const totalTokens = logs.reduce((sum, log) => sum + (log.tokens_used || 0), 0);
+        const totalCost = logs.reduce((sum, log) => sum + getLogCost(log), 0);
+        const totalTokens = logs.reduce((sum, log) => sum + (getLogUsage(log).total_tokens || 0), 0);
 
         console.log("💰 Cost Analysis:");
         console.log(`  Total Cost: $${totalCost.toFixed(4)}`);
@@ -311,7 +349,7 @@ The response does not include a top-level `count` field — compute the number o
 
         const cutoffDate = new Date(Date.now() - (days * 24 * 60 * 60 * 1000));
         const filteredLogs = logsData.logs.filter(log => {
-            const logTimestamp = new Date(log.timestamp);
+            const logTimestamp = new Date(log.created_at);
             return logTimestamp >= cutoffDate;
         });
 
@@ -322,11 +360,11 @@ The response does not include a top-level `count` field — compute the number o
         };
     }
 
-    function filterLogsByStatus(logsData, statusCodes) {
+    function filterLogsByCategory(logsData, categories) {
         if (!logsData || !logsData.logs) return logsData;
 
         const filteredLogs = logsData.logs.filter(log =>
-            statusCodes.includes(log.status_code)
+            categories.includes(log.category)
         );
 
         return {
@@ -346,9 +384,9 @@ The response does not include a top-level `count` field — compute the number o
             const recentLogs = filterLogsByDate(logsData, 7);
             console.log(`\n📅 Recent Logs (7 days): ${recentLogs.count} requests`);
 
-            // Filter for errors
-            const errorLogs = filterLogsByStatus(logsData, [400, 401, 403, 404, 429, 500, 502, 503]);
-            console.log(`❌ Error Logs: ${errorLogs.count} requests`);
+            // Filter for completions
+            const completionLogs = filterLogsByCategory(logsData, ["completion"]);
+            console.log(`✅ Completion Logs: ${completionLogs.count} requests`);
         }
     });
     ```
@@ -378,8 +416,9 @@ The response does not include a top-level `count` field — compute the number o
 
         # Define CSV columns
         fieldnames = [
-            'timestamp', 'endpoint', 'method', 'status_code',
-            'response_time', 'tokens_used', 'cost', 'agent_name', 'model_name'
+            'id', 'created_at', 'category',
+            'job_id', 'name', 'input_tokens', 'output_tokens',
+            'total_tokens', 'total_cost'
         ]
 
         with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
@@ -387,17 +426,24 @@ The response does not include a top-level `count` field — compute the number o
             writer.writeheader()
 
             for log in logs:
-                # Flatten nested data if needed
+                # Flatten the nested data payload
+                data = log.get('data') or {}
+                if not isinstance(data, dict):
+                    data = {}
+                usage = data.get('usage') or {}
+                total_cost = usage.get('total_cost')
+                if total_cost is None:
+                    total_cost = (usage.get('billing_info') or {}).get('total_cost', '')
                 row = {
-                    'timestamp': log.get('timestamp', ''),
-                    'endpoint': log.get('endpoint', ''),
-                    'method': log.get('method', ''),
-                    'status_code': log.get('status_code', ''),
-                    'response_time': log.get('response_time', ''),
-                    'tokens_used': log.get('tokens_used', ''),
-                    'cost': log.get('cost', ''),
-                    'agent_name': log.get('agent_name', ''),
-                    'model_name': log.get('model_name', '')
+                    'id': log.get('id', ''),
+                    'created_at': log.get('created_at', ''),
+                    'category': log.get('category', ''),
+                    'job_id': data.get('job_id', ''),
+                    'name': data.get('name', data.get('swarm_name', '')),
+                    'input_tokens': usage.get('input_tokens', ''),
+                    'output_tokens': usage.get('output_tokens', ''),
+                    'total_tokens': usage.get('total_tokens', ''),
+                    'total_cost': total_cost
                 }
                 writer.writerow(row)
 
@@ -464,21 +510,26 @@ The response does not include a top-level `count` field — compute the number o
         }
 
         const logs = logsData.logs;
-        const headers = ['timestamp', 'endpoint', 'method', 'status_code', 'response_time', 'tokens_used', 'cost', 'agent_name', 'model_name'];
+        const headers = ['id', 'created_at', 'category', 'job_id', 'name', 'input_tokens', 'output_tokens', 'total_tokens', 'total_cost'];
 
         let csvContent = headers.join(',') + '\n';
 
         logs.forEach(log => {
+            const data = log.data || {};
+            const usage = data.usage || {};
+            const totalCost = usage.total_cost !== undefined
+                ? usage.total_cost
+                : (usage.billing_info || {}).total_cost || '';
             const row = [
-                log.timestamp || '',
-                log.endpoint || '',
-                log.method || '',
-                log.status_code || '',
-                log.response_time || '',
-                log.tokens_used || '',
-                log.cost || '',
-                log.agent_name || '',
-                log.model_name || ''
+                log.id || '',
+                log.created_at || '',
+                log.category || '',
+                data.job_id || '',
+                data.name || data.swarm_name || '',
+                usage.input_tokens || '',
+                usage.output_tokens || '',
+                usage.total_tokens || '',
+                totalCost
             ];
             csvContent += row.map(field => `"${field}"`).join(',') + '\n';
         });
@@ -510,7 +561,7 @@ The response does not include a top-level `count` field — compute the number o
         // Download JSON (browser environment)
         const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
         const link = document.createElement('a');
-        href = URL.createObjectURL(blob);
+        link.href = URL.createObjectURL(blob);
         link.download = filename;
         link.click();
 
@@ -535,13 +586,12 @@ The response does not include a top-level `count` field — compute the number o
   <Tab title="Python">
     ```python
     import time
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     class LogMonitor:
         def __init__(self, check_interval=300):  # 5 minutes default
             self.check_interval = check_interval
             self.last_log_count = 0
-            self.error_counts = {}
             self.cost_accumulator = 0
 
         def monitor_logs(self):
@@ -580,13 +630,8 @@ The response does not include a top-level `count` field — compute the number o
             recent_logs = self.get_recent_logs(logs_data, hours=1)
 
             if recent_logs:
-                # Error analysis
-                errors = [log for log in recent_logs if log.get('status_code', 200) >= 400]
-                if errors:
-                    print(f"⚠️  {len(errors)} errors in the last hour")
-
-                # Cost analysis
-                recent_cost = sum(log.get('cost', 0) for log in recent_logs)
+                # Cost analysis (uses the get_log_cost helper defined above)
+                recent_cost = sum(get_log_cost(log) for log in recent_logs)
                 self.cost_accumulator += recent_cost
 
                 print(f"💵 Recent cost: ${recent_cost:.4f}")
@@ -599,29 +644,28 @@ The response does not include a top-level `count` field — compute the number o
 
             recent_logs = self.get_recent_logs(logs_data, hours=1)
 
-            # Check for high error rates
             if recent_logs:
-                error_rate = len([log for log in recent_logs if log.get('status_code', 200) >= 400]) / len(recent_logs)
-                if error_rate > 0.1:  # More than 10% errors
-                    print(f"🚨 High error rate detected: {error_rate:.1%}")
-
-                # Check for unusual response times
-                response_times = [log.get('response_time', 0) for log in recent_logs if log.get('response_time')]
-                if response_times:
-                    avg_response_time = sum(response_times) / len(response_times)
-                    if avg_response_time > 10:  # More than 10 seconds average
-                        print(f"🐢 Slow responses detected: {avg_response_time:.2f}s average")
+                # Check for unusual execution times (swarm completion logs)
+                execution_times = [
+                    log['data'].get('execution_time')
+                    for log in recent_logs
+                    if isinstance(log.get('data'), dict) and log['data'].get('execution_time')
+                ]
+                if execution_times:
+                    avg_execution_time = sum(execution_times) / len(execution_times)
+                    if avg_execution_time > 60:  # More than 60 seconds average
+                        print(f"🐢 Slow swarm runs detected: {avg_execution_time:.2f}s average")
 
         def get_recent_logs(self, logs_data, hours=1):
             """Get logs from the last N hours"""
             if not logs_data.get('logs'):
                 return []
 
-            cutoff_time = datetime.now() - timedelta(hours=hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             recent_logs = []
 
             for log in logs_data['logs']:
-                log_time = datetime.fromisoformat(log['timestamp'].replace('Z', '+00:00'))
+                log_time = datetime.fromisoformat(log['created_at'].replace('Z', '+00:00'))
                 if log_time >= cutoff_time:
                     recent_logs.append(log)
 
@@ -634,11 +678,6 @@ The response does not include a top-level `count` field — compute the number o
             print(f"Total Accumulated Cost: ${self.cost_accumulator:.4f}")
             print(f"Monitoring Duration: {self.check_interval}s intervals")
 
-            if self.error_counts:
-                print("\nError Summary:")
-                for error_code, count in self.error_counts.items():
-                    print(f"  HTTP {error_code}: {count} occurrences")
-
     # Usage
     monitor = LogMonitor(check_interval=300)  # Check every 5 minutes
     monitor.monitor_logs()
@@ -650,7 +689,6 @@ The response does not include a top-level `count` field — compute the number o
         constructor(checkInterval = 300000) {  // 5 minutes default
             this.checkInterval = checkInterval;
             this.lastLogCount = 0;
-            this.errorCounts = {};
             this.costAccumulator = 0;
             this.isMonitoring = false;
         }
@@ -700,8 +738,8 @@ The response does not include a top-level `count` field — compute the number o
             const recentLogs = this.getRecentLogs(logsData, 1);
 
             if (recentLogs.length > 0) {
-                // Cost analysis
-                const recentCost = recentLogs.reduce((sum, log) => sum + (log.cost || 0), 0);
+                // Cost analysis (uses the getLogCost helper defined above)
+                const recentCost = recentLogs.reduce((sum, log) => sum + getLogCost(log), 0);
                 this.costAccumulator += recentCost;
 
                 console.log(`💰 Recent Cost (1h): $${recentCost.toFixed(4)}`);
@@ -716,19 +754,17 @@ The response does not include a top-level `count` field — compute the number o
 
             if (recentLogs.length === 0) return;
 
-            // Check for high error rates
-            const errors = recentLogs.filter(log => (log.status_code || 200) >= 400);
-            const errorRate = errors.length / recentLogs.length;
+            // Check for unusual execution times (swarm completion logs)
+            const executionTimes = recentLogs
+                .map(log => (log.data || {}).execution_time)
+                .filter(t => t);
 
-            if (errorRate > 0.1) {  // More than 10% errors
-                console.log(`⚠️  High error rate: ${(errorRate * 100).toFixed(1)}%`);
+            if (executionTimes.length > 0) {
+                const avgExecutionTime = executionTimes.reduce((a, b) => a + b, 0) / executionTimes.length;
+                if (avgExecutionTime > 60) {  // More than 60 seconds average
+                    console.log(`🐢 Slow swarm runs detected: ${avgExecutionTime.toFixed(2)}s average`);
+                }
             }
-
-            // Track error types
-            errors.forEach(log => {
-                const code = log.status_code;
-                this.errorCounts[code] = (this.errorCounts[code] || 0) + 1;
-            });
         }
 
         getRecentLogs(logsData, hours = 1) {
@@ -737,7 +773,7 @@ The response does not include a top-level `count` field — compute the number o
             const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
 
             return logsData.logs.filter(log => {
-                const logTime = new Date(log.timestamp);
+                const logTime = new Date(log.created_at);
                 return logTime >= cutoffTime;
             });
         }
@@ -746,13 +782,6 @@ The response does not include a top-level `count` field — compute the number o
             console.log("\n📊 Monitoring Report");
             console.log("=".repeat(50));
             console.log(`Total Accumulated Cost: $${this.costAccumulator.toFixed(4)}`);
-
-            if (Object.keys(this.errorCounts).length > 0) {
-                console.log("\nError Summary:");
-                Object.entries(this.errorCounts).forEach(([code, count]) => {
-                    console.log(`  HTTP ${code}: ${count} occurrences`);
-                });
-            }
         }
     }
 
@@ -823,23 +852,28 @@ curl -I "https://api.swarms.world/v1/swarm/logs" \
 
 **Performance Issues**
 ```python
-# Analyze response time patterns
+# Analyze execution time patterns (present on swarm completion logs)
 logs_data = get_swarm_logs()
 if logs_data:
-    response_times = [log['response_time'] for log in logs_data['logs'] if 'response_time' in log]
-    avg_time = sum(response_times) / len(response_times)
-    print(f"Average response time: {avg_time:.2f}s")
+    execution_times = [
+        log['data']['execution_time']
+        for log in logs_data['logs']
+        if isinstance(log.get('data'), dict) and log['data'].get('execution_time')
+    ]
+    if execution_times:
+        avg_time = sum(execution_times) / len(execution_times)
+        print(f"Average execution time: {avg_time:.2f}s")
 ```
 
 **Cost Analysis**
 ```python
-# Calculate cost per endpoint
+# Calculate cost per log category (uses the get_log_cost helper defined above)
 from collections import defaultdict
 
-endpoint_costs = defaultdict(float)
+category_costs = defaultdict(float)
 for log in logs_data['logs']:
-    endpoint_costs[log['endpoint']] += log.get('cost', 0)
+    category_costs[log.get('category', 'unknown')] += get_log_cost(log)
 
-for endpoint, cost in sorted(endpoint_costs.items(), key=lambda x: x[1], reverse=True):
-    print(f"{endpoint}: ${cost:.4f}")
+for category, cost in sorted(category_costs.items(), key=lambda x: x[1], reverse=True):
+    print(f"{category}: ${cost:.4f}")
 ```

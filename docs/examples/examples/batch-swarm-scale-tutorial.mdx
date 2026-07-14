@@ -180,7 +180,7 @@ def persist_results(results: list[dict], watchlist: list[tuple[str, str]]) -> Pa
     for (name, ticker), swarm_result in zip(watchlist, results):
         status = swarm_result.get("status", "unknown")
         usage = swarm_result.get("usage", {}) or {}
-        cost = usage.get("token_cost") or usage.get("billing_info", {}).get("total_cost", 0.0)
+        cost = usage.get("billing_info", {}).get("total_cost", 0.0)
         total_cost += float(cost or 0.0)
 
         memo_path = out_dir / f"{ticker}_{name.replace(' ', '_')}.md"
@@ -222,7 +222,7 @@ Each entry in the response carries its own `status`. Retry only the failed ones 
 
 ```python
 def retryable(swarm_result: dict) -> bool:
-    return swarm_result.get("status") not in {"completed", "success"}
+    return swarm_result.get("status") != "success"
 
 
 failed = [
@@ -234,7 +234,7 @@ failed = [
 if failed:
     print(f"Retrying {len(failed)} failed swarms...")
     retry_results = run_overnight_batch(failed)
-    # merge retry_results back into results by job_id / index
+    # merge retry_results back into results by swarm_name / index
 ```
 
 ## The Cost Math

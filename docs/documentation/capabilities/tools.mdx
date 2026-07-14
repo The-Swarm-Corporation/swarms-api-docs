@@ -123,7 +123,7 @@ event: chunk
 data: {"content": ", AI development shows", "timestamp": "2026-07-09T12:00:01Z"}
 
 event: usage
-data: {"input_tokens": 42, "output_tokens": 108, "total_tokens": 150, "input_cost": 0.00021, "output_cost": 0.00054, "total_cost": 0.00075}
+data: {"input_tokens": 42, "output_tokens": 108, "total_tokens": 150, "img_cost": 0, "total_cost": 0.00075}
 
 event: end
 data: {"job_id": "abc123", "usage": {"...": "..."}, "timestamp": "2026-07-09T12:00:02Z", "complete": true}
@@ -457,7 +457,7 @@ Here's how to parse streaming responses in different languages:
 | *(none — first frame)* | Job metadata, sent before any `event:` line | `job_id`, `success`, `name`, `description`, `temperature`, `timestamp`, `stream`, `type` (`"metadata"`) |
 | `start` | Agent processing has begun | `message` |
 | `chunk` | Content piece | `content`, `timestamp` |
-| `usage` | Token usage and cost, sent once near the end | `input_tokens`, `output_tokens`, `total_tokens`, `input_cost`, `output_cost`, `total_cost` |
+| `usage` | Token usage and cost, sent once near the end | `input_tokens`, `output_tokens`, `total_tokens`, `img_cost`, `total_cost` |
 | `end` | Final job metadata | `job_id`, `usage`, `timestamp`, `complete` |
 | `done` | Stream finished | `message` |
 | `error` | Error info | `error`, `timestamp` |
@@ -504,23 +504,23 @@ response = requests.post(url, json=payload, stream=True, timeout=300)
 
 ## Troubleshooting
 
-<Accordion title="Common Issues">
-  <AccordionGroup title="Connection Timeouts">
+<AccordionGroup>
+  <Accordion title="Connection Timeouts">
     Increase timeout values for long-running tasks. Set appropriate timeouts based on your expected response time.
-  </AccordionGroup>
-  
-  <AccordionGroup title="JSON Decode Errors">
+  </Accordion>
+
+  <Accordion title="JSON Decode Errors">
     Handle malformed data gracefully by wrapping JSON parsing in try-catch blocks.
-  </AccordionGroup>
-  
-  <AccordionGroup title="Incomplete Streams">
+  </Accordion>
+
+  <Accordion title="Incomplete Streams">
     Always check for `done` or `error` events to ensure the stream completed successfully.
-  </AccordionGroup>
-  
-  <AccordionGroup title="Memory Usage">
+  </Accordion>
+
+  <Accordion title="Memory Usage">
     Process chunks incrementally for large responses to avoid memory issues.
-  </AccordionGroup>
-</Accordion>
+  </Accordion>
+</AccordionGroup>
 
 ### Debug Mode
 

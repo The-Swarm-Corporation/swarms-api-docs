@@ -45,6 +45,20 @@ SWARMS_API_KEY=your_api_key_here
 
 **Security Note**: Never commit API keys to version control systems. Use environment variables or secure configuration management tools.
 
+#### Step 4: Verify Your API Key
+
+Send your key in the `x-api-key` header. The `Authorization: Bearer <key>` header is also accepted (useful for OpenAI SDK compatibility).
+
+```bash
+curl -H "x-api-key: $SWARMS_API_KEY" https://api.swarms.world/v1/account/credits
+```
+
+```bash
+curl -H "Authorization: Bearer $SWARMS_API_KEY" https://api.swarms.world/v1/account/credits
+```
+
+A successful response returns your current credit balance, confirming the key is active.
+
 ### API Key Management
 
 #### Key Organization

@@ -24,6 +24,10 @@ Key features:
 
 ## API Usage
 
+<Note>
+The `AgentRearrange` swarm type **requires** the `rearrange_flow` parameter. It is a string that defines how tasks flow between agents by `agent_name`: use `->` for sequential handoffs and commas for agents that run in parallel within the same step (e.g. `"Researcher -> Writer, Editor"`). Requests without `rearrange_flow` are rejected with a `400` error.
+</Note>
+
 ### Basic AgentRearrange Example
 
 <Tabs>
@@ -36,6 +40,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
     "name": "Adaptive Content Creation",
     "description": "Dynamic content creation with flexible agent role assignment",
     "swarm_type": "AgentRearrange",
+    "rearrange_flow": "Research Specialist -> Technical Writer -> Finance Expert -> Editor",
     "task": "Create a comprehensive technical blog post about machine learning in finance, with the ability to reassign agent roles based on content needs",
     "agents": [
       {
@@ -93,6 +98,7 @@ swarm_config = {
     "name": "Adaptive Content Creation",
     "description": "Dynamic content creation with flexible agent role assignment",
     "swarm_type": "AgentRearrange",
+    "rearrange_flow": "Research Specialist -> Technical Writer -> Finance Expert -> Editor",
     "task": "Create a comprehensive technical blog post about machine learning in finance, with the ability to reassign agent roles based on content needs",
     "agents": [
         {
@@ -162,6 +168,7 @@ const swarmConfig = {
     name: "Adaptive Content Creation",
     description: "Dynamic content creation with flexible agent role assignment",
     swarm_type: "AgentRearrange",
+    rearrange_flow: "Research Specialist -> Technical Writer -> Finance Expert -> Editor",
     task: "Create a comprehensive technical blog post about machine learning in finance, with the ability to reassign agent roles based on content needs",
     agents: [
         {
@@ -240,12 +247,13 @@ type Agent struct {
 }
 
 type SwarmConfig struct {
-    Name        string   `json:"name"`
-    Description string   `json:"description"`
-    SwarmType   string   `json:"swarm_type"`
-    Task        string   `json:"task"`
-    Agents      []Agent  `json:"agents"`
-    MaxLoops    int      `json:"max_loops"`
+    Name          string  `json:"name"`
+    Description   string  `json:"description"`
+    SwarmType     string  `json:"swarm_type"`
+    RearrangeFlow string  `json:"rearrange_flow"`
+    Task          string  `json:"task"`
+    Agents        []Agent `json:"agents"`
+    MaxLoops      int     `json:"max_loops"`
 }
 
 func main() {
@@ -255,8 +263,9 @@ func main() {
     swarmConfig := SwarmConfig{
         Name:        "Adaptive Content Creation",
         Description: "Dynamic content creation with flexible agent role assignment",
-        SwarmType:   "AgentRearrange",
-        Task:        "Create a comprehensive technical blog post about machine learning in finance, with the ability to reassign agent roles based on content needs",
+        SwarmType:     "AgentRearrange",
+        RearrangeFlow: "Research Specialist -> Technical Writer -> Finance Expert -> Editor",
+        Task:          "Create a comprehensive technical blog post about machine learning in finance, with the ability to reassign agent roles based on content needs",
         Agents: []Agent{
             {
                 AgentName:    "Research Specialist",
@@ -329,6 +338,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "name": "Adaptive Content Creation",
         "description": "Dynamic content creation with flexible agent role assignment",
         "swarm_type": "AgentRearrange",
+        "rearrange_flow": "Research Specialist -> Technical Writer -> Finance Expert -> Editor",
         "task": "Create a comprehensive technical blog post about machine learning in finance, with the ability to reassign agent roles based on content needs",
         "agents": [
             {

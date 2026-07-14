@@ -503,11 +503,11 @@ else:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | Yes | The name of the batched grid workflow |
-| `description` | string | Yes | A description of what the workflow does |
+| `name` | string | No | The name of the batched grid workflow |
+| `description` | string | No | A description of what the workflow does |
 | `agent_completions` | array | Yes | List of agent configurations (see AgentSpec below) |
 | `tasks` | array | Yes | List of tasks that each agent will process |
-| `max_loops` | integer | No | Number of iterations for refinement (default: 1) |
+| `max_loops` | integer | Yes | Number of iterations for refinement. Must be a positive integer — omitting it or passing a value below 1 returns a `400` error |
 | `imgs` | array | No | Accepted for forward compatibility, but not currently used in execution — passing images here has no effect on the run |
 
 ### AgentSpec
@@ -516,8 +516,8 @@ else:
 |-------|------|----------|-------------|
 | `agent_name` | string | Yes | Unique name for the agent |
 | `description` | string | No | Description of the agent's role |
-| `system_prompt` | string | Yes | System prompt defining agent behavior |
-| `model_name` | string | No | Model to use (e.g., "gpt-4.1", "claude-3-5-sonnet-20241022"); defaults to `gpt-4.1` |
+| `system_prompt` | string | No | System prompt defining agent behavior |
+| `model_name` | string | No | Model to use (e.g., "gpt-4.1", "claude-sonnet-4-20250514"); defaults to `gpt-4.1` |
 | `max_loops` | integer or string | No | Max loops per agent, or `"auto"` (default: 1) |
 | `max_tokens` | integer | No | Maximum tokens the agent can generate (default: 8192) |
 | `temperature` | float | No | Sampling temperature; if omitted, the provider's own default applies |
@@ -609,7 +609,7 @@ outputs = [
 ### Cost Optimization
 
 - Start with fewer agents and tasks to test your workflow
-- Use appropriate models (GPT-4o for quality, GPT-3.5-turbo for cost)
+- Use appropriate models (`claude-sonnet-4-20250514` or `gpt-4.1` for quality, `gpt-4.1-mini` for cost)
 - Monitor token usage and adjust prompt verbosity
 - Cache common results when possible
 - Batch multiple related workflows in a single session

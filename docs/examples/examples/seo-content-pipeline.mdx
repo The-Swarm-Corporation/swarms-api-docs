@@ -370,15 +370,12 @@ def display_results(result: dict) -> None:
                 print(f"\n  ... [{len(lines) - 120} more lines] ...")
 
     usage = result.get("usage", {})
-    billing = usage.get("billing_info", usage)
-    total_cost = billing.get("total_cost") or usage.get("token_cost", "N/A")
+    total_cost = usage.get("token_cost", "N/A")
     total_tokens = usage.get("total_tokens", "N/A")
-    exec_time = result.get("execution_time", "N/A")
 
     print(f"\n{'='*70}")
     print(f"  Total Tokens : {total_tokens}")
     print(f"  Total Cost   : ${total_cost}")
-    print(f"  Exec Time    : {exec_time}s")
     print(f"{'='*70}\n")
 
 
@@ -755,8 +752,8 @@ for target in targets:
 # Add to edges:
 {"source": "CompetitorAnalyst", "target": "SEOWriter"},
 
-# Add to entry_points:
-"entry_points": ["ContentAnalyst", "KeywordStrategist", "CompetitorAnalyst"],
+# Replace entry_points with:
+entry_points = ["ContentAnalyst", "KeywordStrategist", "CompetitorAnalyst"]
 ```
 
 ---

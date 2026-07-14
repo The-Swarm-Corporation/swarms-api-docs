@@ -12,7 +12,7 @@ description: "Reason the assumptions with Opus 4.8 at high effort, build the DCF
 - A structured one-pager memo per ticker — exec summary, fair value bands, sensitivity tables, key assumptions, risks — sitting in the database before 6am Pacific
 
 <Info>
-`reasoning_effort: "high"` and `/v1/swarm/batch/completions` are Premium-tier features. Pair them with the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — overnight execution between 9pm and 6am Pacific is billed at a 50% discount, which is what makes a 50-name nightly DCF refresh land under \$80 of compute.
+`/v1/agent/batch/completions` and `/v1/swarm/batch/completions` are Premium-tier features. Pair them with the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — overnight execution between 8pm and 6am Pacific is billed at a 50% discount, which is what makes a 50-name nightly DCF refresh land under \$80 of compute.
 </Info>
 
 ## Why This Matters
@@ -472,7 +472,7 @@ def run_assumption_reasoner(ticker: str) -> str:
     result = response.json()
 
     text = ""
-    for entry in result.get("output", []):
+    for entry in result.get("outputs", []):
         content = entry.get("content", "")
         if isinstance(content, list):
             content = " ".join(str(c) for c in content)
@@ -523,36 +523,39 @@ PORTFOLIO = [
 
 
 def run_portfolio_refresh(tickers: list[str]) -> list[dict]:
-    # Step 1: Reason assumptions for every ticker in parallel via batch agent
-    reasoning_payload = [
-        {
-            "agent_config": reasoning_assumptions_agent_config(t),
-            "task": (
-                f"Pull the last 5 years of statements and consensus for {t}. "
-                "Set every DCF input with one-sentence reasoning. Output the "
-                "structured JSON spec."
-            ),
-        }
-        for t in tickers
-    ]
-    reasoning_resp = requests.post(
-        f"{BASE_URL}/v1/agent/batch/completions",
-        headers=headers,
-        json=reasoning_payload,
-        timeout=3600,
-    )
-    reasoning_resp.raise_for_status()
-    reasoning_results = reasoning_resp.json()
-
+    # Step 1: Reason assumptions for every ticker via the batch agent
+    # endpoint. The endpoint caps each request at 10 agent completions,
+    # so chunk the portfolio; results come back in input order under
+    # the response's "results" key.
     reasoned_assumptions = []
-    for r in reasoning_results:
-        text = ""
-        for entry in r.get("output", []):
-            content = entry.get("content", "")
-            if isinstance(content, list):
-                content = " ".join(str(c) for c in content)
-            text = str(content)
-        reasoned_assumptions.append(text)
+    for i in range(0, len(tickers), 10):
+        reasoning_payload = [
+            {
+                "agent_config": reasoning_assumptions_agent_config(t),
+                "task": (
+                    f"Pull the last 5 years of statements and consensus for {t}. "
+                    "Set every DCF input with one-sentence reasoning. Output the "
+                    "structured JSON spec."
+                ),
+            }
+            for t in tickers[i : i + 10]
+        ]
+        reasoning_resp = requests.post(
+            f"{BASE_URL}/v1/agent/batch/completions",
+            headers=headers,
+            json=reasoning_payload,
+            timeout=3600,
+        )
+        reasoning_resp.raise_for_status()
+
+        for r in reasoning_resp.json().get("results", []):
+            text = ""
+            for entry in r.get("outputs", []):
+                content = entry.get("content", "")
+                if isinstance(content, list):
+                    content = " ".join(str(c) for c in content)
+                text = str(content)
+            reasoned_assumptions.append(text)
 
     # Step 2: Fan out 50 SequentialWorkflows as a single batch
     swarm_payload = [
@@ -570,11 +573,16 @@ def run_portfolio_refresh(tickers: list[str]) -> list[dict]:
 
 
 def persist_memos(tickers: list[str], results: list[dict]) -> None:
+    # Each batch item is {"status", "swarm_name", "result", "usage"} and
+    # items arrive in completion order, not input order — recover the
+    # ticker from the swarm name.
     date = datetime.utcnow().strftime("%Y-%m-%d")
+    by_name = {r.get("swarm_name", ""): r for r in results}
     with open(f"dcf_memos_{date}.jsonl", "w") as f:
-        for ticker, r in zip(tickers, results):
+        for ticker in tickers:
+            r = by_name.get(f"DCF Pipeline — {ticker}", {})
             memo = ""
-            for output in r.get("output", []):
+            for output in r.get("result", []) or []:
                 if "Memo Writer" in output.get("role", ""):
                     content = output.get("content", "")
                     if isinstance(content, list):
@@ -598,7 +606,7 @@ The cron line that fires the refresh inside the night-mode window:
 ```
 
 <Info>
-The batch lands in the database by ~5am Pacific. See [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) for why scheduling between 9pm and 6am Pacific cuts the bill in half — the same workload at 11am Pacific is twice as expensive for identical output.
+The batch lands in the database by ~5am Pacific. See [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) for why scheduling between 8pm and 6am Pacific cuts the bill in half — the same workload at 11am Pacific is twice as expensive for identical output.
 </Info>
 
 ## Step 7: The Memo Output Format
@@ -676,4 +684,4 @@ DCF memos generated by this pipeline are research artifacts. The assumption_note
 
 - [Build an AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) — the HierarchicalSwarm pattern for buy/sell/hold calls upstream of the DCF refresh
 - [Reasoning Agents for Hard Analytical Problems](/docs/examples/examples/reasoning-agents-tutorial) — the standalone primitive for the Opus reasoning pass, with the full `swarm_type` catalog
-- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — why scheduling the batch between 9pm and 6am Pacific is what makes the 50-name refresh land under \$80
+- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — why scheduling the batch between 8pm and 6am Pacific is what makes the 50-name refresh land under \$80
