@@ -143,11 +143,20 @@
               "docs/marketplace/bundles",
               "docs/marketplace/share_and_discover",
               "docs/marketplace/monetize",
+              "docs/marketplace/business-models",
               "docs/marketplace/account_management",
               "docs/marketplace/apikeys",
               "docs/marketplace/apps_page",
               "docs/marketplace/playground_page",
               "docs/marketplace/yuki"
+            ]
+          },
+          {
+            "group": "Fiat Payments",
+            "pages": [
+              "docs/marketplace/fiat-payments",
+              "docs/marketplace/fiat-payments-vendor-tutorial",
+              "docs/marketplace/fiat-payments-buyer-tutorial"
             ]
           },
           {
