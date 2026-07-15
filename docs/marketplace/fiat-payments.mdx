@@ -5,7 +5,7 @@ description: "Buy and sell AI agents and prompts with fiat on the Swarms Marketp
 
 Fiat Marketplace Payments are now live, powered by Stripe.
 
-The Swarms Marketplace supports buying and selling AI agents and prompts through a fully integrated Stripe payment infrastructure. Buyers in **100+ countries** can complete transactions with **multi-currency support** across 100+ currencies, using the payment methods they already trust — bank cards, **Apple Pay**, **Google Pay**, **Alipay**, Klarna, **crypto**, and much more — through a checkout flow that is fast, secure, and familiar.
+The Swarms Marketplace supports buying and selling AI agents and prompts through a fully integrated Stripe payment infrastructure. Buyers in **100+ countries** can complete transactions with **multi-currency support** across 100+ currencies, using the payment methods they already trust (bank cards, **Apple Pay**, **Google Pay**, **Alipay**, Klarna, **crypto**, and much more) through a checkout flow that is fast, secure, and familiar.
 
 This release makes it easier than ever for developers to monetize AI agents and for organizations around the world to purchase and deploy them. Vendors get a streamlined onboarding flow with automatic bank payouts; buyers get a frictionless, one-click checkout; and the marketplace becomes accessible to anyone, anywhere, regardless of how they prefer to pay.
 
@@ -22,13 +22,13 @@ This release makes it easier than ever for developers to monetize AI agents and 
 
 <CardGroup cols={2}>
   <Card title="100+ countries" icon="globe">
-    Buyers from over 100 countries can purchase agents and prompts — no crypto wallet or regional workaround required.
+    Buyers from over 100 countries can purchase agents and prompts, with no crypto wallet or regional workaround required.
   </Card>
   <Card title="Multi-currency support" icon="coins">
     Pay in 100+ currencies. Stripe handles conversion automatically, so buyers always see a familiar checkout in their own terms.
   </Card>
   <Card title="Every major payment method" icon="wallet">
-    Bank cards, Apple Pay, Google Pay, Alipay, Klarna, crypto, and many more — the same methods you use at your favorite online store.
+    Bank cards, Apple Pay, Google Pay, Alipay, Klarna, crypto, and many more: the same methods you use at your favorite online store.
   </Card>
   <Card title="Enterprise-grade security" icon="shield-check">
     Payments are processed end-to-end by Stripe. Swarms never sees or stores card details, and every seller is KYC-verified.
@@ -37,7 +37,7 @@ This release makes it easier than ever for developers to monetize AI agents and 
 
 ## How it works
 
-The marketplace runs on Stripe Connect: each seller onboards once as a connected account, buyers pay through Stripe Checkout, and Stripe splits every sale automatically — **90% is paid out to the seller's bank account, and Swarms retains a 10% transaction fee** (the same fee as crypto sales). Access to the purchased product unlocks the moment payment completes.
+The marketplace runs on Stripe Connect: each seller onboards once as a connected account, buyers pay through Stripe Checkout, and Stripe splits every sale automatically: **90% is paid out to the seller's bank account, and Swarms retains a 10% transaction fee** (the same fee as crypto sales). Access to the purchased product unlocks the moment payment completes.
 
 ```mermaid
 graph TD
@@ -60,21 +60,21 @@ graph TD
 
 ### The vendor side
 
-Getting started is simple. Complete Stripe's quick onboarding by providing your payout details, business information, and any required verification — it takes a few minutes. Once approved, you're ready to sell AI agents and prompts:
+Getting started is simple. Complete Stripe's quick onboarding by providing your payout details, business information, and any required verification; it takes a few minutes. Once approved, you're ready to sell AI agents and prompts:
 
-- **Publish in one flow** — on the launch page, mark your product as **Paid**, pick the **Card / Fiat (Stripe)** rail, and set a USD price. No crypto wallet needed.
-- **Automatic payouts** — your 90% share of every sale is transferred by Stripe and paid out to your linked bank account on Stripe's standard payout schedule. No claiming, no manual withdrawals.
-- **Full visibility** — the [Seller tab](https://swarms.world/platform/account?tab=seller) lists every card sale with the fee breakdown, and links to your Stripe Express dashboard for balances and payout history.
-- **Sell your way** — the payment rail is chosen per listing, so you can offer some products in fiat and others in crypto (SOL) side by side.
+- **Publish in one flow**: on the launch page, mark your product as **Paid**, pick the **Card / Fiat (Stripe)** rail, and set a USD price. No crypto wallet needed.
+- **Automatic payouts**: your 90% share of every sale is transferred by Stripe and paid out to your linked bank account on Stripe's standard payout schedule. No claiming, no manual withdrawals.
+- **Full visibility**: the [Seller tab](https://swarms.world/platform/account?tab=seller) lists every card sale with the fee breakdown, and links to your Stripe Express dashboard for balances and payout history.
+- **Sell your way**: the payment rail is chosen per listing, so you can offer some products in fiat and others in crypto (SOL) side by side.
 
 ### The buyer side
 
-Purchasing agents is extremely simple and effortless. Check out using Stripe with your preferred payment method, just like you would at your favorite online store — no complicated setup, no wallet, no bridging funds:
+Purchasing agents is extremely simple and effortless. Check out using Stripe with your preferred payment method, just like you would at your favorite online store: no complicated setup, no wallet, no bridging funds:
 
-- **One-click checkout** — click a paid agent, hit **Pay with card**, and complete the purchase on Stripe's hosted checkout.
-- **Pay how you like** — cards, Apple Pay, Google Pay, Alipay, Klarna, crypto, and more, in your local currency.
-- **Instant, lifetime access** — the product unlocks the moment the payment confirms. One-time payment, no recurring fees.
-- **A clean paper trail** — every purchase appears in your [Purchases tab](https://swarms.world/platform/account?tab=purchases) and full [transaction history](https://swarms.world/platform/account/transactions), labeled `· Card`.
+- **One-click checkout**: click a paid agent, hit **Pay with card**, and complete the purchase on Stripe's hosted checkout.
+- **Pay how you like**: cards, Apple Pay, Google Pay, Alipay, Klarna, crypto, and more, in your local currency.
+- **Instant, lifetime access**: the product unlocks the moment the payment confirms. One-time payment, no recurring fees.
+- **A clean paper trail**: every purchase appears in your [Purchases tab](https://swarms.world/platform/account?tab=purchases) and full [transaction history](https://swarms.world/platform/account/transactions), labeled `· Card`.
 
 ## The three sides of a sale
 
@@ -114,20 +114,20 @@ flowchart LR
     PC --> BC
 ```
 
-Behind the scenes, every sale is a Stripe **destination charge**: the buyer pays the platform, Stripe routes the seller's share to their connected account, and the platform fee is collected automatically as an application fee. Purchases are recorded redundantly — by Stripe's webhook *and* by the checkout success redirect — so access unlocks reliably even if one path is delayed.
+Behind the scenes, every sale is a Stripe **destination charge**: the buyer pays the platform, Stripe routes the seller's share to their connected account, and the platform fee is collected automatically as an application fee. Purchases are recorded redundantly, by Stripe's webhook *and* by the checkout success redirect, so access unlocks reliably even if one path is delayed.
 
 ## Key facts
 
 | | |
 | --- | --- |
 | **Countries** | 100+ countries supported for buyers |
-| **Currencies** | Multi-currency — 100+ currencies with automatic conversion |
+| **Currencies** | Multi-currency: 100+ currencies with automatic conversion |
 | **Payment methods** | Cards, Apple Pay, Google Pay, Alipay, Klarna, crypto, and much more |
-| **Platform fee** | 10% per sale — identical to crypto sales |
-| **Seller payouts** | Automatic bank payouts via Stripe — no claiming required |
-| **Buyer access** | Instant and lifetime — unlocked the moment payment completes |
+| **Platform fee** | 10% per sale, identical to crypto sales |
+| **Seller payouts** | Automatic bank payouts via Stripe, no claiming required |
+| **Buyer access** | Instant and lifetime, unlocked the moment payment completes |
 | **Supported products** | Agents and prompts published as Paid with the Card / Fiat rail |
-| **Crypto option** | Still fully supported — each listing picks Crypto (SOL) or Card / Fiat at publish time |
+| **Crypto option** | Still fully supported: each listing picks Crypto (SOL) or Card / Fiat at publish time |
 | **Security** | Stripe-hosted checkout; Swarms never touches card details |
 
 ## Fees at a glance
@@ -141,13 +141,13 @@ Behind the scenes, every sale is a Stripe **destination charge**: the buyer pays
 ## Frequently asked questions
 
 **Do sellers need a crypto wallet for fiat listings?**
-No. Fiat listings pay out to your bank account through Stripe — no Solana wallet is required at any point.
+No. Fiat listings pay out to your bank account through Stripe; no Solana wallet is required at any point.
 
 **Can I sell some products in crypto and others in fiat?**
 Yes. The payment rail is chosen per listing on the launch page, and both rails carry the same 10% platform fee.
 
 **Which payment methods can buyers use?**
-Whatever Stripe offers in their region — bank cards, Apple Pay, Google Pay, Alipay, Klarna, crypto, and many more, in their local currency.
+Whatever Stripe offers in their region: bank cards, Apple Pay, Google Pay, Alipay, Klarna, crypto, and many more, in their local currency.
 
 **Where do I see my sales and payouts?**
 The [Seller tab](https://swarms.world/platform/account?tab=seller) lists your card sales with the fee breakdown, and links to your Stripe Express dashboard for payouts and balances.
@@ -156,7 +156,7 @@ The [Seller tab](https://swarms.world/platform/account?tab=seller) lists your ca
 Charges are processed by Stripe on behalf of the Swarms Marketplace.
 
 **Is there a subscription or listing fee?**
-No. Publishing is free — the only cost is the 10% fee on completed sales.
+No. Publishing is free; the only cost is the 10% fee on completed sales.
 
 ## Get started
 
