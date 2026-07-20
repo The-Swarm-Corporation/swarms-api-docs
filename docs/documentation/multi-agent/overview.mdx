@@ -49,6 +49,8 @@ The request body uses the `SwarmSpec` schema. All parameters are organized in th
 | `heavy_swarm_variant` | `string` | No | `"default"` | For `HeavySwarm`: which agent variant to run. One of `"default"`, `"medium"`, or `"heavy"`. |
 | `council_judge_model_name` | `string` | No | `"gpt-5.4"` | For `CouncilAsAJudge`: the model name used by the judge that delivers the final ruling. |
 | `chairman_model` | `string` | No | `"gpt-5.1"` | For `LLMCouncil`: the model name used by the chairman that synthesizes the council's responses. |
+| `director_model_name` | `string` | No | `"gpt-5.4"` | The model name used by the director/overseer agent. For `HierarchicalSwarm`, this is the model that decomposes the task and delegates to workers. |
+| `director_settings` | `object` | No | `{}` | Optional settings for the director agent, such as `temperature`, `top_p`, and `max_tokens`. For `HierarchicalSwarm`, these tune the director's planning behavior. |
 
 #### Agent Configuration Parameters (AgentSpec)
 

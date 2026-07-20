@@ -488,9 +488,81 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
+## Configuring the Director
+
+`HierarchicalSwarm` runs a director agent that decomposes the task and delegates it to your worker agents. The director is created by the swarm itself rather than supplied in the `agents` array, so it is configured through two top-level `SwarmSpec` fields.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `director_model_name` | `string` | `"gpt-5.4"` | The model the director uses to plan and delegate. |
+| `director_settings` | `object` | `{}` | Sampling and generation settings for the director, such as `temperature`, `top_p`, and `max_tokens`. |
+
+<Tabs>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Research Project Coordinator",
+    "swarm_type": "HierarchicalSwarm",
+    "task": "Research the impact of AI on healthcare",
+    "director_model_name": "gpt-5.4",
+    "director_settings": {
+      "temperature": 0.2,
+      "max_tokens": 4000
+    },
+    "agents": [
+      {
+        "agent_name": "Technology Researcher",
+        "system_prompt": "You research AI technology in healthcare.",
+        "model_name": "gpt-4.1"
+      }
+    ]
+  }'
+```
+</Tab>
+<Tab title="Python">
+```python
+import os
+import requests
+
+response = requests.post(
+    "https://api.swarms.world/v1/swarm/completions",
+    headers={"x-api-key": os.getenv("SWARMS_API_KEY")},
+    json={
+        "name": "Research Project Coordinator",
+        "swarm_type": "HierarchicalSwarm",
+        "task": "Research the impact of AI on healthcare",
+        "director_model_name": "gpt-5.4",
+        "director_settings": {
+            "temperature": 0.2,
+            "max_tokens": 4000,
+        },
+        "agents": [
+            {
+                "agent_name": "Technology Researcher",
+                "system_prompt": "You research AI technology in healthcare.",
+                "model_name": "gpt-4.1",
+            }
+        ],
+    },
+)
+
+print(response.json())
+```
+</Tab>
+</Tabs>
+
+<Tip>
+A lower `temperature` on the director produces more consistent task decomposition and delegation, while worker agents can keep a higher temperature for creative output.
+</Tip>
+
 ## Best Practices
 
 - Design clear supervisor-worker relationships
 - Ensure supervisors can effectively coordinate and synthesize results
+- Use a capable `director_model_name` — the director's plan determines how well the workers perform
+- Lower the director's `temperature` for more deterministic task decomposition
 - Use for complex projects requiring oversight and coordination
 - Ideal for research, content creation, and project management
