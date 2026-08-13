@@ -454,13 +454,13 @@ When creating tools for your agents:
 Choose the appropriate model based on your use case requirements:
 
 <Note>
-Some models are restricted to premium-tier accounts. `gpt-4.1` and all `groq/*` models are rejected for free-tier API keys. Call `GET /v1/models` with your key to see the models available to your tier.
+Some models are restricted to premium-tier accounts: all `groq/*` models, plus each provider's current top-tier frontier model (e.g. the `gpt-5.6` family, `claude-fable-5`, `claude-opus-5`/`claude-opus-4-8`, `gemini-3.1-pro`/`gemini-3.1-deep-think`, `grok-4.5`). Mid-tier and small models — including `gpt-4.1` — remain available on the free tier. Call `GET /v1/models/available` with your key for the authoritative, tier-aware list.
 </Note>
 
 #### OpenAI Models
 
 * **gpt-4**: High-quality reasoning and complex task handling
-* **gpt-4.1**: Optimized version with improved performance (premium tier only)
+* **gpt-4.1**: Optimized version with improved performance
 * **gpt-4.1-mini**: Lightweight version for faster responses
 
 #### Anthropic Models
@@ -496,6 +496,7 @@ Some models are restricted to premium-tier accounts. `gpt-4.1` and all `groq/*` 
 | `POST` | `/v1/chat/completions` | OpenAI-compatible chat completions |
 | `POST` | `/v1/batched-grid-workflow/completions` | Batched grid workflow (premium) |
 | `POST` | `/v1/graph-workflow/completions` | Graph workflow (premium) |
+| `POST` | `/v1/auto-agent-builder/completions` | Generate agent configurations from a task |
 | `GET` | `/v1/swarms/available` | List available swarm types |
 | `GET` | `/v1/models` | List supported models |
 | `GET` | `/v1/models/available` | List available models with metadata |

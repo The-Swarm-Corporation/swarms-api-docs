@@ -104,7 +104,6 @@ Different swarm types are optimized for different workflows - choose the right a
     #     "ConcurrentWorkflow",
     #     "GroupChat",
     #     "MultiAgentRouter",
-    #     "AutoSwarmBuilder",
     #     "HierarchicalSwarm",
     #     "auto",
     #     "MajorityVoting",
@@ -232,7 +231,7 @@ Different swarm types are optimized for different workflows - choose the right a
 
 ## Swarm Type Comparison
 
-The `/v1/swarms/available` endpoint currently returns 17 swarm types:
+The `/v1/swarms/available` endpoint currently returns 16 swarm types:
 
 | Swarm Type | Best For | Execution | Complexity | Scalability |
 |------------|----------|-----------|------------|-------------|
@@ -242,7 +241,6 @@ The `/v1/swarms/available` endpoint currently returns 17 swarm types:
 | **ConcurrentWorkflow** | Independent tasks, batch processing | Parallel | Low | High |
 | **GroupChat** | Collaborative discussions, brainstorming | Interactive | Medium | Low |
 | **MultiAgentRouter** | Routing tasks to the best-suited agent | Dynamic | Medium | High |
-| **AutoSwarmBuilder** | Auto-generating an agent team from a task description | Dynamic | High | Medium |
 | **HierarchicalSwarm** | Structured organizations, management | Hierarchical | High | Medium |
 | **auto** | Letting the API pick the best swarm type for the task | Dynamic | Low | Medium |
 | **MajorityVoting** | Consensus-driven decisions | Parallel | Medium | Medium |

@@ -230,6 +230,8 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 | 429 | `rate_limit_error` | Rate limit exceeded |
 | 500 | `server_error` | Internal error during agent execution |
 
+Note: schema-validation failures on Swarms extension fields passed via `extra_body` (e.g. `max_loops: 0`) currently surface as a 500 `server_error` rather than a 400 `invalid_request_error`. Send `max_loops >= 1` to avoid this.
+
 ### Example Error Response
 
 ```json

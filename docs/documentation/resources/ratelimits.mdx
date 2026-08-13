@@ -82,13 +82,9 @@ These limits control concurrent processing capabilities.
 
 #### **Batch Size Limit**
 
-- **Limit**: 10 agent tasks maximum per batch
+- **`/v1/agent/batch/completions`**: 10 agent tasks maximum per batch. Returns a 400 error if exceeded, with message: "ERROR: BATCH SIZE EXCEEDED - You can only run up to 10 batch agents at a time."
 
-- **Applies to**: `/v1/agent/batch/completions` only (`/v1/swarm/batch/completions` has no fixed batch-size cap)
-
-- **Error**: Returns 400 error if exceeded
-
-- **Message**: "ERROR: BATCH SIZE EXCEEDED - You can only run up to 10 batch agents at a time."
+- **`/v1/swarm/batch/completions`**: 50 swarm specs maximum per batch. This cap is enforced at the request-validation layer, so exceeding it returns a 422 error before your request reaches application logic.
 
 ## How Rate Limiting Works
 

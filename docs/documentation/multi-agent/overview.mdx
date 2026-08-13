@@ -62,12 +62,12 @@ Each agent in the `agents` array can be configured with the following parameters
 | `description` | `string` | No | - | A detailed explanation of the agent's purpose, capabilities, and any specific tasks it is designed to perform. |
 | `system_prompt` | `string` | No | - | The initial instruction or context provided to the agent, guiding its behavior and responses during execution. |
 | `marketplace_prompt_id` | `string` | No | - | The ID of a prompt from the Swarms marketplace to use as the system prompt. If provided, the prompt will be automatically retrieved from the marketplace. |
-| `model_name` | `string` | No | `"gpt-4.1"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. Examples: `gpt-4o`, `gpt-4.1`, `openai/o3-mini`, `claude-sonnet-4-20250514`. |
+| `model_name` | `string` | No | `"claude-sonnet-5"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. Examples: `gpt-4o`, `gpt-4.1`, `openai/o3-mini`, `claude-sonnet-4-20250514`. |
 | `auto_generate_prompt` | `boolean` | No | `false` | A flag indicating whether the agent should automatically create prompts based on the task requirements. |
-| `max_tokens` | `integer` | No | `8192` | The maximum number of tokens that the agent is allowed to generate in its responses, limiting output length. |
+| `max_tokens` | `integer` | No | `16000` | The maximum number of tokens that the agent is allowed to generate in its responses, limiting output length. Values below 1 are rejected with a 422 validation error. |
 | `temperature` | `number` | No | - | A parameter that controls the randomness of the agent's output; lower values result in more deterministic responses. If omitted, no temperature is sent to the model and the provider's own default applies. |
 | `role` | `string` | No | `"worker"` | The designated role of the agent within the swarm, which influences its behavior and interaction with other agents. |
-| `max_loops` | `integer \| string` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer for a fixed count, or `'auto'` to allow the system to determine the necessary number based on the task's complexity. |
+| `max_loops` | `integer \| string` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer of 1 or greater for a fixed count, or `'auto'` to allow the system to determine the necessary number based on the task's complexity. Integer values below 1 are rejected with a 422 validation error. |
 | `tools_list_dictionary` | `array[object]` | No | - | A dictionary of tools that the agent can use to complete its task. |
 | `selected_tools` | `string \| array[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Pass a list of tool names to restrict which tools the agent can use (e.g. `["think", "create_plan"]`). Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. Note: `run_bash` is not permitted for security reasons. |
 | `mcp_url` | `string` | No | - | The URL of the MCP server that the agent can use to complete its task. |
@@ -75,9 +75,9 @@ Each agent in the `agents` array can be configured with the following parameters
 | `mcp_configs` | `object` | No | - | Multiple MCP connections to use for the agent. This is a list of MCP connections. See Multiple MCP Connections below. |
 | `streaming_on` | `boolean` | No | `false` | A flag indicating whether the agent should stream its output. |
 | `llm_args` | `object` | No | - | Additional arguments to pass to the LLM such as `top_p`, `frequency_penalty`, `presence_penalty`, etc. |
-| `dynamic_temperature_enabled` | `boolean` | No | `true` | A flag indicating whether the agent should dynamically adjust its temperature based on the task. |
+| `dynamic_temperature_enabled` | `boolean` | No | `false` | A flag indicating whether the agent should dynamically adjust its temperature based on the task. |
 | `tool_call_summary` | `boolean` | No | `true` | A parameter enabling an agent to summarize tool calls. |
-| `reasoning_effort` | `string` | No | `"low"` | The effort to put into reasoning. Options: `'low'`, `'medium'`, `'high'`. Used with reasoning-enabled models. |
+| `reasoning_effort` | `string` | No | - (unset) | The effort to put into reasoning. Options: `'none'`, `'minimal'`, `'low'`, `'medium'`, `'high'`, `'xhigh'`, `'ultra'`, `'max'`. Used with reasoning-enabled models. For Claude 5-family models (`claude-sonnet-5`, `claude-opus-5`, `claude-fable-5`) reasoning parameters are currently ignored and the agent runs without extended thinking. |
 | `thinking_tokens` | `integer` | No | - | The number of tokens to use for thinking. Used with reasoning-enabled models. |
 | `reasoning_enabled` | `boolean` | No | `false` | A parameter enabling an agent to use reasoning capabilities. |
 | `publish_to_marketplace` | `boolean` | No | `false` | A flag indicating whether to publish this agent to the Swarms marketplace. |
@@ -139,7 +139,6 @@ Each multi-agent architecture type is designed for specific use cases and can be
 | `BatchedGridWorkflow` | Execute multiple tasks across multiple agents in a grid pattern | [Learn More](/docs/documentation/multi-agent/batched_grid_workflow) |
 | `GraphWorkflow` | Execute a graph workflow with directed agent nodes and edges (available via a dedicated `/v1/graph-workflow/completions` endpoint rather than the `swarm_type` field) | [Learn More](/docs/documentation/multi-agent/graph_workflow) |
 | `GroupChat` | Collaborative problem-solving through conversation | - |
-| `AutoSwarmBuilder` | Automatically designs and assembles a team of specialized agents for a task using a boss agent | - |
 | `CouncilAsAJudge` | Council-based evaluation system | - |
 | `PlannerWorkerSwarm` | Separates planning from execution: planner agents break the task into sub-tasks that worker agents pull from a shared queue | - |
 | `HeavySwarm` | High-capacity swarm processing | [Learn More](/docs/documentation/multi-agent/heavy_swarm) |

@@ -1,0 +1,227 @@
+---
+title: "Auto Agent Builder"
+description: "The Auto Agent Builder API generates a ready-to-run roster of agent configurations from a plain-language task description. A single builder agent analyzes your task and designs the team — names, descriptions, system prompts, and model choices — returning JSON configs you can post directly to the multi-agent endpoints. It never executes the generated agents."
+---
+
+## Overview
+
+The Auto Agent Builder generates agent configurations from a task. You describe what you want accomplished; a single builder agent designs the smallest team that covers it and returns each agent's name, description, system prompt, and model choice as ready-to-use `AgentSpec` entries.
+
+Two things to know up front:
+
+- **It designs, it does not run.** The response contains agent *configurations only* — no agents are constructed or executed, and nothing beyond the single builder call is billed. Pipe the returned roster into [`/v1/swarm/completions`](/docs/documentation/multi-agent/overview) (or any multi-agent endpoint) to actually run it.
+- **Available on all tiers.** Unlike its siblings Graph Workflow and Batched Grid Workflow, this endpoint is not premium-gated. It is billable, so your account needs a minimum credit balance of $1.00.
+
+**Endpoint:** `POST /v1/auto-agent-builder/completions`
+
+**Base URL:** `https://api.swarms.world` (production) or your custom deployment URL
+
+## Authentication
+
+All requests require an API key passed in the `x-api-key` header:
+
+```python
+headers = {
+    "x-api-key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+```
+
+## Input Parameters
+
+### AutoAgentBuilderInput Schema
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `task` | `string` | Yes | - | The task the generated team should be able to handle. Must be non-empty. |
+| `name` | `string` | No | `"auto-agent-builder"` | Name for this builder run. |
+| `description` | `string` | No | `"Generates agent configurations from a task"` | Description of the run. |
+| `model_name` | `string` | No | builder default | Model backing the **builder agent itself** — not the generated agents; the builder chooses each generated agent's model. Ollama models are rejected with a 400. |
+| `max_agents` | `integer` | No | `5` | Ceiling on roster size (1-100). The builder prefers the smallest roster that covers the task. |
+| `num_agents` | `integer` | No | `null` | Exact roster size (1-100). When set, overrides `max_agents` and the prefer-fewer guidance. |
+| `system_prompt` | `string` | No | builder default | Custom instructions for the builder agent (not the generated agents). |
+| `agent_kwargs` | `dict` | No | `null` | Extra fields applied to every generated agent (e.g. `max_loops`, `streaming_on`). Keys the builder itself produces (`agent_name`, `description`, `system_prompt`, `model_name`) cannot be overridden and are ignored. |
+
+## Output Parameters
+
+### AutoAgentBuilderOutput Schema
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `job_id` | `string` | Unique job identifier, prefixed `auto-agent-builder-`. |
+| `name` | `string` | Run name from the input (or the default). |
+| `description` | `string` | Run description from the input (or the default). |
+| `status` | `string` | `"success"` on completion. |
+| `agents` | `List[AgentSpec]` | The generated roster. See the note below on which fields are populated. |
+| `usage` | `Usage` | Token counts and cost for the builder call. |
+| `timestamp` | `string` | ISO 8601 UTC timestamp. |
+
+### Generated agent entries
+
+Each entry in `agents` is an `AgentSpec`, but the builder populates only these fields — do not expect the full AgentSpec surface (e.g. `max_tokens`, `tools_list_dictionary`) unless you supplied it via `agent_kwargs`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agent_name` | `string` | Name the builder chose for the agent. |
+| `description` | `string` | What the agent is responsible for. |
+| `system_prompt` | `string` | Full system prompt the builder wrote for the agent. |
+| `model_name` | `string` | Model the builder selected for the agent. |
+
+### Usage Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input_tokens` | `integer` | Tokens in your task (plus `system_prompt` if provided). |
+| `output_tokens` | `integer` | Tokens in the generated roster. |
+| `total_tokens` | `integer` | Sum of the above. |
+| `token_cost` | `float` | Total credits charged for this call. |
+| `cost_per_agent` | `float` | Flat fee for the single builder agent ($0.01). Not multiplied by roster size. |
+
+## Cost Calculation
+
+The endpoint bills one builder-agent call:
+
+- Input tokens: $6.50 per 1M tokens
+- Output tokens: $18.50 per 1M tokens
+- Flat builder-agent fee: $0.01
+
+`token_cost = input_cost + output_cost + cost_per_agent`. The generated agents cost nothing until you run them. See [Pricing](/docs/documentation/resources/pricing) for current rates.
+
+## Error Responses
+
+| Status | Meaning |
+|--------|---------|
+| `400` | Empty or invalid `task`, an Ollama `model_name`, or the builder produced no usable configs. |
+| `401` | Missing or invalid API key. |
+| `402` | Account credit balance below the $1.00 minimum for billable endpoints. |
+| `422` | Request failed schema validation (e.g. `max_agents` outside 1-100). |
+| `429` | Rate limit exceeded. |
+| `500` | Unexpected server error. |
+
+## Examples
+
+### Minimal request
+
+```bash
+curl -X POST "https://api.swarms.world/v1/auto-agent-builder/completions" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task": "Research the EV battery market and produce an investment memo",
+    "max_agents": 3
+  }'
+```
+
+Example response:
+
+```json
+{
+  "job_id": "auto-agent-builder-8f3a1c2e9b",
+  "name": "auto-agent-builder",
+  "description": "Generates agent configurations from a task",
+  "status": "success",
+  "agents": [
+    {
+      "agent_name": "MarketResearchAnalyst",
+      "description": "Researches EV battery market trends, key players, and supply chains.",
+      "system_prompt": "You are an expert market research analyst specializing in the EV battery industry...",
+      "model_name": "gpt-4.1"
+    },
+    {
+      "agent_name": "FinancialAnalyst",
+      "description": "Builds valuation models and financial projections for EV battery companies.",
+      "system_prompt": "You are a financial analyst specializing in investment memos...",
+      "model_name": "gpt-4.1"
+    },
+    {
+      "agent_name": "InvestmentMemoWriter",
+      "description": "Synthesizes research and analysis into a polished investment memo.",
+      "system_prompt": "You are an investment memo writer...",
+      "model_name": "claude-sonnet-5"
+    }
+  ],
+  "usage": {
+    "input_tokens": 14,
+    "output_tokens": 612,
+    "total_tokens": 626,
+    "token_cost": 0.011426,
+    "cost_per_agent": 0.01
+  },
+  "timestamp": "2026-08-13T12:00:00.000000+00:00"
+}
+```
+
+### Exact roster size with shared agent settings
+
+```python
+import os
+import requests
+
+BASE_URL = "https://api.swarms.world"
+headers = {"x-api-key": os.getenv("SWARMS_API_KEY"), "Content-Type": "application/json"}
+
+response = requests.post(
+    f"{BASE_URL}/v1/auto-agent-builder/completions",
+    headers=headers,
+    json={
+        "task": "Design, write, and edit a technical blog post about vector databases",
+        "num_agents": 3,
+        "agent_kwargs": {"max_loops": 1, "max_tokens": 4000},
+    },
+    timeout=120,
+)
+roster = response.json()["agents"]
+```
+
+### Build a team, then run it
+
+The returned roster round-trips unmodified into the swarm endpoint:
+
+```python
+import os
+import requests
+
+BASE_URL = "https://api.swarms.world"
+headers = {"x-api-key": os.getenv("SWARMS_API_KEY"), "Content-Type": "application/json"}
+
+task = "Audit this Python package for security issues and write a findings report"
+
+# 1. Design the team
+built = requests.post(
+    f"{BASE_URL}/v1/auto-agent-builder/completions",
+    headers=headers,
+    json={"task": task, "max_agents": 4},
+    timeout=120,
+).json()
+
+# 2. Run it
+result = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json={
+        "name": "auto-built-audit-team",
+        "swarm_type": "SequentialWorkflow",
+        "task": task,
+        "agents": built["agents"],
+    },
+    timeout=600,
+).json()
+
+print(result["output"])
+```
+
+## Best Practices
+
+- **Let the builder decide the size.** `max_agents` is a ceiling, not a target — the builder prefers the smallest team that covers the task. Reach for `num_agents` only when you need an exact count.
+- **Use `agent_kwargs` for runtime settings.** Fields like `max_loops`, `max_tokens`, or `streaming_on` applied via `agent_kwargs` land on every generated agent; the builder's own choices (`agent_name`, `description`, `system_prompt`, `model_name`) always win over colliding keys.
+- **Review before running.** The roster is plain JSON — inspect or edit the system prompts and model choices before posting them to a completions endpoint, especially for cost-sensitive workloads.
+
+## Rate Limits
+
+Standard tier-based rate limits apply. See [Rate Limits](/docs/documentation/resources/ratelimits).
+
+## Support
+
+- Documentation: [https://docs.swarms.ai](https://docs.swarms.ai)
+- Email: kye@swarms.world
+- Community: [https://discord.gg/EamjgSaEQf](https://discord.gg/EamjgSaEQf)
