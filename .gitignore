@@ -12,6 +12,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 old
 # Runtime data
 pids
+unused
 *.pid
 experimental 
 swarms_cloud
