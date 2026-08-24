@@ -16,6 +16,18 @@ Two things to know up front:
 
 **Base URL:** `https://api.swarms.world` (production) or your custom deployment URL
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T["Task description"] --> B["Builder agent"]
+    B --> S["AgentSpec roster"]
+    S -.->|"you run it"| W["/v1/swarm/completions"]
+```
+
+The builder only designs the roster. Running it is a separate call you make yourself, shown
+dashed above.
+
 ## Authentication
 
 All requests require an API key passed in the `x-api-key` header:

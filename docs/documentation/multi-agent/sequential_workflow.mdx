@@ -15,6 +15,15 @@ Key features:
 - **Predictable Flow**: Clear, linear progression through the workflow
 - **Quality Control**: Each agent can validate and enhance previous work
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T["Task"] --> A1["Agent 1"] --> A2["Agent 2"] --> A3["Agent 3"] --> R["Result"]
+```
+
+Each agent runs only after the previous one finishes, and receives its output.
+
 ## Use Cases
 
 - Document processing pipelines

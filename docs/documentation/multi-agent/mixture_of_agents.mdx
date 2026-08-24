@@ -15,6 +15,20 @@ Key features:
 - **Comprehensive Solutions**: Combined insights from multiple specialists
 - **Enhanced Quality**: Better results through collective intelligence
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T["Task"] --> A["Specialist A"]
+    T --> B["Specialist B"]
+    T --> C["Specialist C"]
+    A --> S["Combined solution"]
+    B --> S
+    C --> S
+```
+
+Every specialist sees the same task, and their perspectives are combined into one answer.
+
 ## Use Cases
 
 - Complex problem analysis requiring multiple viewpoints

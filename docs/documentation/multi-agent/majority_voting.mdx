@@ -15,6 +15,21 @@ Key features:
 - **Independent Analysis**: Each agent works independently before voting
 - **Transparent Process**: Clear voting mechanism and results
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T["Task"] --> A["Agent 1 votes"]
+    T --> B["Agent 2 votes"]
+    T --> C["Agent 3 votes"]
+    A --> V["Majority consensus"]
+    B --> V
+    C --> V
+    V --> O["Final outcome"]
+```
+
+Each agent decides independently, without seeing the others. The majority answer wins.
+
 ## Use Cases
 
 - Content quality assessment and approval

@@ -1,0 +1,213 @@
+---
+title: 'Premium Endpoints API'
+description: 'Fetch the current list of premium-only API endpoints programmatically, with route, feature name, and description for each'
+---
+
+Retrieve every endpoint that requires a premium subscription from `/v1/account/premium-endpoints`. Each entry carries the route, a human-readable feature name, and a description of what the endpoint unlocks — so your application can gate its own UI without hardcoding a list that drifts out of date.
+
+<Info>
+This endpoint returns the *catalog* of premium routes. It does not tell you whether **your** account has premium access — a free-tier key can call it successfully and still receive `403` when it tries one of the listed routes. See [Premium Endpoints](/docs/documentation/resources/premium-endpoints) for the tier rules.
+</Info>
+
+## Endpoint
+
+| Property | Value |
+|----------|-------|
+| **Method** | `GET` |
+| **Path** | `/v1/account/premium-endpoints` |
+| **Base URL** | `https://api.swarms.world` |
+| **Authentication** | `x-api-key` header (required) |
+| **Tier** | Available on all tiers |
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
+
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    def get_premium_endpoints() -> dict | None:
+        """Fetch the catalog of premium-only endpoints."""
+        resp = requests.get(
+            f"{BASE_URL}/v1/account/premium-endpoints",
+            headers=headers,
+        )
+
+        if resp.status_code == 200:
+            return resp.json()
+
+        print(f"Error: {resp.status_code} - {resp.text}")
+        return None
+
+    if __name__ == "__main__":
+        data = get_premium_endpoints()
+        if data:
+            print(f"✅ {data['total']} premium endpoints")
+            for endpoint in data["premium_endpoints"]:
+                print(f"  {endpoint['route']:45} {endpoint['name']}")
+            print(f"\nUpgrade at: {data['upgrade_url']}")
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const API_KEY = process.env.SWARMS_API_KEY;
+    const BASE_URL = "https://api.swarms.world";
+
+    const headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    };
+
+    async function getPremiumEndpoints() {
+        const response = await fetch(`${BASE_URL}/v1/account/premium-endpoints`, {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`✅ ${data.total} premium endpoints`);
+        data.premium_endpoints.forEach(e => {
+            console.log(`  ${e.route.padEnd(45)} ${e.name}`);
+        });
+        console.log(`\nUpgrade at: ${data.upgrade_url}`);
+        return data;
+    }
+
+    getPremiumEndpoints();
+    ```
+  </Tab>
+  <Tab title="Shell (curl)">
+    ```bash
+    curl -sS -X GET "https://api.swarms.world/v1/account/premium-endpoints" \
+      -H "x-api-key: $SWARMS_API_KEY"
+    ```
+
+    Extract just the routes:
+
+    ```bash
+    curl -sS "https://api.swarms.world/v1/account/premium-endpoints" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      | jq -r '.premium_endpoints[].route'
+    ```
+  </Tab>
+</Tabs>
+
+## Response
+
+```json
+{
+  "status": true,
+  "timestamp": "2026-08-24T18:00:00.000000+00:00",
+  "total": 5,
+  "premium_endpoints": [
+    {
+      "route": "/v1/graph-workflow/completions",
+      "name": "Graph Workflow Completions",
+      "description": "Execute graph workflows with directed agent nodes and edges."
+    },
+    {
+      "route": "/v1/agent/batch/completions",
+      "name": "Batch Agent Completions",
+      "description": "Process multiple agent tasks in parallel batches."
+    },
+    {
+      "route": "/v1/swarm/batch/completions",
+      "name": "Batch Swarm Completions",
+      "description": "Execute batch swarm completions with concurrent multi-agent execution."
+    },
+    {
+      "route": "/v1/reasoning-agent/completions",
+      "name": "Reasoning Agent Completions",
+      "description": "Execute advanced reasoning agent tasks using specialized reasoning architectures."
+    },
+    {
+      "route": "/v1/batched-grid-workflow/completions",
+      "name": "Batched Grid Workflow",
+      "description": "Execute multiple tasks across multiple agents in a grid pattern."
+    }
+  ],
+  "upgrade_url": "https://cloud.swarms.world/settings"
+}
+```
+
+### Response Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | `boolean` | Whether fetching the premium endpoints succeeded. Defaults to `true`. |
+| `timestamp` | `string \| null` | ISO-formatted timestamp of when the response was generated. |
+| `total` | `integer` | Number of premium endpoints. |
+| `premium_endpoints` | `array` | One `PremiumEndpointInfo` object per premium-only route. |
+| `upgrade_url` | `string` | Where to upgrade to a premium subscription. |
+
+### PremiumEndpointInfo
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `route` | `string` | The API route path that requires a premium subscription. |
+| `name` | `string` | Human-readable feature name for the endpoint. |
+| `description` | `string` | What the endpoint allows a premium subscriber to do. |
+
+### Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Catalog returned successfully |
+| `401` | Missing or invalid `x-api-key` |
+| `422` | Validation error — the `x-api-key` header was not supplied |
+
+## Gating Your Own UI
+
+Rather than shipping a hardcoded list, fetch the catalog at startup and use it to decide what to show:
+
+```python
+PREMIUM_ROUTES = {
+    e["route"] for e in get_premium_endpoints()["premium_endpoints"]
+}
+
+def is_premium(route: str) -> bool:
+    """True when a route needs a premium subscription."""
+    return route in PREMIUM_ROUTES
+
+# Disable the batch button for free-tier users instead of letting the call 403
+if is_premium("/v1/swarm/batch/completions"):
+    show_upgrade_prompt()
+```
+
+<Warning>
+The catalog changes as endpoints are added or re-tiered. Cache it for minutes, not for the lifetime of a deployment, and never bake the routes into a released binary.
+</Warning>
+
+## Related Resources
+
+<CardGroup cols={2}>
+<Card title="Premium Endpoints" icon="star" href="/docs/documentation/resources/premium-endpoints">
+Tier rules and the 403 error shape
+</Card>
+<Card title="Pricing" icon="tag" href="/docs/documentation/resources/pricing">
+Plan comparison and model gating
+</Card>
+<Card title="Credit Balance" icon="wallet" href="/docs/examples/examples/account-credits">
+Premium endpoints also require credits above $1.00
+</Card>
+<Card title="Rate Limits" icon="gauge" href="/docs/examples/api_examples/rate_limits">
+Tier-based request limits
+</Card>
+</CardGroup>

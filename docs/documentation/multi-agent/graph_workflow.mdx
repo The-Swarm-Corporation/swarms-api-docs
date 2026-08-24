@@ -13,6 +13,21 @@ The Graph Workflow API enables you to create and execute complex multi-agent wor
 
 **Base URL:** `https://api.swarms.world` (production) or your custom deployment URL
 
+## Architecture
+
+```mermaid
+flowchart LR
+    E["Entry point"] --> A["Agent A"]
+    A --> B["Agent B"]
+    A --> C["Agent C"]
+    B --> D["Agent D"]
+    C --> D
+    D --> X["End point"]
+```
+
+You define the shape yourself: agents are nodes, `edges` are the arrows. Branches run in
+parallel and rejoin wherever two edges meet the same node.
+
 ## Authentication
 
 All requests require an API key passed in the `x-api-key` header:

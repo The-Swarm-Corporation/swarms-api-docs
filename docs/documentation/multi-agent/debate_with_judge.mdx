@@ -15,6 +15,22 @@ Key features:
 - **Progressive Refinement**: Each debate loop builds on the judge's synthesis, producing increasingly refined arguments
 - **Convergent Synthesis**: The final output combines the strongest elements from both sides into a well-reasoned conclusion
 
+## Architecture
+
+```mermaid
+flowchart TD
+    T["Topic"] --> P["Pro agent"]
+    T --> C["Con agent"]
+    P --> J["Judge"]
+    C --> J
+    J --> S["Refined synthesis"]
+    S -.->|"next loop"| P
+    S -.->|"next loop"| C
+```
+
+Pro and Con argue, the Judge evaluates both and synthesizes. Each loop restarts the debate
+from that synthesis, so the arguments sharpen with every round.
+
 ## Use Cases
 
 - Policy analysis requiring balanced pro/con evaluation

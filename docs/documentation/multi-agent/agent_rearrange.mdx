@@ -15,6 +15,20 @@ Key features:
 - **Adaptive Architecture**: Swarm structure evolves with changing requirements
 - **Flexible Resource Allocation**: Optimal use of agent capabilities
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T["Task"] --> R["Researcher"]
+    R --> W["Writer"]
+    R --> E["Editor"]
+    W --> O["Result"]
+    E --> O
+```
+
+The shape comes from `rearrange_flow`. Above is `"Researcher -> Writer, Editor"`: `->` is a
+handoff to the next step, and a comma runs agents in parallel within the same step.
+
 ## Use Cases
 
 - Dynamic project management with changing requirements

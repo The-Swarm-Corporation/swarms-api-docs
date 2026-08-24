@@ -15,6 +15,20 @@ Key features:
 - **Independent Tasks**: Agents work on separate, non-dependent subtasks
 - **Scalable Performance**: Performance scales with the number of agents
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T["Task"] --> A1["Agent 1"]
+    T --> A2["Agent 2"]
+    T --> A3["Agent 3"]
+    A1 --> R["Results"]
+    A2 --> R
+    A3 --> R
+```
+
+All agents start at once and work independently. No agent waits on another.
+
 ## Use Cases
 
 - Independent data analysis tasks

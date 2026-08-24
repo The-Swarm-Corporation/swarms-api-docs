@@ -20,6 +20,20 @@ Key features:
 - **Comparative Analysis**: Easy comparison of different agent approaches to the same tasks
 - **Structured Output Mapping**: Results organized by agent name for each task
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T1["Task 1"] --> A1["Agent 1"]
+    T1 --> A2["Agent 2"]
+    T2["Task 2"] --> A1
+    T2 --> A2
+    A1 --> G["Results grid"]
+    A2 --> G
+```
+
+Every agent runs every task, so the output is a matrix: one result per agent-task pair.
+
 ## Use Cases
 
 - A/B testing different agent configurations on the same tasks

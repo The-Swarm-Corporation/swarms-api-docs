@@ -61,7 +61,8 @@
             "group": "Agent Completions",
             "pages": [
               "docs/documentation/capabilities/agent",
-              "docs/documentation/capabilities/openai-compatible"
+              "docs/documentation/capabilities/openai-compatible",
+              "docs/documentation/capabilities/reasoning_agent"
             ]
           },
           {
@@ -102,7 +103,8 @@
               "docs/documentation/capabilities/mcp_integration",
               "docs/documentation/capabilities/tools",
               "docs/documentation/capabilities/agents_list",
-              "docs/documentation/capabilities/metrics_summary"
+              "docs/documentation/capabilities/metrics_summary",
+              "docs/documentation/capabilities/premium_endpoints_api"
             ]
           },
           {

@@ -15,6 +15,20 @@ Key features:
 - **Idea Building**: Each agent can react to and build on contributions from other participants
 - **Convergent Outcomes**: Discussion naturally converges toward actionable conclusions
 
+## Architecture
+
+```mermaid
+flowchart TD
+    T["Task"] --> C["Shared conversation"]
+    C <--> A["Agent A"]
+    C <--> B["Agent B"]
+    C <--> D["Agent C"]
+    C --> O["Conclusion"]
+```
+
+Unlike the workflow types, agents talk to each other. Every contribution lands in one shared
+transcript that the others can build on or push back against.
+
 ## Use Cases
 
 - Product strategy brainstorming sessions

@@ -15,6 +15,20 @@ Key features:
 - **Load Balancing**: Distributes workload efficiently across available agents
 - **Dynamic Assignment**: Adapts routing based on agent performance and availability
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T["Task"] --> R{"Router"}
+    R -->|"best match"| A["Billing Agent"]
+    R -.-> B["Technical Agent"]
+    R -.-> C["Sales Agent"]
+    A --> O["Result"]
+```
+
+The router reads the task and dispatches it to the best-suited agent. Agents it does not
+pick, shown dashed, never run.
+
 ## Use Cases
 
 - Customer service request routing

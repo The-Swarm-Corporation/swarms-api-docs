@@ -16,6 +16,17 @@ Key features:
 - **Iterative Refinement**: Multiple loops allow the group to progressively deepen their analysis
 - **Automatic Retries**: Exponential backoff retry logic for resilient agent execution
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T["Task"] --> A["Turn 1"] --> B["Turn 2"] --> C["Turn 3"] --> O["Result"]
+    C -.->|"next loop, reshuffled"| A
+```
+
+Agents take turns, each reading the full conversation so far. The turn order is reshuffled
+at the start of every loop.
+
 ## Use Cases
 
 - Collaborative brainstorming and ideation sessions

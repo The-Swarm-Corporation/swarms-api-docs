@@ -18,6 +18,22 @@ Key features:
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    T["Task"] --> Q["Question agent writes 4 questions"]
+    Q --> R["Research"]
+    Q --> A["Analysis"]
+    Q --> L["Alternatives"]
+    Q --> V["Verification"]
+    R --> S["Synthesis agent"]
+    A --> S
+    L --> S
+    V --> S
+    S --> O["Report"]
+    S -.->|"next loop"| Q
+```
+
+
 The HeavySwarm follows a structured 5-phase workflow:
 
 1. **Task Decomposition** — A question generation agent analyzes the input task and creates four specialized questions using function calling

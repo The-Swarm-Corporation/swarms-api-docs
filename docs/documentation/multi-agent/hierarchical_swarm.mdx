@@ -15,6 +15,23 @@ Key features:
 - **Quality Control**: Supervisors oversee and validate worker outputs
 - **Resource Coordination**: Efficient allocation and management of agent resources
 
+## Architecture
+
+```mermaid
+flowchart TD
+    T["Task"] --> S["Supervisor"]
+    S --> W1["Worker 1"]
+    S --> W2["Worker 2"]
+    S --> W3["Worker 3"]
+    W1 --> V["Supervisor reviews and synthesizes"]
+    W2 --> V
+    W3 --> V
+    V --> O["Result"]
+```
+
+The supervisor splits the task, hands pieces to workers, then validates and merges what
+comes back.
+
 ## Use Cases
 
 - Complex project management and coordination
