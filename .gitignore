@@ -16,6 +16,7 @@ unused
 *.pid
 experimental 
 swarms_cloud
+unused/
 *.seed
 *.pid.lock
 
