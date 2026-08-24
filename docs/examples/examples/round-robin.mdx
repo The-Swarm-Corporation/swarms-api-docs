@@ -5,7 +5,7 @@ description: "Build a collaborative research team with RoundRobin"
 
 ## Collaborative Research Team with Round-Robin Turns
 
-This example demonstrates how to use RoundRobin to facilitate collaborative discussion where agents take randomized turns and build on each other's contributions — perfect for brainstorming, research synthesis, and cross-functional planning.
+This example demonstrates how to use RoundRobin to facilitate collaborative discussion where agents take turns in a fixed rotation and build on each other's contributions — perfect for brainstorming, research synthesis, and cross-functional planning.
 
 ### Step 1: Get Your API Key
 
@@ -202,5 +202,5 @@ for output in deep_result.get("output", []):
 ```
 
 <Note>
-RoundRobin creates a collaborative dynamic where each agent sees the full conversation history and naturally builds on prior contributions. Agent order is randomized each loop, so every agent gets a chance to lead the conversation. Use `max_loops` > 1 when you want the team to iteratively refine their analysis across multiple rounds.
+RoundRobin creates a collaborative dynamic where each agent sees the full conversation history and naturally builds on prior contributions. Agent order is the same on every loop, and every agent gets exactly one turn per loop. Use `max_loops` > 1 when you want the team to iteratively refine their analysis across multiple rounds.
 </Note>

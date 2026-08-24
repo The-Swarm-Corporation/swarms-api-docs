@@ -13,7 +13,7 @@ description: 'The Swarms API implements a comprehensive rate limiting system tha
 | **Requests per Day** | 1,200 | 100,000 | 24 hours | Maximum completed billable requests per day |
 | **Tokens per Agent** | 200,000 | 2,000,000 | Per request | Maximum tokens per agent |
 | **Prompt Length** | 200,000 | 2,000,000 | Per request | Maximum input tokens per request (same limit as tokens per agent) |
-| **Batch Size** | 10 | 10 | Per request | Maximum tasks per agent batch request (`/v1/agent/batch/completions`) |
+| **Batch Size** | 50 | 50 | Per request | Maximum tasks per agent batch request (`/v1/agent/batch/completions`) |
 | **IP-based Fallback** | 100 | 100 | 60 seconds | For requests without API keys |
 
 ## Detailed Rate Limit Explanations
@@ -82,7 +82,7 @@ These limits control concurrent processing capabilities.
 
 #### **Batch Size Limit**
 
-- **`/v1/agent/batch/completions`**: 10 agent tasks maximum per batch. Returns a 400 error if exceeded, with message: "ERROR: BATCH SIZE EXCEEDED - You can only run up to 10 batch agents at a time."
+- **`/v1/agent/batch/completions`**: 50 agent tasks maximum per batch. This cap is enforced at the request-validation layer, so exceeding it returns a 422 error before your request reaches application logic.
 
 - **`/v1/swarm/batch/completions`**: 50 swarm specs maximum per batch. This cap is enforced at the request-validation layer, so exceeding it returns a 422 error before your request reaches application logic.
 
@@ -171,7 +171,7 @@ When rate limits are exceeded, you'll receive a 429 status code:
 
 ```json
 {
-  "detail": "Rate limit exceeded for minute window(s). Upgrade to Premium for increased limits (2,000/min, 10,000/hour, 100,000/day) at https://swarms.world/platform/account for just $99/month."
+  "detail": "Rate limit exceeded for minute window(s). Upgrade to Premium for increased limits (2,000/min, 10,000/hour, 100,000/day) at https://swarms.world/platform/account for just $99/month. See https://docs.swarms.ai/docs/documentation/resources/ratelimits for current limits and how they are counted."
 }
 ```
 

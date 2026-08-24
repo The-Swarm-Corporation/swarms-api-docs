@@ -9,8 +9,8 @@ description: "A HierarchicalSwarm that classifies every inbound ticket, drafts a
 - A Quality Reviewer agent that scores every draft for tone and confidence, then sets an escalation flag
 - A complete `/v1/swarm/completions` call for a realistic ticket — subject, body, and suggested next action returned as a structured reply
 - A Flask webhook that catches new Intercom conversations, runs the swarm, and either auto-replies via the Intercom REST API or drops the ticket into a human queue
-- A `/v1/swarm/batch/completions` pattern for clearing a 500-ticket overnight backlog for under \$10
-- The cost math: ~\$0.02 per ticket vs. ~\$1.50 for a fully loaded tier-1 agent
+- A `/v1/swarm/batch/completions` pattern for clearing a 500-ticket overnight backlog for about \$50
+- The cost math: ~\$0.10 per ticket vs. ~\$1.50 for a fully loaded tier-1 agent
 
 <Info>
 This tutorial uses `HierarchicalSwarm` and `/v1/swarm/batch/completions` — both included on every paid Swarms tier. For production-volume webhook traffic and overnight batches above a few thousand tickets, upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) for the parallel execution and rate-limit headroom you need.
@@ -261,7 +261,7 @@ def build_support_swarm(ticket_payload: str) -> dict:
 ```
 
 <Note>
-The Triage Manager runs on `claude-sonnet-4.5` because misrouting cascades into the wrong specialist and burns the whole pipeline. Specialists run on cheaper models (`gpt-4.1-mini`, `claude-haiku-4.5`, `grok-4`) — they are doing template-shaped writing and the cost difference is what makes \$0.02/ticket possible. The Quality Reviewer steps up to `claude-opus-4-8` because the escalation decision is load-bearing.
+The Triage Manager runs on `claude-sonnet-4.5` because misrouting cascades into the wrong specialist and burns the whole pipeline. Specialists run on cheaper models (`gpt-4.1-mini`, `claude-haiku-4.5`, `grok-4`) — they are doing template-shaped writing and the cost difference is what keeps this near \$0.10/ticket. The Quality Reviewer steps up to `claude-opus-4-8` because the escalation decision is load-bearing.
 </Note>
 
 ## Step 3: Process a Single Ticket
@@ -461,7 +461,7 @@ For Zendesk, swap the Intercom calls for the equivalent endpoints — `POST /api
 When the team comes back from a long weekend with 500 tickets stacked up, you do not run the webhook 500 times — you fan them out through `/v1/swarm/batch/completions` and clear the queue overnight.
 
 ```python
-def clear_backlog(tickets: list[str], chunk_size: int = 100) -> list[dict]:
+def clear_backlog(tickets: list[str], chunk_size: int = 50) -> list[dict]:
     """Run the support swarm across a list of tickets via batch completions."""
     all_reviews: list[dict] = []
     total_cost = 0.0
@@ -490,13 +490,13 @@ def clear_backlog(tickets: list[str], chunk_size: int = 100) -> list[dict]:
 # human_queue = [r for r in reviews if r.get("escalate_to_human")]
 ```
 
-A 500-ticket backlog at this swarm shape runs about \$10 end-to-end and finishes in the time it takes to refill the coffee pot. The auto-send list goes straight to Intercom, the human queue lands in your inbox with the draft and escalation reason already attached.
+A 500-ticket backlog at this swarm shape runs about \$50 end-to-end and finishes in the time it takes to refill the coffee pot. The auto-send list goes straight to Intercom, the human queue lands in your inbox with the draft and escalation reason already attached.
 
 ## Real Cost vs. Tier-1 Support
 
 | Scenario | Cost per ticket | Cost per month (10K tickets) | Throughput |
 | --- | --- | --- | --- |
-| Customer support swarm (claude-sonnet-4.5 + mini-tier specialists) | ~\$0.02 | ~\$200 | minutes per batch |
+| Customer support swarm (claude-sonnet-4.5 + mini-tier specialists) | ~\$0.10 | ~\$1,000 | minutes per batch |
 | Tier-1 agent (fully loaded ~\$50k, ~30/day) | ~\$1.50 | ~\$15,000 | bounded by headcount |
 | BPO outsourced floor | ~\$0.80–\$2.50 | ~\$8,000–\$25,000 | hours to days |
 

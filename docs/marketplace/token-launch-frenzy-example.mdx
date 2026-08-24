@@ -136,7 +136,7 @@ launchFrenzyAgent()
 
 ## With a USDC-denominated bonding curve
 
-Pass `"quote_mint": "USDC"` to price the bonding curve in USDC instead of SOL. The default market cap targets shift to `initialMarketCap: 4000 USDC` and `migrationMarketCap: 9000 USDC`.
+Pass `"quote_mint": "USDC"` to price the bonding curve in USDC instead of SOL. The market cap targets are `$3,246` (initial) and `$46,468` (migration); a USDC-quoted pool uses those USD figures directly, while a SOL-quoted pool converts them to SOL at the current spot price.
 
 <CodeGroup>
 

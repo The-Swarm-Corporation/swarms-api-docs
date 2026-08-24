@@ -36,7 +36,7 @@ Four specialists run in parallel against the same transcript. A Synthesizer agen
 |                            |
 |  +----------------------+  |
 |  | Transcript Analyzer  |  |   ->  score_tone()
-|  |  (claude-sonnet-4.5) |  |
+|  |  (claude-sonnet-4-5) |  |
 |  +----------------------+  |
 |                            |
 |  +----------------------+  |
@@ -46,7 +46,7 @@ Four specialists run in parallel against the same transcript. A Synthesizer agen
 |                            |
 |  +----------------------+  |
 |  | Q&A Sentiment        |  |   ->  extract_qa_red_flags(qa_section)
-|  |  (claude-haiku-4.5)  |  |
+|  |  (claude-haiku-4-5)  |  |
 |  +----------------------+  |
 |                            |
 |  +----------------------+  |
@@ -59,7 +59,7 @@ Four specialists run in parallel against the same transcript. A Synthesizer agen
               v
 +----------------------------+
 |       Synthesizer          |        Merges into a single structured note
-|       (claude-sonnet-4.5)  |
+|       (claude-sonnet-4-5)  |
 +-------------+--------------+
               |
               v
@@ -426,7 +426,7 @@ def build_earnings_swarm(ticker: str, period: str,
                 "agent_name": "Transcript Analyzer",
                 "description": "Tone, confidence, hedging, forward optimism.",
                 "system_prompt": TRANSCRIPT_ANALYZER_PROMPT,
-                "model_name": "claude-sonnet-4.5",
+                "model_name": "claude-sonnet-4-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 2048,
@@ -448,7 +448,7 @@ def build_earnings_swarm(ticker: str, period: str,
                 "agent_name": "Q&A Sentiment",
                 "description": "Deflection, hedging, and offline-followup detection.",
                 "system_prompt": QA_SENTIMENT_PROMPT,
-                "model_name": "claude-haiku-4.5",
+                "model_name": "claude-haiku-4-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 2048,
@@ -471,7 +471,7 @@ def build_earnings_swarm(ticker: str, period: str,
                 "agent_name": "Synthesizer",
                 "description": "Merges the four specialist outputs into one structured JSON note.",
                 "system_prompt": SYNTHESIZER_PROMPT,
-                "model_name": "claude-sonnet-4.5",
+                "model_name": "claude-sonnet-4-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 2048,
@@ -544,7 +544,7 @@ The Synthesizer output is the row you persist. The four specialist outputs are t
 
 ## Step 5: Earnings-Season Batch Mode
 
-The single-call path is the prototype. The actual workload during peak earnings season is 125 calls a day. POST the entire list as one payload to `/v1/swarm/batch/completions` — the API executes the swarms in parallel and returns one item per swarm shaped `{"status", "swarm_name", "result", "usage"}`. Items arrive in completion order, not input order, so match them back to your calls by `swarm_name`.
+The single-call path is the prototype. The actual workload during peak earnings season is 125 calls a day. POST them to `/v1/swarm/batch/completions` in chunks of at most 50 — that is the per-request cap — and the API executes each chunk's swarms in parallel and returns one item per swarm shaped `{"status", "swarm_name", "result", "usage"}`. Items come back in submission order; matching them by `swarm_name` is the safer join once you are stitching several chunks together.
 
 ```python
 def load_today_calls() -> list[dict]:
@@ -555,6 +555,10 @@ def load_today_calls() -> list[dict]:
     return json.loads(Path("today_calls.json").read_text())
 
 
+# /v1/swarm/batch/completions accepts at most 50 swarms per request.
+BATCH_SIZE_LIMIT = 50
+
+
 def run_batch(calls: list[dict]) -> list[dict]:
     payload = [
         build_earnings_swarm(
@@ -562,22 +566,25 @@ def run_batch(calls: list[dict]) -> list[dict]:
         )
         for c in calls
     ]
-    response = requests.post(
-        f"{BASE_URL}/v1/swarm/batch/completions",
-        headers=headers,
-        json=payload,
-        timeout=3600,
-    )
-    response.raise_for_status()
-    return response.json()
+    results = []
+    for i in range(0, len(payload), BATCH_SIZE_LIMIT):
+        response = requests.post(
+            f"{BASE_URL}/v1/swarm/batch/completions",
+            headers=headers,
+            json=payload[i:i + BATCH_SIZE_LIMIT],
+            timeout=3600,
+        )
+        response.raise_for_status()
+        results.extend(response.json())
+    return results
 
 
 def persist_and_alert(calls: list[dict], results: list[dict]) -> None:
     out_path = Path(f"notes_{datetime.utcnow().strftime('%Y%m%d')}.jsonl")
     review_now = []
 
-    # Batch items arrive in completion order — join them back to the
-    # input calls by swarm_name.
+    # Batch items come back in submission order — join them back to the
+    # input calls by swarm_name anyway, since the run spans several chunks.
     by_name = {r.get("swarm_name", ""): r for r in results}
 
     with out_path.open("w") as f:
@@ -601,7 +608,7 @@ def persist_and_alert(calls: list[dict], results: list[dict]) -> None:
 
 
 today = load_today_calls()
-print(f"Processing {len(today)} calls in one batch...")
+print(f"Processing {len(today)} calls in batches of 50...")
 results = run_batch(today)
 persist_and_alert(today, results)
 
@@ -620,7 +627,7 @@ The crontab line that fires it at 5pm ET each weekday during the earnings burst:
 ```
 
 <Info>
-Most earnings calls during peak season land between 4:30pm and 5:00pm ET, immediately after the tape. Firing at 5:00pm ET catches the tail of late prints and gives the batch a clean window before market open the next morning. Premium-tier rate limits matter here: 125 ConcurrentWorkflows fired in a single POST consume meaningful concurrency, and queue contention on a free tier turns a 6-minute batch into a 90-minute one. The [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide covers the throughput tradeoffs in depth.
+Most earnings calls during peak season land between 4:30pm and 5:00pm ET, immediately after the tape. Firing at 5:00pm ET catches the tail of late prints and gives the batch a clean window before market open the next morning. Premium-tier rate limits matter here: 125 ConcurrentWorkflows fired across three back-to-back 50-swarm batches consume meaningful concurrency, and queue contention on a free tier turns a 6-minute batch into a 90-minute one. The [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide covers the throughput tradeoffs in depth.
 </Info>
 
 ## Real Cost vs. Junior Analyst

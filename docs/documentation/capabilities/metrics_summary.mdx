@@ -4,13 +4,13 @@ description: 'Retrieve a summary of your core usage metrics in a single call'
 ---
 
 
-The Metrics Summary endpoint (`/v1/metrics/summary`) returns an at-a-glance overview of your account's core usage metrics — how many unique agents you've used and completion-call counts derived from your request history — in a single response.
+The Metrics Summary endpoint (`/v1/account/metrics/summary`) returns an at-a-glance overview of your account's core usage metrics — how many unique agents you've used and completion-call counts derived from your request history — in a single response.
 
 This is the endpoint to power a usage dashboard: unique agents used, lifetime completion calls, and recent-window activity.
 
 ## Endpoint Information
 
-- **URL**: `/v1/metrics/summary`
+- **URL**: `/v1/account/metrics/summary` (the legacy path `/v1/metrics/summary` still works but is deprecated)
 - **Method**: `GET`
 - **Authentication**: Required (`x-api-key` header)
 - **Rate Limiting**: Subject to tier-based rate limits
@@ -71,7 +71,7 @@ The endpoint returns a JSON object with the following fields:
         """Retrieve a summary of your core usage metrics"""
         try:
             response = requests.get(
-                f"{BASE_URL}/v1/metrics/summary",
+                f"{BASE_URL}/v1/account/metrics/summary",
                 headers=HEADERS,
             )
             assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -99,7 +99,7 @@ The endpoint returns a JSON object with the following fields:
     const API_KEY = process.env.SWARMS_API_KEY;
 
     async function getMetricsSummary() {
-      const url = `${BASE_URL}/v1/metrics/summary`;
+      const url = `${BASE_URL}/v1/account/metrics/summary`;
       const resp = await fetch(url, {
         method: 'GET',
         headers: {
@@ -128,7 +128,7 @@ The endpoint returns a JSON object with the following fields:
 
     BASE_URL="https://api.swarms.world"
 
-    curl -X GET "${BASE_URL}/v1/metrics/summary" \
+    curl -X GET "${BASE_URL}/v1/account/metrics/summary" \
       -H "x-api-key: ${SWARMS_API_KEY}" \
       -H "Content-Type: application/json"
     ```

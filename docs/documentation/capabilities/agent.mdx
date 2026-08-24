@@ -23,7 +23,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `history` | `Union[Dict, List[Dict]]` | No | The history of the agent's previous tasks and responses. Can be either a dictionary or a list of message objects |
 | `img` | `string` | No | A base64 encoded image for the agent to process. Encode your image file to base64 and pass it here |
 | `imgs` | `List[string]` | No | A list of base64 encoded images for the agent to process. Encode your image files to base64 and pass them here |
-| `tools_enabled` | `List[string]` | No | Built-in tools for the agent. Supported values: `auto_search` (web search) and `web_scraper` (web scraping). Only one tool is attached per request: if both are listed, `auto_search` takes precedence and `web_scraper` is ignored. Enabling a tool is billed once per request (a flat search or scrape fee), regardless of how many times the agent uses it |
+| `tools_enabled` | `List[string]` | No | Built-in tools for the agent. Supported values: `auto_search` (web search) and `web_scraper` (web scraping). Both may be listed together, in which case the agent receives both tools. Enabling a tool is billed once per request (a flat search or scrape fee), regardless of how many times the agent uses it |
 
 ### AgentSpec Object
 
@@ -88,7 +88,7 @@ The response includes detailed usage metrics:
     "output_tokens": 300,
     "total_tokens": 450,
     "img_cost": 0.25,
-    "total_cost": 0.0056
+    "total_cost": 0.256525
   }
 }
 ```
@@ -309,7 +309,7 @@ let payload = json!({
 
 ### Agent with Search Capabilities
 
-Enable web search functionality for your agent by including `auto_search` in the `tools_enabled` parameter. This allows the agent to search the web for real-time information to complete tasks. Alternatively, pass `web_scraper` to let the agent scrape and format web pages. Note that only one of these tools can be active per request: if both are listed, `auto_search` takes precedence and `web_scraper` is ignored.
+Enable web search functionality for your agent by including `auto_search` in the `tools_enabled` parameter. This allows the agent to search the web for real-time information to complete tasks. Alternatively, pass `web_scraper` to let the agent scrape and format web pages. Both tools can be listed together, in which case the agent receives both and each is billed its own flat fee.
 
 <Tabs>
 <Tab title="Python">
@@ -970,7 +970,7 @@ For processing multiple agents simultaneously, use the batch endpoint:
 
 **Endpoint**: `/v1/agent/batch/completions`
 
-**Request**: Array of `AgentCompletion` objects (max 10 per batch)
+**Request**: Array of `AgentCompletion` objects (max 50 per batch)
 
 <Tabs>
 <Tab title="Python">

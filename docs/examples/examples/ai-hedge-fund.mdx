@@ -201,9 +201,11 @@ results = run_watchlist_batch(WATCHLIST)
 
 with open("morning_notes.jsonl", "w") as f:
     for ticker, result in zip(WATCHLIST, results):
-        # Extract the Portfolio Manager's final call
+        # Extract the Portfolio Manager's final call. Batch items are shaped
+        # {"status", "swarm_name", "result", "usage"} — the conversation lives
+        # under "result", not "output".
         pm_call = next(
-            (o["content"] for o in result.get("output", []) if "Portfolio Manager" in o.get("role", "")),
+            (o["content"] for o in result.get("result", []) if "Portfolio Manager" in o.get("role", "")),
             "",
         )
         if isinstance(pm_call, list):

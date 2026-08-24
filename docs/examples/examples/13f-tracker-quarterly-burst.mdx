@@ -13,7 +13,7 @@ description: "Parse ~5,000 13F filings in a 48-hour quarterly burst with a fan-o
 - A reusable pattern for any high-volume regulatory-filing burst (Form 4, N-PORT, NPX)
 
 <Info>
-This tutorial leans hard on two premium features: the graph workflow endpoint (`/v1/graph-workflow/completions`), dispatched concurrently across the filing list for the burst, and **night-mode pricing** for the burst itself. 13Fs become public after-hours on the 45-day lag — fire the burst between 11pm and 5am Pacific and you pay the night-mode rate. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule.
+This tutorial leans hard on two premium features: the graph workflow endpoint (`/v1/graph-workflow/completions`), dispatched concurrently across the filing list for the burst, and **night-mode pricing** for the burst itself. 13Fs become public after-hours on the 45-day lag — fire the burst between 8pm and 6am Pacific and you pay the night-mode rate. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule.
 </Info>
 
 ## Why This Matters
@@ -453,7 +453,7 @@ out_dir.mkdir(parents=True, exist_ok=True)
 A takeout dinner gets you the entire quarter's 13F coverage. Run four times a year and your annual budget for the program is roughly **\$400** in API cost.
 
 <Info>
-The burst must land inside the night-mode window (11pm–5am Pacific) to hit the headline pricing. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule mechanics and how to chunk a larger batch across multiple windows if you exceed the rate ceiling.
+The burst must land inside the night-mode window (8pm–6am Pacific) to hit the headline pricing. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule mechanics and how to chunk a larger batch across multiple windows if you exceed the rate ceiling.
 </Info>
 
 ## Step 6: The Theme Synthesizer Output

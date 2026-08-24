@@ -147,8 +147,6 @@
               "docs/marketplace/business-models",
               "docs/marketplace/account_management",
               "docs/marketplace/apikeys",
-              "docs/marketplace/apps_page",
-              "docs/marketplace/playground_page",
               "docs/marketplace/yuki"
             ]
           },
@@ -176,6 +174,7 @@
             "group": "API",
             "pages": [
               "docs/marketplace/api-overview",
+              "docs/marketplace/openapi-schema",
               "docs/marketplace/user-marketplace-endpoints",
               "docs/marketplace/list-products-api",
               "docs/marketplace/product-fees-api",

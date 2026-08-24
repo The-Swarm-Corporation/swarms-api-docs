@@ -46,7 +46,7 @@ POST /api/add-agent
 | `language` | string | No | Programming or script language |
 | `description` | string | Yes | Description of the agent |
 | `requirements` | array | No | Dependencies; each `{ "package": string, "installation": string }` |
-| `useCases` | array | Yes | Use cases; each `{ "title": string, "description": string }` |
+| `useCases` | array | No | Use cases; each `{ "title": string, "description": string }` |
 | `tags` | string | No | Comma-separated tags (min 2 characters if provided) |
 | `is_free` | boolean | No | Default `true` |
 | `price_usd` | number | If paid | Required when `is_free` is false; must be &gt; 0 |
@@ -59,10 +59,14 @@ POST /api/add-agent
 | `image_base64` | string | No | Base64-encoded image (alternative to `image_url`; may include `data:image/...;base64,` prefix) |
 | `links` | array | No | Array of strings or `{ "name": string, "url": string }` |
 | `seller_wallet_address` | string | No | Seller wallet address |
+| `payment_method` | string | No | `'crypto'` \| `'stripe'`; defaults to `'crypto'` |
 | `x402_url` | string | No | x402 payment URL (valid URL or empty string) |
 | `mcp_url` | string | No | MCP server URL (valid URL or empty string) |
 | `creator_wallet` | string | If tokenized | Creator wallet public key; required when `tokenized_on` is true |
 | `private_key` | string | If tokenized | Private key for signing (JSON array or base64); required when `tokenized_on` is true |
+| `fee_selection` | string | No | `'frenzy'` \| `'market'`; fee mode for the token launch |
+| `quote_mint` | string | No | `'SOL'` \| `'USDC'`; quote currency for the bonding curve (default `SOL`) |
+| `vault_mode` | boolean | No | Holders-only view gating (requires `tokenized_on`) |
 
 ### Request Body (detailed)
 
@@ -463,33 +467,23 @@ POST /api/query-agents
 
 #### Request Body
 
-<ParamField body="search" type="string">
-  Keyword to match agent names/descriptions
+<ParamField body="agent_id" type="string">
+  Look up a single agent by its ID
 </ParamField>
 
-<ParamField body="category" type="string">
-  Filter by category (case-insensitive)
+<ParamField body="username" type="string">
+  Return the agents owned by this username
 </ParamField>
 
-<ParamField body="priceFilter" type="string" default="all">
-  Filter by price: "all", "free", or "paid"
+<ParamField body="agent_name" type="string">
+  Match agent names (substring / slug match)
 </ParamField>
 
-<ParamField body="userFilter" type="string">
-  Filter by user ID
-</ParamField>
-
-<ParamField body="sortBy" type="string" default="newest">
-  Sort order: "newest", "oldest", "popular", or "rating"
-</ParamField>
-
-<ParamField body="limit" type="number" default="6">
+<ParamField body="limit" type="number" default="20">
   Number of agents to return (1-100)
 </ParamField>
 
-<ParamField body="offset" type="number" default="0">
-  Offset for pagination
-</ParamField>
+Only approved agents are returned.
 
 #### Example Request
 
@@ -499,12 +493,8 @@ POST /api/query-agents
 curl -X POST https://swarms.world/api/query-agents \
   -H "Content-Type: application/json" \
   -d '{
-    "search": "data analysis",
-    "category": "data-science",
-    "priceFilter": "all",
-    "sortBy": "newest",
-    "limit": 10,
-    "offset": 0
+    "agent_name": "data-analysis",
+    "limit": 10
   }'
 ```
 
@@ -515,12 +505,8 @@ url = "https://swarms.world/api/query-agents"
 headers = {"Content-Type": "application/json"}
 
 data = {
-    "search": "data analysis",
-    "category": "data-science",
-    "priceFilter": "all",
-    "sortBy": "newest",
-    "limit": 10,
-    "offset": 0
+    "agent_name": "data-analysis",
+    "limit": 10
 }
 
 response = requests.post(url, json=data, headers=headers)
@@ -535,12 +521,8 @@ const response = await fetch('https://swarms.world/api/query-agents', {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    search: 'data analysis',
-    category: 'data-science',
-    priceFilter: 'all',
-    sortBy: 'newest',
-    limit: 10,
-    offset: 0
+    agent_name: 'data-analysis',
+    limit: 10
   })
 });
 
@@ -553,37 +535,44 @@ console.log(agents);
 #### Example Response
 
 ```json
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "Data Analysis Agent",
-    "agent": "Agent code here...",
-    "description": "An AI agent specialized in data analysis",
-    "language": "python",
-    "requirements": [
-      {
-        "package": "pandas",
-        "installation": "pip install pandas"
-      }
-    ],
-    "use_cases": [
-      {
-        "title": "Financial Analysis",
-        "description": "Analyze financial data"
-      }
-    ],
-    "tags": "data,analysis,python",
-    "is_free": false,
-    "price_usd": 19.99,
-    "price": 0.05,
-    "category": "data-science",
-    "status": "approved",
-    "image_url": "https://example.com/image.jpg",
-    "user_id": "user-123",
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:30:00Z"
-  }
-]
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Data Analysis Agent",
+      "description": "An AI agent specialized in data analysis",
+      "language": "python",
+      "requirements": [
+        {
+          "package": "pandas",
+          "installation": "pip install pandas"
+        }
+      ],
+      "use_cases": [
+        {
+          "title": "Financial Analysis",
+          "description": "Analyze financial data"
+        }
+      ],
+      "tags": "data,analysis,python",
+      "is_free": false,
+      "price_usd": 19.99,
+      "price": 0.05,
+      "category": "data-science",
+      "status": "approved",
+      "image_url": "https://example.com/image.jpg",
+      "file_path": null,
+      "links": null,
+      "seller_wallet_address": null,
+      "user_id": "user-123",
+      "created_at": "2024-01-15T10:30:00Z",
+      "listing_url": "https://swarms.world/agent/550e8400-e29b-41d4-a716-446655440000"
+    }
+  ],
+  "query_type": "slug",
+  "query_value": "data-analysis",
+  "total": 1
+}
 ```
 
 ---
@@ -592,23 +581,23 @@ console.log(agents);
 
 All agent management endpoints are subject to rate limiting:
 
-- **Daily Limit**: 500 agents per user per day
-- **Reset Time**: Midnight UTC
+- **Daily Limit**: 3 paid agents per user per day (15 for VIP accounts); 500 free items (agents + prompts) per user per day
+- **Reset Time**: Midnight
 
 If you exceed the limit, you'll receive a `429` error response:
 
 ```json
 {
   "error": "Daily limit exceeded",
-  "message": "Daily limit reached: 500 agents per day. Resets at midnight.",
+  "message": "Daily limit reached: 3 paid agents per day. Resets at midnight.",
   "currentUsage": {
-    "paidAgents": 500,
+    "paidAgents": 3,
     "paidPrompts": 0,
     "freeContent": 0,
     "date": "2024-01-01"
   },
   "limits": {
-    "paidAgents": 500,
+    "paidAgents": 3,
     "paidPrompts": 500,
     "freeContent": 500
   },
@@ -625,7 +614,7 @@ The API uses standard HTTP status codes to signal errors:
 - `200`: Success
 - `400`: Bad Request (validation errors)
 - `401`: Unauthorized
-- `403`: Forbidden (content validation failed)
+- `403`: Forbidden (paid content without access)
 - `404`: Not Found
 - `429`: Too Many Requests
 - `500`: Internal Server Error
@@ -655,7 +644,7 @@ Every agent undergoes automated checks, including:
 - **Security Scanning**: Ensures code is safe
 - **Trustworthiness Scoring**: Rates each agent on quality and trust (content validation responses may include `trustworthiness`, `contentQuality`)
 
-Agents failing validation will get a `403 Forbidden` or `400 Bad Request` with detailed reasons.
+Agents failing validation get a `400 Bad Request` with detailed reasons.
 
 ---
 

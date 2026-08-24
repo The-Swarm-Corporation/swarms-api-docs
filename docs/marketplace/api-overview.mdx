@@ -28,6 +28,8 @@ The Swarms Marketplace provides a comprehensive set of APIs for managing agents,
 | **Prompts** | `/api/query-prompts` | POST | No | Search and filter prompts |
 | **Bundles** | `/api/v1/publish/bundle` | POST | Yes | Publish a bundle (curated collection of agents/prompts) |
 | **Token Launch** | `/api/token/launch` | POST | Yes | Create agent and launch token on Solana |
+| **Token Launch** | `/api/token/launch/batch` | POST | Yes | Launch up to 50 tokenized agents in one request |
+| **Reviews** | `/api/reviews` | POST | Yes | Submit a rating and review for an agent, prompt, or tool |
 | **Claim Fees** | `/api/product/claimfees` | POST | No | Claim accumulated creator fees |
 
 ---
@@ -81,7 +83,7 @@ Manage AI agents in the marketplace - create, update, and discover agents progra
 - Support for free and paid agents
 - Automatic content validation and quality assessment
 - Blockchain tokenization support
-- Rate limit: 500 agents/day per user
+- Rate limit: 3 paid agents/day per user (500/day for free agents)
 
 <Card title="Full Documentation" icon="book" href="/docs/marketplace/agents-api">
 View complete Agents API reference with examples
@@ -180,7 +182,7 @@ View complete Claim Fees API reference with examples
 | `200` | Success |
 | `400` | Bad Request - validation errors or invalid parameters |
 | `401` | Unauthorized - missing or invalid API key |
-| `403` | Forbidden - content validation failed |
+| `403` | Forbidden - paid content without access |
 | `404` | Not Found |
 | `405` | Method Not Allowed |
 | `429` | Too Many Requests - rate limit exceeded |
@@ -192,9 +194,9 @@ View complete Claim Fees API reference with examples
 
 | Resource | Limit | Reset |
 |----------|-------|-------|
-| Paid Agents | 500/day | Midnight UTC |
-| Paid Prompts | 500/day | Midnight UTC |
-| Free Content | 500/day | Midnight UTC |
+| Paid Agents | 3/day (15/day for VIP accounts) | Midnight |
+| Paid Prompts | 500/day | Midnight |
+| Free Content | 500/day | Midnight |
 
 When rate limited, you'll receive a `429` response with details about current usage, limits, and reset time.
 

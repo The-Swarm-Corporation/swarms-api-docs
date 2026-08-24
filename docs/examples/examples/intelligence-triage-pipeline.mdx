@@ -277,18 +277,18 @@ Procurement and IG reviews almost always ask the same two questions: who ran wha
 
 ```python
 # Full request history with timestamps, endpoints, and execution metadata
-logs = requests.get(f"{BASE_URL}/v1/swarm/logs", headers=headers, timeout=60).json()
+logs = requests.get(f"{BASE_URL}/v1/account/logs", headers=headers, timeout=60).json()
 
 # Aggregated usage and cost for billing reconciliation
 usage = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers, timeout=60).json()
 ```
 
-Every swarm run is logged with its inputs, agent outputs, token counts, and the model used per agent. This is the same trail your auditor will ask for during a contract review.
+Every swarm run is logged with its agent outputs, token counts, and the model used per agent (raw request inputs are not returned by the logs endpoint). This is the same trail your auditor will ask for during a contract review.
 
 ## Cost vs. a Human Triage Cycle
 
 <Info>
-**Real numbers.** A typical analyst (fully-loaded GS-13 or contractor equivalent at roughly \$120/hour) spends six hours triaging an overnight inbox of 200 open-source reports — about **\$720 of labor per morning, per analyst**, and most shops staff two to three on the cycle. Running this pipeline across the same 200-report inbox via concurrent `/v1/graph-workflow/completions` requests typically lands in the **single-digit dollars** range total, and produces a draft brief the analyst signs in fifteen minutes instead of writing from scratch. The analyst is still in the loop — but the loop is review-and-sign, not read-and-write.
+**Real numbers.** A typical analyst (fully-loaded GS-13 or contractor equivalent at roughly \$120/hour) spends six hours triaging an overnight inbox of 200 open-source reports — about **\$720 of labor per morning, per analyst**, and most shops staff two to three on the cycle. Running this pipeline across the same 200-report inbox via concurrent `/v1/graph-workflow/completions` requests typically lands in the **low tens of dollars** range total, and produces a draft brief the analyst signs in fifteen minutes instead of writing from scratch. The analyst is still in the loop — but the loop is review-and-sign, not read-and-write.
 </Info>
 
 ## Next Steps

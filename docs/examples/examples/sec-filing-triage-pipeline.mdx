@@ -12,10 +12,10 @@ Every morning by 7am ET, every new 10-Q for every name in the book has a materia
 - Real **EDGAR ingestion** including the SEC-mandated `User-Agent` header — no scraping, no hand-built parsers downstream
 - A **diff-against-prior** core: the pipeline only surfaces what changed versus the previous comparable filing (10-Q vs. prior 10-Q, 10-K vs. prior 10-K, 8-K vs. nothing)
 - A **materiality score** (0-100) attached to every delta so analysts read top-of-stack, not chronologically
-- An overnight **batch run** of 30-50 filings per portfolio per day against `/v1/swarm/batch/completions` — the volume that forces Pro → Premium
+- An overnight **batch run** of 30-50 filings per portfolio per day against `/v1/swarm/batch/completions` — a premium-only endpoint (Pro, Ultra, or Premium tier)
 
 <Info>
-The `/v1/swarm/batch/completions` endpoint used in Step 5 is a premium feature. A live portfolio firehose at 30-50 filings/day per book quickly saturates Pro rate limits — upgrade to Premium for the parallel execution and observability (per-filing cost, per-agent token counts, structured run logs) you need to actually trust this in production. Manage your plan at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+The `/v1/swarm/batch/completions` endpoint used in Step 5 is a premium feature — a Pro, Ultra, or Premium tier key unlocks it, and all three share the same request limits. Upgrade for the parallel execution and observability (per-filing cost, per-agent token counts, structured run logs) you need to actually trust this in production. Manage your plan at [https://swarms.world/platform/account](https://swarms.world/platform/account).
 </Info>
 
 ## Why This Matters
@@ -40,7 +40,7 @@ Analysts do not read 10-Qs — they skim them for what changed. A 90-page Q3 fil
                                                                   ▼
                             ┌─────────────────────┐    ┌─────────────────────┐
                             │ Memo Writer         │ ←  │ Materiality Scorer  │
-                            │ (claude-sonnet-4.5) │    │ (claude-sonnet-4.5) │
+                            │ (claude-sonnet-4-5) │    │ (claude-sonnet-4-5) │
                             └──────────┬──────────┘    └─────────────────────┘
                                        │
                                        ▼
@@ -298,7 +298,7 @@ PIPELINE_AGENTS = [
             '"LIQUIDITY"|"OTHER", "rationale": str}]. Be ruthless — most '
             "10-Q diffs are boilerplate cleanup and should score under 20."
         ),
-        "model_name": "claude-sonnet-4.5",
+        "model_name": "claude-sonnet-4-5",
         "role": "worker",
         "max_loops": 1,
         "max_tokens": 4096,
@@ -324,7 +324,7 @@ PIPELINE_AGENTS = [
             "Only include deltas scoring 30 or higher. If nothing scores "
             "above 30, say NO MATERIAL CHANGES and recommend NO ACTION."
         ),
-        "model_name": "claude-sonnet-4.5",
+        "model_name": "claude-sonnet-4-5",
         "role": "worker",
         "max_loops": 1,
         "max_tokens": 2048,
@@ -385,7 +385,7 @@ Persist only the Memo Writer's output to the research DB. The four upstream stag
 
 ## Step 5: Wire Up the EDGAR Firehose with Batch
 
-A real portfolio sees 30-50 new filings per day across its names — earnings season pushes that to 80+. Polling EDGAR every 15 minutes and triggering one swarm per filing would saturate Pro tier rate limits by mid-morning. Batch the day's queue in a single call.
+A real portfolio sees 30-50 new filings per day across its names — earnings season pushes that to 80+. Polling EDGAR every 15 minutes and triggering one swarm per filing burns a request per filing against the Free tier's 350/hour and 1,200/day caps. Batch the day's queue instead — `/v1/swarm/batch/completions` accepts up to 50 swarms per request, so chunk anything larger.
 
 ```python
 EDGAR_RECENT_FILINGS = "https://www.sec.gov/cgi-bin/browse-edgar"
@@ -426,6 +426,10 @@ def poll_new_filings(since: datetime) -> list[str]:
     return new_accessions
 
 
+# /v1/swarm/batch/completions accepts at most 50 swarms per request.
+BATCH_SIZE_LIMIT = 50
+
+
 def triage_filings_batch(accession_numbers: list[str]) -> list[dict]:
     batch_payload = []
     for acc in accession_numbers:
@@ -441,14 +445,17 @@ def triage_filings_batch(accession_numbers: list[str]) -> list[dict]:
             "agents": PIPELINE_AGENTS,
         })
 
-    response = requests.post(
-        f"{BASE_URL}/v1/swarm/batch/completions",
-        headers=headers,
-        json=batch_payload,
-        timeout=1800,
-    )
-    response.raise_for_status()
-    return response.json()
+    results = []
+    for i in range(0, len(batch_payload), BATCH_SIZE_LIMIT):
+        response = requests.post(
+            f"{BASE_URL}/v1/swarm/batch/completions",
+            headers=headers,
+            json=batch_payload[i:i + BATCH_SIZE_LIMIT],
+            timeout=1800,
+        )
+        response.raise_for_status()
+        results.extend(response.json())
+    return results
 
 
 # Run at 06:30 ET — picks up yesterday's late filings + this morning's 8-Ks
@@ -460,8 +467,10 @@ results = triage_filings_batch(new_filings)
 
 with open(f"triage_{datetime.utcnow():%Y%m%d}.jsonl", "w") as f:
     for acc, result in zip(new_filings, results):
+        # Batch items are shaped {"status", "swarm_name", "result", "usage"} —
+        # the swarm's conversation lives under "result", not "output".
         memo = next(
-            (o["content"] for o in result.get("output", [])
+            (o["content"] for o in result.get("result", [])
              if "Memo Writer" in o.get("role", "")),
             "",
         )

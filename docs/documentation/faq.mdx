@@ -61,18 +61,18 @@ The Swarms API supports multiple AI model providers:
 
 **OpenAI Models:**
 - gpt-4: High-quality reasoning and complex task handling
-- gpt-4.1: Optimized version with improved performance (premium tier only)
+- gpt-4.1: Optimized version with improved performance
 - gpt-4.1-mini: Lightweight version for faster responses
 
 **Anthropic Models:**
 - claude-sonnet-4-20250514: Balanced performance and reasoning
-- claude-3-7-sonnet-latest: Latest Claude model with enhanced capabilities
+- claude-sonnet-5: Default model used when model_name is omitted
 
 **Groq Models (premium tier only):**
-- groq/llama3-70b-8192: High-performance open-source model
-- groq/deepseek-r1-distill-llama-70b: Specialized reasoning model
+- groq/llama-3.3-70b-versatile: High-performance open-source model
+- groq/openai/gpt-oss-120b: Large open-weight reasoning model
 
-Note that some models are restricted to premium-tier accounts: `gpt-4.1` and all `groq/*` models are rejected for free-tier API keys.
+Note that some models are restricted to premium-tier accounts: all `groq/*` models, plus each provider's current top-tier frontier model (the `gpt-5.6` family, `claude-fable-5`, `claude-opus-5`/`claude-opus-4-8`, `gemini-3.1-pro`/`gemini-3.1-deep-think`, `xai/grok-4.5`). Mid-tier and small models — including `gpt-4.1` — remain available on the free tier.
 
 For the complete, up-to-date list of supported models, call `GET /v1/models` (or `GET /v1/models/available` for model metadata).
 </Accordion>
@@ -117,10 +117,10 @@ Rate limits are tier-based to ensure fair usage:
 | **Requests per Hour** | 350 | 10,000 | 1 hour |
 | **Requests per Day** | 1,200 | 100,000 | 24 hours |
 | **Tokens per Agent** | 200,000 | 2,000,000 | Per request |
-| **Prompt Length** | 200,000 | 200,000 | Per request |
-| **Batch Size** | 50 | — | Per request |
+| **Prompt Length** | 200,000 | 2,000,000 | Per request |
+| **Batch Size** | 50 | 50 | Per request |
 
-A batch size limit of 50 is defined for the free tier; the premium tier does not define a separate batch size limit.
+The batch size limit of 50 applies to all tiers.
 
 **Premium Tier Benefits:**
 - 20x more requests per minute (2,000 vs 100)

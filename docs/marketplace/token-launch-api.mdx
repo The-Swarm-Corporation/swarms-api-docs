@@ -36,6 +36,7 @@ You can send the request in two ways:
 | `image` | string | No | — | Agent/token image. **URL** (`https://...` or `http://...`): used as-is. **Base64** (data URL or raw): uploaded to Supabase Storage, then the Supabase URL is sent to Jupiter. Omit for no image. |
 | `fee_selection` | string | No | `"market"` | Fee tier for the bonding curve. `"frenzy"` uses a 2× fee multiplier (higher fees, more visibility on the Frenzy leaderboard). `"market"` uses the standard fee. |
 | `quote_mint` | string | No | `"SOL"` | Quote currency for the bonding curve. `"SOL"` (default) or `"USDC"`. Determines the denomination of the initial and migration market caps. |
+| `vault_mode` | boolean | No | `false` | Holders-only view gating. When `true`, the agent's entity page is blurred for non-holders and shows a buy CTA; any non-zero balance of the launched token unlocks it. Creators always have access. |
 
 **Option B — Multipart** (`Content-Type: multipart/form-data`)
 
@@ -48,6 +49,7 @@ You can send the request in two ways:
 | `image` | file | No | Raw image file (e.g. PNG, JPEG, WebP, GIF). Uploaded to Supabase Storage, then the Supabase URL is sent to Jupiter. Omit for no image. |
 | `fee_selection` | string | No | Same as JSON option above. |
 | `quote_mint` | string | No | Same as JSON option above. |
+| `vault_mode` | string | No | Same as JSON option above (send `"true"` or `"false"`). |
 
 ---
 
@@ -354,16 +356,16 @@ Returned when the creator wallet (derived from `private_key`) has less than 0.04
    Frenzy mode routes the token through a 2× fee Jupiter API key, doubling the bonding curve fees. Tokens launched with `fee_selection: "frenzy"` appear on the Frenzy leaderboard for increased visibility. Omit this field or set it to `"market"` for standard fees.
 
 5. **Quote mint (`quote_mint`)**  
-   Controls the denomination of the bonding curve:
-   - `"SOL"` (default): SOL-quoted pool. Market cap defaults are `initialMarketCap: 18 SOL`, `migrationMarketCap: 400 SOL`.
-   - `"USDC"`: USDC-quoted pool. Market cap defaults are `initialMarketCap: 4000 USDC`, `migrationMarketCap: 9000 USDC`.  
+   Controls the denomination of the bonding curve. Market cap defaults are USD targets — `$3,246` initial and `$46,468` migration:
+   - `"SOL"` (default): SOL-quoted pool (9 decimals). The USD targets are converted to SOL at the current spot price.
+   - `"USDC"`: USDC-quoted pool (6 decimals). The USD targets are used directly.  
    On-chain mint addresses: SOL = `So11111111111111111111111111111111111111112`, USDC = `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`.
 
 6. **Authentication**  
    Uses the same API key as the rest of the Swarms Platform API. Create and manage keys at [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
 
 7. **Rate limits**  
-   Subject to the same daily agent creation limits. See the [API Reference](https://docs.swarms.ai/api-reference) for limits and reset behavior.
+   Subject to the same daily agent creation limits. See the [Marketplace API Overview](/docs/marketplace/api-overview) for limits and reset behavior.
 
 8. **Error handling**  
    Some errors are normalized for a better client experience:
@@ -376,4 +378,4 @@ Returned when the creator wallet (derived from `private_key`) has less than 0.04
 
 - [Frenzy Launch Example](/docs/marketplace/token-launch-frenzy-example) – Complete walkthrough for launching a tokenized frenzy agent with 2× fees.
 - [Token Launch Batch API](/docs/marketplace/token-launch-batch-api) – Create multiple tokenized agents in a single request (1–50 tokens per call).
-- [API Reference](https://docs.swarms.ai/api-reference) – Overview, authentication, and other endpoints.
+- [Marketplace API Overview](/docs/marketplace/api-overview) – Overview, authentication, and other endpoints.

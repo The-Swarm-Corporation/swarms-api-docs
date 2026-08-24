@@ -198,7 +198,7 @@ result = requests.post(
     timeout=180,
 ).json()
 
-print(result["outputs"])
+print(result["output"])
 ```
 
 **What changed:**
@@ -376,7 +376,7 @@ result = requests.post(
     timeout=180,
 ).json()
 
-print(result["outputs"])
+print(result["output"])
 ```
 
 ---
@@ -467,7 +467,7 @@ agent = autogen.UserProxyAgent(
 | Code execution | Docker or local subprocess | Not built in — no sandboxed execution tool is provided |
 | Function calling | `register_function()` | `tools_list_dictionary` (OpenAI-style function schemas) on the agent |
 | Nested chats | `register_nested_chats()` | Use `HierarchicalSwarm` or `GraphWorkflow` |
-| Cost / token tracking | Via OpenAI usage logs | `usage.token_cost` in every response |
+| Cost / token tracking | Via OpenAI usage logs | `usage.billing_info.total_cost` (swarm) / `usage.total_cost` (agent) in every response |
 | Caching | `cache_seed` on `llm_config` | Not applicable; no local cache |
 
 ---

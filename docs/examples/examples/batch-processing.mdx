@@ -13,7 +13,7 @@ description: "Process multiple single-agent tasks efficiently in parallel using 
 </Info>
 
 <Warning>
-**Batch size limit**: A single request to `/v1/agent/batch/completions` accepts at most **10** `AgentCompletion` items. Requests with more than 10 items are rejected with an HTTP 400 error. To process larger volumes, split your work into chunks of 10 and submit multiple requests — see [Batch Agent Completions at Scale](/docs/examples/examples/batch-agent-scale-tutorial) for a chunking pattern.
+**Batch size limit**: A single request to `/v1/agent/batch/completions` accepts at most **50** `AgentCompletion` items. Requests with more than 50 items are rejected with an HTTP 422 validation error. To process larger volumes, split your work into chunks of 50 and submit multiple requests — see [Batch Agent Completions at Scale](/docs/examples/examples/batch-agent-scale-tutorial) for a chunking pattern.
 </Warning>
 
 ## What This Example Shows

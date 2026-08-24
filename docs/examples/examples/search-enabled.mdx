@@ -279,7 +279,7 @@ except Exception as e:
 
 ## Search Result Format
 
-Search-enabled agents return the standard `/v1/agent/completions` response shape. The agent's answer (with any web-sourced facts woven into the text) appears in `outputs`, and the search tool's cost is deducted from your credits and reflected in `total_cost`:
+Search-enabled agents return the standard `/v1/agent/completions` response shape. The agent's answer (with any web-sourced facts woven into the text) appears in `outputs`. The search tool's $0.04 fee is deducted from your credits as a separate charge — it is not included in the `usage.total_cost` field, which covers token and image costs only:
 
 ```json
 {
@@ -299,7 +299,7 @@ Search-enabled agents return the standard `/v1/agent/completions` response shape
     "output_tokens": 300,
     "total_tokens": 450,
     "img_cost": 0.0,
-    "total_cost": 0.0088
+    "total_cost": 0.006525
   },
   "timestamp": "2026-02-05T00:58:15.252392+00:00"
 }
@@ -307,11 +307,11 @@ Search-enabled agents return the standard `/v1/agent/completions` response shape
 
 ## Rate Limiting
 
-Search operations may have additional rate limits:
+Search operations have no extra rate limits of their own; they count against your account's normal request limits (free tier):
 
-- **Per Minute**: 10 search requests
-- **Per Hour**: 100 search requests
-- **Per Day**: 500 search requests
+- **Per Minute**: 100 requests
+- **Per Hour**: 350 requests
+- **Per Day**: 1200 requests
 
 Implement exponential backoff for rate limit handling:
 

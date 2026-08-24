@@ -5,7 +5,7 @@ description: 'Access and analyze your API request logs and swarm execution histo
 
 
 
-Access comprehensive logs of all your API requests and swarm executions. The `/v1/swarm/logs` endpoint provides detailed information about your API usage history, including request timestamps, status codes, and execution details.
+Access comprehensive logs of all your API requests and swarm executions. The `/v1/account/logs` endpoint provides detailed information about your API usage history, including request timestamps, status codes, and execution details. (The older `/v1/swarm/logs` path is a deprecated alias for the same endpoint.)
 
 <Info>
 Logs are filtered to exclude any entries containing client IP addresses for privacy protection. Access is limited to logs associated with your API key.
@@ -34,7 +34,7 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
     def get_swarm_logs():
         """Get all API request logs"""
         response = requests.get(
-            f"{BASE_URL}/v1/swarm/logs",
+            f"{BASE_URL}/v1/account/logs",
             headers=headers
         )
 
@@ -64,7 +64,7 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
 
     async function getSwarmLogs() {
         try {
-            const response = await fetch(`${BASE_URL}/v1/swarm/logs`, {
+            const response = await fetch(`${BASE_URL}/v1/account/logs`, {
                 method: 'GET',
                 headers: headers
             });
@@ -91,19 +91,19 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
   <Tab title="cURL">
     ```bash
     # Get API request logs
-    curl -X GET "https://api.swarms.world/v1/swarm/logs" \
+    curl -X GET "https://api.swarms.world/v1/account/logs" \
       -H "x-api-key: your-api-key" \
       -H "Content-Type: application/json"
 
     # Example response:
     # {
     #   "status": "success",
-    #   "count": null,
+    #   "count": 137,
     #   "logs": [
     #     {
     #       "id": 12345,
     #       "created_at": "2026-07-01T10:30:00+00:00",
-    #       "api_key": "sk-xxxxxxxx",
+    #       "api_key": "...a1b2",
     #       "category": "completion",
     #       "data": {
     #         "job_id": "agent-abc123",
@@ -132,12 +132,12 @@ The logs endpoint returns structured information about your API usage. Each log 
 ```json
 {
   "status": "success",
-  "count": null,
+  "count": 137,
   "logs": [
     {
       "id": 12345,
       "created_at": "2026-07-01T10:30:00+00:00",
-      "api_key": "sk-xxxxxxxx",
+      "api_key": "...a1b2",
       "category": "completion",
       "data": {
         "job_id": "agent-abc123",
@@ -162,7 +162,7 @@ The logs endpoint returns structured information about your API usage. Each log 
 ```
 
 <Note>
-The top-level `count` field is always returned as `null` — compute the number of entries from `len(logs)` (or `logs.length` in JavaScript) instead. The shape of `data` depends on what was logged: agent completions carry `usage.total_cost`, while swarm completions carry `usage.billing_info.total_cost`, `swarm_name`, and `execution_time`. Entries containing client IP data, telemetry, and raw request inputs are excluded.
+The top-level `count` is the exact total number of matching log entries across every API key on the account, including revoked ones. It is not `len(logs)`: the `logs` array is capped at the 1000 newest entries, so `count` exceeds it once an account passes 1000 requests. Each entry's `api_key` is redacted to its last 4 characters. The shape of `data` depends on what was logged: agent completions carry `usage.total_cost`, while swarm completions carry `usage.billing_info.total_cost`, `swarm_name`, and `execution_time`. Entries containing client IP data, telemetry, and raw request inputs are excluded.
 </Note>
 
 ## Log Analysis and Filtering
@@ -841,7 +841,7 @@ The top-level `count` field is always returned as `null` — compute the number 
 **Empty Logs Response**
 ```bash
 # Check if API key is correct
-curl -I "https://api.swarms.world/v1/swarm/logs" \
+curl -I "https://api.swarms.world/v1/account/logs" \
   -H "x-api-key: your-api-key"
 ```
 

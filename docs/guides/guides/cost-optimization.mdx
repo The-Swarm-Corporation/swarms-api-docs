@@ -7,7 +7,7 @@ description: "A strategic guide to cutting Swarms API spend by tiering models, g
 
 - Why one-size-fits-all model selection is the wrong default for any production swarm
 - Four concrete cost patterns you can drop into existing pipelines without re-architecting
-- The 50% night-mode discount window on batch endpoints and how to claim it
+- The 50% night-mode discount window on swarm completions and how to claim it
 - A reproducible cost table comparing naive (all-flagship) to a tiered + batch + night-mode setup
 - The two configuration levers (`max_tokens` and `max_loops`) that quietly drive most of your spend
 
@@ -216,12 +216,12 @@ If 80% of items auto-resolve at cheap-tier prices and only 20% reach the flagshi
 
 ## Pattern 3: Batch Endpoints + Night Mode
 
-The Swarms platform applies a **50% night-time discount** on input and output token costs for traffic processed between **8 PM and 6 AM Pacific** (`America/Los_Angeles`). The discount is implemented in `calculate_swarm_cost` — see `api/utils.py` — and applies to billed token costs (the per-agent fixed component is unaffected). The platform decides the discount based on the server clock when the work is processed, so the way you capture it is to **send the work during that window**, typically via the batch endpoints.
+The Swarms platform applies a **50% night-time discount** on input and output token costs for swarm completions processed between **8 PM and 6 AM Pacific** (`America/Los_Angeles`). The discount is implemented in `calculate_swarm_cost` — see `api/swarm_completions.py` — and applies to billed swarm token costs (the per-agent fixed component is unaffected; agent completions are not discounted). The platform decides the discount based on the server clock when the work is processed, so the way you capture it is to **send the work during that window**, typically via the batch endpoints.
 
 Two endpoints matter here:
 
-- `/v1/agent/batch/completions` — array of single-agent jobs in one request
-- `/v1/swarm/batch/completions` — array of multi-agent swarm jobs in one request
+- `/v1/agent/batch/completions` — array of single-agent jobs in one request (batching only; the night discount does not apply to agent completions)
+- `/v1/swarm/batch/completions` — array of multi-agent swarm jobs in one request (night discount applies)
 
 The shape is the same: each item is a full request body, identical to what you'd send to the non-batch endpoint.
 
@@ -279,7 +279,7 @@ To actually claim the discount, schedule the job. A simple `cron` entry on a Pac
 ```
 
 <Info>
-Night-mode is a 50% discount on **token costs**, not on the per-agent base charge. For token-heavy swarms (long inputs, long outputs) it cuts the bill roughly in half. For very short calls dominated by the per-agent fixed cost, the effective savings is smaller. Larger jobs benefit more.
+Night-mode is a 50% discount on **swarm-completion token costs**, not on the per-agent base charge. For token-heavy swarms (long inputs, long outputs) it cuts the bill roughly in half. For very short calls dominated by the per-agent fixed cost, the effective savings is smaller. Larger jobs benefit more.
 </Info>
 
 ## Pattern 4: Cap Tokens and Loops
@@ -328,7 +328,7 @@ Run this list against any swarm config heading to production:
 - Is `max_tokens` bounded close to the expected output length on every agent?
 - Is `max_loops` set to 1 unless you have measured that more loops change the answer?
 - Could a cheap classifier filter the queue before the expensive agent runs (Pattern 2)?
-- Can the workload run overnight on `/v1/agent/batch/completions` or `/v1/swarm/batch/completions` for the 50% night discount (Pattern 3)?
+- Can the workload run overnight on `/v1/swarm/completions` or `/v1/swarm/batch/completions` for the 50% night discount (Pattern 3)?
 - Have you confirmed the flagship agent is reserved for the role that genuinely benefits — synthesis, final judgment, the agent whose output is the artifact?
 
 ## Next Steps

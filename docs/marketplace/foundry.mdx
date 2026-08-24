@@ -58,15 +58,15 @@ Before an agent can transact, it must perform reliably under real workloads. Fou
 </CardGroup>
 
 ```python
-from swarms import Agent, Swarm
+from swarms import Agent, SequentialWorkflow
 
 agent = Agent(
-    name="revenue-agent",
-    model="gpt-4.1",
+    agent_name="revenue-agent",
+    model_name="gpt-4.1",
     system_prompt="...",
 )
 
-swarm = Swarm(agents=[agent])
+swarm = SequentialWorkflow(agents=[agent])
 result = swarm.run("Analyze market")
 ```
 

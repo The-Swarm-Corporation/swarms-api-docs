@@ -412,7 +412,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "input_tokens": 450,
         "output_tokens": 4850,
         "total_tokens": 5300,
-        "token_cost": 0.0803,
+        "token_cost": 0.12265,
         "cost_per_agent": 0.03
     },
     "timestamp": "2025-01-12T10:30:45.123456Z"
@@ -507,7 +507,7 @@ else:
 | `description` | string | No | A description of what the workflow does |
 | `agent_completions` | array | Yes | List of agent configurations (see AgentSpec below) |
 | `tasks` | array | Yes | List of tasks that each agent will process |
-| `max_loops` | integer | Yes | Number of iterations for refinement. Must be a positive integer — omitting it or passing a value below 1 returns a `400` error |
+| `max_loops` | integer | No | Number of iterations for refinement (default: 1). Must be between 1 and 50 — values outside that range are rejected with a `422` validation error |
 | `imgs` | array | No | Accepted for forward compatibility, but not currently used in execution — passing images here has no effect on the run |
 
 ### AgentSpec
@@ -544,7 +544,7 @@ else:
 | `input_tokens` | integer | Total input tokens consumed |
 | `output_tokens` | integer | Total output tokens generated |
 | `total_tokens` | integer | Sum of input and output tokens |
-| `token_cost` | float | Cost in credits for token usage |
+| `token_cost` | float | Total credits charged for the run: input and output token costs plus `cost_per_agent` |
 | `cost_per_agent` | float | Fixed cost per agent (0.01 credits per agent) |
 
 ## Pricing

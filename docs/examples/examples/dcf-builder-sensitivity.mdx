@@ -524,7 +524,7 @@ PORTFOLIO = [
 
 def run_portfolio_refresh(tickers: list[str]) -> list[dict]:
     # Step 1: Reason assumptions for every ticker via the batch agent
-    # endpoint. The endpoint caps each request at 10 agent completions,
+    # endpoint. The endpoint caps each request at 50 agent completions,
     # so chunk the portfolio; results come back in input order under
     # the response's "results" key.
     reasoned_assumptions = []
@@ -574,8 +574,8 @@ def run_portfolio_refresh(tickers: list[str]) -> list[dict]:
 
 def persist_memos(tickers: list[str], results: list[dict]) -> None:
     # Each batch item is {"status", "swarm_name", "result", "usage"} and
-    # items arrive in completion order, not input order — recover the
-    # ticker from the swarm name.
+    # items come back in input order — the swarm name is still the safest
+    # way to recover the ticker.
     date = datetime.utcnow().strftime("%Y-%m-%d")
     by_name = {r.get("swarm_name", ""): r for r in results}
     with open(f"dcf_memos_{date}.jsonl", "w") as f:

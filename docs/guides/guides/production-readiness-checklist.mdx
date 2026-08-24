@@ -28,7 +28,7 @@ The first 80% of any API integration is happy-path code. The last 20% — the pa
 ### Idempotency and Request IDs
 
 - [ ] Generate a client-side request ID (UUID v4) for every submit and persist it alongside the payload
-- [ ] Use the request ID as the join key when you later reconcile against `/v1/swarm/logs`
+- [ ] Use the request ID as the join key when you later reconcile against `/v1/account/logs`
 - [ ] Treat retries as idempotent only if you've established the original request never succeeded — a 5xx or a timeout is not proof of non-execution
 
 ### Retry Policy
@@ -70,7 +70,7 @@ Upgrade to premium when **any** of these are true. The premium tier is \$100/mon
 
 ### Audit and Compliance
 
-- [ ] Daily export of `/v1/swarm/logs` to your own log lake (S3, BigQuery, etc.)
+- [ ] Daily export of `/v1/account/logs` to your own log lake (S3, BigQuery, etc.)
 - [ ] Pin `model_name` per agent. Do not let your code "pick a model" at runtime in regulated workloads
 - [ ] For regulated workloads, set `temperature=0` (or omit it on Opus 4.8) and `max_loops=1` for reproducibility
 
@@ -123,7 +123,7 @@ class ProductionClient:
       - Retry-with-backoff that honors Retry-After on 429s.
       - Hard per-call and cumulative budget caps.
       - Pre-flight credit check.
-      - Per-request UUID for correlation against /v1/swarm/logs.
+      - Per-request UUID for correlation against /v1/account/logs.
       - Rate-limit header capture on every response.
     """
 
@@ -243,8 +243,8 @@ class ProductionClient:
     # ---- post-flight ----
 
     def verify_in_logs(self, request_id: str) -> bool:
-        """Confirm the request landed in /v1/swarm/logs (audit-trail check)."""
-        r = requests.get(f"{BASE_URL}/v1/swarm/logs", headers=HEADERS, timeout=30)
+        """Confirm the request landed in /v1/account/logs (audit-trail check)."""
+        r = requests.get(f"{BASE_URL}/v1/account/logs", headers=HEADERS, timeout=30)
         r.raise_for_status()
         marker = request_id[:8]
         for entry in r.json().get("logs", []):
@@ -286,7 +286,7 @@ print(f"request_id={result.request_id} cost=${result.cost:.4f} ok={result.ok}")
 
 # Post-flight: confirm the audit trail is intact.
 if not client.verify_in_logs(result.request_id):
-    log.warning("rid=%s did not appear in /v1/swarm/logs", result.request_id)
+    log.warning("rid=%s did not appear in /v1/account/logs", result.request_id)
 ```
 
 <Note>
@@ -319,7 +319,7 @@ The wrapper tags every request's `name` with the first 8 characters of the UUID 
   <Accordion title="No budget cap in code">
     A misconfigured loop or a runaway hierarchical swarm can spend hundreds of dollars in minutes. The per-call and cumulative budget checks in the wrapper above are the cheapest insurance you'll buy this quarter.
   </Accordion>
-  <Accordion title="Treating /v1/swarm/logs as real-time">
+  <Accordion title="Treating /v1/account/logs as real-time">
     Logs are durable, not instantaneous. The verify-in-logs check above is for after-the-fact audit, not for inline correlation. Don't block your hot path on it.
   </Accordion>
 </AccordionGroup>

@@ -183,7 +183,7 @@ Note: Estimates range from 28-45% depending on methodology. Conservative
 base case of 30% is better supported by deployment data...
 
 ============================================================
-Synthesis-Agent
+Synthesis Agent
 ============================================================
 ## Executive Summary
 
@@ -214,7 +214,7 @@ deep_result = run_heavy_analysis(
 # The synthesis agent output from the final loop contains the most refined analysis
 outputs = deep_result.get("output", [])
 for output in outputs:
-    if output["role"] == "Synthesis-Agent":
+    if output["role"] == "Synthesis Agent":
         print("FINAL SYNTHESIZED ANALYSIS:")
         print(str(output["content"])[:2000])
 ```

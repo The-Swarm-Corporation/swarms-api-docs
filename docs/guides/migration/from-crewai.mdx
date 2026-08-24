@@ -17,7 +17,7 @@ CrewAI models multi-agent work as a **Crew** of role-playing Agents executing Ta
 | `@tool` / `BaseTool` | `tools_list_dictionary` (OpenAI-style function schemas) on agent spec |
 | `manager_llm` | Director agent in `HierarchicalSwarm` |
 | `memory=True` | Stateless per-request; add external memory for cross-session |
-| `verbose=True` | Full agent outputs returned in `outputs` response field |
+| `verbose=True` | Full agent outputs returned in `output` response field |
 
 ---
 
@@ -126,7 +126,7 @@ result = requests.post(
     timeout=120,
 ).json()
 
-final_output = result["outputs"]
+final_output = result["output"]
 print(final_output)
 ```
 
@@ -243,7 +243,7 @@ result = requests.post(
     timeout=120,
 ).json()
 
-print(result["outputs"])
+print(result["output"])
 ```
 
 ---
@@ -436,7 +436,7 @@ async def run():
             timeout=300,
         )
         result = response.json()
-        print(result["outputs"])
+        print(result["output"])
 
 asyncio.run(run())
 ```
@@ -452,7 +452,7 @@ asyncio.run(run())
 | Human input | `human_input=True` on Task | Not currently supported in API |
 | Output parsing | `output_pydantic`, `output_json` | Not a dedicated field; instruct the model to return structured JSON via `system_prompt`/`task`, or define a schema in `tools_list_dictionary` |
 | Rate limiting | Depends on LLM provider | Managed by the API; see [rate limits](/docs/documentation/resources/ratelimits) |
-| Cost tracking | External | `usage.token_cost` in every response |
+| Cost tracking | External | `usage.billing_info.total_cost` (swarm) / `usage.total_cost` (agent) in every response |
 
 ---
 

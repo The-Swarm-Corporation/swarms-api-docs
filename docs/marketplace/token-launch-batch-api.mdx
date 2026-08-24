@@ -43,6 +43,7 @@ Creates multiple tokenized agents in a single request. Each item in the batch is
 | `ticker` | string | Yes | Token symbol (e.g. `MAG`, `SWARM`). 1–10 characters; only letters and numbers. Automatically uppercased. |
 | `private_key` | string | No | Overrides the top-level `private_key` for this token only. Use when different wallets create different tokens. |
 | `image` | string | No | Agent/token image. **URL** (`https://...` or `http://...`): used as-is. **Base64** (data URL or raw): uploaded to Supabase Storage, then the Supabase URL is sent to Jupiter. Omit for no image. |
+| `fee_selection` | string | No | Fee tier for this token's bonding curve: `"frenzy"` (2× fees, listed on the Frenzy leaderboard) or `"market"` (standard fees). |
 
 **Private key rule:** Every token must have a private key. Either set `private_key` at the top level (applies to all tokens that don't set their own) or set `private_key` on each token, or mix: some tokens use the default, others override with their own.
 
@@ -558,7 +559,7 @@ Output JSON for each HTTP status. Use the tabs to switch between response types.
    Same API key as the rest of the Swarms Platform API. Create and manage keys at [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys). If Add Agent returns 401 for some items, those appear as failed entries in a 207 response with an authentication-related error message.
 
 5. **Rate limits**  
-   Subject to the same daily agent creation limits as Add Agent. Each token in the batch counts toward your limit. See the [API Reference](https://docs.swarms.ai/api-reference) for limits and reset behavior.
+   Subject to the same daily agent creation limits as Add Agent. Each token in the batch counts toward your limit. See the [Marketplace API Overview](/docs/marketplace/api-overview) for limits and reset behavior.
 
 6. **Batch size**  
    Minimum 1, maximum 50 tokens per request. For larger batches, send multiple requests.
@@ -578,4 +579,4 @@ Output JSON for each HTTP status. Use the tabs to switch between response types.
 
 - [Token Launch (single)](/docs/marketplace/token-launch-api) – Create one token per request; supports JSON and multipart.
 - [Agents API](/docs/marketplace/agents-api) – Full agent creation API used internally by both launch endpoints.
-- [API Reference](https://docs.swarms.ai/api-reference) – Overview, authentication, and other endpoints.
+- [Marketplace API Overview](/docs/marketplace/api-overview) – Overview, authentication, and other endpoints.

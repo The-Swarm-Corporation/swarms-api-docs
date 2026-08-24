@@ -1,6 +1,6 @@
 ---
 title: "Production Observability with Swarms"
-description: "Wire /v1/swarm/logs, /v1/usage/costs, /v1/account/credits, and X-RateLimit-* headers into a single operator dashboard for cost, error, and quota visibility."
+description: "Wire /v1/account/logs, /v1/usage/costs, /v1/account/credits, and X-RateLimit-* headers into a single operator dashboard for cost, error, and quota visibility."
 ---
 
 ## What This Covers
@@ -18,7 +18,7 @@ Most teams discover their observability gap the day a customer asks "what did th
 
 | Signal | Endpoint / Source | Time grain | Answers |
 | --- | --- | --- | --- |
-| Per-request logs | `GET /v1/swarm/logs` | Per request | "What ran? Did it succeed? How much did it cost?" |
+| Per-request logs | `GET /v1/account/logs` | Per request | "What ran? Did it succeed? How much did it cost?" |
 | Live pricing rates | `GET /v1/usage/costs` | Snapshot (current rate card) | "What are we billed per token / agent / search right now?" |
 | Credit balance | `GET /v1/account/credits` | Snapshot | "Do we have headroom for the next batch job?" |
 | Rate-limit headers | `X-RateLimit-*` on every response | Per request | "Are we about to get 429'd? Do we need to back off?" |
@@ -49,7 +49,7 @@ The single most useful operator script: what ran in the last 24 hours, grouped b
 
 ```python
 def fetch_logs():
-    resp = requests.get(f"{BASE_URL}/v1/swarm/logs", headers=headers, timeout=30)
+    resp = requests.get(f"{BASE_URL}/v1/account/logs", headers=headers, timeout=30)
     resp.raise_for_status()
     return resp.json()
 
@@ -117,7 +117,7 @@ The exact shape of each log entry can vary slightly — `swarm_type`, `agent_nam
 
 ## Step 3: Reconcile Logged Costs Against Live Pricing
 
-`/v1/usage/costs` is not a historical rollup — it returns the current rate card (`usage_pricing`) the platform is billing right now, plus a timestamp. There's no per-day or per-period usage-history endpoint in the API; `/v1/swarm/logs` is the only durable, per-request record of what you actually spent. Use the live rate card to sanity-check that the costs your logs recorded still match the rates you expect — this catches a pricing change you didn't notice, or a client-side cost estimate that's gone stale.
+`/v1/usage/costs` is not a historical rollup — it returns the current rate card (`usage_pricing`) the platform is billing right now, plus a timestamp. There's no per-day or per-period usage-history endpoint in the API; `/v1/account/logs` is the only durable, per-request record of what you actually spent. Use the live rate card to sanity-check that the costs your logs recorded still match the rates you expect — this catches a pricing change you didn't notice, or a client-side cost estimate that's gone stale.
 
 ```python
 def fetch_current_pricing() -> dict:
@@ -213,7 +213,7 @@ For enterprise and regulated workloads — healthcare, financial services, legal
 - "Reconstruct the chain of agent outputs that produced this trade recommendation."
 - "Produce the model name, system prompt, and output for the decision made at 14:32 UTC."
 
-The `/v1/swarm/logs` endpoint is filtered to your API key and excludes client IP addresses for privacy, but otherwise retains the request shape, the model invoked, the response time, and the cost. Combined with deterministic agent configs (low temperature, pinned model names, fixed `max_loops`), it gives you a reproducible record per agent call — which is what most regulators actually want.
+The `/v1/account/logs` endpoint is filtered to your API key and excludes client IP addresses for privacy, but otherwise retains the request shape, the model invoked, the response time, and the cost. Combined with deterministic agent configs (low temperature, pinned model names, fixed `max_loops`), it gives you a reproducible record per agent call — which is what most regulators actually want.
 
 <Info>
 The platform's existing log retention is suitable for debugging and operational analytics. For workloads with formal retention requirements (GxP, HIPAA, SOX, SR 11-7), export logs to your own storage on a daily cadence — the [Swarm Logs examples](/docs/examples/examples/swarm-logs) show CSV/JSON/compressed export patterns.
@@ -224,7 +224,7 @@ The platform's existing log retention is suitable for debugging and operational 
 A pragmatic daily cron looks like this:
 
 1. **00:05 UTC** — pull `/v1/usage/costs` to snapshot the current rate card; diff it against yesterday's snapshot to catch pricing changes
-2. **00:10 UTC** — pull `/v1/swarm/logs`; archive yesterday's entries to S3 / your log lake; aggregate by `swarm_type` and `model_name` for finance — this log aggregation is also where your daily total cost comes from, since there's no separate daily-rollup endpoint
+2. **00:10 UTC** — pull `/v1/account/logs`; archive yesterday's entries to S3 / your log lake; aggregate by `swarm_type` and `model_name` for finance — this log aggregation is also where your daily total cost comes from, since there's no separate daily-rollup endpoint
 3. **00:15 UTC** — pull `/v1/account/credits`; alert if `total_credits < daily_budget * 7`
 4. **Continuously** — every production request logs its `X-RateLimit-Remaining-Minute`; alert if a rolling 5-minute average drops below 20% of `X-RateLimit-Limit-Minute`
 

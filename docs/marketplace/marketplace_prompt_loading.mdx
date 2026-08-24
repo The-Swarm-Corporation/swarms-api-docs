@@ -85,12 +85,12 @@ print(response)
 When you provide a `marketplace_prompt_id`, the agent:
 
 1. **Fetches the prompt** from the Swarms Marketplace API during initialization
-2. **Sets the system prompt** from the marketplace data
+2. **Appends the prompt** to the agent's system prompt
 3. **Optionally updates agent metadata** - If you haven't set a custom `agent_name` or `agent_description`, these will be populated from the marketplace prompt data
 4. **Logs the operation** - You'll see a confirmation message when the prompt is loaded successfully
 
 ```
-🛒 [MARKETPLACE] Loaded prompt 'Your Prompt Name' from Swarms Marketplace
+[Marketplace] Loaded prompt 'Your Prompt Name' from Swarms Marketplace
 ```
 
 ## Configuration Options
@@ -185,7 +185,7 @@ agent = Agent(
 | `ValueError: Swarms API key is not set` | Set the `SWARMS_API_KEY` environment variable |
 | `ValueError: Prompt not found` | Verify the prompt ID is correct on the marketplace |
 | `Connection timeout` | Check your internet connection and try again |
-| Agent not using expected prompt | Ensure you're not also setting `system_prompt` parameter |
+| Agent not using expected prompt | The marketplace prompt is appended to any `system_prompt` you set |
 
 ## Related Resources
 

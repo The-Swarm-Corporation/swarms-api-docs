@@ -282,7 +282,7 @@ for i, deal_result in enumerate(batch_response.json()):
     print(f"\n=== TARGET {i + 1} ===")
     print(
         f"Cost: ${deal_result['usage']['billing_info']['total_cost']:.4f} | "
-        f"Time: {deal_result['execution_time']:.1f}s"
+        f"Status: {deal_result['status']}"
     )
 ```
 

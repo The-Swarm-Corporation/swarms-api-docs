@@ -304,7 +304,7 @@ print(json.dumps(result, indent=4))
 
 ## Cost Pattern: Fable 5 Aggregator, Cheaper Workers
 
-Fable 5 is priced above the Opus tier, so a common production pattern is `MixtureOfAgents` with inexpensive workers doing the breadth work and Fable 5 doing the final synthesis, where its reasoning matters most.
+Fable 5 reasons at length and spends more tokens than smaller models, so a common production pattern is `MixtureOfAgents` with lighter workers doing the breadth work and Fable 5 doing the final synthesis, where its reasoning matters most.
 
 ```python
 result = client.swarms.run(
@@ -381,7 +381,7 @@ Every other swarm architecture takes the same `model_name`. Drop `"model_name": 
     Fable 5 ships with additional safety classifiers and may decline certain requests (notably deep cybersecurity and research-biology content) that other models answer. If your workload lives near those domains, route it to `anthropic/claude-opus-4-8` instead.
   </Accordion>
   <Accordion title="Where do I find pricing?">
-    Fable 5 pricing follows Anthropic's published rates ($10/$50 per million input/output tokens) and is reflected in the Swarms cost-tracking endpoints. See the [pricing page](/docs/documentation/resources/pricing) for current rates.
+    The Swarms API bills token usage at the same flat rate for every model — $6.50 per million input tokens and $18.50 per million output tokens — so Fable 5 costs the same per token as any other model here. See the [pricing page](/docs/documentation/resources/pricing) for current rates.
   </Accordion>
 </AccordionGroup>
 
@@ -389,5 +389,5 @@ Every other swarm architecture takes the same `model_name`. Drop `"model_name": 
 
 - Browse the [Multi-Agent Architectures](/docs/documentation/multi-agent/overview) catalog for more swarm types
 - Read the [Single Agent Overview](/docs/examples/examples/agent-overview) for the full agent config surface
-- See the [Claude Opus 4.8 example](/docs/examples/examples/claude-opus-4-8) for the lower-cost Anthropic tier with the same no-temperature rule
+- See the [Claude Opus 4.8 example](/docs/examples/examples/claude-opus-4-8) for the other Anthropic frontier tier with the same no-temperature rule
 - See [Streaming](/docs/examples/examples/streaming) to stream Fable 5 tokens to your client in real time

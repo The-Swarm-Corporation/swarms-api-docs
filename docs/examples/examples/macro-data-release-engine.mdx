@@ -319,10 +319,10 @@ Four asset-class strategists fan out from the hypothesis, then a synthesizer col
 | Desk | Model | Why |
 | --- | --- | --- |
 | Rates | `gpt-4.1` | Structured, numerate, strong on yield-curve mechanics |
-| FX | `grok-4` | Real-time edge — picks up the live tape and positioning chatter |
-| Equities | `claude-sonnet-4.5` | Best at sector rotation reasoning under regime shifts |
+| FX | `xai/grok-4` | Real-time edge — picks up the live tape and positioning chatter |
+| Equities | `claude-sonnet-4-5` | Best at sector rotation reasoning under regime shifts |
 | Commodities | `gpt-4.1-mini` | Cheap and adequate — commodities reaction is mostly mechanical |
-| Synthesizer | `claude-sonnet-4.5` | Needs to read four theses and write one tight brief |
+| Synthesizer | `claude-sonnet-4-5` | Needs to read four theses and write one tight brief |
 
 ```python
 RATES_PROMPT = (
@@ -405,7 +405,7 @@ def build_release_swarm(release_id: str, release_ts: str) -> dict:
                 "agent_name": "FXStrategist",
                 "description": "FX desk thesis.",
                 "system_prompt": FX_PROMPT,
-                "model_name": "grok-4",
+                "model_name": "xai/grok-4",
                 "max_loops": 1,
                 "max_tokens": 1500,
                 "temperature": 0.3,
@@ -415,7 +415,7 @@ def build_release_swarm(release_id: str, release_ts: str) -> dict:
                 "agent_name": "EquityStrategist",
                 "description": "Equity desk thesis.",
                 "system_prompt": EQUITY_PROMPT,
-                "model_name": "claude-sonnet-4.5",
+                "model_name": "claude-sonnet-4-5",
                 "max_loops": 1,
                 "max_tokens": 1500,
                 "temperature": 0.3,
@@ -435,7 +435,7 @@ def build_release_swarm(release_id: str, release_ts: str) -> dict:
                 "agent_name": "ThesisSynthesizer",
                 "description": "Synthesizes the four desks into one Slack brief.",
                 "system_prompt": SYNTH_PROMPT,
-                "model_name": "claude-sonnet-4.5",
+                "model_name": "claude-sonnet-4-5",
                 "max_loops": 1,
                 "max_tokens": 2000,
                 "temperature": 0.2,

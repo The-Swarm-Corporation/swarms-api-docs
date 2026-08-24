@@ -158,7 +158,7 @@ result = requests.post(
     timeout=120,
 ).json()
 
-print(result["outputs"])
+print(result["output"])
 ```
 
 No lambdas or output-passing glue code needed — the sequential workflow passes each agent's output to the next automatically.
@@ -257,7 +257,7 @@ result = requests.post(
     timeout=90,
 ).json()
 
-outputs = result["outputs"]
+outputs = result["output"]
 print(outputs["pros_analyst"])
 print(outputs["cons_analyst"])
 print(outputs["examples_analyst"])
@@ -563,7 +563,7 @@ print(chat("What is my name?"))
 | Streaming | `.stream()` / `.astream()` | Same endpoint with `"streaming_on": true` on the agent config (SSE response) |
 | Callbacks | `callbacks=[...]` on chain/agent | Not needed; all outputs returned in response |
 | Retry logic | `with_retry()` | Handled server-side |
-| Fallbacks | `with_fallbacks([...])` | `model_name` can be swapped per agent |
+| Fallbacks | `with_fallbacks([...])` | `fallback_models` (ordered list) / `fallback_model_name` on the agent spec |
 | Output parsers | `StrOutputParser`, `PydanticOutputParser` | No dedicated field; instruct the model via `system_prompt` to emit JSON, then parse it yourself |
 | Vector stores / RAG | `VectorStoreRetriever` | Pass retrieved context directly in `task` |
 | Embeddings | `OpenAIEmbeddings`, etc. | Not needed in the API; use external embedding service |

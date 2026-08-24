@@ -5,9 +5,9 @@ description: "Check how much in creator fees a tokenized product has generated, 
 
 **GET** `https://swarms.world/api/product/fees`
 
-Returns the creator fees that the authenticated user has generated for one of their **tokenized** products (an agent or prompt with a launched token). Fee data is read live from the Jupiter partner API and reported in **SOL**.
+Returns the creator fees that the authenticated user has generated for one of their **tokenized** products (an agent or prompt with a launched token). Fee data is read live from the Jupiter partner API and reported in the pool's quote currency (**SOL** unless the launch chose another quote mint), along with a live USDC equivalent.
 
-Identify the product by its **ticker**, its **product UUID**, or its **full Swarms product URL**. The endpoint resolves the product against your account, determines the fee-vault wallet, and returns the product name and UUID along with its total, unclaimed, and claimed fees and the time of the read.
+Identify the product by its **ticker**, its **token contract address**, its **product UUID**, or its **full Swarms product URL**. The endpoint resolves the product against your account, determines the fee-vault wallet, and returns the product name and UUID along with its total, unclaimed, and claimed fees and the time of the read.
 
 Authenticate with your Swarms API key in the `Authorization` header.
 
@@ -33,8 +33,9 @@ Provide **one** of the following to identify the product. If multiple are suppli
 |-----------|------|-------------|
 | `url` | string | Full Swarms product URL, e.g. `https://swarms.world/agent/<uuid>`. |
 | `id` | string | Product UUID. |
+| `ca` | string | Token contract address (mint). Also accepted as `tokenAddress`. |
 | `ticker` | string | Token ticker / symbol. A leading `$` is optional. |
-| `product` | string | Convenience parameter that auto-detects whether the value is a URL, UUID, or ticker. |
+| `product` | string | Convenience parameter that auto-detects whether the value is a URL, UUID, contract address, or ticker. |
 
 ---
 
@@ -42,15 +43,20 @@ Provide **one** of the following to identify the product. If multiple are suppli
 
 ### Success (HTTP 200)
 
-Fee amounts are in **SOL**.
+Fee amounts are in the pool's quote currency (**SOL** by default; see `quoteMint`).
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | string \| null | Product name. |
 | `uuid` | string | Product UUID. |
-| `claimedFees` | number | Fees already claimed, in SOL. |
-| `unclaimedFees` | number | Fees available to claim, in SOL. |
-| `totalFees` | number | Total fees earned (unclaimed + claimed), in SOL. |
+| `ca` | string | Token contract address (mint). |
+| `ticker` | string \| null | Token ticker / symbol. |
+| `quoteMint` | string | Mint address of the pool's quote currency (SOL mint by default). |
+| `claimedFees` | number | Fees already claimed, in the quote currency. |
+| `unclaimedFees` | number | Fees available to claim, in the quote currency. |
+| `totalFees` | number | Total fees earned (unclaimed + claimed), in the quote currency. |
+| `usdcEquivalent` | object \| null | The same three amounts converted to USD plus `quotePriceUsd`. `null` when no price is available. |
+| `isAvailable` | boolean | Whether Jupiter returned live fee data for the pool. |
 | `timestamp` | string | ISO 8601 server time when the fees were read. |
 
 **Example success response:**
@@ -59,9 +65,19 @@ Fee amounts are in **SOL**.
 {
   "name": "Research Analyst",
   "uuid": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+  "ca": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+  "ticker": "RSRCH",
+  "quoteMint": "So11111111111111111111111111111111111111112",
   "claimedFees": 1.08,
   "unclaimedFees": 0.42,
   "totalFees": 1.5,
+  "usdcEquivalent": {
+    "claimedFees": 216.0,
+    "unclaimedFees": 84.0,
+    "totalFees": 300.0,
+    "quotePriceUsd": 200.0
+  },
+  "isAvailable": true,
   "timestamp": "2026-07-01T18:30:00.000Z"
 }
 ```
@@ -73,7 +89,7 @@ If the product exists but Jupiter has no fee data yet (for example the pool is n
 | Code | Meaning |
 |------|---------|
 | `200` | Success. |
-| `400` | Bad request: no product identifier provided, or the URL did not contain a valid product UUID. |
+| `400` | Bad request: no product identifier provided, the URL did not contain a valid product UUID, or no wallet address is associated with the product or your account. |
 | `401` | Unauthorized: API key is missing or invalid. |
 | `404` | No tokenized product found for the given identifier under your account. |
 | `500` | Internal server error. |
@@ -104,7 +120,7 @@ import requests
 BASE_URL = "https://swarms.world"
 API_KEY = "YOUR_API_KEY"
 
-# `product` auto-detects a ticker, UUID, or full Swarms URL
+# `product` auto-detects a ticker, contract address, UUID, or full Swarms URL
 response = requests.get(
     f"{BASE_URL}/api/product/fees",
     headers={"Authorization": f"Bearer {API_KEY}"},
@@ -127,15 +143,25 @@ else:
 interface ProductFeesResponse {
   name: string | null;
   uuid: string;
+  ca: string;
+  ticker: string | null;
+  quoteMint: string;
   claimedFees: number;
   unclaimedFees: number;
   totalFees: number;
+  usdcEquivalent: {
+    claimedFees: number;
+    unclaimedFees: number;
+    totalFees: number;
+    quotePriceUsd: number;
+  } | null;
+  isAvailable: boolean;
   timestamp: string;
 }
 
 async function getProductFees(
   apiKey: string,
-  product: string // ticker, UUID, or full Swarms URL
+  product: string // ticker, contract address, UUID, or full Swarms URL
 ): Promise<ProductFeesResponse> {
   const url = new URL("https://swarms.world/api/product/fees");
   url.searchParams.set("product", product);

@@ -23,9 +23,9 @@ Platform marketplace, and read back the full review history for any listed item.
 
 | `model_type` value | What it refers to |
 |---|---|
-| `agent` | An AI agent listed at `swarms.world/agents/{id}` |
-| `prompt` | A system prompt listed at `swarms.world/prompts/{id}` |
-| `tool` | A tool listed at `swarms.world/tools/{id}` |
+| `agent` | An AI agent listed at `swarms.world/agent/{id}` |
+| `prompt` | A system prompt listed at `swarms.world/prompt/{id}` |
+| `tool` | A tool listed at `swarms.world/tool/{id}` |
 
 ---
 
@@ -133,7 +133,7 @@ The review was saved. The response body contains the persisted review record.
 
 | HTTP Status | `error` field value | When it occurs |
 |---|---|---|
-| `400` | `"Authorization header with a Bearer token is required"` | `Authorization` header is missing or malformed. |
+| `401` | `"Authorization header with a Bearer token is required"` | `Authorization` header is missing or malformed. |
 | `400` | `"Request body must be valid JSON"` | Body cannot be parsed as JSON. |
 | `400` | `"model_id is required"` | `model_id` is absent or not a string. |
 | `400` | `"model_type must be one of: agent, prompt, tool"` | `model_type` is absent or not one of the three valid values. |

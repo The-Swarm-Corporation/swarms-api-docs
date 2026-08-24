@@ -90,9 +90,7 @@ time.sleep(2)
 # Step 2: Query for the agent
 print("\nQuerying for SQL agents...")
 query_data = {
-    "search": "sql query",
-    "category": "data-science",
-    "sortBy": "newest",
+    "agent_name": "sql-query",
     "limit": 5
 }
 
@@ -102,7 +100,7 @@ response = requests.post(
     headers={"Content-Type": "application/json"}
 )
 
-agents = response.json()
+agents = response.json()["data"]
 print(f"✓ Found {len(agents)} agent(s)")
 for agent in agents[:3]:
     print(f"  - {agent['name']} (${agent['price_usd']})")
@@ -201,14 +199,12 @@ class SQLQueryGenerator(Agent):
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        search: 'sql query',
-        category: 'data-science',
-        sortBy: 'newest',
+        agent_name: 'sql-query',
         limit: 5
       })
     });
 
-    const agents = await queryResponse.json();
+    const agents = (await queryResponse.json()).data;
     console.log(`✓ Found ${agents.length} agent(s)`);
     agents.slice(0, 3).forEach(agent => {
       console.log(`  - ${agent.name} ($${agent.price_usd})`);
@@ -314,16 +310,13 @@ if response.status_code == 200:
     query_response = requests.post(
         f"{BASE_URL}/api/query-prompts",
         json={
-            "search": "code review",
-            "category": "development",
-            "priceFilter": "free",
-            "sortBy": "newest",
+            "prompt_name": "code-review",
             "limit": 5
         },
         headers={"Content-Type": "application/json"}
     )
 
-    prompts = query_response.json()
+    prompts = query_response.json()["data"]
     print(f"✓ Found {len(prompts)} prompt(s)")
     for p in prompts[:3]:
         price_display = "Free" if p['is_free'] else f"${p['price_usd']}"
@@ -407,14 +400,12 @@ Programming language: {language}`,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      search: 'code review',
-      category: 'development',
-      priceFilter: 'free',
+      prompt_name: 'code-review',
       limit: 5
     })
   });
 
-  const prompts = await queryResponse.json();
+  const prompts = (await queryResponse.json()).data;
   console.log(`✓ Found ${prompts.length} prompt(s)`);
 
   // Update to paid
@@ -440,59 +431,37 @@ promptLifecycle();
 
 ---
 
-## Pagination Example
+## Fetching Results Example
 
-This example demonstrates how to implement pagination when querying the marketplace.
+The query endpoints return up to `limit` results per call (1–100, default 20); there is no offset-based pagination. Ask for the number of results you need in a single call.
 
 <CodeGroup>
 
 ```python Python
 import requests
 
-def fetch_all_prompts(category=None, search=None):
-    """Fetch all prompts with pagination"""
+def fetch_prompts(prompt_name=None, limit=100):
+    """Fetch prompts from the marketplace (max 100 per request)"""
     BASE_URL = "https://swarms.world"
-    all_prompts = []
-    offset = 0
-    limit = 20
 
-    while True:
-        query_data = {
-            "limit": limit,
-            "offset": offset,
-            "sortBy": "newest"
-        }
+    query_data = {"limit": limit}
+    if prompt_name:
+        query_data["prompt_name"] = prompt_name
 
-        if category:
-            query_data["category"] = category
-        if search:
-            query_data["search"] = search
+    response = requests.post(
+        f"{BASE_URL}/api/query-prompts",
+        json=query_data,
+        headers={"Content-Type": "application/json"}
+    )
 
-        response = requests.post(
-            f"{BASE_URL}/api/query-prompts",
-            json=query_data,
-            headers={"Content-Type": "application/json"}
-        )
-
-        prompts = response.json()
-
-        if not prompts:
-            break
-
-        all_prompts.extend(prompts)
-        print(f"Fetched {len(prompts)} prompts (total: {len(all_prompts)})")
-
-        # If we got fewer results than the limit, we've reached the end
-        if len(prompts) < limit:
-            break
-
-        offset += limit
-
-    return all_prompts
+    payload = response.json()
+    prompts = payload["data"]
+    print(f"Fetched {len(prompts)} of {payload['total']} matching prompt(s)")
+    return prompts
 
 # Usage
-print("Fetching all development prompts...")
-dev_prompts = fetch_all_prompts(category="development")
+print("Fetching code review prompts...")
+dev_prompts = fetch_prompts(prompt_name="code-review")
 print(f"\nTotal prompts found: {len(dev_prompts)}")
 
 # Display statistics
@@ -508,46 +477,26 @@ if paid_count > 0:
 ```
 
 ```javascript JavaScript
-async function fetchAllPrompts(category = null, search = null) {
+async function fetchPrompts(promptName = null, limit = 100) {
   const BASE_URL = 'https://swarms.world';
-  const allPrompts = [];
-  let offset = 0;
-  const limit = 20;
 
-  while (true) {
-    const queryData = {
-      limit: limit,
-      offset: offset,
-      sortBy: 'newest'
-    };
+  const queryData = { limit };
+  if (promptName) queryData.prompt_name = promptName;
 
-    if (category) queryData.category = category;
-    if (search) queryData.search = search;
+  const response = await fetch(`${BASE_URL}/api/query-prompts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(queryData)
+  });
 
-    const response = await fetch(`${BASE_URL}/api/query-prompts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(queryData)
-    });
-
-    const prompts = await response.json();
-
-    if (prompts.length === 0) break;
-
-    allPrompts.push(...prompts);
-    console.log(`Fetched ${prompts.length} prompts (total: ${allPrompts.length})`);
-
-    if (prompts.length < limit) break;
-
-    offset += limit;
-  }
-
-  return allPrompts;
+  const payload = await response.json();
+  console.log(`Fetched ${payload.data.length} of ${payload.total} matching prompt(s)`);
+  return payload.data;
 }
 
 // Usage
-console.log('Fetching all development prompts...');
-const devPrompts = await fetchAllPrompts('development');
+console.log('Fetching code review prompts...');
+const devPrompts = await fetchPrompts('code-review');
 console.log(`\nTotal prompts found: ${devPrompts.length}`);
 
 // Statistics
@@ -826,25 +775,22 @@ import requests
 from typing import List, Dict, Any
 
 def advanced_search(
-    search_term: str = None,
-    categories: List[str] = None,
+    name_terms: List[str] = None,
     price_range: tuple = None,
-    min_rating: float = None
 ) -> List[Dict[str, Any]]:
-    """Advanced search with multiple filters"""
+    """Query by name, then filter the results client-side"""
     BASE_URL = "https://swarms.world"
 
-    # Search in multiple categories
+    # The API filters by name/id/username only, so query each term
+    # and apply any further filtering on the returned rows.
     all_results = []
 
-    categories = categories or ["development", "data-science", "content"]
+    name_terms = name_terms or ["code-review", "data-analysis"]
 
-    for category in categories:
+    for term in name_terms:
         query_data = {
-            "search": search_term,
-            "category": category,
-            "sortBy": "rating",
-            "limit": 50
+            "prompt_name": term,
+            "limit": 100
         }
 
         response = requests.post(
@@ -854,8 +800,7 @@ def advanced_search(
         )
 
         if response.status_code == 200:
-            results = response.json()
-            all_results.extend(results)
+            all_results.extend(response.json()["data"])
 
     # Apply additional filters
     filtered_results = all_results
@@ -869,18 +814,14 @@ def advanced_search(
                (not r['is_free'] and min_price <= r['price_usd'] <= max_price)
         ]
 
-    # Sort by relevance
-    filtered_results.sort(
-        key=lambda x: x.get('rating', 0) if min_rating else x['created_at'],
-        reverse=True
-    )
+    # Newest first
+    filtered_results.sort(key=lambda x: x['created_at'], reverse=True)
 
     return filtered_results
 
 # Usage
 results = advanced_search(
-    search_term="code assistant",
-    categories=["development", "ai"],
+    name_terms=["code-assistant", "code-review"],
     price_range=(0, 10),
 )
 
@@ -1042,28 +983,17 @@ if not API_KEY:
     raise ValueError("SWARMS_API_KEY environment variable not set")
 ```
 
-### 5. Implement Pagination Correctly
+### 5. Request the Results You Need in One Call
+
+The query endpoints cap `limit` at 100 and do not support offset paging, so read the
+`total` field to see how many rows matched.
 
 ```python
-def fetch_all_with_pagination(query_params):
-    all_items = []
-    offset = 0
-    limit = 50
+def fetch_items(query_params):
+    query_params["limit"] = 100
+    response = requests.post(url, json=query_params)
+    payload = response.json()
 
-    while True:
-        query_params.update({"offset": offset, "limit": limit})
-        response = requests.post(url, json=query_params)
-        items = response.json()
-
-        if not items:
-            break
-
-        all_items.extend(items)
-
-        if len(items) < limit:
-            break
-
-        offset += limit
-
-    return all_items
+    print(f"Returned {len(payload['data'])} of {payload['total']} matching item(s)")
+    return payload["data"]
 ```

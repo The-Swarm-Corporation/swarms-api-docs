@@ -1,0 +1,262 @@
+---
+title: "OpenAPI Schema"
+description: "Machine-readable OpenAPI schema for the Swarms Marketplace API, served at swarms.world/openapi.json - use it to generate clients, import into API tools, and drive agents."
+---
+
+The Swarms Marketplace publishes a machine-readable OpenAPI schema describing its public HTTP API. Point a code generator, an API client, or an agent at one URL instead of hand-writing request models.
+
+**Schema URL:** `https://swarms.world/openapi.json`
+
+## At a Glance
+
+| Property | Value |
+|----------|-------|
+| **Schema URL** | `https://swarms.world/openapi.json` |
+| **Format** | OpenAPI, JSON |
+| **API base URL** | `https://swarms.world` |
+| **Authentication** | `Authorization: Bearer YOUR_API_KEY` |
+| **Access** | Public - no API key needed to read the schema |
+| **Covers** | Products, agents, prompts, bundles, reviews, token launch, fee claims |
+
+<Note>
+This is the **Marketplace** schema. The Swarms API (agent and swarm execution) publishes a separate schema at `https://api.swarms.world/openapi.json`, which powers the [API Reference](/api-reference) tab of these docs. The two are independent - different base URLs, different endpoints.
+</Note>
+
+---
+
+## Fetching the Schema
+
+The schema endpoint is public. No API key is required to download it.
+
+<CodeGroup>
+
+```bash cURL
+curl -s https://swarms.world/openapi.json -o swarms-marketplace-openapi.json
+```
+
+```python Python
+import json
+import requests
+
+spec = requests.get("https://swarms.world/openapi.json", timeout=30).json()
+
+print(spec["info"]["title"], spec["info"]["version"])
+for path, methods in spec["paths"].items():
+    for method in methods:
+        print(f"{method.upper():6} {path}")
+```
+
+```typescript TypeScript
+const res = await fetch("https://swarms.world/openapi.json");
+const spec = await res.json();
+
+for (const [path, methods] of Object.entries(spec.paths)) {
+  for (const method of Object.keys(methods as object)) {
+    console.log(`${method.toUpperCase().padEnd(6)} ${path}`);
+  }
+}
+```
+
+</CodeGroup>
+
+<Warning>
+If a scripted fetch returns an HTML page titled **Vercel Security Checkpoint** with a `429` status instead of JSON, your client was flagged by bot protection. Open the URL in a browser to download the file, or retry from a different network, then commit the saved copy to your repo and generate from the local file.
+</Warning>
+
+---
+
+## What the Schema Covers
+
+The schema describes the marketplace endpoints documented across this section:
+
+| Area | Endpoint | Method | Auth | Reference |
+|------|----------|--------|------|-----------|
+| Products | `/api/product/list` | GET | Required | [List Products API](/docs/marketplace/list-products-api) |
+| Products | `/api/product/fees` | GET | Required | [Product Fees API](/docs/marketplace/product-fees-api) |
+| Agents | `/api/add-agent` | POST | Required | [Agents API](/docs/marketplace/agents-api) |
+| Agents | `/api/edit-agent` | POST | Required | [Agents API](/docs/marketplace/agents-api) |
+| Agents | `/api/query-agents` | POST | Optional | [Agents API](/docs/marketplace/agents-api) |
+| Prompts | `/api/add-prompt` | POST | Required | [Prompts API](/docs/marketplace/prompts-api) |
+| Prompts | `/api/edit-prompt` | POST | Required | [Prompts API](/docs/marketplace/prompts-api) |
+| Prompts | `/api/query-prompts` | POST | Optional | [Prompts API](/docs/marketplace/prompts-api) |
+| Bundles | `/api/v1/publish/bundle` | POST | Required | [Bundles API](/docs/marketplace/bundles-api) |
+| Reviews | `/api/reviews` | GET / POST | POST only | [Reviews API](/docs/marketplace/reviews) |
+| Token Launch | `/api/token/launch` | POST | Required | [Token Launch API](/docs/marketplace/token-launch-api) |
+| Token Launch | `/api/token/launch/batch` | POST | Required | [Token Launch Batch API](/docs/marketplace/token-launch-batch-api) |
+| Fees | `/api/product/claimfees` | POST | Wallet key in body | [Claim Fees API](/docs/marketplace/claim-fees-api) |
+
+A fuller list, including read endpoints such as `/api/get-agents/[id]/full` and `/api/get-tokenized-products`, is in [User Marketplace Endpoints](/docs/marketplace/user-marketplace-endpoints).
+
+<Info>
+The live schema is the source of truth. If it lists an operation this table does not, prefer the schema - it tracks the deployed API. Enumerate the current surface with the fetch snippets above.
+</Info>
+
+---
+
+## Authentication
+
+Marketplace endpoints authenticate with a bearer token:
+
+```bash
+curl -X GET "https://swarms.world/api/product/list" \
+  -H "Authorization: Bearer $SWARMS_API_KEY"
+```
+
+Generated clients expose this as a bearer security scheme - set the token once when constructing the client rather than on each call. Get a key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+<Warning>
+Never commit an API key into a generated client's config. Read it from an environment variable such as `SWARMS_API_KEY`.
+</Warning>
+
+---
+
+## Generate a Client
+
+<CodeGroup>
+
+```bash TypeScript types
+# Type-only: emits interfaces for every request and response body
+npx openapi-typescript https://swarms.world/openapi.json \
+  -o src/swarms-marketplace.d.ts
+```
+
+```bash Python client
+# Full client with models and methods
+npx @openapitools/openapi-generator-cli generate \
+  -i https://swarms.world/openapi.json \
+  -g python \
+  -o ./swarms-marketplace-python \
+  --additional-properties=packageName=swarms_marketplace
+```
+
+```bash Go client
+npx @openapitools/openapi-generator-cli generate \
+  -i https://swarms.world/openapi.json \
+  -g go \
+  -o ./swarms-marketplace-go
+```
+
+```bash Rust client
+npx @openapitools/openapi-generator-cli generate \
+  -i https://swarms.world/openapi.json \
+  -g rust \
+  -o ./swarms-marketplace-rust
+```
+
+</CodeGroup>
+
+<Tip>
+Generate from a **committed local copy** of the schema rather than the live URL in CI. Your build then stays reproducible, and a schema change shows up as a reviewable diff instead of a surprise build failure.
+</Tip>
+
+---
+
+## Import into API Tools
+
+<AccordionGroup>
+
+<Accordion title="Postman">
+**Import → Link**, paste `https://swarms.world/openapi.json`, and Postman builds a collection with every endpoint and example body. Add a collection-level Bearer Token auth with your API key so all requests inherit it.
+</Accordion>
+
+<Accordion title="Insomnia">
+**Create → Import From → URL**, paste the schema URL. Insomnia generates a request per operation. Set the bearer token in an environment variable so it is not stored in the exported workspace.
+</Accordion>
+
+<Accordion title="Bruno">
+Use `bruno import openapi swarms-marketplace-openapi.json` against a downloaded copy - Bruno collections are plain files, so the imported collection can live in your repo alongside your integration code.
+</Accordion>
+
+<Accordion title="Local API explorer">
+Render a browsable reference from the schema without deploying anything:
+
+```bash
+npx @redocly/cli preview-docs https://swarms.world/openapi.json
+```
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Validate the Schema
+
+Useful when you have pinned a local copy and want to confirm it still parses before generating from it:
+
+<CodeGroup>
+
+```bash Redocly
+npx @redocly/cli lint swarms-marketplace-openapi.json
+```
+
+```bash Mintlify
+npx mint openapi-check https://swarms.world/openapi.json
+```
+
+</CodeGroup>
+
+---
+
+## Use the Schema with Agents
+
+An OpenAPI document is a tool definition an agent can read directly. Two practical paths:
+
+<CardGroup cols={2}>
+<Card title="Feed the schema to an agent" icon="file-code">
+Pass the fetched schema (or a filtered subset of its `paths`) into your agent's tool definitions so it can call marketplace endpoints itself. Trim to the operations the agent actually needs - a full spec wastes context.
+</Card>
+<Card title="Use the hosted MCP server" icon="plug" href="/docs/documentation/clients/swarms-api-mcp">
+For agent and swarm **execution**, the hosted MCP server at `mcp.swarms.world` already exposes the Swarms API as MCP tools - no schema parsing needed.
+</Card>
+</CardGroup>
+
+---
+
+## Keeping in Sync
+
+The marketplace API evolves. To avoid silent drift:
+
+<Steps>
+<Step title="Pin a copy">
+Commit the fetched schema to your repo and generate clients from that file.
+</Step>
+<Step title="Diff on a schedule">
+Re-fetch the live schema in CI and diff it against the pinned copy. A non-empty diff is a signal to review, not an automatic upgrade.
+</Step>
+<Step title="Regenerate deliberately">
+When you accept a change, regenerate the client and run your integration tests before shipping.
+</Step>
+</Steps>
+
+```bash
+# Example CI drift check
+curl -s https://swarms.world/openapi.json -o /tmp/live-openapi.json
+diff <(jq -S . swarms-marketplace-openapi.json) <(jq -S . /tmp/live-openapi.json) \
+  && echo "Schema unchanged" \
+  || echo "Schema drift detected - review before regenerating"
+```
+
+---
+
+## Related Resources
+
+<CardGroup cols={2}>
+<Card title="API Overview" icon="book" href="/docs/marketplace/api-overview">
+Endpoint index, status codes, and rate limits
+</Card>
+<Card title="API Keys" icon="key" href="/docs/marketplace/apikeys">
+Create and manage marketplace API keys
+</Card>
+<Card title="Agents API" icon="robot" href="/docs/marketplace/agents-api">
+Complete reference for agent management
+</Card>
+<Card title="Prompts API" icon="file-lines" href="/docs/marketplace/prompts-api">
+Complete reference for prompt management
+</Card>
+<Card title="Token Launch API" icon="rocket" href="/docs/marketplace/token-launch-api">
+Launch tokenized agents on Solana
+</Card>
+<Card title="Examples" icon="code" href="/docs/marketplace/examples">
+Real-world marketplace integration examples
+</Card>
+</CardGroup>

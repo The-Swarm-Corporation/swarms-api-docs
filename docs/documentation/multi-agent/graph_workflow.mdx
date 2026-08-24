@@ -101,7 +101,7 @@ headers = {
 | `input_tokens` | `integer` | Total number of input tokens consumed |
 | `output_tokens` | `integer` | Total number of output tokens generated |
 | `total_tokens` | `integer` | Sum of input and output tokens |
-| `token_cost` | `float` | Total cost in credits for token usage |
+| `token_cost` | `float` | Total credits charged for the run: input and output token costs plus `cost_per_agent` |
 | `cost_per_agent` | `float` | Cost per agent (0.01 * number_of_agents) |
 
 ## Cost Calculation
@@ -221,7 +221,7 @@ else:
     "input_tokens": 1250,
     "output_tokens": 3200,
     "total_tokens": 4450,
-    "token_cost": 0.0400,
+    "token_cost": 0.087325,
     "cost_per_agent": 0.02
   },
   "timestamp": "2024-01-15T10:30:45.123456+00:00"
@@ -353,7 +353,7 @@ else:
     "input_tokens": 3800,
     "output_tokens": 8500,
     "total_tokens": 12300,
-    "token_cost": 0.1063,
+    "token_cost": 0.22195,
     "cost_per_agent": 0.04
   },
   "timestamp": "2024-01-15T10:35:20.456789+00:00"
@@ -559,7 +559,7 @@ else:
     "input_tokens": 12000,
     "output_tokens": 25000,
     "total_tokens": 37000,
-    "token_cost": 0.3125,
+    "token_cost": 0.6305,
     "cost_per_agent": 0.09
   },
   "timestamp": "2024-01-15T10:40:15.789012+00:00"
@@ -699,7 +699,7 @@ else:
     "input_tokens": 2100,
     "output_tokens": 4800,
     "total_tokens": 6900,
-    "token_cost": 0.0600,
+    "token_cost": 0.13245,
     "cost_per_agent": 0.03
   },
   "timestamp": "2024-01-15T10:45:30.345678+00:00"
@@ -844,7 +844,7 @@ if __name__ == "__main__":
     "input_tokens": 3500,
     "output_tokens": 4200,
     "total_tokens": 7700,
-    "token_cost": 0.0525,
+    "token_cost": 0.13045,
     "cost_per_agent": 0.03
   },
   "timestamp": "2024-01-15T10:50:45.567890+00:00"

@@ -263,11 +263,11 @@ def nightly_swarm_batch():
         return resp.json()
 
     @task
-    def audit_discount(batch_result: dict):
+    def audit_discount(batch_result: list):
         """Fail the DAG run loudly if the discount didn't land — catches
         misconfigured schedulers before they cost you a month of full-price runs."""
         failures = []
-        for item in batch_result.get("results", []):
+        for item in batch_result:
             usage = item.get("usage", {})
             billing = usage.get("billing_info", {})
             if not billing.get("discount_active"):
@@ -277,7 +277,7 @@ def nightly_swarm_batch():
                 f"Overnight discount did not apply to: {failures}. "
                 f"Check scheduler timezone (must run between 8 PM and 6 AM Pacific)."
             )
-        return f"OK — all {len(batch_result.get('results', []))} runs got the 50% discount."
+        return f"OK — all {len(batch_result)} runs got the 50% discount."
 
     audit_discount(submit_batch())
 

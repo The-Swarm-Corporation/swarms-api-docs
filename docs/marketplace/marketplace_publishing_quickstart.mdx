@@ -82,12 +82,12 @@ my_agent = Agent(
 
 ---
 
-## Step 3: Run to Publish
+## Step 3: Publishing Happens on Creation
 
-Simply run the agent to trigger publishing:
+Constructing the agent above already published it. Run it as usual:
 
 ```python
-# Running the agent automatically publishes it
+# The agent was published when it was constructed above
 result = my_agent.run("Analyze Bitcoin's current market position")
 
 print(result)
@@ -154,7 +154,7 @@ Reliability and safety:
     ],
 )
 
-# Step 3: Run the agent (this publishes it to the marketplace)
+# Step 3: Run the agent (it was published when it was created above)
 result = medical_agent.run(
     task="Analyze this blood sample: Hematology and Basic Metabolic Panel"
 )
@@ -190,9 +190,9 @@ use_cases = [
 You can also publish prompts/agents directly using the utility function:
 
 ```python
-from swarms.utils.swarms_marketplace_utils import add_prompt_to_marketplace
+from swarms.agents import AgentMarketplaceHandler
 
-response = add_prompt_to_marketplace(
+response = AgentMarketplaceHandler.add_prompt(
     name="My Custom Agent",
     prompt="Your detailed system prompt here...",
     description="What this agent does",

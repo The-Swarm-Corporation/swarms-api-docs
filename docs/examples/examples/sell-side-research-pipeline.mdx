@@ -13,7 +13,7 @@ description: "A HierarchicalSwarm that ingests sell-side PDFs from Goldman, JPM,
 - The structured signal payload your OMS, EMS, or research database actually wants — not free-form text
 
 <Info>
-This pipeline processes a high volume of PDF documents per day. The batch endpoint and parallel function-tool execution sit on the Premium tier — Pro will rate-limit you once daily note volume crosses ~50. Read the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) before turning the cron on, and upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+This pipeline processes a high volume of PDF documents per day. The batch endpoint and parallel function-tool execution sit on the paid tiers (Pro, Ultra, Premium) — the Free tier caps you at 1,200 requests per day. Read the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) before turning the cron on, and upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account).
 </Info>
 
 ## Why This Matters
@@ -419,7 +419,7 @@ results = run_eod_batch()
 signals: list[dict] = []
 for r in results:
     director_msg = next(
-        (o for o in r.get("output", []) if "Research Director" in o.get("role", "")),
+        (o for o in r.get("result", []) if "Research Director" in o.get("role", "")),
         None,
     )
     if not director_msg:

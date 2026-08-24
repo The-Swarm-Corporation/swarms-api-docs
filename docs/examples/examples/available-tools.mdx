@@ -107,7 +107,7 @@ Tools extend agent capabilities by providing access to external services, APIs, 
 
 ## Tool Integration
 
-Enable a tool on an agent by adding its name to the top-level `tools_enabled` field of the request (alongside `agent_config` and `task`). Only one of the two tools is applied per request — if `auto_search` is present it takes precedence over `web_scraper`.
+Enable a tool on an agent by adding its name to the top-level `tools_enabled` field of the request (alongside `agent_config` and `task`). Both tools can be enabled in the same request — each name present in `tools_enabled` adds its tool to the agent.
 
 <Tabs>
   <Tab title="Auto Search">

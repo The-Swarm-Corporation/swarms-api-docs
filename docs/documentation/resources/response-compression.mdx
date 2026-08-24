@@ -32,7 +32,7 @@ Standard HTTP clients advertise `gzip` (not `lz4`) by default, so in practice mo
 The compression middleware automatically:
 
 1. **Parses client preferences**: Reads the `Accept-Encoding` header, ordering encodings by their q-values. An encoding with `q=0` is explicitly excluded; a `*` wildcard means any encoding is acceptable
-2. **Selects the algorithm**: Walks the client's encodings in preference order and picks the first one the server supports. If only `*` matches, the server's own preferred order is used (LZ4, then GZip)
+2. **Selects the algorithm**: Walks the client's encodings in preference order and picks the first one the server supports. If only `*` matches, GZip is used, since every client can decode it
 3. **Checks response size**: Only compresses bodies larger than 500 bytes and no larger than 8 MiB
 4. **Validates compression**: Only applies if the compressed size is smaller than the original
 5. **Sets headers**: Sets `Content-Encoding`, updates `Content-Length` to the compressed size, and appends `Accept-Encoding` to the `Vary` header
@@ -65,7 +65,7 @@ Accept-Encoding: lz4, gzip;q=0.8, br;q=0
 In this example the client prefers LZ4, accepts GZip at lower priority, and explicitly refuses Brotli (`q=0`). The middleware:
 - Honors q-value ordering when choosing among supported methods
 - Treats `q=0` as "do not use this encoding"
-- Treats `*` as "any encoding" and applies the server's preferred order (LZ4, then GZip)
+- Treats `*` as "any encoding" and responds with GZip, since every client can decode it
 - Returns the response uncompressed if no supported encoding is acceptable
 
 ## Benefits
@@ -257,7 +257,7 @@ Modern HTTP clients (requests, fetch, axios) automatically handle compression an
 The middleware selects the compression method as follows:
 
 1. **Client preference match**: Walks the client's `Accept-Encoding` entries in q-value order and uses the first method the server supports (`q=0` entries are skipped entirely)
-2. **Wildcard support**: If the client accepts `*`, the server's preferred order is used — LZ4 first, then GZip
+2. **Wildcard support**: If the client accepts `*`, GZip is used, since every client can decode it
 3. **No compression**: Returns the response uncompressed if no acceptable method is supported
 
 ### Error Handling

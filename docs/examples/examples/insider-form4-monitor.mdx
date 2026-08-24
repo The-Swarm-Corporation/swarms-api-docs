@@ -386,7 +386,7 @@ The Signal Scorer's final JSON is the row you persist. The other three stages ar
 
 ## Step 5: End-of-Day Batch Pipeline
 
-EDGAR's Form 4 RSS feed publishes accession numbers in close to real time. Pull the day's list at 5:30pm ET, build one batch payload, and submit it all at once.
+EDGAR's Form 4 RSS feed publishes accession numbers in close to real time. Pull the day's list at 5:30pm ET and submit it in chunks — `/v1/swarm/batch/completions` accepts at most 50 swarms per request.
 
 ```python
 EDGAR_FORM4_RSS = (
@@ -408,19 +408,26 @@ def fetch_todays_form4_accessions() -> list[str]:
     return parse_accessions_from_atom(resp.text)
 
 
+# /v1/swarm/batch/completions accepts at most 50 swarms per request.
+BATCH_SIZE_LIMIT = 50
+
+
 def run_eod_batch() -> list[dict]:
     accessions = fetch_todays_form4_accessions()
     print(f"Processing {len(accessions)} Form 4 filings for {datetime.utcnow().date()}")
 
     payload = [build_form4_pipeline(a) for a in accessions]
-    response = requests.post(
-        f"{BASE_URL}/v1/swarm/batch/completions",
-        headers=headers,
-        json=payload,
-        timeout=1800,
-    )
-    response.raise_for_status()
-    return response.json()
+    results = []
+    for i in range(0, len(payload), BATCH_SIZE_LIMIT):
+        response = requests.post(
+            f"{BASE_URL}/v1/swarm/batch/completions",
+            headers=headers,
+            json=payload[i:i + BATCH_SIZE_LIMIT],
+            timeout=1800,
+        )
+        response.raise_for_status()
+        results.extend(response.json())
+    return results
 
 
 def extract_final_signal(result: dict) -> dict | None:

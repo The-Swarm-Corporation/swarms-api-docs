@@ -35,7 +35,7 @@ headers = {
 
 ### Step 3: Define Your Hierarchical Team
 
-Create a development team with a tech lead (leader) coordinating 4 specialist engineers (workers):
+Create a development team of 5 specialist agents. HierarchicalSwarm supplies its own director agent to coordinate them, so every agent you list is a worker:
 
 ```python
 def design_auth_system(requirements: str) -> dict:
@@ -220,5 +220,5 @@ Execution time: 42.5s
 ```
 
 <Note>
-The leader agent (Tech Lead) receives outputs from all worker agents and synthesizes them into a cohesive plan. Design your leader's prompt to emphasize coordination and synthesis.
+HierarchicalSwarm creates its own director agent (model set by `director_model_name`, default `gpt-5.4`) that plans the work, assigns it to the agents you supply, and synthesizes their outputs. Every agent in `agents` is a worker.
 </Note>

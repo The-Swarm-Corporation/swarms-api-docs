@@ -10,12 +10,12 @@ Every 5 minutes during market hours, an unusual-activity watchlist lands in Slac
 - A `ConcurrentWorkflow` of three specialist agents — Flow Scanner, Greeks Analyzer, Vol Surface Watcher — fanning out in parallel on the same options snapshot
 - Per-agent `tools_list_dictionary` wired to live options market-data endpoints (Polygon / Tradier) and a Slack webhook
 - An intraday cron firing every 5 minutes (`*/5 9-16 * * 1-5`) that turns into ~80 swarm runs per session
-- The rate-limit math: a 5-minute cadence blows through Free per-hour caps inside the first 60 minutes — Premium is not optional for production
-- Model diversification across providers — `gpt-4.1-mini`, `gpt-4.1`, `claude-haiku-4.5`, `claude-sonnet-4.5` — each picked for what that node actually needs
+- The rate-limit math: a 5-minute cadence is 12 requests per hour, comfortably inside the Free tier's 350/hour cap — what Premium buys you here is the priority queue, not raw call volume
+- Model diversification across providers — `gpt-4.1-mini`, `gpt-4.1`, `claude-haiku-4-5`, `claude-sonnet-4-5` — each picked for what that node actually needs
 - A Trade Idea Generator merging the three parallel briefs into a ranked watchlist and posting to a Slack channel before the next 5-minute window
 
 <Info>
-A 5-minute cron during the 6.5-hour cash session generates ~78 swarm runs per day, each launching 4 agents — that is well past Free per-hour rate limits within the first hour, and Pro limits by mid-morning. You need Premium for the priority queue and the headroom. Full limit table at [Rate Limits](/docs/documentation/resources/ratelimits).
+A 5-minute cron during the 6.5-hour cash session generates ~78 swarm runs per day, each launching 4 agents. Rate limits count API requests, not agents, so that is 12 requests/hour against the Free tier's 350/hour and 1,200/day caps — the reason to be on Premium here is the priority queue and the headroom, not the raw call count. Full limit table at [Rate Limits](/docs/documentation/resources/ratelimits).
 </Info>
 
 ## Why This Matters
@@ -50,7 +50,7 @@ Unusual options activity has historically led equity returns by 10 to 30 minutes
                                            ▼
                           ┌─────────────────────────────────┐
                           │ Trade Idea Generator            │
-                          │ claude-sonnet-4.5               │
+                          │ claude-sonnet-4-5               │
                           │ (merge → rank → conviction)     │
                           └─────────────┬───────────────────┘
                                         ▼
@@ -295,7 +295,7 @@ def build_options_flow_swarm(universe: list[str]) -> dict:
                 "agent_name": "Vol Surface Watcher",
                 "description": "IV rank, skew, and term-structure dislocations.",
                 "system_prompt": VOL_SURFACE_PROMPT,
-                "model_name": "claude-haiku-4.5",
+                "model_name": "claude-haiku-4-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 4096,
@@ -306,7 +306,7 @@ def build_options_flow_swarm(universe: list[str]) -> dict:
                 "agent_name": "Trade Idea Generator",
                 "description": "Merges briefs into a ranked watchlist and posts to Slack.",
                 "system_prompt": TRADE_IDEA_PROMPT,
-                "model_name": "claude-sonnet-4.5",
+                "model_name": "claude-sonnet-4-5",
                 "role": "coordinator",
                 "max_loops": 1,
                 "max_tokens": 6144,
@@ -381,7 +381,7 @@ The math on a 5-minute heartbeat:
 | Per week | ~390 |
 | Per month | ~1,700 |
 
-Each pass launches the swarm, which kicks off 4 agents and the underlying tool calls. That is roughly 312 agent-runs per hour during market hours — Free per-hour caps tap out in the first 60 minutes, and Pro tier saturates by mid-morning on a busy day. Production needs **Premium** for the priority processing queue, higher concurrent-execution caps, and the headroom not to drop a window when the chain endpoint is slow. Full numbers at [Rate Limits](/docs/documentation/resources/ratelimits).
+Each pass launches the swarm, which kicks off 4 agents and the underlying tool calls. That is roughly 312 agent-runs per hour during market hours, but rate limits count requests, not agents: 12 requests/hour sits well inside the Free tier's 350/hour and 1,200/day caps. Production still wants **Premium** for the priority processing queue and the headroom not to drop a window when the chain endpoint is slow. Full numbers at [Rate Limits](/docs/documentation/resources/ratelimits).
 
 <Info>
 Premium queue priority matters more than raw call count here. A 5-minute window that completes at minute 6 is a missed window — the next cron fires before the last alert lands in Slack. Priority routing keeps the wall time inside the cadence on busy days.

@@ -152,7 +152,7 @@ For actual usage and spend tracking (rather than the pricing model itself), use:
 | Need | Endpoint | Returns |
 |---|---|---|
 | Current credit balance | `GET /v1/account/credits` | `credit`, `free_credit`, `referral_credits`, `total_credits` |
-| Lifetime/recent completion counts | `GET /v1/metrics/summary` | Unique agents used, lifetime and successful completion counts, completions in the last 24h/7d |
+| Lifetime/recent completion counts | `GET /v1/account/metrics/summary` | Unique agents used, lifetime and successful completion counts, completions in the last 24h/7d |
 | Raw request history | `GET /v1/swarm/logs` | All logged API requests for your account, which you can aggregate client-side into a custom report |
 | Current rate limit usage | `GET /v1/rate/limits` | Requests used/remaining per minute, hour, and day |
 
