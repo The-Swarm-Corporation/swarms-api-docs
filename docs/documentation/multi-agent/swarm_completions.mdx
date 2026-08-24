@@ -1,0 +1,605 @@
+---
+title: "Swarm Completions Reference"
+description: "Complete reference for POST /v1/swarm/completions — the full SwarmSpec and AgentSpec schemas, every swarm_type, architecture-specific parameters, MCP configuration, response shape, and error handling."
+---
+
+`POST /v1/swarm/completions` is the primary endpoint of the Swarms API. One request describes a whole multi-agent system — the roster, the architecture that coordinates it, and the task — and the response returns the swarm's output along with timing and usage.
+
+This page is the complete field-by-field reference. For a conceptual introduction, start with [Multi-Agent Overview](/docs/documentation/multi-agent/overview); for guidance on picking a topology, see [Available Architectures](/docs/documentation/multi-agent/available-architectures).
+
+## Endpoint
+
+| Property | Value |
+|----------|-------|
+| **Method** | `POST` |
+| **Path** | `/v1/swarm/completions` |
+| **Base URL** | `https://api.swarms.world` |
+| **Request body** | `SwarmSpec` (required) |
+| **Response body** | `SwarmCompletion` |
+| **Authentication** | `x-api-key` header (required) |
+| **Streaming** | Supported via `stream: true` |
+| **Tier** | Available on all tiers |
+
+### Authentication
+
+Every request requires your API key in the `x-api-key` header. Get one from the [API Keys page](https://swarms.world/platform/api-keys).
+
+```bash
+x-api-key: YOUR_API_KEY
+Content-Type: application/json
+```
+
+<Note>
+The batch variant, [`/v1/swarm/batch/completions`](/docs/examples/examples/batch-swarm-completions), accepts an array of these same `SwarmSpec` objects (at most 50 per request) and is premium-gated. The single endpoint documented here is not.
+</Note>
+
+---
+
+## Request Body: SwarmSpec
+
+Every field is optional at the schema level, but a request with no `task` (or `tasks`/`messages`) and no `agents` has nothing to run. In practice you always send `agents`, `swarm_type`, and a task.
+
+### Core Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `name` | `string \| null` | — | max 100 chars | Identifier for the group of agents and their collective task |
+| `description` | `string \| null` | — | — | Description of the swarm's objectives, capabilities, and intended outcomes |
+| `agents` | `array[AgentSpec] \| null` | — | **max 2000 items** | The agents participating in the swarm. See [AgentSpec](#agentspec) |
+| `swarm_type` | `string \| null` | — | enum, see [Swarm Types](#swarm-types) | The architecture that coordinates the agents |
+| `max_loops` | `integer \| null` | `1` | **max 50** | Maximum execution loops for the swarm |
+| `task` | `string \| null` | — | — | The specific task the swarm is designed to accomplish |
+| `tasks` | `array[string] \| null` | — | — | A list of tasks. Used by architectures that consume multiple tasks, such as `BatchedGridWorkflow` |
+| `messages` | `array[object] \| object \| null` | — | — | Message history for conversational workflows such as `GroupChat` |
+| `img` | `string \| null` | — | — | Optional image URL associated with the task, for vision-enabled agents |
+| `stream` | `boolean \| null` | `false` | — | Stream the swarm's output instead of buffering it |
+| `multi_agent_collab_prompt` | `boolean \| null` | `true` | — | Inject the multi-agent collaboration prompt so agents coordinate. Set `false` to disable |
+| `list_all_agents` | `boolean \| null` | `false` | — | Show every agent's name and description to the others, so each is aware of the roster |
+
+<Warning>
+`agents` accepts up to **2000** entries and `max_loops` is capped at **50**. Exceeding either returns a `422` validation error before any work is billed.
+</Warning>
+
+### Architecture-Specific Parameters
+
+These only take effect for their corresponding `swarm_type`. Sending them with a different architecture is harmless but has no effect.
+
+| Parameter | Type | Default | Applies to | Description |
+|-----------|------|---------|-----------|-------------|
+| `rearrange_flow` | `string \| null` | — | `AgentRearrange` | How tasks flow between agents. `->` is a handoff, a comma runs agents in parallel within a step. **Required** for this type |
+| `heavy_swarm_question_agent_model_name` | `string \| null` | `"gpt-4.1"` | `HeavySwarm` | Model backing the question-generation agent |
+| `heavy_swarm_worker_model_name` | `string \| null` | `"claude-sonnet-4-20250514"` | `HeavySwarm` | Model backing the four worker agents |
+| `heavy_swarm_max_loops` | `integer \| null` | `1` | `HeavySwarm` | Maximum loops each agent in the heavy swarm may run |
+| `heavy_swarm_variant` | `string \| null` | `"default"` | `HeavySwarm` | Agent variant to run. One of `"default"`, `"medium"`, `"heavy"` |
+| `council_judge_model_name` | `string \| null` | `"gpt-5.4"` | `CouncilAsAJudge` | Model used by the judge that delivers the final ruling |
+| `chairman_model` | `string \| null` | `"gpt-5.1"` | `LLMCouncil` | Model used by the chairman that synthesizes the council's responses |
+| `director_model_name` | `string \| null` | `"gpt-5.4"` | `HierarchicalSwarm` | Model used by the director/overseer that decomposes and delegates |
+| `director_settings` | `object \| null` | — | `HierarchicalSwarm` | Hyperparameters for the director agent — `temperature`, `top_p`, `max_tokens`, and similar |
+
+### Swarm Types
+
+`swarm_type` accepts one of the following 16 values:
+
+| Value | Coordination pattern | Reference |
+|-------|---------------------|-----------|
+| `SequentialWorkflow` | Linear chain, each agent fed the previous output | [Docs](/docs/documentation/multi-agent/sequential_workflow) |
+| `ConcurrentWorkflow` | All agents run in parallel on independent work | [Docs](/docs/documentation/multi-agent/concurrent_workflow) |
+| `AgentRearrange` | Custom flow defined by `rearrange_flow` | [Docs](/docs/documentation/multi-agent/agent_rearrange) |
+| `MixtureOfAgents` | Specialists on the same task, perspectives combined | [Docs](/docs/documentation/multi-agent/mixture_of_agents) |
+| `MultiAgentRouter` | Dispatcher routes the task to the best-suited agent | [Docs](/docs/documentation/multi-agent/multi_agent_router) |
+| `HierarchicalSwarm` | Director delegates to workers, then reviews | [Docs](/docs/documentation/multi-agent/hierarchical_swarm) |
+| `MajorityVoting` | Independent votes reconciled by majority | [Docs](/docs/documentation/multi-agent/majority_voting) |
+| `GroupChat` | Shared conversation between agents | [Docs](/docs/documentation/multi-agent/group_chat) |
+| `RoundRobin` | Agents take turns on a reshuffled order | [Docs](/docs/documentation/multi-agent/round_robin) |
+| `DebateWithJudge` | Pro and Con debate, a judge synthesizes | [Docs](/docs/documentation/multi-agent/debate_with_judge) |
+| `HeavySwarm` | Question decomposition, four specialists, synthesis | [Docs](/docs/documentation/multi-agent/heavy_swarm) |
+| `BatchedGridWorkflow` | Every agent runs every task, producing a matrix | [Docs](/docs/documentation/multi-agent/batched_grid_workflow) |
+| `CouncilAsAJudge` | A council evaluates and a judge rules | [Example](/docs/examples/examples/council-as-judge) |
+| `LLMCouncil` | Council deliberates, a chairman synthesizes | [Example](/docs/examples/examples/llm-council) |
+| `PlannerWorkerSwarm` | Planner decomposes, workers pull from a shared queue | [Architectures](/docs/documentation/multi-agent/available-architectures) |
+| `auto` | The API selects an architecture based on the task | — |
+
+<Note>
+`BatchedGridWorkflow` also has a dedicated premium endpoint, `/v1/batched-grid-workflow/completions`, and `GraphWorkflow` is **not** a `swarm_type` at all — it has its own endpoint at [`/v1/graph-workflow/completions`](/docs/documentation/multi-agent/graph_workflow).
+</Note>
+
+---
+
+## AgentSpec
+
+Each entry in `agents` is an `AgentSpec`. Every field is optional.
+
+### Identity and Model
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `agent_name` | `string \| null` | — | Unique name identifying the agent's role within the swarm |
+| `description` | `string \| null` | — | Explanation of the agent's purpose and capabilities |
+| `system_prompt` | `string \| null` | — | Initial instruction guiding the agent's behavior |
+| `marketplace_prompt_id` | `string \| null` | — | ID of a [marketplace prompt](/docs/marketplace/prompts-api) to use as the system prompt, retrieved automatically |
+| `model_name` | `string \| null` | `"claude-sonnet-5"` | The model the agent uses. For example `gpt-4o`, `gpt-4.1`, `openai/o3-mini` |
+| `fallback_models` | `array[string] \| null` | — | Ordered list of models to retry on failure. If set while `model_name` is omitted, the first entry becomes the primary model |
+| `fallback_model_name` | `string \| null` | — | A single fallback model, tried **after** any `fallback_models` |
+| `role` | `string \| null` | `"worker"` | The agent's designated role, which influences behavior and interaction |
+
+### Generation Controls
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `max_tokens` | `integer \| null` | `16000` | **min 1** | Maximum tokens the agent may generate |
+| `temperature` | `number \| null` | — | **0 to 2** | Randomness control. If omitted, no temperature is sent and the provider's default applies |
+| `top_p` | `number \| null` | — | — | The `top_p` value passed to the model |
+| `llm_args` | `object \| null` | — | — | Additional model arguments such as `frequency_penalty` and `presence_penalty` |
+| `dynamic_temperature_enabled` | `boolean \| null` | `false` | — | Let the agent adjust its own temperature based on the task |
+| `auto_generate_prompt` | `boolean \| null` | `false` | — | Have the agent write its own prompt from the task requirements |
+| `streaming_on` | `boolean \| null` | `false` | — | Stream this agent's output |
+
+### Looping and Tools
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `max_loops` | `integer \| string \| null` | `1` | Iterations for this agent. An integer **1 to 50**, or `"auto"` to let the system decide from task complexity |
+| `tools_list_dictionary` | `array[object] \| null` | — | Tool definitions the agent can call |
+| `selected_tools` | `string \| array[string] \| null` | all safe defaults | Restricts which tools the autonomous looper may use when `max_loops="auto"` |
+| `tool_call_summary` | `boolean \| null` | `true` | Have the agent summarize its tool calls |
+| `mcp_url` | `string \| null` | — | URL of an MCP server the agent can use |
+| `mcp_config` | `MCPConnection \| null` | — | A single MCP connection. See [MCPConnection](#mcpconnection) |
+| `mcp_configs` | `MultipleMCPConnections \| null` | — | Several MCP connections at once |
+| `handoffs` | `array[AgentSpec] \| null` | — | Agents this agent can hand tasks to. These are created and attached as its handoff targets |
+
+<Note>
+`selected_tools` accepts: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. **`run_bash` is not permitted.**
+</Note>
+
+### Reasoning
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `reasoning_enabled` | `boolean \| null` | `false` | Enable extended reasoning for this agent |
+| `reasoning_effort` | `string \| null` | — | One of `minimal`, `low`, `medium`, `high`, `none`, `xhigh`, `ultra`, `max`. `max` is the deepest tier and needs no beta header |
+| `thinking_tokens` | `integer \| null` | — | Tokens budgeted for thinking |
+
+<Warning>
+At `xhigh` and above, pair `reasoning_effort` with a large `max_tokens` so the model has room to both think and answer. A low `max_tokens` at high effort produces truncated or empty output.
+</Warning>
+
+### Marketplace Publishing
+
+Set when you want the agent listed on the [Swarms Marketplace](/docs/marketplace/agents-api) as a side effect of the run.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `publish_to_marketplace` | `boolean \| null` | `false` | Publish this agent to the marketplace |
+| `use_cases` | `array[object] \| null` | — | Dictionaries with `title` and `description`. **Required** when publishing |
+| `tags` | `array[string] \| null` | — | Searchable keywords, e.g. `["finance", "analysis"]` |
+| `capabilities` | `array[string] \| null` | — | Feature list, e.g. `["trend-analysis", "risk-assessment"]` |
+| `category` | `string \| null` | — | Marketplace category, e.g. `research`, `content`, `coding`, `finance`, `healthcare`, `education`, `legal` |
+| `is_free` | `boolean \| null` | `true` | Whether the agent is free to use |
+| `price_usd` | `number \| null` | — | Price in USD when not free |
+
+---
+
+## MCPConnection
+
+Passed as `mcp_config` on an `AgentSpec`. Accepts additional properties beyond those listed.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `type` | `string \| null` | `"mcp"` | Connection type |
+| `url` | `string \| null` | `"http://localhost:8000/mcp"` | The MCP server endpoint |
+| `name` | `string \| null` | — | Human-readable server name, used in logs and tool routing |
+| `transport` | `string \| null` | `"streamable_http"` | One of `streamable_http`, `sse`, `stdio`, `auto` |
+| `tool_configurations` | `object \| null` | — | Configuration settings for MCP tools |
+| `headers` | `object \| null` | — | Headers sent to the MCP server |
+| `timeout` | `integer \| null` | `30` | Request timeout in seconds |
+| `sse_read_timeout` | `integer \| null` | `300` | How long to wait for streamed events before giving up |
+| `tool_timeout` | `integer \| null` | `120` | How long a single tool call may run. Separate from `timeout`, which bounds HTTP requests |
+
+### MCP Authentication
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `auth_type` | `string \| null` | inferred | Explicit auth mode: `none`, `api_key`, `bearer`, `oauth`, `custom`. Inferred from the other fields when omitted |
+| `authorization_token` | `string \| null` | — | Bearer token for the MCP server |
+| `api_key` | `string \| null` | — | API key, sent using `api_key_header` and `api_key_prefix` |
+| `api_key_header` | `string` | `"Authorization"` | Header used to send the API key, e.g. `X-API-Key` |
+| `api_key_prefix` | `string \| null` | `"Bearer"` | Prefix prepended to the key. Set to `null` or `""` for raw keys |
+| `oauth` | `MCPOAuthConfig \| null` | — | OAuth 2.1 configuration. See [MCPOAuthConfig](#mcpoauthconfig) |
+
+### stdio Transport
+
+Only used when `transport` is `"stdio"`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `command` | `string \| null` | Executable to launch |
+| `args` | `array[string] \| null` | Arguments passed to the command |
+| `env` | `object \| null` | Environment variables for the command |
+
+### MultipleMCPConnections
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connections` | `array[MCPConnection]` | Yes | List of MCP connections |
+
+### MCPOAuthConfig
+
+Three flavors are supported: the interactive `authorization_code` browser flow (PKCE and dynamic client registration handled for you, so `client_id` is optional), the headless `client_credentials` flow, or supplying a pre-obtained `access_token` so no flow runs at all.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `grant_type` | `string` | `"authorization_code"` | `authorization_code` or `client_credentials` |
+| `client_id` | `string \| null` | — | Optional for `authorization_code` when the server supports dynamic registration |
+| `client_secret` | `string \| null` | — | **Required** for `client_credentials` |
+| `scopes` | `array[string] \| null` | — | Scopes to request, e.g. `["mcp:tools", "offline_access"]` |
+| `redirect_uri` | `string` | `"http://127.0.0.1:8765/callback"` | Loopback URI that captures the authorization code |
+| `client_name` | `string` | `"Swarms Agent"` | Client name sent during dynamic registration |
+| `client_uri` | `string \| null` | — | Client homepage sent during dynamic registration |
+| `authorization_url` | `string \| null` | discovered | Explicit authorization endpoint |
+| `token_url` | `string \| null` | discovered | Explicit token endpoint |
+| `access_token` | `string \| null` | — | Pre-obtained token. When set, no OAuth flow is performed |
+| `refresh_token` | `string \| null` | — | Pre-obtained refresh token, paired with `access_token` |
+| `token_storage_path` | `string \| null` | `~/.swarms/mcp_auth/<server>.json` | Where OAuth tokens are cached |
+| `use_token_cache` | `boolean` | `true` | Persist tokens so the browser flow runs only once |
+| `open_browser` | `boolean` | `true` | Open the system browser. When `false`, the URL is logged instead |
+| `callback_timeout` | `integer` | `300` | Seconds to wait for the user to complete the browser flow |
+
+<Tip>
+Any string field accepts `"env:MY_VAR"` or `"${MY_VAR}"` to read the value from the environment instead of hardcoding a secret.
+</Tip>
+
+---
+
+## Response: SwarmCompletion
+
+All nine fields are always present in a successful response.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `job_id` | `string \| null` | Unique identifier for this swarm completion |
+| `status` | `string \| null` | Status of the completion |
+| `swarm_name` | `string \| null` | The name of the swarm |
+| `description` | `string \| null` | The description of the swarm |
+| `swarm_type` | `string \| null` | The architecture that ran |
+| `output` | `any` | The swarm's output. **Shape varies by `swarm_type`** — a string, array, or object |
+| `number_of_agents` | `integer \| null` | Number of agents in the swarm |
+| `execution_time` | `number \| null` | Wall-clock execution time in seconds |
+| `usage` | `object \| null` | Token counts and cost breakdown |
+
+```json
+{
+  "job_id": "swarm-a1b2c3d4",
+  "status": "success",
+  "swarm_name": "Research Team",
+  "description": "Multi-agent research swarm",
+  "swarm_type": "SequentialWorkflow",
+  "output": [
+    {
+      "role": "Research Analyst",
+      "content": "Healthcare AI adoption accelerated through 2025, led by imaging and documentation."
+    },
+    {
+      "role": "Report Writer",
+      "content": "Executive summary: three trends dominate healthcare AI ..."
+    }
+  ],
+  "number_of_agents": 2,
+  "execution_time": 18.42,
+  "usage": {
+    "input_tokens": 420,
+    "output_tokens": 1850,
+    "total_tokens": 2270,
+    "billing_info": {
+      "cost_breakdown": {
+        "agent_cost": 0.02,
+        "input_token_cost": 0.00137,
+        "output_token_cost": 0.01713,
+        "num_agents": 2
+      },
+      "total_cost": 0.0385
+    }
+  }
+}
+```
+
+<Warning>
+`output` is untyped in the schema because each architecture returns a different structure — `SequentialWorkflow` returns an ordered conversation, `BatchedGridWorkflow` returns a matrix keyed by agent, `MajorityVoting` returns votes plus a verdict. Branch on `swarm_type` rather than assuming a fixed shape.
+</Warning>
+
+---
+
+## Errors
+
+| Code | Meaning |
+|------|---------|
+| `200` | Completion returned successfully |
+| `401` | Missing or invalid `x-api-key` |
+| `402` | Credit balance too low to run the request |
+| `403` | Model or feature restricted to premium tiers |
+| `422` | Validation error — see below |
+| `429` | Rate limit exceeded |
+| `500` | Internal server error |
+
+### HTTPValidationError
+
+A `422` returns a `detail` array with one `ValidationError` per offending field:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `loc` | `array[string \| integer]` | Path to the offending field |
+| `msg` | `string` | Human-readable message |
+| `type` | `string` | Error type identifier |
+| `input` | `any` | The value that failed validation |
+| `ctx` | `object` | Additional context, such as the violated constraint |
+
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "max_loops"],
+      "msg": "Input should be less than or equal to 50",
+      "type": "less_than_equal",
+      "input": 100,
+      "ctx": { "le": 50 }
+    }
+  ]
+}
+```
+
+Common causes: `max_loops` above 50, `agents` longer than 2000, `max_tokens` below 1, `temperature` outside 0–2, a `swarm_type` outside the enum, or `AgentRearrange` without `rearrange_flow`.
+
+---
+
+## Examples
+
+### Basic Swarm Completion
+
+<Tabs>
+<Tab title="Python">
+```python
+import os
+import json
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+swarm_config = {
+    "name": "Research Team",
+    "description": "Research a topic, then write it up",
+    "swarm_type": "SequentialWorkflow",
+    "task": "Analyze the impact of AI on healthcare delivery",
+    "max_loops": 1,
+    "agents": [
+        {
+            "agent_name": "Research Analyst",
+            "description": "Gathers and structures source material",
+            "system_prompt": "You are a research analyst specializing in healthcare technology.",
+            "model_name": "claude-sonnet-5",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        },
+        {
+            "agent_name": "Report Writer",
+            "description": "Turns research into an executive summary",
+            "system_prompt": "You write concise executive summaries for healthcare executives.",
+            "model_name": "claude-sonnet-5",
+            "max_loops": 1,
+            "max_tokens": 4096,
+            "temperature": 0.5,
+        },
+    ],
+}
+
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json=swarm_config,
+    timeout=600,
+)
+response.raise_for_status()
+
+result = response.json()
+print(f"Job {result['job_id']} — {result['number_of_agents']} agents "
+      f"in {result['execution_time']:.1f}s")
+print(json.dumps(result["output"], indent=2))
+```
+</Tab>
+<Tab title="JavaScript">
+```javascript
+const API_KEY = process.env.SWARMS_API_KEY;
+const BASE_URL = "https://api.swarms.world";
+
+const swarmConfig = {
+    name: "Research Team",
+    description: "Research a topic, then write it up",
+    swarm_type: "SequentialWorkflow",
+    task: "Analyze the impact of AI on healthcare delivery",
+    max_loops: 1,
+    agents: [
+        {
+            agent_name: "Research Analyst",
+            description: "Gathers and structures source material",
+            system_prompt: "You are a research analyst specializing in healthcare technology.",
+            model_name: "claude-sonnet-5",
+            max_loops: 1,
+            max_tokens: 4096,
+            temperature: 0.3
+        },
+        {
+            agent_name: "Report Writer",
+            description: "Turns research into an executive summary",
+            system_prompt: "You write concise executive summaries for healthcare executives.",
+            model_name: "claude-sonnet-5",
+            max_loops: 1,
+            max_tokens: 4096,
+            temperature: 0.5
+        }
+    ]
+};
+
+const response = await fetch(`${BASE_URL}/v1/swarm/completions`, {
+    method: "POST",
+    headers: {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify(swarmConfig)
+});
+
+if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+}
+
+const result = await response.json();
+console.log(`Job ${result.job_id} — ${result.number_of_agents} agents in ${result.execution_time}s`);
+console.log(JSON.stringify(result.output, null, 2));
+```
+</Tab>
+<Tab title="Shell (curl)">
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Research Team",
+    "description": "Research a topic, then write it up",
+    "swarm_type": "SequentialWorkflow",
+    "task": "Analyze the impact of AI on healthcare delivery",
+    "max_loops": 1,
+    "agents": [
+      {
+        "agent_name": "Research Analyst",
+        "description": "Gathers and structures source material",
+        "system_prompt": "You are a research analyst specializing in healthcare technology.",
+        "model_name": "claude-sonnet-5",
+        "max_loops": 1,
+        "max_tokens": 4096,
+        "temperature": 0.3
+      },
+      {
+        "agent_name": "Report Writer",
+        "description": "Turns research into an executive summary",
+        "system_prompt": "You write concise executive summaries for healthcare executives.",
+        "model_name": "claude-sonnet-5",
+        "max_loops": 1,
+        "max_tokens": 4096,
+        "temperature": 0.5
+      }
+    ]
+  }'
+```
+</Tab>
+</Tabs>
+
+### Architecture-Specific Parameters
+
+`HierarchicalSwarm` with a tuned director, and `AgentRearrange` with an explicit flow:
+
+<CodeGroup>
+
+```json HierarchicalSwarm
+{
+  "name": "Research Coordination",
+  "swarm_type": "HierarchicalSwarm",
+  "task": "Produce a competitive landscape report on AI coding assistants",
+  "director_model_name": "gpt-5.4",
+  "director_settings": {
+    "temperature": 0.2,
+    "max_tokens": 8000
+  },
+  "list_all_agents": true,
+  "agents": [
+    { "agent_name": "Market Researcher", "role": "worker", "model_name": "claude-sonnet-5" },
+    { "agent_name": "Pricing Analyst",   "role": "worker", "model_name": "claude-sonnet-5" },
+    { "agent_name": "Technical Reviewer","role": "worker", "model_name": "claude-sonnet-5" }
+  ]
+}
+```
+
+```json AgentRearrange
+{
+  "name": "Content Pipeline",
+  "swarm_type": "AgentRearrange",
+  "rearrange_flow": "Researcher -> Writer, Editor",
+  "task": "Draft a technical blog post on vector databases",
+  "agents": [
+    { "agent_name": "Researcher", "model_name": "claude-sonnet-5" },
+    { "agent_name": "Writer",     "model_name": "claude-sonnet-5" },
+    { "agent_name": "Editor",     "model_name": "claude-sonnet-5" }
+  ]
+}
+```
+
+```json HeavySwarm
+{
+  "name": "Market Analysis",
+  "swarm_type": "HeavySwarm",
+  "task": "Analyze the renewable energy sector outlook",
+  "agents": [],
+  "heavy_swarm_variant": "heavy",
+  "heavy_swarm_max_loops": 2,
+  "heavy_swarm_question_agent_model_name": "gpt-4.1",
+  "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514"
+}
+```
+
+</CodeGroup>
+
+<Note>
+`HeavySwarm` builds its own agents internally — pass `"agents": []`. See [HeavySwarm](/docs/documentation/multi-agent/heavy_swarm).
+</Note>
+
+### Streaming
+
+Set `stream: true` to receive output as it is produced rather than waiting for the full run.
+
+```python
+response = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=headers,
+    json={**swarm_config, "stream": True},
+    stream=True,
+    timeout=600,
+)
+
+for line in response.iter_lines():
+    if line:
+        print(line.decode("utf-8"))
+```
+
+See [Streaming](/docs/examples/examples/streaming) and [Swarm Streaming](/docs/examples/examples/swarm-streaming) for the event shapes.
+
+---
+
+## Related Resources
+
+<CardGroup cols={2}>
+<Card title="Multi-Agent Overview" icon="book" href="/docs/documentation/multi-agent/overview">
+Conceptual introduction to swarms
+</Card>
+<Card title="Available Architectures" icon="layers" href="/docs/documentation/multi-agent/available-architectures">
+Pick the right topology for your task
+</Card>
+<Card title="Batch Swarm Completions" icon="layer-group" href="/docs/examples/examples/batch-swarm-completions">
+Run up to 50 swarms in one request
+</Card>
+<Card title="Agent Completions" icon="robot" href="/docs/documentation/capabilities/agent">
+The single-agent endpoint
+</Card>
+<Card title="Graph Workflow" icon="diagram-project" href="/docs/documentation/multi-agent/graph_workflow">
+DAG orchestration on its own endpoint
+</Card>
+<Card title="Pricing" icon="tag" href="/docs/documentation/resources/pricing">
+How swarm runs are billed
+</Card>
+</CardGroup>
