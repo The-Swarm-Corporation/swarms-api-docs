@@ -225,6 +225,14 @@
             ]
           },
           {
+            "group": "MCP Server Tutorials",
+            "pages": [
+              "docs/examples/examples/mcp-agent-typescript",
+              "docs/examples/examples/mcp-swarm-rust",
+              "docs/examples/examples/mcp-batch-pipeline-python"
+            ]
+          },
+          {
             "group": "Agent Capabilities",
             "pages": [
               "docs/examples/examples/structured-outputs",

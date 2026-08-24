@@ -1,0 +1,397 @@
+---
+title: "Build a Multi-Agent Research Tool in Rust over MCP"
+description: "Use the official rmcp crate to drive a Swarms multi-agent workflow from Rust — connect over Streamable HTTP, run a SequentialWorkflow, and deserialize the result into real types with serde."
+---
+
+## What This Tutorial Builds
+
+A `cargo run` binary that sends one research question to a **swarm of three agents** — a researcher, a skeptic, and an editor — and prints each agent's contribution plus the run's cost and wall time. Along the way:
+
+- Connecting to the hosted MCP server with [`rmcp`](https://crates.io/crates/rmcp), the official Rust MCP SDK
+- Sending credentials as transport headers rather than tool arguments
+- Deserializing the tool result into typed structs with `serde`, not `Value` indexing
+- Choosing a swarm architecture for the shape of your problem
+
+## Why a Swarm Instead of One Agent
+
+A single agent with a long prompt tends to agree with itself. Asking one model to "research this, then critique your own research, then edit it" produces a fluent answer that has never actually been challenged. A swarm makes the critique a *separate* call with a *separate* system prompt and no stake in the earlier output. `SequentialWorkflow` passes each agent's output to the next, so the skeptic sees the research and the editor sees both.
+
+<Note>
+**No installation required.** The Swarms MCP server is hosted at `https://mcp.swarms.world/mcp`. You need an API key from the [API Keys page](https://swarms.world/platform/api-keys).
+</Note>
+
+## Step 1: Create the Project
+
+```bash
+cargo new swarms-research
+cd swarms-research
+```
+
+`Cargo.toml`:
+
+```toml
+[package]
+name = "swarms-research"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rmcp = { version = "3.1", features = [
+    "client",
+    "reqwest",
+    "transport-streamable-http-client-reqwest",
+] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+```
+
+The three `rmcp` features matter:
+
+| Feature | Why |
+|---------|-----|
+| `client` | The client half of the SDK — without it there is no `serve` |
+| `transport-streamable-http-client-reqwest` | Streamable HTTP client transport, which is what the server speaks |
+| `reqwest` | Pulls in `reqwest` with `rustls` for TLS |
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## Step 2: Connect
+
+`rmcp` builds a transport from a config, then `serve` turns it into a running client. The unit type `()` is a valid client handler when you only make requests and do not handle server-initiated calls.
+
+```rust
+use std::collections::HashMap;
+
+use rmcp::transport::{
+    streamable_http_client::StreamableHttpClientTransportConfig,
+    StreamableHttpClientTransport,
+};
+use rmcp::ServiceExt;
+
+const SERVER_URL: &str = "https://mcp.swarms.world/mcp";
+
+async fn connect() -> Result<impl std::ops::Deref, Box<dyn std::error::Error>> {
+    let api_key = std::env::var("SWARMS_API_KEY")?;
+
+    // The credential is a transport header, never a tool argument.
+    let mut headers = HashMap::new();
+    headers.insert("x-api-key".parse()?, api_key.parse()?);
+
+    let transport = StreamableHttpClientTransport::from_config(
+        StreamableHttpClientTransportConfig::with_uri(SERVER_URL)
+            .custom_headers(headers),
+    );
+
+    Ok(().serve(transport).await?)
+}
+```
+
+In the finished program below this is inlined into `main` — the signature of a running `rmcp` service is awkward to name, and inlining avoids fighting it.
+
+<Note>
+`custom_headers` takes a `HashMap<HeaderName, HeaderValue>`. Both sides come from `.parse()`, which is why the `?` operators are there — a malformed header name is a runtime error, not a compile error.
+</Note>
+
+## Step 3: Define the Result Types
+
+This is where Rust pays off. Instead of indexing into a `Value` and hoping, describe the response once and let `serde` enforce it.
+
+```rust
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+struct SwarmResult {
+    job_id: String,
+    status: String,
+    swarm_type: String,
+    output: Vec<Message>,
+    number_of_agents: u32,
+    execution_time: f64,
+    usage: Usage,
+}
+
+#[derive(Debug, Deserialize)]
+struct Message {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Usage {
+    total_tokens: u64,
+    billing_info: BillingInfo,
+}
+
+#[derive(Debug, Deserialize)]
+struct BillingInfo {
+    total_cost: f64,
+}
+```
+
+Fields you do not declare are ignored, so you can start with the four you care about and grow the struct as you need more.
+
+## Step 4: Design the Swarm
+
+Three agents, each with a job the next one cannot do for itself:
+
+```rust
+use serde_json::{json, Value};
+
+fn swarm_arguments(question: &str) -> Value {
+    json!({
+        "name": "research-desk",
+        "description": "Research a question, challenge the findings, then publish.",
+        "swarm_type": "SequentialWorkflow",
+        "task": question,
+        "max_loops": 1,
+        "agents": [
+            {
+                "agent_name": "researcher",
+                "system_prompt": "Gather the relevant facts and lay them out plainly. \
+                                  Cite what is well established and mark what is contested.",
+                "model_name": "gpt-4o-mini",
+                "max_loops": 1,
+                "max_tokens": 2000
+            },
+            {
+                "agent_name": "skeptic",
+                "system_prompt": "You are reviewing the research above. Attack its weakest \
+                                  claims. Name every assumption presented as fact. Be specific \
+                                  and do not soften your criticism.",
+                "model_name": "gpt-4o-mini",
+                "max_loops": 1,
+                "max_tokens": 2000
+            },
+            {
+                "agent_name": "editor",
+                "system_prompt": "You have the research and the critique. Write the final \
+                                  answer, keeping only claims that survived. State remaining \
+                                  uncertainty explicitly.",
+                "model_name": "gpt-4o-mini",
+                "max_loops": 1,
+                "max_tokens": 2000
+            }
+        ]
+    })
+}
+```
+
+`SequentialWorkflow` runs these in array order and feeds each output forward. Other architectures change that wiring:
+
+| `swarm_type` | Wiring | Use when |
+|--------------|--------|----------|
+| `SequentialWorkflow` | Each output feeds the next | Stages build on each other — research, critique, edit |
+| `ConcurrentWorkflow` | All agents see the task, run in parallel | Independent perspectives on the same input |
+| `MajorityVoting` | Parallel, then a vote | You want the most-agreed answer, not a synthesis |
+| `DebateWithJudge` | Agents argue, a judge rules | The question is genuinely contested |
+| `HierarchicalSwarm` | A director delegates to workers | The task needs decomposition first |
+| `auto` | The server picks | You do not want to choose |
+
+The full list is in [Available Architectures](/docs/documentation/multi-agent/available-architectures).
+
+## Step 5: Call the Tool
+
+`CallToolRequestParams` is `#[non_exhaustive]`, so build it with `new` plus `with_arguments` rather than a struct literal.
+
+```rust
+use rmcp::model::CallToolRequestParams;
+
+let result = client
+    .call_tool(
+        CallToolRequestParams::new("run_swarm_v1_swarm_completions_post")
+            .with_arguments(swarm_arguments(&question).as_object().cloned().unwrap()),
+    )
+    .await?;
+```
+
+Then check for failure **before** touching the payload. An upstream error — a bad key, a 429, a 422 — arrives as `is_error: Some(true)` with the detail in `content`, not as an `Err`:
+
+```rust
+if result.is_error.unwrap_or(false) {
+    return Err(format!("swarm call failed: {:?}", result.content).into());
+}
+
+let payload = result
+    .structured_content
+    .ok_or("no structured content in result")?;
+let swarm: SwarmResult = serde_json::from_value(payload)?;
+```
+
+## Step 6: The Complete Program
+
+`src/main.rs`:
+
+```rust
+use std::collections::HashMap;
+
+use rmcp::model::CallToolRequestParams;
+use rmcp::transport::{
+    streamable_http_client::StreamableHttpClientTransportConfig,
+    StreamableHttpClientTransport,
+};
+use rmcp::ServiceExt;
+use serde::Deserialize;
+use serde_json::json;
+
+const SERVER_URL: &str = "https://mcp.swarms.world/mcp";
+
+#[derive(Debug, Deserialize)]
+struct SwarmResult {
+    job_id: String,
+    status: String,
+    swarm_type: String,
+    output: Vec<Message>,
+    number_of_agents: u32,
+    execution_time: f64,
+    usage: Usage,
+}
+
+#[derive(Debug, Deserialize)]
+struct Message {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Usage {
+    total_tokens: u64,
+    billing_info: BillingInfo,
+}
+
+#[derive(Debug, Deserialize)]
+struct BillingInfo {
+    total_cost: f64,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let question: String = std::env::args().skip(1).collect::<Vec<_>>().join(" ");
+    let question = if question.is_empty() {
+        "What are the real limits of vector databases for long-term agent memory?".to_string()
+    } else {
+        question
+    };
+
+    let api_key = std::env::var("SWARMS_API_KEY")
+        .map_err(|_| "SWARMS_API_KEY is not set")?;
+
+    // The credential is a transport header, never a tool argument.
+    let mut headers = HashMap::new();
+    headers.insert("x-api-key".parse()?, api_key.parse()?);
+
+    let transport = StreamableHttpClientTransport::from_config(
+        StreamableHttpClientTransportConfig::with_uri(SERVER_URL).custom_headers(headers),
+    );
+
+    let client = ().serve(transport).await?;
+
+    let arguments = json!({
+        "name": "research-desk",
+        "description": "Research a question, challenge the findings, then publish.",
+        "swarm_type": "SequentialWorkflow",
+        "task": question,
+        "max_loops": 1,
+        "agents": [
+            {
+                "agent_name": "researcher",
+                "system_prompt": "Gather the relevant facts and lay them out plainly. Cite what is well established and mark what is contested.",
+                "model_name": "gpt-4o-mini",
+                "max_loops": 1,
+                "max_tokens": 2000
+            },
+            {
+                "agent_name": "skeptic",
+                "system_prompt": "You are reviewing the research above. Attack its weakest claims. Name every assumption presented as fact. Be specific and do not soften your criticism.",
+                "model_name": "gpt-4o-mini",
+                "max_loops": 1,
+                "max_tokens": 2000
+            },
+            {
+                "agent_name": "editor",
+                "system_prompt": "You have the research and the critique. Write the final answer, keeping only claims that survived. State remaining uncertainty explicitly.",
+                "model_name": "gpt-4o-mini",
+                "max_loops": 1,
+                "max_tokens": 2000
+            }
+        ]
+    });
+
+    println!("running swarm on: {question}\n");
+
+    let result = client
+        .call_tool(
+            CallToolRequestParams::new("run_swarm_v1_swarm_completions_post")
+                .with_arguments(arguments.as_object().cloned().unwrap()),
+        )
+        .await?;
+
+    // Upstream failures arrive as a result with is_error set, not as an Err.
+    if result.is_error.unwrap_or(false) {
+        return Err(format!("swarm call failed: {:?}", result.content).into());
+    }
+
+    let payload = result
+        .structured_content
+        .ok_or("no structured content in result")?;
+    let swarm: SwarmResult = serde_json::from_value(payload)?;
+
+    for message in &swarm.output {
+        println!("=== {} ===", message.role);
+        println!("{}\n", message.content);
+    }
+
+    println!("---");
+    println!("job:     {}", swarm.job_id);
+    println!("status:  {}", swarm.status);
+    println!("type:    {}", swarm.swarm_type);
+    println!("agents:  {}", swarm.number_of_agents);
+    println!("elapsed: {:.1}s", swarm.execution_time);
+    println!("tokens:  {}", swarm.usage.total_tokens);
+    println!("cost:    ${:.6}", swarm.usage.billing_info.total_cost);
+
+    client.cancel().await?;
+    Ok(())
+}
+```
+
+Run it:
+
+```bash
+cargo run -- "What are the real limits of vector databases for agent memory?"
+```
+
+The first entry in `output` has role `User` and echoes your task — the agents follow after it, in execution order.
+
+## Step 7: Discovering Tools at Runtime
+
+`list_tools` takes an `Option<PaginatedRequestParams>`, so `Default::default()` gives you the unpaginated call:
+
+```rust
+let tools = client.list_tools(Default::default()).await?;
+for tool in tools.tools {
+    println!("{}", tool.name);
+}
+```
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `cannot create non-exhaustive struct` | Struct literal for `CallToolRequestParams` | Use `CallToolRequestParams::new(..).with_arguments(..)` |
+| `missing field` from `serde_json` | A struct field the response does not carry | Make it `Option<T>` or drop it |
+| Message about supplying `x-api-key` | Header not on the transport | Set it via `custom_headers` |
+| `no structured content in result` | The call errored upstream | Check `is_error` first — the reason is in `content` |
+| Swarm runs for minutes | Normal for three agents with large `max_tokens` | Lower `max_tokens`, or use `ConcurrentWorkflow` |
+
+<Warning>
+Every swarm run is billed per agent plus tokens. A three-agent `SequentialWorkflow` costs roughly three times a single agent call on the same task. Read `usage.billing_info.total_cost` on every response rather than estimating.
+</Warning>
+
+## Next Steps
+
+- [Build an Agent CLI over MCP (TypeScript)](/docs/examples/examples/mcp-agent-typescript) — the single-agent version
+- [Run a Batch Pipeline over MCP (Python)](/docs/examples/examples/mcp-batch-pipeline-python) — many records at once
+- [Available Architectures](/docs/documentation/multi-agent/available-architectures) — every `swarm_type` explained

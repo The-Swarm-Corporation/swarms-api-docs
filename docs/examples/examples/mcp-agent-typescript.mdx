@@ -1,0 +1,352 @@
+---
+title: "Build an Agent CLI over MCP (TypeScript)"
+description: "Go from an empty folder to a working multi-turn agent CLI in about ten minutes, talking to the hosted Swarms MCP server at mcp.swarms.world with the official TypeScript SDK."
+---
+
+## What This Tutorial Builds
+
+A command-line tool you can run as `npm start "your question here"` that:
+
+- Connects to the hosted Swarms MCP server — nothing to install or self-host
+- Runs a single agent and prints its answer
+- Carries conversation history across turns so follow-up questions work
+- Reports the exact cost of every call
+- Fails loudly and correctly instead of printing `undefined`
+
+## Why MCP Instead of Plain HTTP
+
+You can call `https://api.swarms.world/v1/agent/completions` with `fetch` and it works. MCP earns its place when the same client also needs to *discover* what is available, or when the client is itself an agent choosing tools at runtime. Over MCP you get a typed tool list, a uniform result envelope, and one transport that any other MCP-aware program can reuse. The credential also lives on the transport rather than in your request bodies, so it never travels as a tool argument.
+
+<Note>
+**No installation required.** The Swarms MCP server is hosted at `https://mcp.swarms.world/mcp`. You need an API key from the [API Keys page](https://swarms.world/platform/api-keys) and nothing else.
+</Note>
+
+## Step 1: Create the Project
+
+```bash
+mkdir swarms-agent-cli && cd swarms-agent-cli
+npm init -y
+npm install @modelcontextprotocol/sdk
+npm install -D tsx typescript
+```
+
+Set `"type": "module"` in `package.json` so top-level `await` works, and add a start script:
+
+```json
+{
+  "name": "swarms-agent-cli",
+  "type": "module",
+  "scripts": {
+    "start": "tsx agent.ts"
+  }
+}
+```
+
+Export your key:
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## Step 2: Connect to the Server
+
+Create `client.ts`. This is the only file that knows about transports and credentials.
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const SERVER_URL = "https://mcp.swarms.world/mcp";
+
+export async function connect(): Promise<Client> {
+  const apiKey = process.env.SWARMS_API_KEY;
+  if (!apiKey) {
+    throw new Error("SWARMS_API_KEY is not set");
+  }
+
+  // The credential rides on the transport as a header. It is never a tool
+  // argument, so the model driving these tools never sees it.
+  const transport = new StreamableHTTPClientTransport(new URL(SERVER_URL), {
+    requestInit: { headers: { "x-api-key": apiKey } },
+  });
+
+  const client = new Client({ name: "swarms-agent-cli", version: "1.0.0" });
+  await client.connect(transport);
+  return client;
+}
+```
+
+The server is **stateless** — there is no session id to store or replay. Each connection is independent, so you can open one per process and close it when you are done.
+
+## Step 3: See What the Server Offers
+
+Before writing any tool call, look at what is actually there. Create `list.ts`:
+
+```typescript
+import { connect } from "./client.js";
+
+const client = await connect();
+const { tools } = await client.listTools();
+
+console.log(`${tools.length} tools available:\n`);
+for (const tool of tools) {
+  console.log(`  ${tool.name}`);
+}
+
+await client.close();
+```
+
+```bash
+npx tsx list.ts
+```
+
+You should see 23 tools. The one this tutorial uses is `run_agent_v1_agent_completions_post`, which maps to `POST /v1/agent/completions`.
+
+<Note>
+`listTools` works without a valid key — discovery is open. Only `callTool` requires credentials. That is useful when you want an agent to inspect the tool surface before you commit a key to it.
+</Note>
+
+## Step 4: Your First Agent Call
+
+Create `agent.ts`:
+
+```typescript
+import { connect } from "./client.js";
+
+const client = await connect();
+
+const result = await client.callTool({
+  name: "run_agent_v1_agent_completions_post",
+  arguments: {
+    agent_config: {
+      agent_name: "explainer",
+      description: "Explains technical concepts concisely and correctly.",
+      system_prompt:
+        "You are a precise technical explainer. Prefer short paragraphs " +
+        "and concrete examples over abstractions. Never pad your answer.",
+      model_name: "gpt-4o-mini",
+      max_loops: 1,
+      max_tokens: 2000,
+    },
+    task: "Explain the CAP theorem in three bullets.",
+  },
+});
+
+console.log(result.structuredContent);
+await client.close();
+```
+
+```bash
+npx tsx agent.ts
+```
+
+## Step 5: Read the Result Correctly
+
+Every tool result carries the same envelope, and getting this right is most of what separates a working client from a flaky one.
+
+| Field | What it is | Use it? |
+|-------|-----------|---------|
+| `structuredContent` | The upstream JSON, already parsed | **Yes** |
+| `content[0].text` | A status line followed by pretty-printed JSON | Only for logs and error messages |
+| `isError` | `true` when the upstream call failed | **Always check first** |
+
+The critical detail: **an upstream failure does not throw.** A 429, a 422, an expired key — all of these come back as a normal result with `isError: true`. If you skip the check and read `structuredContent`, you get `undefined` and a confusing crash three lines later.
+
+```typescript
+if (result.isError) {
+  // content[0].text holds the upstream status line and body.
+  throw new Error(`Swarms call failed: ${result.content[0].text}`);
+}
+
+const payload = result.structuredContent as any;
+console.log(payload.outputs[0].content);
+console.log(`cost: $${payload.usage.total_cost}`);
+```
+
+The agent response shape:
+
+```json
+{
+  "job_id": "agent-b0abf28…",
+  "success": true,
+  "name": "explainer",
+  "outputs": [
+    { "role": "explainer", "content": "…", "timestamp": "…", "message_id": "…" }
+  ],
+  "usage": {
+    "input_tokens": 7,
+    "output_tokens": 62,
+    "total_tokens": 69,
+    "total_cost": 0.001192
+  }
+}
+```
+
+`outputs` is an array because an agent running `max_loops` greater than one produces one entry per loop. The last entry is the final answer.
+
+## Step 6: Add Conversation History
+
+A single call is stateless. To make follow-ups work, pass the prior turns back as `history` — an array of `{ role, content }` objects.
+
+```typescript
+type Turn = { role: string; content: string };
+
+async function ask(
+  client: Client,
+  task: string,
+  history: Turn[],
+): Promise<{ answer: string; cost: number }> {
+  const result = await client.callTool({
+    name: "run_agent_v1_agent_completions_post",
+    arguments: {
+      agent_config: {
+        agent_name: "explainer",
+        system_prompt: "You are a precise technical explainer.",
+        model_name: "gpt-4o-mini",
+        max_loops: 1,
+        max_tokens: 2000,
+      },
+      task,
+      // Omit history entirely on the first turn rather than sending [].
+      ...(history.length > 0 ? { history } : {}),
+    },
+  });
+
+  if (result.isError) {
+    throw new Error(`Swarms call failed: ${result.content[0].text}`);
+  }
+
+  const payload = result.structuredContent as any;
+  const answer = payload.outputs[payload.outputs.length - 1].content;
+  return { answer, cost: payload.usage.total_cost };
+}
+```
+
+Then thread the history through your loop:
+
+```typescript
+const history: Turn[] = [];
+
+for (const question of ["What is the CAP theorem?", "Which do most SQL databases pick?"]) {
+  const { answer } = await ask(client, question, history);
+  console.log(`\nQ: ${question}\nA: ${answer}`);
+
+  history.push({ role: "user", content: question });
+  history.push({ role: "assistant", content: answer });
+}
+```
+
+The second question — "which do most SQL databases pick?" — only makes sense because the first turn is in history.
+
+## Step 7: Handle Timeouts
+
+Agents with high `max_loops`, or swarms, routinely run longer than a default HTTP timeout. Raise it explicitly on the call:
+
+```typescript
+const result = await client.callTool(
+  { name: "run_agent_v1_agent_completions_post", arguments: { /* … */ } },
+  undefined,
+  { timeout: 300_000 }, // 5 minutes
+);
+```
+
+<Warning>
+Do not retry a failed completion blindly. Agent calls are billed, and a timeout on the client side does not necessarily mean the server abandoned the work. Retry on connection errors; investigate on timeouts.
+</Warning>
+
+## Step 8: The Complete CLI
+
+`agent.ts`, in full:
+
+```typescript
+import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { connect } from "./client.js";
+
+type Turn = { role: string; content: string };
+
+const AGENT_CONFIG = {
+  agent_name: "explainer",
+  description: "Explains technical concepts concisely and correctly.",
+  system_prompt:
+    "You are a precise technical explainer. Prefer short paragraphs and " +
+    "concrete examples over abstractions. Never pad your answer.",
+  model_name: "gpt-4o-mini",
+  max_loops: 1,
+  max_tokens: 2000,
+};
+
+async function ask(client: Client, task: string, history: Turn[]) {
+  const result = await client.callTool(
+    {
+      name: "run_agent_v1_agent_completions_post",
+      arguments: {
+        agent_config: AGENT_CONFIG,
+        task,
+        ...(history.length > 0 ? { history } : {}),
+      },
+    },
+    undefined,
+    { timeout: 300_000 },
+  );
+
+  if (result.isError) {
+    throw new Error(`Swarms call failed: ${(result.content as any)[0].text}`);
+  }
+
+  const payload = result.structuredContent as any;
+  return {
+    answer: payload.outputs[payload.outputs.length - 1].content as string,
+    cost: payload.usage.total_cost as number,
+  };
+}
+
+const question = process.argv.slice(2).join(" ");
+if (!question) {
+  console.error('usage: npm start "your question"');
+  process.exit(1);
+}
+
+const client = await connect();
+let spent = 0;
+
+try {
+  const first = await ask(client, question, []);
+  console.log(first.answer);
+  spent += first.cost;
+
+  const history: Turn[] = [
+    { role: "user", content: question },
+    { role: "assistant", content: first.answer },
+  ];
+
+  const followUp = "In one sentence, what is the most common mistake people make about this?";
+  const second = await ask(client, followUp, history);
+  console.log(`\n--- ${followUp} ---\n${second.answer}`);
+  spent += second.cost;
+} finally {
+  console.log(`\ntotal cost: $${spent.toFixed(6)}`);
+  await client.close();
+}
+```
+
+Run it:
+
+```bash
+npm start "Explain the CAP theorem in three bullets."
+```
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `Cannot read properties of undefined` | Read `structuredContent` without checking `isError` | Check `isError` first |
+| Message about supplying `x-api-key` | Key missing from the transport headers | Set it in `requestInit.headers`, not in `arguments` |
+| Upstream `422` in the error text | `agent_config` field name or type is wrong | Compare against `inputSchema` from `listTools` |
+| Request hangs then fails | Default timeout too short for the run | Pass `{ timeout: 300_000 }` |
+| `403` on batch tools | Batch endpoints are premium-only | [Upgrade your account](https://swarms.world/platform/account) |
+
+## Next Steps
+
+- [Build a Multi-Agent Research Tool in Rust over MCP](/docs/examples/examples/mcp-swarm-rust) — when one agent is not enough
+- [Run a Batch Pipeline over MCP (Python)](/docs/examples/examples/mcp-batch-pipeline-python) — for thousands of records
+- [Swarms API MCP Server](/docs/documentation/clients/swarms-api-mcp) — the full tool reference

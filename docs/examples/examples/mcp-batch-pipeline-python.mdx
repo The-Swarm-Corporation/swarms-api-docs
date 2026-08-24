@@ -1,0 +1,458 @@
+---
+title: "Run a Batch Pipeline over MCP (Python)"
+description: "Classify thousands of records through the hosted Swarms MCP server — chunk to the 50-item cap, fan the chunks out concurrently over one session, survive partial failures, and account for every cent."
+---
+
+## What This Tutorial Builds
+
+A pipeline that takes a list of support tickets and returns a triage decision for each one — severity, category, suggested team — by pushing them through `run_agent_batch_v1_agent_batch_completions_post` on the hosted MCP server. It covers the parts that only show up at scale:
+
+- Chunking a large input list to the endpoint's hard **50-item cap**
+- Running chunks concurrently over a **single** MCP session
+- Surviving partial failures without losing the whole run
+- Parsing model output that is *supposed* to be JSON and sometimes is not
+- Accounting for cost per record, not per run
+
+<Warning>
+**Batch endpoints are premium-only.** `/v1/agent/batch/completions` is restricted to Pro, Ultra, and Premium subscribers, and a free-tier key gets a `403`. [Upgrade your account](https://swarms.world/platform/account) to run this tutorial.
+</Warning>
+
+## Why Batch Instead of a Loop
+
+Calling the single-agent tool once per record works and is easy to reason about. It also pays connection and scheduling overhead on every one of ten thousand records, and it serializes work the server would happily parallelize. The batch tool takes up to 50 completions in one call and fans them out server-side. Your job shrinks to two things: chunk correctly, and run a bounded number of chunks at once.
+
+## Step 1: Setup
+
+```bash
+pip install mcp
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## Step 2: Open One Session, Reuse It
+
+The single most common performance mistake is opening a new MCP session per chunk. Connect once and pass the session down.
+
+```python
+import os
+
+import httpx
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+SERVER = "https://mcp.swarms.world/mcp"
+
+
+def http_client() -> httpx.AsyncClient:
+    api_key = os.environ.get("SWARMS_API_KEY")
+    if not api_key:
+        raise SystemExit("SWARMS_API_KEY is not set")
+    # The credential is a transport header, never a tool argument.
+    return httpx.AsyncClient(
+        headers={"x-api-key": api_key}, timeout=600
+    )
+```
+
+The 600-second timeout is deliberate. A 50-item batch of real work routinely runs for minutes, and the default `httpx` timeout will cut it off mid-flight.
+
+## Step 3: Define the Agent Once
+
+Every record in the batch reuses the same `agent_config`. Only the `task` changes.
+
+```python
+TRIAGE_AGENT = {
+    "agent_name": "ticket-triage",
+    "description": "Triages inbound customer support tickets.",
+    "system_prompt": (
+        "You are a support operations lead. Given a ticket, respond with "
+        "strict JSON and nothing else: "
+        '{"severity": "P0"|"P1"|"P2"|"P3", '
+        '"category": "billing"|"bug"|"howto"|"outage"|"other", '
+        '"team": string, "reason": "one sentence"}'
+    ),
+    "model_name": "gpt-4o-mini",
+    "max_loops": 1,
+    "max_tokens": 300,
+    "temperature": 0.2,
+}
+```
+
+Low `max_tokens` and low `temperature` are what make batch economics work. You are asking for a classification, not an essay — cap the output so one verbose row cannot triple the bill.
+
+## Step 4: Chunk to the Cap
+
+The batch tool accepts **at most 50 items**. Exceeding it is a validation error, not a silent truncation.
+
+```python
+BATCH_LIMIT = 50
+
+
+def to_completion(ticket: dict) -> dict:
+    return {
+        "agent_config": TRIAGE_AGENT,
+        "task": (
+            f"Ticket {ticket['id']} from a {ticket['tier']} customer.\n"
+            f"Subject: {ticket['subject']}\n"
+            f"Body: {ticket['body']}"
+        ),
+    }
+
+
+def chunk(items: list, size: int = BATCH_LIMIT) -> list[list]:
+    return [items[i : i + size] for i in range(0, len(items), size)]
+```
+
+## Step 5: Run One Chunk
+
+One chunk is one tool call. Check `isError` before touching the payload — an upstream `403`, `429`, or `422` arrives as a *result*, not an exception.
+
+```python
+async def run_chunk(session: ClientSession, tickets: list[dict]) -> dict:
+    result = await session.call_tool(
+        "run_agent_batch_v1_agent_batch_completions_post",
+        {"body": [to_completion(t) for t in tickets]},
+    )
+
+    if result.is_error:
+        raise RuntimeError(result.content[0].text)
+
+    return result.structured_content
+```
+
+The batch response shape:
+
+```json
+{
+  "batch_id": "agent-batch-57088ba…",
+  "total_requests": 50,
+  "results": [
+    {
+      "job_id": "agent-80e25c9…",
+      "success": true,
+      "name": "ticket-triage",
+      "outputs": [{ "role": "ticket-triage", "content": "{\"severity\": …}", "timestamp": "…" }],
+      "usage": { "total_tokens": 71, "total_cost": 0.001277 }
+    }
+  ],
+  "execution_time": 3.45,
+  "timestamp": "…"
+}
+```
+
+`results` is positional — `results[i]` corresponds to `body[i]`. That is what lets you rejoin the model's answer to your original record.
+
+## Step 6: Fan Out, but Bounded
+
+Running every chunk at once will hit your rate limit. A semaphore keeps a fixed number in flight.
+
+```python
+import asyncio
+
+CONCURRENCY = 5
+
+
+async def run_all(
+    session: ClientSession, tickets: list[dict]
+) -> list[dict]:
+    chunks = chunk(tickets)
+    limiter = asyncio.Semaphore(CONCURRENCY)
+
+    async def guarded(batch: list[dict]) -> dict | BaseException:
+        async with limiter:
+            try:
+                return await run_chunk(session, batch)
+            except Exception as exc:  # one bad chunk must not sink the run
+                return exc
+
+    return await asyncio.gather(*(guarded(c) for c in chunks))
+```
+
+Returning the exception rather than raising is the important part. In a 10,000-record run, one chunk failing on a transient `429` should cost you 50 records to retry — not the other 9,950.
+
+<Note>
+Start at `CONCURRENCY = 5` and raise it while watching `get_rate_limits_v1_rate_limits_get`. The right number depends on your tier, not on your machine.
+</Note>
+
+## Step 7: Rejoin and Parse
+
+The agent was told to return JSON. Sometimes it will return JSON wrapped in a code fence, or a sentence of preamble. Handle that instead of trusting it.
+
+````python
+import json
+
+
+def parse_decision(raw: str) -> dict | None:
+    text = raw.strip()
+    if text.startswith("```"):
+        # strip a ```json … ``` fence
+        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+def rejoin(tickets: list[dict], responses: list) -> tuple[list, list]:
+    triaged, review_queue = [], []
+    index = 0
+
+    for response in responses:
+        batch = tickets[index : index + BATCH_LIMIT]
+        index += BATCH_LIMIT
+
+        if isinstance(response, BaseException):
+            review_queue.extend(
+                {"ticket": t, "error": str(response)} for t in batch
+            )
+            continue
+
+        for ticket, item in zip(batch, response["results"]):
+            if not item.get("success"):
+                review_queue.append({"ticket": ticket, "error": "agent failed"})
+                continue
+
+            decision = parse_decision(item["outputs"][-1]["content"])
+            if decision is None:
+                review_queue.append(
+                    {"ticket": ticket, "error": "unparseable output"}
+                )
+                continue
+
+            triaged.append({**ticket, **decision})
+
+    return triaged, review_queue
+````
+
+Every record ends up in exactly one of two lists. Nothing is silently dropped — that is the property you want when the input is a customer backlog.
+
+## Step 8: Account for the Cost
+
+Each result carries its own `usage`, so the true cost of the run is a sum, not an estimate.
+
+```python
+def total_cost(responses: list) -> float:
+    return sum(
+        item["usage"]["total_cost"]
+        for response in responses
+        if not isinstance(response, BaseException)
+        for item in response["results"]
+        if item.get("success")
+    )
+```
+
+## Step 9: The Complete Pipeline
+
+````python
+import asyncio
+import json
+import os
+
+import httpx
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+SERVER = "https://mcp.swarms.world/mcp"
+BATCH_LIMIT = 50
+CONCURRENCY = 5
+
+TRIAGE_AGENT = {
+    "agent_name": "ticket-triage",
+    "description": "Triages inbound customer support tickets.",
+    "system_prompt": (
+        "You are a support operations lead. Given a ticket, respond with "
+        "strict JSON and nothing else: "
+        '{"severity": "P0"|"P1"|"P2"|"P3", '
+        '"category": "billing"|"bug"|"howto"|"outage"|"other", '
+        '"team": string, "reason": "one sentence"}'
+    ),
+    "model_name": "gpt-4o-mini",
+    "max_loops": 1,
+    "max_tokens": 300,
+    "temperature": 0.2,
+}
+
+
+def build_tickets(count: int) -> list[dict]:
+    subjects = [
+        ("Charged twice this month", "premium"),
+        ("Dashboard returns 500 on load", "free"),
+        ("How do I rotate my API key?", "pro"),
+        ("Everything is down for our whole org", "enterprise"),
+    ]
+    tickets = []
+    for i in range(count):
+        subject, tier = subjects[i % len(subjects)]
+        tickets.append(
+            {
+                "id": f"T{i:05d}",
+                "tier": tier,
+                "subject": subject,
+                "body": f"{subject}. Please advise. (case {i})",
+            }
+        )
+    return tickets
+
+
+def to_completion(ticket: dict) -> dict:
+    return {
+        "agent_config": TRIAGE_AGENT,
+        "task": (
+            f"Ticket {ticket['id']} from a {ticket['tier']} customer.\n"
+            f"Subject: {ticket['subject']}\n"
+            f"Body: {ticket['body']}"
+        ),
+    }
+
+
+def chunk(items: list, size: int = BATCH_LIMIT) -> list[list]:
+    return [items[i : i + size] for i in range(0, len(items), size)]
+
+
+def parse_decision(raw: str) -> dict | None:
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+async def run_chunk(session: ClientSession, tickets: list[dict]) -> dict:
+    result = await session.call_tool(
+        "run_agent_batch_v1_agent_batch_completions_post",
+        {"body": [to_completion(t) for t in tickets]},
+    )
+    if result.is_error:
+        raise RuntimeError(result.content[0].text)
+    return result.structured_content
+
+
+async def run_all(session: ClientSession, tickets: list[dict]) -> list:
+    limiter = asyncio.Semaphore(CONCURRENCY)
+
+    async def guarded(batch: list[dict]):
+        async with limiter:
+            try:
+                return await run_chunk(session, batch)
+            except Exception as exc:
+                return exc
+
+    return await asyncio.gather(*(guarded(c) for c in chunk(tickets)))
+
+
+def rejoin(tickets: list[dict], responses: list) -> tuple[list, list]:
+    triaged, review_queue = [], []
+    index = 0
+
+    for response in responses:
+        batch = tickets[index : index + BATCH_LIMIT]
+        index += BATCH_LIMIT
+
+        if isinstance(response, BaseException):
+            review_queue.extend(
+                {"ticket": t, "error": str(response)} for t in batch
+            )
+            continue
+
+        for ticket, item in zip(batch, response["results"]):
+            if not item.get("success"):
+                review_queue.append({"ticket": ticket, "error": "agent failed"})
+                continue
+            decision = parse_decision(item["outputs"][-1]["content"])
+            if decision is None:
+                review_queue.append(
+                    {"ticket": ticket, "error": "unparseable output"}
+                )
+                continue
+            triaged.append({**ticket, **decision})
+
+    return triaged, review_queue
+
+
+def total_cost(responses: list) -> float:
+    return sum(
+        item["usage"]["total_cost"]
+        for response in responses
+        if not isinstance(response, BaseException)
+        for item in response["results"]
+        if item.get("success")
+    )
+
+
+async def main() -> None:
+    api_key = os.environ.get("SWARMS_API_KEY")
+    if not api_key:
+        raise SystemExit("SWARMS_API_KEY is not set")
+
+    tickets = build_tickets(120)
+    print(f"triaging {len(tickets)} tickets "
+          f"in {len(chunk(tickets))} chunks\n")
+
+    async with (
+        httpx.AsyncClient(
+            headers={"x-api-key": api_key}, timeout=600
+        ) as http,
+        streamable_http_client(SERVER, http_client=http) as (read, write),
+        ClientSession(read, write) as session,
+    ):
+        await session.initialize()
+        responses = await run_all(session, tickets)
+
+    triaged, review_queue = rejoin(tickets, responses)
+
+    by_severity: dict[str, int] = {}
+    for row in triaged:
+        by_severity[row["severity"]] = by_severity.get(row["severity"], 0) + 1
+
+    print(f"triaged:      {len(triaged)}")
+    print(f"needs review: {len(review_queue)}")
+    for severity in sorted(by_severity):
+        print(f"  {severity}: {by_severity[severity]}")
+
+    cost = total_cost(responses)
+    print(f"\ntotal cost:      ${cost:.4f}")
+    if triaged:
+        print(f"cost per ticket: ${cost / len(triaged):.6f}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+````
+
+## Scaling Past 10,000 Records
+
+Nothing in the code above changes — only the numbers do.
+
+| Records | Chunks | At `CONCURRENCY = 5` |
+|---------|--------|----------------------|
+| 120 | 3 | one wave |
+| 1,000 | 20 | 4 waves |
+| 10,000 | 200 | 40 waves |
+
+The knobs, in the order worth turning:
+
+1. **`CONCURRENCY`** — the real throughput lever. Raise it until `get_rate_limits_v1_rate_limits_get` says you are close to your ceiling.
+2. **`max_tokens`** — the real cost lever. A classification needs 300 tokens, not 16,000.
+3. **`model_name`** — try the cheapest model that holds accuracy on a 100-record sample before running 10,000.
+
+<Warning>
+Validate on a small sample first. Run 100 records, read the output by hand, and confirm the JSON contract holds before you spend on the full backlog. A prompt that produces prose instead of JSON costs the same as one that works.
+</Warning>
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Upstream `403` | Batch endpoints are premium-only | [Upgrade your account](https://swarms.world/platform/account) |
+| Upstream `422` mentioning list length | Chunk larger than 50 | Keep `BATCH_LIMIT` at 50 |
+| `429` on some chunks | `CONCURRENCY` too high for your tier | Lower it; retry just the failed chunks |
+| `ReadTimeout` | Default `httpx` timeout too short | Pass `timeout=600` to `AsyncClient` |
+| Many "unparseable output" rows | The model is not honoring the JSON contract | Tighten the system prompt, lower `temperature` |
+| Results matched to the wrong record | Assumed order is not guaranteed | `results[i]` matches `body[i]` — rejoin positionally, as above |
+
+## Next Steps
+
+- [Build an Agent CLI over MCP (TypeScript)](/docs/examples/examples/mcp-agent-typescript) — the single-record version
+- [Build a Multi-Agent Research Tool in Rust over MCP](/docs/examples/examples/mcp-swarm-rust) — when one agent per record is not enough
+- [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions) — a whole swarm per record
+- [Rate Limits](/docs/documentation/resources/ratelimits) — what to check before raising concurrency

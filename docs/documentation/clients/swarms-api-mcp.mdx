@@ -1,684 +1,628 @@
 ---
 title: 'Swarms API MCP Server'
-description: 'Connect MCP-compatible agents and applications to Swarms AI through the Model Context Protocol. Execute agents, orchestrate swarms, run reasoning workflows, and process batches—all via a standardized MCP interface.'
+description: 'Connect any MCP-compatible agent to the Swarms API through the hosted remote MCP server at mcp.swarms.world. Run agents, orchestrate swarms, and process batches over a standard Streamable HTTP transport.'
 ---
+
+The Swarms API MCP Server is a **hosted remote server** that exposes the entire Swarms API as Model Context Protocol tools. There is nothing to install and nothing to run locally — point your MCP client at one URL, send your API key as a header, and your agent can execute agents, orchestrate multi-agent swarms, run reasoning workflows, and process batches.
+
+**MCP Server URL:** `https://mcp.swarms.world/mcp`
 
 ## Overview
 
-The Swarms TypeScript MCP Server bridges MCP-compatible agents (Claude Desktop, Cursor IDE, OpenAI Agents, and other MCP clients) with the Swarms AI agent platform. Built with Stainless and following the Model Context Protocol standard, this server exposes Swarms' API endpoints as discoverable tools that agents can invoke directly—enabling agents to execute single agents, orchestrate multi-agent swarms, run reasoning workflows, and process batch operations without custom API integration code.
+| Property | Value |
+|----------|-------|
+| **URL** | `https://mcp.swarms.world/mcp` |
+| **Transport** | Streamable HTTP |
+| **Protocol version** | `2025-06-18` |
+| **Session handling** | Stateless — no `Mcp-Session-Id` to track |
+| **Authentication** | `x-api-key` header, supplied per request by the caller |
+| **Tools exposed** | 23 |
+| **Upstream base URL** | `https://api.swarms.world` |
+| **Installation** | None |
 
-### Key Capabilities
+### Authentication
 
-- **Single Agent Execution**: Run individual Swarms agents with custom tasks, model selection, and configuration parameters
-- **Multi-Agent Orchestration**: Coordinate swarms using architectural patterns including sequential workflows, concurrent execution, hierarchical structures, graph-based routing, and majority voting
-- **Reasoning Agents**: Execute chain-of-thought reasoning agents for step-by-step problem analysis and complex decision-making
-- **Batch Processing**: Process multiple agent tasks or swarm operations in parallel using thread pools for high-throughput workloads
-- **Dynamic Discovery**: Use runtime endpoint discovery to explore available API operations, or configure static tool exposure for better performance and type safety
-- **Client Optimization**: Automatically adapts tool schemas and capabilities to match your MCP client (Claude Desktop, Cursor IDE, OpenAI Agents, Claude Code, and custom clients)
+The server holds **no API key of its own**. Every caller supplies their own key on the MCP request via the `x-api-key` header, and the server forwards it upstream. Your key is never passed as a tool argument, so it is never visible to the model driving the tools.
 
-### Why Use This Server?
+Get a key from the [API Keys page](https://swarms.world/platform/api-keys).
 
-The Swarms MCP Server eliminates the need to write custom API integration code when building agent-powered applications. Instead of manually constructing HTTP requests, handling authentication, and parsing responses, agents can directly invoke Swarms operations through standardized MCP tools. The server provides production-ready error handling, rate limit monitoring, health checks, and flexible configuration options—allowing you to expose only the tools your agents need while maintaining full compatibility with the MCP ecosystem.
+Calling a tool without a key returns a normal MCP error result rather than a transport failure:
 
-
-## Installation
-
-### Prerequisites
-
-- Node.js (version 14 or higher recommended)
-- A valid Swarms API key
-- An MCP-compatible client application
-
-### Method 1: Direct Invocation via npx
-
-For quick testing or one-time usage, you can run the MCP server directly without installation:
-
-```bash
-export SWARMS_API_KEY="your_api_key_here"
-npx -y swarms-ts-mcp@latest
+```
+This server requires callers to supply their own credentials. Send x-api-key
+with your MCP request.
 ```
 
-### Method 2: Installation via npm
-
-For persistent usage or integration into projects:
-
-```bash
-npm install swarms-ts-mcp
-```
-
-### Method 3: MCP Client Configuration
-
-Most MCP clients support configuration through a JSON file. Add the following configuration to your client's MCP server settings:
-
-```json
-{
-  "mcpServers": {
-    "swarms_ts_api": {
-      "command": "npx",
-      "args": ["-y", "swarms-ts-mcp", "--client=claude", "--tools=all"],
-      "env": {
-        "SWARMS_API_KEY": "your_api_key_here"
-      }
-    }
-  }
-}
-```
-
-Replace `your_api_key_here` with your actual Swarms API key.
-
-## Configuration
-
-### Environment Variables
-
-The server requires the following environment variable:
-
-- `SWARMS_API_KEY`: Your Swarms platform API key (required)
-
-### Command-Line Arguments
-
-The MCP server supports extensive command-line configuration:
-
-#### Tool Selection
-
-- `--tools=all`: Expose all available tools
-- `--tools=dynamic`: Enable dynamic tool discovery mode
-- `--tool=<name>`: Include a specific tool by name
-- `--no-tool=<name>`: Exclude a specific tool by name
-
-#### Resource Filtering
-
-- `--resource=<name>`: Include all tools under a specific resource
-- `--resource=<pattern>*`: Include resources matching a wildcard pattern
-- `--no-resource=<name>`: Exclude a specific resource
-
-#### Operation Filtering
-
-- `--operation=read`: Include only read operations (GET/LIST)
-- `--operation=write`: Include only write operations (POST/PUT/DELETE)
-
-#### Client Configuration
-
-- `--client=<type>`: Configure for a specific MCP client
-  - Valid values: `openai-agents`, `claude`, `claude-code`, `cursor`
-
-#### Capability Settings
-
-- `--capability=<name>`: Enable specific client capabilities
-  - `top-level-unions`: Support for top-level union types
-  - `valid-json`: JSON string parsing for arguments
-  - `refs`: Support for $ref pointers in schemas
-  - `unions`: Support for union types (anyOf)
-  - `formats`: Support for format validations
-  - `tool-name-length=N`: Maximum tool name length
-
-#### Utility Commands
-
-- `--list`: Display all available tools
-- `--help`: Show help information
-
-### Configuration Examples
-
-**Filter for read-only operations on a specific resource:**
-```bash
-npx swarms-ts-mcp --resource=agent --operation=read
-```
-
-**Exclude specific tools while including others:**
-```bash
-npx swarms-ts-mcp --resource=swarms --no-tool=run_swarms_batch
-```
-
-**Configure for Cursor with custom capabilities:**
-```bash
-npx swarms-ts-mcp --client=cursor --capability=tool-name-length=40
-```
-
-**Complex multi-criteria filtering:**
-```bash
-npx swarms-ts-mcp --resource=agent,swarms --operation=read --no-tool=get_logs_swarms
-```
-
-## Tool Exposure Strategies
-
-The Swarms MCP server offers two primary strategies for exposing API endpoints as tools:
-
-### Static Tool Exposure
-
-In this mode, each API endpoint is exposed as a dedicated tool with a fully-defined schema. This approach provides:
-
-- Better autocomplete and type safety in client applications
-- More accurate parameter validation
-- Clearer documentation for each endpoint
-- Optimal performance for smaller API surfaces
-
-**Recommendation:** Use static exposure when working with a focused subset of the API or when the client has sufficient context window capacity.
-
-### Dynamic Tool Discovery
-
-When configured with `--tools=dynamic`, the server exposes three meta-tools that enable runtime endpoint discovery:
-
-#### `list_api_endpoints`
-Discovers available endpoints with optional search filtering.
-
-**Parameters:**
-- `search` (optional): Query string to filter endpoints
-
-**Use case:** Finding relevant endpoints without loading all schemas into context.
-
-#### `get_api_endpoint_schema`
-Retrieves detailed schema information for a specific endpoint.
-
-**Parameters:**
-- `endpoint`: The name or identifier of the endpoint
-
-**Use case:** Obtaining parameter requirements before invoking an endpoint.
-
-#### `invoke_api_endpoint`
-Executes any endpoint with appropriate parameters.
-
-**Parameters:**
-- `endpoint`: The endpoint to invoke
-- `parameters`: JSON object containing endpoint-specific parameters
-
-**Use case:** Making API calls after discovering and understanding the schema.
-
-**Recommendation:** Use dynamic tools when:
-- Working with a large API surface
-- Context window limitations are a concern
-- Runtime endpoint discovery is required
-- The full API schema exceeds available context
-
-### Hybrid Approach
-
-You can combine both strategies by specifying explicit tools alongside dynamic tools:
-
-```bash
-npx swarms-ts-mcp --tool=run_agent --tools=dynamic
-```
-
-This provides immediate access to frequently-used tools while maintaining the flexibility of dynamic discovery.
-
-## Client Compatibility
-
-Different MCP clients have varying capabilities for handling tool schemas and complex types. The Swarms MCP server automatically adapts its output based on the specified client.
-
-### Supported Clients
-
-#### Claude (`--client=claude`)
-Optimized for Claude AI assistant with full schema support.
-
-#### Claude Code (`--client=claude-code`)
-Configured for the Claude Code command-line environment.
-
-#### Cursor (`--client=cursor`)
-Adapted for the Cursor IDE with appropriate schema simplifications.
-
-#### OpenAI Agents (`--client=openai-agents`)
-Compatible with OpenAI's agent framework.
-
-### Manual Capability Configuration
-
-For clients not listed above or to override defaults:
-
-```bash
-npx swarms-ts-mcp --capability=top-level-unions,refs,unions,formats,tool-name-length=50
-```
-
-Available capabilities:
-
-- `top-level-unions`: Enables union types at the schema root
-- `valid-json`: Enables JSON string parsing for complex arguments
-- `refs`: Enables JSON Schema $ref pointers
-- `unions`: Enables anyOf union types
-- `formats`: Enables format validators (date-time, email, etc.)
-- `tool-name-length=N`: Sets maximum tool name length
-
-## Available Tools and Resources
-
-The Swarms MCP server exposes **12 tools** by default when using `--tools=all`. These tools are organized by resource and operation type, providing comprehensive access to the Swarms API functionality.
-
-### Complete Tools Reference Table
-
-| Tool Name | Resource | Operation Type | Description | Primary Use Case |
-|-----------|----------|----------------|-------------|------------------|
-| `get_root_client` | $client | Read | Root client information | API connectivity verification and health checks |
-| `check_health` | health | Read | Health status of the Swarms API | Monitoring API uptime and status |
-| `run_agent` | agent | Write | Execute a single agent with a specified task | Running individual AI agents for specific tasks |
-| `run_agent_batch` | agent.batch | Write | Execute multiple agents concurrently using thread pool | Parallel processing of multiple independent agent tasks |
-| `list_available_models` | models | Read | Retrieve all available AI models | Model discovery and selection for agent configuration |
-| `check_available_swarms` | swarms | Read | Query available swarm types and configurations | Determining which swarm architecture to use |
-| `get_logs_swarms` | swarms | Read | Retrieve API request logs for associated API keys | Auditing, debugging, and usage analysis |
-| `run_swarms` | swarms | Write | Execute a swarm with a specified task | Orchestrating multiple agents in coordinated patterns |
-| `run_swarms_batch` | swarms.batch | Write | Execute multiple swarms concurrently using thread pool | Large-scale parallel swarm processing |
-| `create_completion_reasoning_agents` | reasoning_agents | Write | Execute a reasoning agent with chain-of-thought | Complex problem-solving requiring step-by-step analysis |
-| `list_types_reasoning_agents` | reasoning_agents | Read | List available reasoning agent types | Selecting appropriate reasoning strategies |
-| `get_limits_client_rate` | client.rate | Read | Query rate limits and current usage statistics | Monitoring API quota and preventing rate limit violations |
-
-### Dynamic Discovery Tools
-
-When using `--tools=dynamic`, these additional meta-tools become available:
-
-| Tool Name | Description | Parameters |
-|-----------|-------------|------------|
-| `list_api_endpoints` | Discover available endpoints with optional filtering | `search` (optional): Query string to filter endpoints |
-| `get_api_endpoint_schema` | Retrieve detailed schema for a specific endpoint | `endpoint`: Endpoint name or identifier |
-| `invoke_api_endpoint` | Execute any endpoint with appropriate parameters | `endpoint`: Endpoint to invoke<br />`parameters`: JSON object with endpoint-specific parameters |
-
-### Resource: $client
-
-**get_root_client** (read)
-- Description: Root client information
-- Use case: Health checks and API connectivity verification
-
-### Resource: health
-
-**check_health** (read)
-- Description: Health status of the Swarms API
-- Returns: API health metrics and status
-- Use case: Monitoring and uptime verification
-
-### Resource: agent
-
-**run_agent** (write)
-- Description: Execute a single agent with a specified task
-- Parameters:
-  - `task`: The task description for the agent
-  - Additional agent configuration parameters
-- Returns: Agent execution results
-- Use case: Running individual AI agents for specific tasks
-
-### Resource: agent.batch
-
-**run_agent_batch** (write)
-- Description: Execute multiple agents concurrently using a thread pool
-- Parameters:
-  - `tasks`: Array of task descriptions
-  - Batch configuration options
-- Returns: Aggregated results from all agents
-- Use case: Parallel processing of multiple independent tasks
-
-### Resource: models
-
-**list_available_models** (read)
-- Description: Retrieve all available AI models
-- Returns: List of model identifiers and capabilities
-- Use case: Model discovery and selection
-
-### Resource: swarms
-
-**check_available_swarms** (read)
-- Description: Query available swarm types and configurations
-- Returns: List of swarm architectures and their capabilities
-- Use case: Determining which swarm pattern to use
-
-**get_logs_swarms** (read)
-- Description: Retrieve API request logs for all associated API keys
-- Returns: Log entries (excluding client IP information)
-- Use case: Auditing, debugging, and usage analysis
-
-**run_swarms** (write)
-- Description: Execute a swarm with a specified task
-- Parameters:
-  - `task`: The task for the swarm to execute
-  - `swarm_type`: The type of swarm architecture
-  - Additional swarm configuration
-- Returns: Swarm execution results
-- Use case: Orchestrating multiple agents in coordinated patterns
-
-### Resource: swarms.batch
-
-**run_swarms_batch** (write)
-- Description: Execute multiple swarms concurrently using a thread pool
-- Parameters:
-  - `tasks`: Array of swarm tasks
-  - Batch and swarm configuration
-- Returns: Aggregated swarm results
-- Use case: Large-scale parallel swarm processing
-
-### Resource: reasoning_agents
-
-**create_completion_reasoning_agents** (write)
-- Description: Execute a reasoning agent with chain-of-thought capabilities
-- Parameters:
-  - `task`: The reasoning task
-  - Reasoning configuration options
-- Returns: Reasoning output with intermediate steps
-- Use case: Complex problem-solving requiring step-by-step analysis
-
-**list_types_reasoning_agents** (read)
-- Description: List available reasoning agent types
-- Returns: Reasoning agent architectures and their characteristics
-- Use case: Selecting appropriate reasoning strategies
-
-### Resource: client.rate
-
-**get_limits_client_rate** (read)
-- Description: Query rate limits and current usage
-- Returns: Rate limit information and usage statistics
-- Use case: Monitoring API quota and preventing rate limit violations
-
-### Tools by Operation Type
-
-The 12 default tools are divided into read and write operations:
-
-#### Read Operations (7 tools)
-Read operations are safe, idempotent operations that retrieve information without modifying state:
-
-- `get_root_client`
-- `check_health`
-- `list_available_models`
-- `check_available_swarms`
-- `get_logs_swarms`
-- `list_types_reasoning_agents`
-- `get_limits_client_rate`
-
-Plus dynamic tools (when enabled):
-- `list_api_endpoints`
-- `get_api_endpoint_schema`
-
-#### Write Operations (5 tools)
-Write operations execute actions and may modify state or consume resources:
-
-- `run_agent`
-- `run_agent_batch`
-- `run_swarms`
-- `run_swarms_batch`
-- `create_completion_reasoning_agents`
-
-Plus dynamic tool (when enabled):
-- `invoke_api_endpoint`
-
-**Total: 12 static tools (7 read + 5 write)**
-
-## Advanced Usage
-
-### Programmatic Integration
-
-For custom integrations, you can import and configure the server programmatically:
-
-```typescript
-import { server, endpoints, init } from "swarms-ts-mcp/server";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-
-// Initialize the server with all endpoints
-init({ server, endpoints });
-
-// Start the server
-const transport = new StdioServerTransport();
-await server.connect(transport);
-```
-
-### Importing Specific Tools
-
-```typescript
-import getRootClient from "swarms-ts-mcp/tools/top-level/get-root-client";
-import { init } from "swarms-ts-mcp/server";
-
-// Initialize with only specific tools
-init({ 
-  server: myServer, 
-  endpoints: [getRootClient] 
-});
-```
-
-### Creating Custom Endpoints
-
-```typescript
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { z } from "zod";
-
-const myServer = new McpServer({
-  name: "custom-swarms-server",
-  version: "1.0.0"
-});
-
-const myCustomEndpoint = {
-  tool: {
-    name: 'my_custom_tool',
-    description: 'Custom tool for specialized operations',
-    inputSchema: zodToJsonSchema(z.object({ 
-      query: z.string(),
-      options: z.object({
-        verbose: z.boolean().optional()
-      }).optional()
-    })),
-  },
-  handler: async (client, args) => {
-    // Custom implementation
-    return { 
-      result: "Custom operation completed",
-      data: args 
-    };
-  }
-};
-
-init({ 
-  server: myServer, 
-  endpoints: [myCustomEndpoint] 
-});
-```
-
-## Error Handling
-
-When integrating with the Swarms MCP server, implement appropriate error handling:
-
-### Common Error Scenarios
-
-1. **Authentication Errors**: Invalid or missing API key
-2. **Rate Limiting**: Exceeded API quota
-3. **Invalid Parameters**: Malformed requests or missing required fields
-4. **Network Issues**: Connectivity problems or timeouts
-5. **Resource Unavailability**: Requested models or swarm types not available
-
-### Best Practices for Error Management
-
-- Always validate the presence of the `SWARMS_API_KEY` environment variable
-- Implement retry logic with exponential backoff for transient failures
-- Monitor rate limits using `get_limits_client_rate` before heavy operations
-- Log errors with sufficient context for debugging
-- Provide meaningful error messages to end users
-
-## Best Practices
-
-
-| Best Practice Category           | Recommendation                                                                                                  | Description/Details                                                                                                 |
-|----------------------------------|----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
-| **Batch Operations**             | Use batch endpoints                                                                                            | When processing multiple tasks, prefer batch endpoints to reduce overhead.                                          |
-| **Tool Exposure**                | Filter unnecessary tools                                                                                       | Minimize context window usage by exposing only the tools required for your workflow.                                |
-| **Rate Limit Monitoring**        | Monitor rate limits                                                                                            | Regularly check your usage with `get_limits_client_rate` to avoid hitting rate limits.                              |
-| **Model List Optimization**      | Cache model lists                                                                                              | Store the output of `list_available_models` to prevent repeated, redundant API calls.                               |
-| **API Key Security**             | Secure API key storage                                                                                         | Never commit API keys to version control; use secure secrets management.                                            |
-| **Environment Management**       | Use environment variables                                                                                      | Manage sensitive information via secure environment variable configuration.                                         |
-| **Access Control**               | Limit tool exposure by permission                                                                              | Restrict tool access based on user permissions when possible.                                                       |
-| **Audit Logging**                | Utilize audit logging                                                                                          | Use `get_logs_swarms` for security auditing and tracking usage.                                                     |
-| **Tool Strategy (Exploration)**  | Start with dynamic tools                                                                                       | Use `--tools=dynamic` during early exploration and development to discover available endpoints.                     |
-| **Tool Strategy (Production)**   | Transition to static tool exposure                                                                             | Once requirements are clear, switch to static tool exposure for performance and predictability.                     |
-| **Tool Filter Testing**          | Test tool/resource/operation filters                                                                           | Verify your configurations (`--tool`, `--resource`, `--operation`) to ensure only expected endpoints are exposed.   |
-| **Client Compatibility**         | Test with target client                                                                                        | Always verify integration and tool compatibility with your specific client setup.                                   |
-| **Version Management**           | Pin production versions                                                                                        | Specify the exact package version (e.g., `swarms-ts-mcp@0.1.0-alpha.10`) in production deployments.                 |
-| **Health Monitoring**            | Implement health checks                                                                                        | Regularly call `check_health` to ensure server and API availability.                                                |
-| **API Reliability**              | Handle API unavailability gracefully                                                                          | Implement graceful degradation strategies for scenarios when the API is down.                                       |
-| **Internal Documentation**       | Maintain documentation of exposed tools                                                                        | Keep internal documentation up-to-date on which tools/endpoints are available and why they're exposed.              |
-
-
-## Client Setup Examples
+<Note>
+`tools/list` works without a key, so agents can discover the tool surface before you authenticate. Only `tools/call` requires credentials.
+</Note>
+
+## Setup by Client
 
 ### Claude Code
 
-Claude Code is a command-line tool that enables Claude to interact with your codebase and execute operations. Here's how to configure the Swarms MCP server for Claude Code.
+```bash
+claude mcp add --transport http swarms https://mcp.swarms.world/mcp \
+    --header "x-api-key: your_api_key_here"
+```
 
-#### Configuration
+### Claude Desktop
 
-Add the Swarms MCP server to your Claude Code configuration file (typically located at `~/.config/claude-code/mcp.json` or similar):
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
 
 ```json
 {
   "mcpServers": {
-    "swarms_api": {
-      "command": "npx",
-      "args": ["-y", "swarms-ts-mcp@latest", "--client=claude-code", "--tools=all"],
-      "env": {
-        "SWARMS_API_KEY": "your_api_key_here"
+    "swarms": {
+      "url": "https://mcp.swarms.world/mcp",
+      "headers": {
+        "x-api-key": "your_api_key_here"
       }
     }
   }
 }
 ```
 
-#### Recommended Configuration for Claude Code
+### Cursor
 
-For optimal performance with Claude Code, consider using a focused set of tools:
+Add to **Cursor Settings → MCP**, or to your project-level `.cursor/mcp.json`:
 
 ```json
 {
   "mcpServers": {
-    "swarms_api": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "swarms-ts-mcp@latest",
-        "--client=claude-code",
-        "--resource=agent,swarms,reasoning_agents",
-        "--capability=tool-name-length=50"
-      ],
-      "env": {
-        "SWARMS_API_KEY": "your_api_key_here"
+    "swarms": {
+      "url": "https://mcp.swarms.world/mcp",
+      "headers": {
+        "x-api-key": "your_api_key_here"
       }
     }
   }
 }
 ```
 
-#### Usage Example: Running an Agent
+### Windsurf, Codex, and other MCP clients
 
-Once configured, you can ask Claude Code to execute Swarms agents directly:
-
-```bash
-# In Claude Code, you can now use natural language:
-# "Run a Swarms agent to analyze this codebase and generate a summary"
-```
-
-Claude Code will automatically invoke the `run_agent` tool:
+Any client that supports remote MCP servers over Streamable HTTP works with the same two values — the URL and the `x-api-key` header.
 
 ```json
 {
-  "tool": "run_agent",
-  "parameters": {
-    "task": "Analyze the codebase structure and generate a comprehensive summary of the architecture, key components, and dependencies.",
-    "model": "gpt-4",
-    "max_tokens": 2000
+  "mcpServers": {
+    "swarms": {
+      "url": "https://mcp.swarms.world/mcp",
+      "headers": {
+        "x-api-key": "your_api_key_here"
+      }
+    }
   }
 }
 ```
 
-#### Usage Example: Batch Processing
+## Available Tools
 
-For processing multiple files or tasks:
+Tool names mirror the underlying API operation IDs, so a tool maps one-to-one onto an endpoint you can find in the [API Reference](https://docs.swarms.ai/api-reference).
 
-```bash
-# "Process all Python files in this directory using a batch of agents"
-```
+### Agents
 
-Claude Code will use the batch endpoint:
+| Tool | Endpoint | Purpose |
+|------|----------|---------|
+| `run_agent_v1_agent_completions_post` | `POST /v1/agent/completions` | Execute a single agent completion |
+| `run_agent_batch_v1_agent_batch_completions_post` | `POST /v1/agent/batch/completions` | Execute many agent completions in parallel |
+| `list_agents_v1_agents_list_get` | `GET /v1/agents/list` | List available agent configurations |
+
+### Swarms
+
+| Tool | Endpoint | Purpose |
+|------|----------|---------|
+| `run_swarm_v1_swarm_completions_post` | `POST /v1/swarm/completions` | Execute a multi-agent swarm |
+| `run_batch_completions_v1_swarm_batch_completions_post` | `POST /v1/swarm/batch/completions` | Execute many swarms in parallel |
+| `check_swarm_types_v1_swarms_available_get` | `GET /v1/swarms/available` | List available swarm architectures |
+
+### Specialized Workflows
+
+| Tool | Endpoint | Purpose |
+|------|----------|---------|
+| `run_graph_workflow_v1_graph_workflow_completions_post` | `POST /v1/graph-workflow/completions` | Execute a graph-based workflow |
+| `run_batched_grid_workflow_v1_batched_grid_workflow_comple_0dda3b` | `POST /v1/batched-grid-workflow/completions` | Execute a batched grid workflow |
+| `run_auto_agent_builder_v1_auto_agent_builder_completions_post` | `POST /v1/auto-agent-builder/completions` | Generate agent configurations from a task |
+| `run_reasoning_agent_completions_v1_reasoning_agent_comple_a8b363` | `POST /v1/reasoning-agent/completions` | Execute a reasoning agent completion |
+| `get_reasoning_agent_types_v1_reasoning_agent_types_get` | `GET /v1/reasoning-agent/types` | List reasoning agent types |
+
+### Models and Tools
+
+| Tool | Endpoint | Purpose |
+|------|----------|---------|
+| `get_available_models_v1_models_available_get` | `GET /v1/models/available` | List available AI models |
+| `list_models_v1_models_get` | `GET /v1/models` | List models (OpenAI-compatible shape) |
+| `chat_completions_v1_chat_completions_post` | `POST /v1/chat/completions` | OpenAI-compatible chat completions |
+| `get_available_tools_v1_tools_available_get` | `GET /v1/tools/available` | List available API tools |
+
+### Account and Monitoring
+
+| Tool | Endpoint | Purpose |
+|------|----------|---------|
+| `get_rate_limits_v1_rate_limits_get` | `GET /v1/rate/limits` | Rate limits and current usage |
+| `credit_balance_v1_account_credits_get` | `GET /v1/account/credits` | Credit balance |
+| `usage_costs_v1_usage_costs_get` | `GET /v1/usage/costs` | Comprehensive pricing details |
+| `get_metrics_summary_v1_account_metrics_summary_get` | `GET /v1/account/metrics/summary` | User metrics summary |
+| `get_logs_v1_account_logs_get` | `GET /v1/account/logs` | API request logs |
+| `premium_endpoints_v1_account_premium_endpoints_get` | `GET /v1/account/premium-endpoints` | Premium endpoint availability |
+| `health_health_get` | `GET /health` | Health check |
+| `root_get` | `GET /` | API root |
+
+<Note>
+Two tool names are truncated with a hash suffix (`..._comple_a8b363`, `..._comple_0dda3b`). MCP caps tool-name length, so the server truncates and appends a stable hash to keep names unique. Copy them exactly as written.
+</Note>
+
+## Reading a Tool Result
+
+Every tool call returns both representations of the upstream response:
+
+- **`structuredContent`** — the parsed JSON object. Use this. No string parsing.
+- **`content[0].text`** — a human-readable rendering: an HTTP status line, then the pretty-printed JSON body.
 
 ```json
 {
-  "tool": "run_agent_batch",
-  "parameters": {
-    "tasks": [
-      "Analyze file1.py and extract function signatures",
-      "Analyze file2.py and identify class definitions",
-      "Analyze file3.py and document module exports"
+  "content": [
+    {
+      "type": "text",
+      "text": "HTTP 200 OK — POST /v1/agent/completions\n{\n  \"job_id\": \"agent-b0abf28…\",\n  …\n}"
+    }
+  ],
+  "structuredContent": {
+    "job_id": "agent-b0abf28…",
+    "success": true,
+    "name": "research-agent",
+    "outputs": [
+      { "role": "research-agent", "content": "…", "timestamp": "…" }
     ],
-    "model": "gpt-4"
-  }
-}
-```
-
-#### Usage Example: Multi-Agent Swarm
-
-For complex tasks requiring multiple agents:
-
-```bash
-# "Use a sequential swarm to: 1) analyze the code, 2) generate tests, 3) create documentation"
-```
-
-```json
-{
-  "tool": "run_swarms",
-  "parameters": {
-    "task": "Analyze the codebase, generate comprehensive tests, and create API documentation",
-    "swarm_type": "sequential_workflow",
-    "model": "gpt-4"
-  }
-}
-```
-
-#### Usage Example: Reasoning Agent
-
-For complex problem-solving tasks:
-
-```bash
-# "Use a reasoning agent to debug this error and provide a step-by-step solution"
-```
-
-```json
-{
-  "tool": "create_completion_reasoning_agents",
-  "parameters": {
-    "task": "Debug the following error: [error message]. Provide a step-by-step analysis and solution.",
-    "reasoning_type": "chain_of_thought"
-  }
-}
-```
-
-#### Dynamic Tool Discovery
-
-If you prefer runtime discovery, configure with dynamic tools:
-
-```json
-{
-  "mcpServers": {
-    "swarms_api": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "swarms-ts-mcp@latest",
-        "--client=claude-code",
-        "--tools=dynamic"
-      ],
-      "env": {
-        "SWARMS_API_KEY": "your_api_key_here"
-      }
+    "usage": {
+      "input_tokens": 7,
+      "output_tokens": 62,
+      "total_tokens": 69,
+      "total_cost": 0.001192
     }
-  }
+  },
+  "isError": false
 }
 ```
 
-Then use the discovery tools:
+An upstream failure comes back as `isError: true` with the message in `content[0].text` — it is a tool-level error, not a transport exception, so your client will not throw.
 
-```json
-{
-  "tool": "list_api_endpoints",
-  "parameters": {
-    "search": "agent"
-  }
+## Core Tool Parameters
+
+### `run_agent_v1_agent_completions_post`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `agent_config` | object | **Yes** | The agent specification (see below) |
+| `task` | string | No | The task for the agent to complete |
+| `history` | object \| array | No | Prior tasks and responses |
+| `img` | string | No | A single base64-encoded image |
+| `imgs` | array of string | No | Multiple base64-encoded images |
+| `tools_enabled` | array of string | No | Tools the agent may use |
+
+Common `agent_config` fields:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `agent_name` | string | — | Identifies the agent's role |
+| `system_prompt` | string | — | Initial instruction shaping behavior |
+| `model_name` | string | `claude-sonnet-5` | Model to run |
+| `max_tokens` | integer | `16000` | Output token cap |
+| `max_loops` | integer \| `"auto"` | `1` | Iterations, 1–50 or `"auto"` |
+| `temperature` | number | provider default | Randomness, 0–2 |
+| `fallback_models` | array of string | — | Models tried in order if the primary errors |
+| `role` | string | `worker` | Role within a swarm |
+
+### `run_swarm_v1_swarm_completions_post`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | No | Swarm identifier, max 100 chars |
+| `description` | string | No | What the swarm is for |
+| `agents` | array of agent specs | No | Participating agents, up to 2000 |
+| `swarm_type` | string | No | Architecture — see below |
+| `task` | string | No | The objective |
+| `tasks` | array of string | No | Multiple objectives |
+| `max_loops` | integer | `1` | Execution loops, up to 50 |
+| `rearrange_flow` | string | No | Task ordering for `AgentRearrange` |
+| `stream` | boolean | `false` | Stream output |
+
+Valid `swarm_type` values:
+
+`AgentRearrange`, `MixtureOfAgents`, `SequentialWorkflow`, `ConcurrentWorkflow`, `GroupChat`, `MultiAgentRouter`, `HierarchicalSwarm`, `MajorityVoting`, `CouncilAsAJudge`, `HeavySwarm`, `BatchedGridWorkflow`, `LLMCouncil`, `DebateWithJudge`, `RoundRobin`, `PlannerWorkerSwarm`, `auto`
+
+## TypeScript
+
+Install the official MCP SDK:
+
+```bash
+npm install @modelcontextprotocol/sdk
+```
+
+### Agent Completions
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const apiKey = process.env.SWARMS_API_KEY;
+if (!apiKey) throw new Error("set SWARMS_API_KEY");
+
+// The credential is a transport header. No tool takes it as an argument.
+const transport = new StreamableHTTPClientTransport(
+  new URL("https://mcp.swarms.world/mcp"),
+  { requestInit: { headers: { "x-api-key": apiKey } } },
+);
+
+const client = new Client({ name: "swarms-client", version: "1.0.0" });
+await client.connect(transport);
+
+const result = await client.callTool({
+  name: "run_agent_v1_agent_completions_post",
+  arguments: {
+    agent_config: {
+      agent_name: "research-agent",
+      description: "Analyzes technical topics and reports concisely.",
+      model_name: "gpt-4o-mini",
+      max_loops: 1,
+      max_tokens: 2000,
+    },
+    task: "Explain the CAP theorem in three bullets.",
+  },
+});
+
+if (result.isError) {
+  throw new Error(result.content[0].text);
+}
+
+// structuredContent is the parsed upstream JSON — no string parsing needed.
+const payload = result.structuredContent as any;
+console.log(payload.outputs[0].content);
+console.log(`cost: $${payload.usage.total_cost}`);
+
+await client.close();
+```
+
+### Swarm Completions
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const transport = new StreamableHTTPClientTransport(
+  new URL("https://mcp.swarms.world/mcp"),
+  { requestInit: { headers: { "x-api-key": process.env.SWARMS_API_KEY! } } },
+);
+
+const client = new Client({ name: "swarms-client", version: "1.0.0" });
+await client.connect(transport);
+
+const result = await client.callTool({
+  name: "run_swarm_v1_swarm_completions_post",
+  arguments: {
+    name: "market-analysis",
+    description: "Research a market, then critique the research.",
+    swarm_type: "SequentialWorkflow",
+    task: "Analyze the market for autonomous delivery robots.",
+    max_loops: 1,
+    agents: [
+      {
+        agent_name: "researcher",
+        system_prompt: "Gather and summarize market facts.",
+        model_name: "gpt-4o-mini",
+        max_loops: 1,
+        max_tokens: 2000,
+      },
+      {
+        agent_name: "critic",
+        system_prompt: "Challenge weak claims in the research above.",
+        model_name: "gpt-4o-mini",
+        max_loops: 1,
+        max_tokens: 2000,
+      },
+    ],
+  },
+});
+
+if (result.isError) {
+  throw new Error(result.content[0].text);
+}
+
+const payload = result.structuredContent as any;
+for (const message of payload.output) {
+  console.log(`--- ${message.role} ---`);
+  console.log(message.content);
+}
+console.log(`agents: ${payload.number_of_agents}`);
+console.log(`elapsed: ${payload.execution_time}s`);
+
+await client.close();
+```
+
+### Discovering Tools
+
+```typescript
+const { tools } = await client.listTools();
+for (const tool of tools) {
+  console.log(tool.name);
 }
 ```
 
-### Claude Chat (Claude Desktop)
+## Rust
 
-Claude Chat (Claude Desktop) provides a conversational interface where Claude can use MCP tools to interact with the Swarms API.
+Add the official Rust MCP SDK to `Cargo.toml`:
 
-#### Configuration
+```toml
+[dependencies]
+rmcp = { version = "3.1", features = [
+    "client",
+    "reqwest",
+    "transport-streamable-http-client-reqwest",
+] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde_json = "1"
+```
 
-Add the Swarms MCP server to your Claude Desktop configuration file. On macOS, this is typically located at `~/Library/Application Support/Claude/claude_desktop_config.json`:
+### Agent Completions
+
+```rust
+use std::collections::HashMap;
+
+use rmcp::model::CallToolRequestParams;
+use rmcp::transport::{
+    streamable_http_client::StreamableHttpClientTransportConfig,
+    StreamableHttpClientTransport,
+};
+use rmcp::ServiceExt;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let api_key = std::env::var("SWARMS_API_KEY")?;
+
+    // The credential is a transport header. No tool takes it as an argument.
+    let mut headers = HashMap::new();
+    headers.insert("x-api-key".parse()?, api_key.parse()?);
+
+    let transport = StreamableHttpClientTransport::from_config(
+        StreamableHttpClientTransportConfig::with_uri("https://mcp.swarms.world/mcp")
+            .custom_headers(headers),
+    );
+
+    let client = ().serve(transport).await?;
+
+    let result = client
+        .call_tool(
+            CallToolRequestParams::new("run_agent_v1_agent_completions_post").with_arguments(
+                json!({
+                    "agent_config": {
+                        "agent_name": "research-agent",
+                        "description": "Analyzes technical topics and reports concisely.",
+                        "model_name": "gpt-4o-mini",
+                        "max_loops": 1,
+                        "max_tokens": 2000
+                    },
+                    "task": "Explain the CAP theorem in three bullets."
+                })
+                .as_object()
+                .cloned()
+                .unwrap(),
+            ),
+        )
+        .await?;
+
+    if result.is_error.unwrap_or(false) {
+        return Err(format!("{:?}", result.content).into());
+    }
+
+    // structured_content is the parsed upstream JSON — no string parsing needed.
+    let payload = result.structured_content.ok_or("no structured content")?;
+    println!("{}", payload["outputs"][0]["content"]);
+    println!("cost: ${}", payload["usage"]["total_cost"]);
+
+    client.cancel().await?;
+    Ok(())
+}
+```
+
+### Swarm Completions
+
+```rust
+use std::collections::HashMap;
+
+use rmcp::model::CallToolRequestParams;
+use rmcp::transport::{
+    streamable_http_client::StreamableHttpClientTransportConfig,
+    StreamableHttpClientTransport,
+};
+use rmcp::ServiceExt;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let api_key = std::env::var("SWARMS_API_KEY")?;
+
+    let mut headers = HashMap::new();
+    headers.insert("x-api-key".parse()?, api_key.parse()?);
+
+    let transport = StreamableHttpClientTransport::from_config(
+        StreamableHttpClientTransportConfig::with_uri("https://mcp.swarms.world/mcp")
+            .custom_headers(headers),
+    );
+
+    let client = ().serve(transport).await?;
+
+    let result = client
+        .call_tool(
+            CallToolRequestParams::new("run_swarm_v1_swarm_completions_post").with_arguments(
+                json!({
+                    "name": "market-analysis",
+                    "description": "Research a market, then critique the research.",
+                    "swarm_type": "SequentialWorkflow",
+                    "task": "Analyze the market for autonomous delivery robots.",
+                    "max_loops": 1,
+                    "agents": [
+                        {
+                            "agent_name": "researcher",
+                            "system_prompt": "Gather and summarize market facts.",
+                            "model_name": "gpt-4o-mini",
+                            "max_loops": 1,
+                            "max_tokens": 2000
+                        },
+                        {
+                            "agent_name": "critic",
+                            "system_prompt": "Challenge weak claims in the research above.",
+                            "model_name": "gpt-4o-mini",
+                            "max_loops": 1,
+                            "max_tokens": 2000
+                        }
+                    ]
+                })
+                .as_object()
+                .cloned()
+                .unwrap(),
+            ),
+        )
+        .await?;
+
+    if result.is_error.unwrap_or(false) {
+        return Err(format!("{:?}", result.content).into());
+    }
+
+    let payload = result.structured_content.ok_or("no structured content")?;
+    for message in payload["output"].as_array().unwrap() {
+        println!("--- {} ---", message["role"].as_str().unwrap_or("?"));
+        println!("{}", message["content"].as_str().unwrap_or(""));
+    }
+    println!("agents: {}", payload["number_of_agents"]);
+    println!("elapsed: {}s", payload["execution_time"]);
+
+    client.cancel().await?;
+    Ok(())
+}
+```
+
+### Discovering Tools
+
+```rust
+let tools = client.list_tools(Default::default()).await?;
+for tool in tools.tools {
+    println!("{}", tool.name);
+}
+```
+
+## Python
+
+The [official Python SDK](https://github.com/modelcontextprotocol/python-sdk) follows the same shape:
+
+```bash
+pip install mcp
+```
+
+```python
+import asyncio
+import os
+
+import httpx
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+SERVER = "https://mcp.swarms.world/mcp"
+
+
+async def main() -> None:
+    api_key = os.environ["SWARMS_API_KEY"]
+
+    async with (
+        httpx.AsyncClient(
+            headers={"x-api-key": api_key}, timeout=180
+        ) as http_client,
+        streamable_http_client(
+            SERVER, http_client=http_client
+        ) as (read, write),
+        ClientSession(read, write) as session,
+    ):
+        await session.initialize()
+
+        result = await session.call_tool(
+            "run_agent_v1_agent_completions_post",
+            {
+                "agent_config": {
+                    "agent_name": "research-agent",
+                    "model_name": "gpt-4o-mini",
+                    "max_loops": 1,
+                    "max_tokens": 2000,
+                },
+                "task": "Explain the CAP theorem in three bullets.",
+            },
+        )
+
+        if result.is_error:
+            raise RuntimeError(result.content[0].text)
+
+        payload = result.structured_content
+        print(payload["outputs"][0]["content"])
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Verifying the Connection with curl
+
+The server speaks plain JSON-RPC over HTTP POST, so you can exercise it without any SDK:
+
+```bash
+curl -sS -X POST https://mcp.swarms.world/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -d '{
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "get_available_models_v1_models_available_get",
+          "arguments": {}
+        }
+      }'
+```
+
+Responses come back as a single SSE `data:` frame. Because the server is stateless, there is no session to establish first and no `Mcp-Session-Id` to echo back.
+
+## Error Handling
+
+| Scenario | How it surfaces | What to do |
+|----------|-----------------|------------|
+| Missing or invalid API key | `isError: true`, message names the `x-api-key` header | Set the header on the transport, not in tool arguments |
+| Rate limit exceeded | `isError: true` with the upstream 429 status line | Back off; check `get_rate_limits_v1_rate_limits_get` |
+| Invalid parameters | `isError: true` with the upstream 422 body | Compare against the tool's `inputSchema` from `tools/list` |
+| Insufficient credits | `isError: true` with the upstream error | Check `credit_balance_v1_account_credits_get` |
+| Long-running swarm | Client-side timeout | Raise the client's request timeout — large swarms can run for minutes |
+
+Because failures arrive as `isError: true` rather than thrown exceptions, always check that flag before reading `structuredContent`.
+
+## Best Practices
+
+| Practice | Why |
+|----------|-----|
+| Read `structuredContent`, not `content[0].text` | The text block is a rendering with a status-line prefix; the structured block is already parsed |
+| Keep the key in the transport header | It stays out of tool arguments, so the model never sees it |
+| Check `isError` before reading results | Upstream failures are tool-level results, not exceptions |
+| Raise client timeouts for swarms | Multi-agent runs routinely exceed default HTTP timeouts |
+| Cache `get_available_models_v1_models_available_get` | The model list changes rarely |
+| Prefer batch tools for bulk work | One call with many tasks beats many calls |
+| Watch `usage.total_cost` in responses | Every completion reports its own cost |
+
+## Alternative: Local stdio Server
+
+If you need to run the bridge yourself — for network-isolated environments or custom tool filtering — the `swarms-ts-mcp` npm package runs a local stdio MCP server against the same API.
 
 ```json
 {
   "mcpServers": {
-    "swarms_api": {
+    "swarms": {
       "command": "npx",
       "args": ["-y", "swarms-ts-mcp@latest", "--client=claude", "--tools=all"],
       "env": {
@@ -689,160 +633,20 @@ Add the Swarms MCP server to your Claude Desktop configuration file. On macOS, t
 }
 ```
 
-#### Recommended Configuration for Claude Chat
-
-For Claude Chat, you may want to expose all tools for maximum flexibility:
-
-```json
-{
-  "mcpServers": {
-    "swarms_api": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "swarms-ts-mcp@latest",
-        "--client=claude",
-        "--tools=all"
-      ],
-      "env": {
-        "SWARMS_API_KEY": "your_api_key_here"
-      }
-    }
-  }
-}
-```
-
-#### Usage Example: Health Check
-
-Start by verifying the connection:
-
-```
-You: "Check if the Swarms API is healthy"
-```
-
-Claude will automatically use the health check tool:
-
-```json
-{
-  "tool": "check_health",
-  "parameters": {}
-}
-```
-
-#### Usage Example: Agent Execution
-
-Execute agents through natural conversation:
-
-```
-You: "Run a Swarms agent to summarize the key points from this document"
-```
-
-Claude will invoke the agent:
-
-```json
-{
-  "tool": "run_agent",
-  "parameters": {
-    "task": "Summarize the key points from the provided document",
-    "model": "gpt-4",
-    "max_tokens": 1000
-  }
-}
-```
-
-#### Usage Example: Model Discovery
-
-Discover available models before running agents:
-
-```
-You: "What models are available in Swarms?"
-```
-
-```json
-{
-  "tool": "list_available_models",
-  "parameters": {}
-}
-```
-
-#### Usage Example: Swarm Orchestration
-
-Use multi-agent swarms for complex workflows:
-
-```
-You: "Use a concurrent swarm to analyze these three documents in parallel and provide a comparative analysis"
-```
-
-```json
-{
-  "tool": "run_swarms",
-  "parameters": {
-    "task": "Analyze three documents in parallel and provide a comparative analysis",
-    "swarm_type": "concurrent_workflow",
-    "model": "gpt-4"
-  }
-}
-```
-
-#### Usage Example: Rate Limit Monitoring
-
-Check your API usage:
-
-```
-You: "What's my current rate limit status?"
-```
-
-```json
-{
-  "tool": "get_limits_client_rate",
-  "parameters": {}
-}
-```
-
-#### Filtered Configuration Example
-
-If you want to limit Claude Chat to read-only operations:
-
-```json
-{
-  "mcpServers": {
-    "swarms_api": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "swarms-ts-mcp@latest",
-        "--client=claude",
-        "--operation=read"
-      ],
-      "env": {
-        "SWARMS_API_KEY": "your_api_key_here"
-      }
-    }
-  }
-}
-```
-
-This configuration exposes only read operations like `check_health`, `list_available_models`, `check_available_swarms`, and `get_limits_client_rate`, preventing accidental execution of agents or swarms.
+<Warning>
+The local package exposes a different, smaller tool set with different tool names (`run_agent`, `run_swarms`, and so on) than the hosted server documented above. Code written against one will not run unchanged against the other. The hosted server at `mcp.swarms.world` is the recommended path.
+</Warning>
 
 ## Resources
 
-| Resource                  | Link                                                                                                                              |
-|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| **GitHub Repository**     | [swarms-ts GitHub](https://github.com/The-Swarm-Corporation/swarms-ts/tree/next/packages/mcp-server)                             |
-| **npm Package**           | [swarms-ts-mcp on npm](https://www.npmjs.com/package/swarms-ts-mcp)                                                              |
-| **Model Context Protocol**| [modelcontextprotocol.io](https://modelcontextprotocol.io)                                                                        |
-| **License**               | Apache-2.0                                                                                                                       |
-
-## Version Information
-
-- **Current Version**: 0.1.0-alpha.10
-- **Status**: Alpha release
-- **Last Updated**: 6 months ago
-
-## Support
-
-For issues, feature requests, or contributions:
-
-- Open an issue on the GitHub repository
-- Review existing documentation and examples
-- Check the Model Context Protocol specification for general MCP questions
+| Resource | Link |
+|----------|------|
+| **MCP Server URL** | `https://mcp.swarms.world/mcp` |
+| **Get an API key** | [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys) |
+| **API Reference** | [docs.swarms.ai/api-reference](https://docs.swarms.ai/api-reference) |
+| **Docs MCP Server** | [Docs MCP and LLMs txt](/docs/documentation/clients/swarms-docs-mcp) |
+| **Model Context Protocol** | [modelcontextprotocol.io](https://modelcontextprotocol.io) |
+| **TypeScript SDK** | [@modelcontextprotocol/sdk](https://www.npmjs.com/package/@modelcontextprotocol/sdk) |
+| **Rust SDK** | [rmcp on crates.io](https://crates.io/crates/rmcp) |
+| **Python SDK** | [mcp on PyPI](https://pypi.org/project/mcp/) |
+| **Support** | [Discord](https://discord.gg/EamjgSaEQf) |
