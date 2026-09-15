@@ -81,8 +81,11 @@
               "docs/documentation/multi-agent/graph_workflow",
               "docs/documentation/multi-agent/auto_agent_builder",
               "docs/documentation/multi-agent/debate_with_judge",
+              "docs/documentation/multi-agent/council_as_a_judge",
+              "docs/documentation/multi-agent/llm_council",
               "docs/documentation/multi-agent/heavy_swarm",
-              "docs/documentation/multi-agent/round_robin"
+              "docs/documentation/multi-agent/round_robin",
+              "docs/documentation/multi-agent/planner_worker_swarm"
             ]
           },
           {

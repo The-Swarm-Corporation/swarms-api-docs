@@ -157,6 +157,8 @@ python server.py
 
 ### Multiple MCP Connections
 
+`mcp_urls` takes several MCP servers directly as a list — each entry is a URL string or an `MCPConnection` object — and tools from every server are combined for the agent:
+
 ```python
 payload = {
     "agent_config": {
@@ -165,20 +167,18 @@ payload = {
         "system_prompt": "You have access to multiple MCP servers for comprehensive analysis.",
         "model_name": "gpt-4.1",
         "max_tokens": 8192,
-        "mcp_configs": {
-            "connections": [
-                {
-                    "url": "http://localhost:8001/sse"
-                },
-                {
-                    "url": "http://localhost:8002/sse"
-                }
-            ]
-        }
+        "mcp_urls": [
+            "http://localhost:8001/sse",
+            "http://localhost:8002/sse"
+        ]
     },
     "task": "Combine customer data with market trends to provide business insights."
 }
 ```
+
+<Note>
+`mcp_urls` (and `mcp_configs`, its `MCPConnection`-object counterpart) is a plain **list**, not an object with a `connections` key. Each list entry can be a bare URL string or a full `MCPConnection` object (see [Single MCP with Advanced Config](#single-mcp-with-advanced-config) below) if you need per-server auth or transport settings.
+</Note>
 
 ### Single MCP with Advanced Config
 

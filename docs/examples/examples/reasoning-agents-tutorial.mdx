@@ -255,7 +255,7 @@ The right read on convergence: if all 5 samples produce the same final JSON, shi
 For accrual accounting, legal interpretation, and financial calculation work, `self-consistency` is the right default — the failure mode is "confidently wrong on one chain," and voting across chains is the specific antidote.
 
 <Note>
-The full list of supported values is returned by `GET /v1/reasoning-agent/types`: `reasoning-duo`, `self-consistency`, `ire`, `reasoning-agent`, `consistency-agent`, `ire-agent`, `ReflexionAgent`, `GKPAgent`, `AgentJudge`. For the `ire` / `ire-agent` types the API manages iteration internally and ignores `max_loops`.
+The full list of supported values is returned by `GET /v1/reasoning-agent/types`: `reasoning-duo`, `self-consistency`, `ire`, `reasoning-agent`, `consistency-agent`, `ire-agent`, `ReflexionAgent`, `GKPAgent`, `AgentJudge`. For the `ire` / `ire-agent` types, the iteration count is controlled by `num_samples` rather than `max_loops`.
 </Note>
 
 ## Cost vs. Hiring a Senior Associate

@@ -118,34 +118,38 @@ This endpoint returns the *catalog* of premium routes. It does not tell you whet
   "total": 5,
   "premium_endpoints": [
     {
-      "route": "/v1/graph-workflow/completions",
-      "name": "Graph Workflow Completions",
-      "description": "Execute graph workflows with directed agent nodes and edges."
-    },
-    {
       "route": "/v1/agent/batch/completions",
       "name": "Batch Agent Completions",
-      "description": "Process multiple agent tasks in parallel batches."
+      "description": "process multiple agent tasks concurrently in a single request"
     },
     {
       "route": "/v1/swarm/batch/completions",
       "name": "Batch Swarm Completions",
-      "description": "Execute batch swarm completions with concurrent multi-agent execution."
+      "description": "execute multiple swarm workflows in parallel"
     },
     {
       "route": "/v1/reasoning-agent/completions",
       "name": "Reasoning Agent Completions",
-      "description": "Execute advanced reasoning agent tasks using specialized reasoning architectures."
+      "description": "leverage advanced reasoning capabilities with enhanced agent intelligence"
     },
     {
       "route": "/v1/batched-grid-workflow/completions",
-      "name": "Batched Grid Workflow",
-      "description": "Execute multiple tasks across multiple agents in a grid pattern."
+      "name": "Batched Grid Workflows",
+      "description": "execute grid-based workflows with multiple agents and tasks in parallel"
+    },
+    {
+      "route": "/v1/graph-workflow/completions",
+      "name": "Graph Workflows",
+      "description": "orchestrate complex multi-agent workflows with directed graphs and parallel execution"
     }
   ],
   "upgrade_url": "https://cloud.swarms.world/settings"
 }
 ```
+
+<Note>
+The `name` and `description` strings above are the literal values the API returns (lowercase, verb-first descriptions) — copy them as-is rather than re-casing them, since your gating logic may match on exact string.
+</Note>
 
 ### Response Schema
 

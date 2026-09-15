@@ -227,7 +227,7 @@ if match:
           f"{lead_score['confidence']} confidence)")
 
 usage = result.get("usage", {})
-print(f"\nTotal cost: ${usage.get('token_cost', 0):.4f}")
+print(f"\nTotal cost: ${usage.get('total_cost', 0):.4f}")
 ```
 
 ## Why This Beats Sequential + Concurrent Stacking
@@ -283,7 +283,7 @@ Concrete numbers from a real SDR team enriching 1,000 leads per week:
 Math: 1,000 leads/week at \$22 manual vs. ~\$0.03 on the endpoint is **\$22,000/week saved** (~\$1.1M/year), before counting the engineering team you don't need to staff for the DIY path. The pipeline goes live in a day instead of a quarter.
 
 <Warning>
-Per-lead cost will vary with model choice and token volume — `gpt-4.1` on five short nodes is the cheap path; swap to `anthropic/claude-opus-4-8` if your synthesizer needs deeper reasoning.
+Per-lead cost will vary with model choice and token volume — `gpt-4.1` on five short nodes is the cheap path; swap to `claude-opus-4-8` (premium-only) if your synthesizer needs deeper reasoning.
 </Warning>
 
 ## Next Steps

@@ -15,13 +15,17 @@ Flexible subscription plans that scale with your needs. Choose a plan for higher
 
 ### Plans at a glance
 
-| Plan       | Monthly price | Discount %    | Annual price | Premium Endpoints | SOC 2 | Priority routing | Support             | Best for                 | Key features |
-|-----------|---------------:|--------------------|-------------:|-------------------|:-----:|:-----------------:|---------------------|--------------------------|--------------|
-| Free      | \$0             | N/A                | \$0/year      | No                |  No   |        No         | Community           | Getting started          | Basic API, pay‑per‑use, community support, Marketplace access |
-| Pro       | \$19.99         | 15%                | \$203.90/year | Yes               |  No   |        No         | Priority            | Professionals            | Global availability, multi‑agent architectures, accelerated hardware, API telemetry, priority support, Pro models, Premium Endpoints access |
-| Ultra     | \$100           | 15%                | \$1,020/year  | Yes               |  Yes  |        Yes        | Priority            | Teams & production       | Everything in Pro, premium models, higher limits, SOC 2, enhanced security, priority region/zone routing, full Premium Endpoints |
+| Plan       | Monthly price | Discount %    | Annual price | Premium Endpoints | Rate limits | Support             | Best for                 | Key features |
+|-----------|---------------:|--------------------|-------------:|-------------------|-------------|----------------------|--------------------------|--------------|
+| Free      | \$0             | N/A                | \$0/year      | No                | 100/min, 350/hr, 1,200/day | Community           | Getting started          | Basic API, pay‑per‑use, community support, Marketplace access |
+| Pro       | \$19.99         | 15%                | \$203.90/year | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Professionals            | Premium models, Premium Endpoints access |
+| Ultra     | \$100           | 15%                | \$1,020/year  | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Teams & production       | Everything in Pro, higher token-per-agent limit, full Premium Endpoints |
 
-Prices shown are subscription fees; API usage is billed per operation (see Usage-based pricing below).
+Prices shown are subscription fees; API usage is billed per operation (see Usage-based pricing below). Rate limits shown are those returned by `GET /v1/rate/limits` for any account with an active premium subscription (`pro`, `ultra`, or `premium` tier) — see [Rate Limits](/docs/documentation/resources/ratelimits) for how free vs. premium tiers are resolved.
+
+<Note>
+Some plan-comparison items you may see elsewhere (e.g. SOC 2 certification, dedicated infrastructure, or request-priority routing) are account/infrastructure-level facts that could not be verified against the Swarms API application source and are intentionally omitted from this table. See [Security](/docs/documentation/resources/security) and [Priority Processing](/docs/documentation/resources/priority-processing) for what is verifiable.
+</Note>
 
 ### Update your plan in 3 steps
 
@@ -44,12 +48,8 @@ Get started with AI. No monthly fees — pay only for usage.
 Most popular. Perfect for professionals who need more power and features.
 
 - \$19.99/month (save 15% with annual billing)
-- Global availability
-- Exclusive multi-agent architectures
-- Accelerated hardware
-- API telemetry platform
-- Priority support
-- Access to Pro models
+- Higher rate limits: 2,000 req/min, 10,000 req/hour, 100,000 req/day, 2M tokens per agent (vs. free tier's 100/350/1,200 and 200K — see [Rate Limits](/docs/documentation/resources/ratelimits))
+- Access to premium-only models (see below)
 - **Access to Premium Endpoints**: Unlock batch processing, reasoning agents, and advanced workflows
   - `/v1/agent/batch/completions` - High-throughput batch agent processing
   - `/v1/swarm/batch/completions` - Batch swarm completions
@@ -62,16 +62,9 @@ Most popular. Perfect for professionals who need more power and features.
 Best for growing teams and production workloads that need higher limits and security.
 
 - \$100/month (save 15% with annual billing)
-- Everything in Pro, plus:
-  - Premium models
-  - More agents per request
-  - More completions
-  - Increased rate limits
-  - SOC 2 compliance
-  - Enhanced security features
-  - View previous agent configurations
-  - Priority region/zone routing
-  - Full access to Premium Endpoints
+- Everything in Pro. Note: per `api/schemas.py` (`RateLimitsPremiumTier`), Pro and Ultra currently resolve to the same numeric rate limits and per-agent token limit — any account with an active subscription (`pro`, `ultra`, or `premium` tier) gets the same premium allowances.
+- Full access to Premium Endpoints
+- For compliance certifications and enhanced-security specifics, see [Security](/docs/documentation/resources/security)
 
 ### Premium-Only Models
 
@@ -129,10 +122,11 @@ All API endpoints use the same token pricing:
 This applies to:
 | Endpoint                        | Notes                       |
 |----------------------------------|-----------------------------|
-| Swarm Completions                | Agent cost applies          |
-| Agent Completions                |                             |
-| Graph Workflow                   | Agent cost applies          |
-| Batched Grid Workflow            | Agent cost applies          |
+| Swarm Completions                | Agent cost applies (\$0.01/agent); night-time discount applies to tokens |
+| Agent Completions                | No per-agent fee            |
+| Graph Workflow                   | Agent cost applies (\$0.01/agent), billed at agent-completion token rates; no night-time discount |
+| Batched Grid Workflow            | Agent cost applies (\$0.01/agent), billed at agent-completion token rates; no night-time discount |
+| Auto Agent Builder               | Agent cost applies (\$0.01/agent), billed at agent-completion token rates; no night-time discount |
 
 ### Discounts
 
@@ -165,12 +159,32 @@ GET /v1/usage/costs
 }
 ```
 
+### Checking Your Credit Balance
+
+Use `GET /v1/account/credits` to check your current balance before making billable requests:
+
+```bash
+curl -H "x-api-key: $SWARMS_API_KEY" \
+     https://api.swarms.world/v1/account/credits
+```
+
+```json
+{
+  "credit": 12.50,
+  "free_credit": 3.00,
+  "referral_credits": 20.00,
+  "total_credits": 35.50
+}
+```
+
+`total_credits` is the sum of `credit`, `free_credit`, and `referral_credits` — this is the number checked against the \$1.00 minimum for billable routes.
+
 ### Important Notes
 
 | Important Note                                                      | Description                                                                                  |
 |---------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
 | Minimum Balance                                                     | Billable completion endpoints require a total credit balance above \$1.00, checked before the request runs. Requests below this are rejected with a **402 Payment Required** error before any work is done. |
 | Credits Deduction                                                   | Credits are deducted automatically after each request completes.                              |
-| Credits Usage Order                                                 | Free credits are used first, followed by regular credits.                                    |
+| Credits Usage Order                                                 | Deducted in this order: `free_credit` first, then `referral_credits`, then regular `credit`. |
 | Token Counting                                                      | Token counts are calculated using model-specific tokenizers.                                  |
 | Pricing Updates                                                     | Pricing may be updated periodically. Check `/v1/usage/costs` for current pricing.            |

@@ -51,7 +51,7 @@ Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platfo
 | `frequency_penalty` | `float` | No | — | Penalize tokens based on how frequently they appear in the text so far |
 | `n` | `integer` | No | `1` | Number of completions to generate. Only `1` is supported — requests with `n > 1` are rejected |
 | `user` | `string` | No | — | A unique identifier for the end-user, used for tracking |
-| `max_loops` | `integer` | No | `1` | *Swarms extension.* Maximum number of agent reasoning loops. `1` = single pass (default). Higher values let the agent iterate on its own output. Pass via `extra_body` in the OpenAI SDK |
+| `max_loops` | `integer` | No | `1` | *Swarms extension.* Maximum number of agent reasoning loops, 1 to 50. `1` = single pass (default). Higher values let the agent iterate on its own output. Pass via `extra_body` in the OpenAI SDK |
 
 ### ChatMessage Object
 
@@ -230,7 +230,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 | 429 | `rate_limit_error` | Rate limit exceeded |
 | 500 | `server_error` | Internal error during agent execution |
 
-Note: schema-validation failures on Swarms extension fields passed via `extra_body` (e.g. `max_loops: 0`) currently surface as a 500 `server_error` rather than a 400 `invalid_request_error`. Send `max_loops >= 1` to avoid this.
+All request-body validation failures on this endpoint — including out-of-range Swarms extension fields passed via `extra_body` (e.g. `max_loops: 0`, which violates `1 <= max_loops <= 50`) — are caught by a dedicated handler and returned as `400 invalid_request_error` in the OpenAI error shape above, not the raw FastAPI/Pydantic `{"detail": [...]}` shape used elsewhere in the Swarms API.
 
 ### Example Error Response
 
@@ -969,7 +969,7 @@ For users already familiar with the native Swarms API, here is how the OpenAI re
 | `max_loops` | `AgentSpec.max_loops` | Defaults to 1. Higher values enable multi-loop reasoning |
 | `stream` | Route dispatch | `true` returns `StreamingResponse` with SSE; `false` returns JSON |
 
-The agent is created with `max_loops` set to the requested value (defaults to `1` for single-turn) and `streaming_on=False` (the agent itself runs to completion; streaming is simulated at the HTTP layer by chunking the result).
+The agent is created with `max_loops` set to the requested value (defaults to `1` for single-turn). For a non-streaming request the agent runs with `streaming_on=False` and the full response is returned in one JSON body. For `stream: true`, the agent config is rebuilt with `streaming_on=True` and the agent's own token-by-token output is forwarded live, via a streaming callback, as SSE chunks — the same mechanism `/v1/agent/completions` uses when `streaming_on` is set directly.
 
 ---
 
@@ -980,8 +980,8 @@ The `model` field accepts any model supported by the Swarms API. Common options:
 | Provider | Models |
 |---|---|
 | OpenAI | `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o3-mini` |
-| Anthropic | `claude-sonnet-4-20250514`, `claude-3-7-sonnet-latest` |
-| Groq | `groq/llama3-70b-8192`, `groq/deepseek-r1-distill-llama-70b` |
+| Anthropic | `claude-sonnet-4-20250514`, `claude-3-7-sonnet-20250219` |
+| Groq | `groq/llama-3.3-70b-versatile`, `groq/openai/gpt-oss-120b` |
 
 For the full list, call `GET /v1/models` (standard OpenAI list format — works with `client.models.list()` in the OpenAI SDK) or `GET /v1/models/available` (Swarms format with a `count` field) with your API key. Both return the same catalog, filtered by your subscription tier:
 
@@ -1009,7 +1009,7 @@ for model in models.data[:10]:
 | Tool calling / function calling | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with `tools_list_dictionary` |
 | `logprobs` | Supported | Not supported |
 | Response format (`json_object`) | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with structured output |
-| Streaming | True token-by-token streaming | Simulated — the agent runs to completion, then the result is delivered in chunks |
+| Streaming | True token-by-token streaming | True token-by-token streaming — tokens are forwarded live via a callback as the agent generates them, not chunked after the fact |
 | `max_loops` | Not applicable | Swarms extension — multi-loop agent reasoning (pass via `extra_body`) |
 
 ---
@@ -1022,5 +1022,6 @@ Usage is metered and billed identically to the native `/v1/agent/completions` en
 - **Output tokens** are counted from the agent's response
 - **Credits are deducted** automatically after each completion
 - The `usage` field in the response shows the exact token counts
+- `/v1/chat/completions` is billable: it requires a total credit balance greater than $1.00, or the request is rejected before the agent runs
 
 Check your balance anytime with `GET /v1/account/credits`.

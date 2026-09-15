@@ -72,4 +72,47 @@ SWARMS_API_KEY=your-api-key-here
   </Tab>
 </Tabs>
 
+## Understanding the Response
+
+`GET /v1/agents/list` returns every unique agent configuration you have used in a prior `agent_config` (from `/v1/agent/completions` or `/v1/agent/batch/completions`), most recently used first. Task-specific fields (`task`, `history`, `img`) are stripped, and each entry carries a `last_used` timestamp:
+
+```json
+{
+  "success": true,
+  "count": 2,
+  "agents": [
+    {
+      "agent_name": "Research Assistant",
+      "model_name": "claude-sonnet-5",
+      "max_tokens": 16000,
+      "system_prompt": "You are a meticulous research assistant.",
+      "role": "worker",
+      "max_loops": 1,
+      "temperature": 0.5,
+      "last_used": "2026-09-10T18:22:04.512Z"
+    },
+    {
+      "agent_name": "Document Analyst",
+      "model_name": "gpt-4.1",
+      "max_tokens": 4096,
+      "role": "worker",
+      "max_loops": 1,
+      "last_used": "2026-09-08T09:15:47.091Z"
+    }
+  ],
+  "timestamp": "2026-09-14T12:00:00.000Z"
+}
+```
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `success` | boolean | Whether the request succeeded |
+| `count` | integer | Total number of unique agent configurations returned |
+| `agents` | array of objects | Each entry is the `agent_config` you previously sent (minus `task`, `history`, `img`), plus `last_used` |
+| `timestamp` | string | ISO timestamp when the list was generated |
+
+<Note>
+An agent configuration is only listed here after you have run it at least once via `/v1/agent/completions` or `/v1/agent/batch/completions` — agents used only inside a `/v1/swarm/completions` request are not included. Uniqueness is keyed on `agent_name`, so reusing the same name with different settings keeps only the most recent version.
+</Note>
+
 

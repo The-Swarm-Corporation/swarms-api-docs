@@ -333,7 +333,7 @@ for name in ["Agent1", "Agent2", "Agent3"]:
         print(str(outputs[name])[:300])
 
 usage = result.get("usage", {})
-print(f"\nTotal cost: ${usage.get('token_cost', 0):.4f}")
+print(f"\nTotal cost: ${usage.get('total_cost', 0):.4f}")
 print(f"Total tokens: {usage.get('total_tokens', 0)}")
 ```
 

@@ -1,5 +1,6 @@
 ---
 title: 'Welcome'
+description: 'Overview of the Swarms API: endpoints, agents, multi-agent architectures, and where to start.'
 ---
 
 The Swarms API is the most advanced platform for building multi-agent systems. 
@@ -12,10 +13,10 @@ If you're creating a single intelligent agent or orchestrating thousands of agen
 Swarms API is designed for developers who need more than just a simple AI completion endpoint. We provide a complete ecosystem for building, deploying, and scaling intelligent AI systems that can collaborate, reason, and solve complex problems together.
 
 <Columns cols={3}>
-<Card title="Multi-Agent Architectures" href="/docs/documentation/multi-agent/swarm_types">
-Build hierarchical, sequential, and parallel agent systems at scale (10,000+).
+<Card title="Multi-Agent Architectures" href="/docs/documentation/multi-agent/available-architectures">
+Build hierarchical, sequential, and parallel agent systems with up to 2,000 agents per swarm.
 </Card>
-<Card title="Agent-to-Agent Communication" href="/docs/documentation/multi-agent/best_practices">
+<Card title="Agent-to-Agent Communication" href="/docs/documentation/multi-agent/overview">
 Protocols enabling seamless coordination and knowledge sharing across agents.
 </Card>
 <Card title="Optimized Execution Runtime" href="/docs/documentation/getting-started/architecture">
@@ -60,7 +61,7 @@ Three-tier architecture for scalable AI operations.
 <Card title="Client Libraries" href="/docs/documentation/resources/client-libraries">
 Official SDKs for Python, TypeScript, Go, Java, and more.
 </Card>
-<Card title="Swarm Types" href="/docs/documentation/multi-agent/swarm_types">
+<Card title="Swarm Types" href="/docs/documentation/multi-agent/available-architectures">
 Explore different swarm configurations and patterns.
 </Card>
 </Columns>
@@ -108,6 +109,36 @@ Model Context Protocol for enhanced interactions.
 </Card>
 </Columns>
 
+
+## API Endpoint Overview
+
+Base URL: `https://api.swarms.world`. All endpoints except `/` and `/health` require the `x-api-key` header (`Authorization: Bearer <key>` is also accepted). Endpoints marked Premium require a Pro, Ultra, or Premium subscription; call `GET /v1/account/premium-endpoints` for the live list.
+
+| Method | Endpoint | Premium | Description |
+|--------|----------|---------|-------------|
+| GET | `/` | No | API root / welcome message |
+| GET | `/health` | No | Health check |
+| POST | `/v1/agent/completions` | No | Single agent completion |
+| POST | `/v1/agent/batch/completions` | Yes | Batch agent completions (up to 50 per request) |
+| POST | `/v1/swarm/completions` | No | Multi-agent swarm completion |
+| POST | `/v1/swarm/batch/completions` | Yes | Batch swarm completions |
+| POST | `/v1/chat/completions` | No | OpenAI-compatible chat completions |
+| GET | `/v1/models` | No | OpenAI-compatible model list |
+| GET | `/v1/models/available` | No | Available models with metadata |
+| POST | `/v1/reasoning-agent/completions` | Yes | Reasoning agent completion |
+| GET | `/v1/reasoning-agent/types` | No | List available reasoning agent types |
+| GET | `/v1/swarms/available` | No | List swarm types and their metadata |
+| GET | `/v1/account/logs` | No | API request logs for your account |
+| GET | `/v1/account/metrics/summary` | No | Usage metrics summary |
+| GET | `/v1/account/premium-endpoints` | No | List endpoints that require Premium |
+| GET | `/v1/account/credits` | No | Credit balance |
+| GET | `/v1/agents/list` | No | List your saved agent configurations |
+| GET | `/v1/rate/limits` | No | Current rate limit status and usage |
+| GET | `/v1/tools/available` | No | List built-in tools (`auto_search`, `web_scraper`) |
+| GET | `/v1/usage/costs` | No | Full pricing details |
+| POST | `/v1/batched-grid-workflow/completions` | Yes | Batched grid workflow (agents x tasks) |
+| POST | `/v1/graph-workflow/completions` | Yes | Directed-graph multi-agent workflow |
+| POST | `/v1/auto-agent-builder/completions` | No | Generate an agent roster for a task (does not execute it) |
 
 ## Resources & Support
 

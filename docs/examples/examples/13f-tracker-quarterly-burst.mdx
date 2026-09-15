@@ -7,13 +7,13 @@ description: "Parse ~5,000 13F filings in a 48-hour quarterly burst with a fan-o
 
 - A `GraphWorkflow` shaped as fan-out → fan-in: thousands of per-fund parser nodes run in parallel, then converge into a cross-fund aggregator and a Theme Synthesizer
 - How to parse raw SEC EDGAR 13F-HR filings (CIK + accession number) into structured holdings, then diff against the prior quarter
-- The batch volume math for the quarterly burst: ~5,000 filings dropping in 48 hours, dispatched concurrently against `/v1/graph-workflow/completions` and priced under night-mode
-- Model diversification across the DAG: `gpt-4.1-mini` for mechanical parsing, `gpt-4.1` for aggregation, `claude-sonnet-4.5` for the synthesis layer
+- The batch volume math for the quarterly burst: ~5,000 filings dropping in 48 hours, dispatched concurrently against `/v1/graph-workflow/completions`
+- Model diversification across the DAG: `gpt-4.1-mini` for mechanical parsing, `gpt-4.1` for aggregation, `claude-sonnet-5` for the synthesis layer
 - Journalist-grade output: ranked sector adds/cuts, new positions crossing \$100M of cumulative flow, eliminated positions, and named emerging themes with the funds driving them
 - A reusable pattern for any high-volume regulatory-filing burst (Form 4, N-PORT, NPX)
 
 <Info>
-This tutorial leans hard on two premium features: the graph workflow endpoint (`/v1/graph-workflow/completions`), dispatched concurrently across the filing list for the burst, and **night-mode pricing** for the burst itself. 13Fs become public after-hours on the 45-day lag — fire the burst between 8pm and 6am Pacific and you pay the night-mode rate. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule.
+This tutorial leans on the graph workflow endpoint (`/v1/graph-workflow/completions`), dispatched concurrently across the filing list for the burst — a **premium-only** endpoint (Pro, Ultra, Premium). Note that the API's night-mode discount (see [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy)) applies only to `/v1/swarm/completions` and `/v1/swarm/batch/completions` — it does **not** apply to `/v1/graph-workflow/completions`, so running this burst overnight does not itself lower the bill. The reasons to fire it overnight here are operational: EDGAR's after-hours filing pattern and your own concurrency/rate-limit headroom, not a pricing discount.
 </Info>
 
 ## Why This Matters
@@ -250,7 +250,7 @@ The shape is fan-out → fan-in. Each per-fund parser is a node that fetches the
 Models are diversified across the DAG by the cognitive load of each node:
 - **Per-fund parsers** → `gpt-4.1-mini` — cheap, fast, mechanical. Most of the work is tool calling against structured XML.
 - **Cross-fund aggregator** → `gpt-4.1` — needs to reason over many per-fund summaries and group them coherently.
-- **Theme synthesizer** → `claude-sonnet-4.5` — produces the journalist-grade narrative the brief is built around.
+- **Theme synthesizer** → `claude-sonnet-5` — produces the journalist-grade narrative the brief is built around.
 
 ```python
 def build_13f_workflow_for_filing(cik: str, accession: str, fund_name: str, sub_funds: list[str]) -> dict:
@@ -312,7 +312,7 @@ def build_13f_workflow_for_filing(cik: str, accession: str, fund_name: str, sub_
             "(4) eliminated positions, (5) 3-5 emerging themes with named funds. "
             "Cite manager names. Be specific, numbers-forward, and printable."
         ),
-        "model_name": "claude-sonnet-4.5",
+        "model_name": "claude-sonnet-5",
         "max_tokens": 6000,
         "temperature": 0.4,
         "max_loops": 1,
@@ -372,7 +372,7 @@ for node, output in result.get("outputs", {}).items():
         output = " ".join(str(o) for o in output)
     print(str(output)[:600])
 
-print(f"\nToken cost: {result['usage']['token_cost']:.4f} credits")
+print(f"\nToken cost: {result['usage']['total_cost']:.4f} credits")
 print(f"Status: {result['status']}")
 ```
 
@@ -443,17 +443,16 @@ out_dir.mkdir(parents=True, exist_ok=True)
 (out_dir / "raw_batch_response.json").write_text(json.dumps(results, indent=2))
 ```
 
-**The math.** A single 5-node GraphWorkflow per filing — three lean parsers on `gpt-4.1-mini`, one aggregator on `gpt-4.1`, one synthesizer on `claude-sonnet-4.5` — comes out to roughly **\$0.04 per filing under night-mode pricing**. Across the full quarterly burst:
+**The math.** A single 5-node GraphWorkflow per filing — three lean parsers on `gpt-4.1-mini`, one aggregator on `gpt-4.1`, one synthesizer on `claude-sonnet-5` — comes out to roughly **\$0.04 per filing**. Across the full quarterly burst:
 
-| Volume | Per-filing cost (night-mode) | Total |
+| Volume | Per-filing cost | Total |
 | --- | --- | --- |
 | 5,000 13F-HR filings | ~\$0.04 | **~\$200** |
-| With the night-mode 50% discount window | ~\$0.02 | **~\$100** |
 
-A takeout dinner gets you the entire quarter's 13F coverage. Run four times a year and your annual budget for the program is roughly **\$400** in API cost.
+A takeout dinner gets you the entire quarter's 13F coverage. Run four times a year and your annual budget for the program is roughly **\$800** in API cost.
 
 <Info>
-The burst must land inside the night-mode window (8pm–6am Pacific) to hit the headline pricing. Read the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide for the schedule mechanics and how to chunk a larger batch across multiple windows if you exceed the rate ceiling.
+`/v1/graph-workflow/completions` token costs do not get the night-mode discount (that applies only to `/v1/swarm/completions` and `/v1/swarm/batch/completions` — see [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy)). Firing the burst overnight is still worth doing here to stay clear of daytime rate-limit and concurrency contention on other production workloads — see [Rate Limits](/docs/documentation/resources/ratelimits) if you need to chunk a larger batch across multiple windows.
 </Info>
 
 ## Step 6: The Theme Synthesizer Output
@@ -524,7 +523,7 @@ The Slack post fires automatically via the `post_theme_brief_to_slack` tool. The
 | Junior research analyst manually pulling ~50 "name brand" 13Fs | ~2 weeks of nights | — | ~\$120,000 fully loaded |
 | Senior markets editor reviewing and writing the brief under deadline | ~3 days each quarter | — | ~\$200,000 fully loaded |
 | Combined 2-person desk (junior + senior) covering ~50 funds | ~2 weeks | ~\$10,000–\$20,000 in burdened labor | ~\$320,000+ |
-| **GraphWorkflow batch burst, 5,000 funds, night-mode** | **~1 hour server-side** | **~\$100** | **~\$400** |
+| **GraphWorkflow batch burst, 5,000 funds** | **~1 hour server-side** | **~\$200** | **~\$800** |
 
 The swarm isn't replacing the senior editor — it's replacing the two weeks of mechanical 13F-pulling that buries them. The editor now lands at their desk on day 2 of the window with the entire universe of 4,983 filings already parsed, diffed, and themed. Their job becomes choosing which three themes to lead with — the work that actually requires judgement.
 
@@ -533,4 +532,4 @@ The swarm isn't replacing the senior editor — it's replacing the two weeks of 
 - [SEC Filing Triage Pipeline](/docs/examples/examples/sec-filing-triage-pipeline) for the same fan-out pattern applied to 8-K, S-1, and 10-K firehoses
 - [Insider Form 4 Monitor](/docs/examples/examples/insider-form4-monitor) for the daily-burst variant: insider transactions instead of quarterly positions
 - [Graph Workflows for Production Pipelines](/docs/examples/examples/graph-workflows-production) for the DAG-shape reference and conditional gating patterns
-- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) to schedule the burst against the discount window
+- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) for how the off-peak discount works on `/v1/swarm/completions` — useful if you rebuild a stage of this pipeline on the swarm endpoint instead of GraphWorkflow

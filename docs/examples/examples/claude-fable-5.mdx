@@ -7,12 +7,12 @@ description: "Run single agents, sequential pipelines, concurrent fan-outs, hier
 
 This tutorial shows how to run Claude Fable 5 — Anthropic's most capable model, positioned above the Opus family — on the Swarms API. Fable 5 is built for the hardest reasoning and long-horizon agentic work: multi-step analysis, deep synthesis, and debates where agents must genuinely engage with each other's arguments.
 
-Using it requires exactly two things in your agent config: set `model_name` to `anthropic/claude-fable-5`, and leave `temperature` as `None` (the model rejects numeric sampling parameters). Everything else about your existing agents and swarms stays the same. The examples below walk through the full range of agent types — a standalone single agent, a sequential pipeline, a concurrent specialist fan-out, a director-led hierarchical swarm, a multi-agent group chat, and a cost-efficient mixed-model pattern that reserves Fable 5 for the synthesis step.
+Using it requires one thing in your agent config: set `model_name` to `claude-fable-5`. Everything else about your existing agents and swarms stays the same. The examples below walk through the full range of agent types — a standalone single agent, a sequential pipeline, a concurrent specialist fan-out, a director-led hierarchical swarm, a multi-agent group chat, and a cost-efficient mixed-model pattern that reserves Fable 5 for the synthesis step.
 
 ## What This Example Shows
 
-- The correct model name to use (`anthropic/claude-fable-5`)
-- Why `temperature` must be `None` for this model — never a number
+- The correct model name to use (`claude-fable-5`)
+- Why this is a premium-only model, and the free-tier alternative
 - A single agent on Claude Fable 5
 - A `SequentialWorkflow` research pipeline
 - A `ConcurrentWorkflow` fan-out across specialist agents
@@ -21,12 +21,16 @@ Using it requires exactly two things in your agent config: set `model_name` to `
 - A mixed-model pattern: Fable 5 as the aggregator, cheaper models as workers
 
 <Info>
-Claude Fable 5 is Anthropic's most capable generally available model, sitting above the Opus family. It is built for the hardest reasoning and long-horizon agentic work, and it is wired into every multi-agent primitive on the Swarms platform. Switching an existing agent to Fable 5 is a one-line change in your agent config.
+Claude Fable 5 is one of the Swarms API's premium frontier models. It is built for the hardest reasoning and long-horizon agentic work, and it is wired into every multi-agent primitive on the Swarms platform. Switching an existing agent to Fable 5 is a one-line change in your agent config.
 </Info>
 
 <Warning>
-Claude Fable 5 does **not** accept the `temperature` parameter (or `top_p`). The field must be `None` — either leave it out of your `agent_config` entirely or set it explicitly to `None`, and the Swarms API will omit it from the upstream call. Passing any numeric value is rejected by Anthropic with a 400 error.
+`claude-fable-5` is a **premium-only** model. A free-tier API key that requests it gets back a 403 with `"error": "Premium model access required"` and a list of `suggested_alternatives` (`claude-sonnet-5`, `gpt-5.5`, `gemini-3.5-flash`). Upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account), or use `claude-sonnet-5` — the free-tier default model — if you don't have a premium subscription.
 </Warning>
+
+<Note>
+The examples below set `"temperature": None`, which is always safe: the Swarms API only forwards a `temperature` value upstream when you set one, and the provider applies its own default otherwise. Leaving the field out entirely has the same effect.
+</Note>
 
 ## Step 1: Get Your API Key
 
@@ -71,7 +75,7 @@ Fable 5 reasons deeply before answering, so individual calls can take noticeably
 
 ## Single Agent on Claude Fable 5
 
-The minimal case. Note that `temperature` is explicitly `None` — this is the only sampling configuration Fable 5 accepts.
+The minimal case.
 
 ```python
 result = client.agent.run(
@@ -83,8 +87,8 @@ result = client.agent.run(
             "through multi-step financial problems, state your assumptions explicitly, "
             "and show the intermediate calculations that support your conclusion."
         ),
-        "model_name": "anthropic/claude-fable-5",
-        "temperature": None,  # required: Fable 5 rejects numeric temperature
+        "model_name": "claude-fable-5",
+        "temperature": None,  # optional: omits the field from the upstream call
         "max_loops": 1,
         "max_tokens": 8192,
     },
@@ -103,8 +107,8 @@ print(json.dumps(result, indent=4))
 
 | Field | Before | With Fable 5 |
 | --- | --- | --- |
-| `model_name` | `gpt-4.1`, `anthropic/claude-opus-4-8`, etc. | `anthropic/claude-fable-5` |
-| `temperature` | `0.5` (or any float) | `None` — or omit the field entirely |
+| `model_name` | `gpt-4.1`, `claude-opus-4-8`, etc. | `claude-fable-5` |
+| Subscription | any tier | premium tier required |
 | Everything else | — | unchanged |
 
 ## SequentialWorkflow: Research → Analysis → Report
@@ -126,7 +130,7 @@ result = client.swarms.run(
                 "You are a research specialist. Collect the key facts, players, and "
                 "timelines relevant to the task. Output a structured fact sheet."
             ),
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 4096,
@@ -138,7 +142,7 @@ result = client.swarms.run(
                 "You are an industry analyst. Take the fact sheet you are given and "
                 "identify the three most important implications, with reasoning."
             ),
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 4096,
@@ -150,7 +154,7 @@ result = client.swarms.run(
                 "You are a professional writer. Turn the analysis you receive into a "
                 "concise executive briefing with a clear bottom line up front."
             ),
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 4096,
@@ -181,7 +185,7 @@ result = client.swarms.run(
             "agent_name": "Financial Diligence",
             "description": "Reviews the financial profile of the target.",
             "system_prompt": "You are an M&A financial diligence expert. Assess unit economics, burn, and valuation risk.",
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 4096,
@@ -190,7 +194,7 @@ result = client.swarms.run(
             "agent_name": "Technical Diligence",
             "description": "Reviews the technology and engineering organization.",
             "system_prompt": "You are a technical diligence expert. Assess architecture risk, technical debt, and key-person risk.",
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 4096,
@@ -199,7 +203,7 @@ result = client.swarms.run(
             "agent_name": "Legal Diligence",
             "description": "Reviews contracts, IP, and compliance exposure.",
             "system_prompt": "You are a legal diligence expert. Assess contract concentration, IP ownership, and regulatory exposure.",
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 4096,
@@ -232,7 +236,7 @@ result = client.swarms.run(
                 "You are an ETF analyst. Given a ticker, summarize the fund's "
                 "exposure, recent flows, and near-term outlook in under 200 words."
             ),
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "role": "worker",
             "max_loops": 1,
@@ -245,7 +249,7 @@ result = client.swarms.run(
                 "You are an equity analyst. Given a ticker, summarize the company's "
                 "fundamentals, catalysts, and near-term outlook in under 200 words."
             ),
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "role": "worker",
             "max_loops": 1,
@@ -273,7 +277,7 @@ result = client.swarms.run(
             "agent_name": "Bull",
             "description": "Argues the optimistic case.",
             "system_prompt": "You argue the strongest honest bull case. Engage directly with the bear's specific points.",
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 4096,
@@ -282,7 +286,7 @@ result = client.swarms.run(
             "agent_name": "Bear",
             "description": "Argues the pessimistic case.",
             "system_prompt": "You argue the strongest honest bear case. Engage directly with the bull's specific points.",
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 4096,
@@ -291,7 +295,7 @@ result = client.swarms.run(
             "agent_name": "Moderator",
             "description": "Weighs both sides and summarizes.",
             "system_prompt": "You are a neutral moderator. After each round, identify which arguments landed and which were rebutted.",
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 4096,
@@ -337,7 +341,7 @@ result = client.swarms.run(
                 "You are the lead security architect. Merge the specialist inputs into a "
                 "single prioritized checklist, resolving any conflicts between them."
             ),
-            "model_name": "anthropic/claude-fable-5",
+            "model_name": "claude-fable-5",
             "temperature": None,
             "max_loops": 1,
             "max_tokens": 8192,
@@ -350,7 +354,7 @@ print(json.dumps(result, indent=4))
 
 ## Using Fable 5 in Other Swarm Types
 
-Every other swarm architecture takes the same `model_name`. Drop `"model_name": "anthropic/claude-fable-5"` (with `temperature` left as `None`) into any agent inside any of these swarm configs:
+Every other swarm architecture takes the same `model_name`. Drop `"model_name": "claude-fable-5"` into any agent inside any of these swarm configs:
 
 - `SequentialWorkflow`
 - `ConcurrentWorkflow`
@@ -363,22 +367,17 @@ Every other swarm architecture takes the same `model_name`. Drop `"model_name": 
 - `HeavySwarm`
 - `LLMCouncil`
 - `DebateWithJudge`
-- `BatchedGridWorkflow`
 - `RoundRobin`
 - `PlannerWorkerSwarm`
-- `auto`
 
 ## Common Pitfalls
 
 <AccordionGroup>
-  <Accordion title="400 error mentioning temperature, top_p, or top_k">
-    You passed a numeric sampling parameter. Fable 5 removed `temperature`, `top_p`, and `top_k` entirely. Set `temperature` to `None` (or delete the field) in every agent config that uses `anthropic/claude-fable-5` — the Swarms API strips `None` fields before calling Anthropic.
+  <Accordion title="Premium model access required">
+    You called `claude-fable-5` from a free-tier API key. The response is a 403 with `"error": "Premium model access required"` and a `suggested_alternatives` list. Either upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) or switch `model_name` to a free-tier model such as `claude-sonnet-5`.
   </Accordion>
   <Accordion title="Requests take longer than with other models">
-    Expected. Fable 5 always reasons before answering and hard tasks can run for several minutes. Raise your client `timeout`, and prefer swarm architectures that parallelize independent work (`ConcurrentWorkflow`, `MixtureOfAgents`) over long sequential chains when latency matters.
-  </Accordion>
-  <Accordion title="A request returns empty content with a refusal stop reason">
-    Fable 5 ships with additional safety classifiers and may decline certain requests (notably deep cybersecurity and research-biology content) that other models answer. If your workload lives near those domains, route it to `anthropic/claude-opus-4-8` instead.
+    Reasoning-heavy models generally take longer on hard tasks than smaller, non-reasoning models. Raise your client `timeout`, and prefer swarm architectures that parallelize independent work (`ConcurrentWorkflow`, `MixtureOfAgents`) over long sequential chains when latency matters.
   </Accordion>
   <Accordion title="Where do I find pricing?">
     The Swarms API bills token usage at the same flat rate for every model — $6.50 per million input tokens and $18.50 per million output tokens — so Fable 5 costs the same per token as any other model here. See the [pricing page](/docs/documentation/resources/pricing) for current rates.
@@ -389,5 +388,5 @@ Every other swarm architecture takes the same `model_name`. Drop `"model_name": 
 
 - Browse the [Multi-Agent Architectures](/docs/documentation/multi-agent/overview) catalog for more swarm types
 - Read the [Single Agent Overview](/docs/examples/examples/agent-overview) for the full agent config surface
-- See the [Claude Opus 4.8 example](/docs/examples/examples/claude-opus-4-8) for the other Anthropic frontier tier with the same no-temperature rule
+- See the [Claude Opus 4.8 example](/docs/examples/examples/claude-opus-4-8) for the other premium Anthropic frontier model on the Swarms API
 - See [Streaming](/docs/examples/examples/streaming) to stream Fable 5 tokens to your client in real time

@@ -97,11 +97,15 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
 
 <Tab title="Python (requests)">
 ```python
+import os
 import requests
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_BASE_URL = "https://api.swarms.world"
-API_KEY = "your_api_key_here"
+API_KEY = os.getenv("SWARMS_API_KEY")
 
 headers = {
     "x-api-key": API_KEY,
@@ -479,7 +483,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-## Best Practices
+## Output Shape
+
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `GroupChat` specifically produces a multi-turn transcript: each agent speaks in turn, sees the accumulated conversation so far (including what previous agents said), and its `content` in `output` is its contribution to that shared discussion — so, unlike `ConcurrentWorkflow`, later agents' turns are expected to reference or build on earlier ones rather than being independent.
 
 - Design agents with complementary but distinct expertise to maximize discussion breadth
 - Use descriptive system prompts that instruct agents to build on and react to other participants' input

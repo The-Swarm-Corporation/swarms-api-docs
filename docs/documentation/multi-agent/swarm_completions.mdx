@@ -78,29 +78,27 @@ These only take effect for their corresponding `swarm_type`. Sending them with a
 
 ### Swarm Types
 
-`swarm_type` accepts one of the following 16 values:
+`swarm_type` accepts one of the following **14** values (this is the live list returned by `GET /v1/swarms/available`; see [Available Architectures](/docs/documentation/multi-agent/available-architectures) for full metadata on each):
 
 | Value | Coordination pattern | Reference |
 |-------|---------------------|-----------|
-| `SequentialWorkflow` | Linear chain, each agent fed the previous output | [Docs](/docs/documentation/multi-agent/sequential_workflow) |
-| `ConcurrentWorkflow` | All agents run in parallel on independent work | [Docs](/docs/documentation/multi-agent/concurrent_workflow) |
 | `AgentRearrange` | Custom flow defined by `rearrange_flow` | [Docs](/docs/documentation/multi-agent/agent_rearrange) |
 | `MixtureOfAgents` | Specialists on the same task, perspectives combined | [Docs](/docs/documentation/multi-agent/mixture_of_agents) |
+| `SequentialWorkflow` | Linear chain, each agent fed the previous output | [Docs](/docs/documentation/multi-agent/sequential_workflow) |
+| `ConcurrentWorkflow` | All agents run in parallel on independent work | [Docs](/docs/documentation/multi-agent/concurrent_workflow) |
+| `GroupChat` | Shared conversation between agents | [Docs](/docs/documentation/multi-agent/group_chat) |
 | `MultiAgentRouter` | Dispatcher routes the task to the best-suited agent | [Docs](/docs/documentation/multi-agent/multi_agent_router) |
 | `HierarchicalSwarm` | Director delegates to workers, then reviews | [Docs](/docs/documentation/multi-agent/hierarchical_swarm) |
 | `MajorityVoting` | Independent votes reconciled by majority | [Docs](/docs/documentation/multi-agent/majority_voting) |
-| `GroupChat` | Shared conversation between agents | [Docs](/docs/documentation/multi-agent/group_chat) |
-| `RoundRobin` | Agents take turns on a reshuffled order | [Docs](/docs/documentation/multi-agent/round_robin) |
+| `CouncilAsAJudge` | A council evaluates and a judge rules | [Docs](/docs/documentation/multi-agent/council_as_a_judge) |
+| `HeavySwarm` | Question decomposition, worker agents, synthesis | [Docs](/docs/documentation/multi-agent/heavy_swarm) |
+| `LLMCouncil` | Council deliberates, a chairman synthesizes | [Docs](/docs/documentation/multi-agent/llm_council) |
 | `DebateWithJudge` | Pro and Con debate, a judge synthesizes | [Docs](/docs/documentation/multi-agent/debate_with_judge) |
-| `HeavySwarm` | Question decomposition, four specialists, synthesis | [Docs](/docs/documentation/multi-agent/heavy_swarm) |
-| `BatchedGridWorkflow` | Every agent runs every task, producing a matrix | [Docs](/docs/documentation/multi-agent/batched_grid_workflow) |
-| `CouncilAsAJudge` | A council evaluates and a judge rules | [Example](/docs/examples/examples/council-as-judge) |
-| `LLMCouncil` | Council deliberates, a chairman synthesizes | [Example](/docs/examples/examples/llm-council) |
-| `PlannerWorkerSwarm` | Planner decomposes, workers pull from a shared queue | [Architectures](/docs/documentation/multi-agent/available-architectures) |
-| `auto` | The API selects an architecture based on the task | — |
+| `RoundRobin` | Agents take turns in a fixed rotation | [Docs](/docs/documentation/multi-agent/round_robin) |
+| `PlannerWorkerSwarm` | Planner decomposes, workers pull from a shared queue | [Docs](/docs/documentation/multi-agent/planner_worker_swarm) |
 
 <Note>
-`BatchedGridWorkflow` also has a dedicated premium endpoint, `/v1/batched-grid-workflow/completions`, and `GraphWorkflow` is **not** a `swarm_type` at all — it has its own endpoint at [`/v1/graph-workflow/completions`](/docs/documentation/multi-agent/graph_workflow).
+`"auto"` and `"SpreadSheetSwarm"` are rejected with a `400` ("not supported currently") even though older documentation may reference them. `BatchedGridWorkflow` and `GraphWorkflow` are **not** `swarm_type` values at all — they are separate, premium-only endpoints: [`/v1/batched-grid-workflow/completions`](/docs/documentation/multi-agent/batched_grid_workflow) and [`/v1/graph-workflow/completions`](/docs/documentation/multi-agent/graph_workflow).
 </Note>
 
 ---
@@ -142,9 +140,10 @@ Each entry in `agents` is an `AgentSpec`. Every field is optional.
 | `tools_list_dictionary` | `array[object] \| null` | — | Tool definitions the agent can call |
 | `selected_tools` | `string \| array[string] \| null` | all safe defaults | Restricts which tools the autonomous looper may use when `max_loops="auto"` |
 | `tool_call_summary` | `boolean \| null` | `true` | Have the agent summarize its tool calls |
-| `mcp_url` | `string \| null` | — | URL of an MCP server the agent can use |
+| `mcp_url` | `string \| MCPConnection \| null` | — | A single MCP server: a URL string for an unauthenticated server, or a connection object for auth/transport |
 | `mcp_config` | `MCPConnection \| null` | — | A single MCP connection. See [MCPConnection](#mcpconnection) |
-| `mcp_configs` | `MultipleMCPConnections \| null` | — | Several MCP connections at once |
+| `mcp_configs` | `array[MCPConnection] \| null` | — | Several MCP connections at once |
+| `mcp_urls` | `array[string \| MCPConnection] \| null` | — | Several MCP servers. Each entry is a URL string or a connection object; tools from every server are combined |
 | `handoffs` | `array[AgentSpec] \| null` | — | Agents this agent can hand tasks to. These are created and attached as its handoff targets |
 
 <Note>
@@ -252,7 +251,7 @@ Any string field accepts `"env:MY_VAR"` or `"${MY_VAR}"` to read the value from 
 
 ## Response: SwarmCompletion
 
-All nine fields are always present in a successful response.
+The first nine fields below are always present in a successful response. `tasks` and `messages` are **conditionally present**: the server echoes each one back only if the request supplied it — `tasks` appears when the request's `tasks` array was not null, and `messages` appears when the request's `messages` field was not null. Neither key is present at all on a plain `task`-only request.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -262,9 +261,11 @@ All nine fields are always present in a successful response.
 | `description` | `string \| null` | The description of the swarm |
 | `swarm_type` | `string \| null` | The architecture that ran |
 | `output` | `any` | The swarm's output. **Shape varies by `swarm_type`** — a string, array, or object |
-| `number_of_agents` | `integer \| null` | Number of agents in the swarm |
+| `number_of_agents` | `integer \| null` | Number of agents in the swarm. Counted from the request's `agents` array (`0` for architectures such as `HeavySwarm` that can build their own team) |
 | `execution_time` | `number \| null` | Wall-clock execution time in seconds |
 | `usage` | `object \| null` | Token counts and cost breakdown |
+| `tasks` | `array[string] \| null` | Present only when the request set `tasks`. Echoes the batch of tasks the request carried, so a caller can match results to what it sent |
+| `messages` | `array[object] \| object \| null` | Present only when the request set `messages`. Echoes the message history the request carried |
 
 ```json
 {
@@ -302,8 +303,25 @@ All nine fields are always present in a successful response.
 }
 ```
 
+`tasks` and `messages` appear only when the request supplied them, for example a batch-style run that sets `tasks` (an array of task strings, run via `SwarmRouter.batch_run`) instead of a single `task`:
+
+```json
+{
+  "job_id": "swarm-e5f6g7h8",
+  "status": "success",
+  "swarm_name": "Batch Analysis",
+  "description": "Multiple independent analyses in one call",
+  "swarm_type": "ConcurrentWorkflow",
+  "output": ["...", "..."],
+  "number_of_agents": 2,
+  "execution_time": 12.1,
+  "usage": { "input_tokens": 210, "output_tokens": 900, "total_tokens": 1110 },
+  "tasks": ["Summarize Q1 earnings", "Summarize Q2 earnings"]
+}
+```
+
 <Warning>
-`output` is untyped in the schema because each architecture returns a different structure — `SequentialWorkflow` returns an ordered conversation, `BatchedGridWorkflow` returns a matrix keyed by agent, `MajorityVoting` returns votes plus a verdict. Branch on `swarm_type` rather than assuming a fixed shape.
+`output` is untyped in the schema because each architecture returns a different structure — `SequentialWorkflow` returns an ordered conversation, `MajorityVoting` returns votes plus a verdict. Branch on `swarm_type` rather than assuming a fixed shape. All swarm types are executed through a `SwarmRouter` that always forces `output_type="dict"` server-side, so `output` is typically a list of `{"role": ..., "content": ...}` turns — the order and the meaning of each `role` depends on the coordination pattern (see each architecture's page).
 </Warning>
 
 ---

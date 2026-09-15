@@ -1,67 +1,205 @@
 ---
 title: 'MCP Integration'
-description: 'Integrate MCP Into your Agents'
+description: 'Connect agents to Model Context Protocol servers for real-time data, tools, and external systems'
 ---
 
-This tutorial demonstrates how to integrate Model Context Protocol (MCP) servers with the Swarms API to create powerful quantitative agents that can fetch real-time data, perform statistical analysis, and provide financial insights.
+This page documents how to attach one or more [Model Context Protocol](https://modelcontextprotocol.io) (MCP) servers to an agent via `AgentSpec`, so the agent can call the server's tools while it runs.
 
 ## What is MCP?
 
-Model Context Protocol (MCP) is a standardized way for AI agents to interact with external data sources, tools, and services. By integrating MCP URLs with Swarms API, your quantitative agents can:
+Model Context Protocol (MCP) is a standardized way for AI agents to interact with external data sources, tools, and services. By connecting an MCP server to an agent, it can:
 
-- Fetch real-time financial data
-- Access historical market information
-- Perform complex statistical calculations
-- Integrate with external databases and APIs
-- Stream live market updates
+- Fetch real-time data (market data, internal APIs, databases)
+- Call tools exposed by the server
+- Access resources the server publishes
 
-## Key Components
+The MCP server's tools are discovered automatically at run time and made available to the agent alongside any `tools_list_dictionary` function tools.
 
-### 1. MCP URL Configuration (`mcp_url`)
+<Warning>
+Configuring MCP access on an agent adds a flat **$0.10** charge per agent completion (see [Billing](#billing) below).
+</Warning>
 
-The `mcp_url` field is all you need to connect your agent to an MCP server:
+## Ways to connect
+
+`AgentSpec` exposes four related fields. Use the simplest one that fits:
+
+| Field | Type | Use when |
+|-------|------|----------|
+| `mcp_url` | `string` or [`MCPConnection`](#mcpconnection-fields) object | One server, optionally unauthenticated |
+| `mcp_urls` | `array` of `string` or `MCPConnection` | Several servers at once; tools from every server are combined |
+| `mcp_config` | `MCPConnection` object | One server that needs auth, custom transport, or timeouts |
+| `mcp_configs` | `array` of `MCPConnection` objects | Several servers, each with its own auth/transport/timeouts |
+
+### 1. `mcp_url` — a URL string or connection object
+
+For an unauthenticated server, a plain URL string is enough:
 
 ```json
 {
-    "mcp_url": "https://your-mcp-server.com/financial-data"
+  "mcp_url": "https://your-mcp-server.com/financial-data"
 }
 ```
 
-The MCP server will automatically provide the available tools and capabilities to your agent.
-
-### 2. Single MCP Connection (`mcp_config`)
-
-For more control over the connection (custom headers, an authorization token, transport, or a timeout), use `mcp_config` instead of `mcp_url`:
+`mcp_url` also accepts a full `MCPConnection` object when you need auth, a specific transport, or custom timeouts, instead of using `mcp_config`:
 
 ```json
 {
-    "mcp_config": {
-        "type": "mcp",
-        "url": "https://your-mcp-server.com/financial-data",
-        "transport": "streamable_http",
-        "authorization_token": "your-mcp-server-token",
-        "headers": {"X-Custom-Header": "value"},
-        "timeout": 10
+  "mcp_url": {
+    "type": "mcp",
+    "url": "https://your-mcp-server.com/financial-data",
+    "transport": "streamable_http",
+    "authorization_token": "env:MCP_SERVER_TOKEN",
+    "timeout": 10
+  }
+}
+```
+
+### 2. `mcp_urls` — multiple servers
+
+`mcp_urls` is a plain JSON array; each entry is either a URL string or an `MCPConnection` object. Tools from every server are combined into one tool list for the agent:
+
+```json
+{
+  "mcp_urls": [
+    "https://your-mcp-server.com/financial-data",
+    {
+      "type": "mcp",
+      "url": "https://your-mcp-server.com/market-news",
+      "authorization_token": "env:NEWS_MCP_TOKEN"
     }
+  ]
 }
 ```
 
-### 3. Multiple MCP Connections (`mcp_configs`)
+### 3. `mcp_config` — a single connection with full control
 
-To connect a single agent to more than one MCP server at once, use `mcp_configs` with a list of connection objects (each using the same shape as `mcp_config`):
+Use `mcp_config` instead of `mcp_url` when you want the connection shape to be explicit (custom headers, an authorization token, a specific transport, or a timeout):
 
 ```json
 {
-    "mcp_configs": {
-        "connections": [
-            {"type": "mcp", "url": "https://your-mcp-server.com/financial-data"},
-            {"type": "mcp", "url": "https://your-mcp-server.com/market-news"}
-        ]
-    }
+  "mcp_config": {
+    "type": "mcp",
+    "url": "https://your-mcp-server.com/financial-data",
+    "transport": "streamable_http",
+    "authorization_token": "env:MCP_SERVER_TOKEN",
+    "headers": {"X-Custom-Header": "value"},
+    "timeout": 10
+  }
 }
 ```
 
-## Complete Example: Quantitative Agent with MCP
+### 4. `mcp_configs` — multiple fully-configured connections
+
+`mcp_configs` is a plain JSON array of `MCPConnection` objects (not wrapped in an outer object):
+
+```json
+{
+  "mcp_configs": [
+    {"type": "mcp", "url": "https://your-mcp-server.com/financial-data"},
+    {"type": "mcp", "url": "https://your-mcp-server.com/market-news", "authorization_token": "env:NEWS_MCP_TOKEN"}
+  ]
+}
+```
+
+## `MCPConnection` fields
+
+All four fields above accept objects shaped like `MCPConnection`:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | `string` | `"mcp"` | Connection type, currently always `"mcp"`. |
+| `url` | `string` | `"http://localhost:8000/mcp"` | The MCP server endpoint. For the `stdio` transport this can instead be a `"command arg1 arg2"` string. |
+| `name` | `string` | — | Human-readable name for the server, used in logs and tool routing. |
+| `tool_configurations` | `object` | — | Per-tool configuration overrides. |
+| `authorization_token` | `string` | — | Bearer token for the server. Sent as `Authorization: Bearer <token>` unless `api_key`/`headers` already set that header. |
+| `api_key` | `string` | — | API key for the server. Sent via `api_key_header`/`api_key_prefix` instead of a bearer token. |
+| `api_key_header` | `string` | `"Authorization"` | Header used to send `api_key`, e.g. `"Authorization"` or `"X-API-Key"`. |
+| `api_key_prefix` | `string` | `"Bearer"` | Prefix prepended to the `api_key` value. Set to `null`/`""` for a raw key. |
+| `auth_type` | `string` | — | Explicit auth mode override (`"oauth"`, `"api_key"`, `"bearer"`, `"custom"`, `"none"`). Inferred from the other fields when omitted — see [Auth modes](#auth-modes). |
+| `oauth` | [`MCPOAuthConfig`](#mcpoauthconfig-fields) | — | OAuth 2.1 configuration for this server. |
+| `transport` | `string` | `"streamable_http"` | One of `"streamable_http"`, `"sse"`, `"stdio"`, `"auto"`. |
+| `headers` | `object` | — | Extra headers sent to the MCP server verbatim (not env-resolved). |
+| `timeout` | `integer` | `30` | Request timeout for the MCP server, in seconds. |
+| `sse_read_timeout` | `integer` | `300` | How long to wait for streamed events before giving up, in seconds. |
+| `tool_timeout` | `integer` | `120` | How long a single tool call may run before timing out, in seconds. Separate from `timeout`, which bounds HTTP requests. |
+| `command` | `string` | — | Executable to launch for the `stdio` transport. |
+| `args` | `array<string>` | — | Arguments passed to the `stdio` command. |
+| `env` | `object` | — | Environment variables for the `stdio` command. Values may use the `env:VAR` / `${VAR}` syntax below. |
+
+## Transports
+
+Set `transport` on the connection object:
+
+- `streamable_http` (default) — HTTP-based MCP transport, used for most remote servers.
+- `sse` — Server-sent events transport.
+- `stdio` — Launches a local process (`command` + `args`) and speaks MCP over stdin/stdout.
+- `auto` — Let the client negotiate the transport with the server.
+
+## Auth modes
+
+If `auth_type` is not set explicitly, it's inferred in this order:
+
+1. `oauth` — if `oauth` is set.
+2. `api_key` — else if `api_key` is set (sent via `api_key_header`/`api_key_prefix`).
+3. `bearer` — else if `authorization_token` is set (sent as `Authorization: Bearer <token>`, unless `headers` already defines `Authorization`).
+4. `custom` — else if `headers` is set (sent as-is).
+5. `none` — otherwise.
+
+## `MCPOAuthConfig` fields
+
+Set `oauth` on the connection to use OAuth 2.1 instead of a static token or API key. Three flows are supported:
+
+1. **`authorization_code`** (default) — the interactive browser flow from the MCP authorization spec. PKCE and RFC 7591 dynamic client registration are handled automatically, so `client_id` is optional. Tokens are cached on disk so the browser prompt only happens once.
+2. **`client_credentials`** — a headless machine-to-machine flow. Requires `client_id`/`client_secret`. The token endpoint is discovered from the server's `/.well-known/oauth-authorization-server` metadata unless `token_url` is given.
+3. **A pre-obtained `access_token`** — no flow is run; the token is sent directly as a bearer credential.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `grant_type` | `string` | `"authorization_code"` | OAuth grant to use when no static `access_token` is supplied. |
+| `client_id` | `string` | — | OAuth client id. Optional for `authorization_code` when the server supports dynamic client registration. |
+| `client_secret` | `string` | — | OAuth client secret. Required for `client_credentials`. |
+| `scopes` | `array<string>` | — | Scopes to request, e.g. `["mcp:tools", "offline_access"]`. |
+| `redirect_uri` | `string` | `"http://127.0.0.1:8765/callback"` | Loopback redirect URI used to capture the authorization code. |
+| `client_name` | `string` | `"Swarms Agent"` | Client name sent during dynamic client registration. |
+| `client_uri` | `string` | — | Client homepage sent during dynamic client registration. |
+| `authorization_url` | `string` | — | Explicit authorization endpoint. Discovered automatically when omitted. |
+| `token_url` | `string` | — | Explicit token endpoint. Discovered automatically when omitted. |
+| `access_token` | `string` | — | Pre-obtained access token. When set, no OAuth flow is performed. |
+| `refresh_token` | `string` | — | Pre-obtained refresh token, paired with `access_token`. |
+| `token_storage_path` | `string` | — | File used to cache OAuth tokens. Defaults to `~/.swarms/mcp_auth/<server>.json`. |
+| `use_token_cache` | `boolean` | `true` | Persist tokens to disk so the browser flow only runs once. |
+| `open_browser` | `boolean` | `true` | Open the system browser for the authorization step. When `false`, the URL is logged instead. |
+| `callback_timeout` | `integer` | `300` | Seconds to wait for the user to complete the browser flow. |
+
+## Secrets via environment variables
+
+Rather than hardcoding a token in the request body, secret-bearing fields accept an indirection syntax: `"env:MY_VAR"` or `"${MY_VAR}"` reads the value from an environment variable on the server at connection time instead of the literal string.
+
+This applies to:
+
+- `MCPConnection.api_key`
+- `MCPConnection.authorization_token`
+- `MCPConnection.env` values (for the `stdio` transport)
+- `MCPOAuthConfig.access_token`, `client_id`, `client_secret`, and `token_url`
+
+```json
+{
+  "mcp_config": {
+    "url": "https://your-mcp-server.com/financial-data",
+    "authorization_token": "env:MCP_SERVER_TOKEN"
+  }
+}
+```
+
+<Note>
+`headers` values are sent as-is and are **not** resolved through `env:`/`${...}` — only the fields listed above are.
+</Note>
+
+## Billing
+
+Agent completions bill a flat **$0.10 MCP fee** (`agent_completions_mcp_cost`) once per request when `agent_config.mcp_url` is set on the request. This is in addition to the usual token costs. Fetch current pricing from [`GET /v1/usage/costs`](/docs/documentation/resources/pricing) rather than hardcoding it, since it can change.
+
+## Complete example: quantitative agent with MCP
 
 ```python
 import os
@@ -76,8 +214,8 @@ BASE_URL = "https://api.swarms.world"
 headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 def create_quant_agent_with_mcp():
-    """Create a quantitative agent that integrates with MCP server"""
-    
+    """Create a quantitative agent that integrates with an MCP server"""
+
     payload = {
         "agent_config": {
             "agent_name": "MCP-Enabled Quantitative Analyst",
@@ -92,7 +230,12 @@ def create_quant_agent_with_mcp():
             "max_loops": 3,
             "max_tokens": 16384,
             "temperature": 0.3,
-            "mcp_url": "https://your-mcp-server.com/financial-data",
+            "mcp_config": {
+                "type": "mcp",
+                "url": "https://your-mcp-server.com/financial-data",
+                "authorization_token": "env:MCP_SERVER_TOKEN",
+                "timeout": 10,
+            },
             "streaming_on": False
         },
         "task": (
@@ -101,14 +244,14 @@ def create_quant_agent_with_mcp():
             "Provide portfolio optimization recommendations based on the analysis."
         )
     }
-    
+
     return payload
 
 def run_mcp_agent():
     """Execute the MCP-enabled quantitative agent"""
-    
+
     payload = create_quant_agent_with_mcp()
-    
+
     try:
         response = requests.post(
             f"{BASE_URL}/v1/agent/completions",
@@ -124,14 +267,19 @@ def run_mcp_agent():
 if __name__ == "__main__":
     result = run_mcp_agent()
     if result:
-        print("MCP Agent executed successfully!")
+        print("MCP agent executed successfully!")
         print(f"Job ID: {result.get('job_id', 'N/A')}")
     else:
         print("Failed to execute MCP agent")
 ```
 
-## Conclusion
+## Related resources
 
-MCP integration with the Swarms API provides powerful capabilities for quantitative agents to access external data sources, perform complex analysis, and deliver real-time insights. By following the patterns and best practices outlined in this tutorial, you can create robust, scalable quantitative analysis systems that leverage the full power of MCP servers.
-
-For more information on MCP protocol specifications and advanced integration patterns, refer to the official MCP documentation and the Swarms API reference.
+<CardGroup cols={2}>
+<Card title="Agent Completions" icon="robot" href="/docs/documentation/capabilities/agent">
+Full `AgentSpec` field reference
+</Card>
+<Card title="Swarms API Tools" icon="wrench" href="/docs/documentation/capabilities/swarms_api_tools">
+Built-in `auto_search`/`web_scraper` tools and autonomous looper tools
+</Card>
+</CardGroup>

@@ -30,6 +30,51 @@ Certified under the Swiss-US Data Privacy Framework for data transfers between S
 </Card>
 </CardGroup>
 
+## Technical Security Controls
+
+The following controls are implemented in the API and verifiable directly from its behavior.
+
+### Authentication
+
+- Requests must include your API key in the `x-api-key` header. As a convenience for OpenAI-SDK-compatible clients, `Authorization: Bearer <key>` is also accepted and treated the same as `x-api-key`.
+- Requests missing both fail with a 401 `authentication_error` before any application logic runs.
+
+```bash
+curl https://api.swarms.world/v1/agent/completions \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{...}'
+
+# Equivalent, OpenAI-SDK style:
+curl https://api.swarms.world/v1/agent/completions \
+  -H "Authorization: Bearer $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{...}'
+```
+
+### Public Endpoints
+
+Only the following paths are reachable without an API key: `/`, `/health`, `/docs`, `/openapi.json`, `/redoc`, and the Swagger UI assets. Every other endpoint requires authentication.
+
+### Security Response Headers
+
+Every response — including error responses such as 401s and 402s — carries this header set:
+
+| Header | Value |
+|--------|-------|
+| `Cache-Control` | `no-store` |
+| `Cross-Origin-Opener-Policy` | `same-origin` |
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'` |
+| `Strict-Transport-Security` | `max-age=31536000` |
+| `Permissions-Policy` | `geolocation=(), microphone=(), camera=()` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `SAMEORIGIN` |
+
+### Credit and Premium Gating
+
+Billable and premium-only endpoints are checked before any work runs: billable routes require a total credit balance above \$1.00 (402 if not), and premium-only routes require an active premium subscription (403 if not). See [Pricing](/docs/documentation/resources/pricing) and [Premium Endpoints](/docs/documentation/resources/premium-endpoints).
+
 ## Security Commitment
 
 Our security certifications demonstrate our ongoing commitment to:

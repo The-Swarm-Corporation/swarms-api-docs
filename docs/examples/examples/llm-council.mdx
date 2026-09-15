@@ -297,6 +297,21 @@ Phase 3: SYNTHESIS
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+### Step 5: Customize the Chairman
+
+Pass `chairman_model` on the `SwarmSpec` (a sibling of `swarm_type` and `agents`, not an agent field) to change which model synthesizes the final answer - it defaults to `gpt-5.1`:
+
+```python
+swarm_config = {
+    "name": "Investment Strategy Council",
+    "swarm_type": "LLMCouncil",
+    "task": question,
+    "agents": [...],  # same council members as above
+    "chairman_model": "claude-sonnet-5",
+    "max_loops": 1
+}
+```
+
 <Note>
-LLMCouncil is inspired by Andrej Karpathy's llm-council concept. Each agent responds independently, then all agents peer-review and rank each other's anonymized responses. A chairman agent synthesizes everything — original responses plus rankings — into a final answer that incorporates the strongest elements from each perspective. This multi-phase approach produces higher-quality outputs than any single agent alone.
+LLMCouncil is inspired by Andrej Karpathy's llm-council concept. Each agent responds independently (role = agent name), then every member evaluates all anonymized responses (recorded as `<agent_name>-Evaluation`). A `Chairman` agent (model set by `chairman_model`, default `gpt-5.1`) synthesizes everything — original responses plus rankings — into a final answer that incorporates the strongest elements from each perspective. `output` contains one entry per member's response, one `-Evaluation` entry per member, and one final `Chairman` entry.
 </Note>

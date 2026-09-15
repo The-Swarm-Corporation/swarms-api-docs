@@ -45,7 +45,9 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Pull Last-24h Logs, Aggregated by Swarm Type
 
-The single most useful operator script: what ran in the last 24 hours, grouped by `swarm_type`, with cost and error counts per group.
+The single most useful operator script: what ran in the last 24 hours, grouped by `swarm_type`, with cost and token totals per group.
+
+Each row returned by `/v1/account/logs` has exactly five fields: `id`, `created_at`, `api_key`, `category`, and `data` — where `data` is the **complete response payload** of the call that produced it (a `SwarmCompletion`, `AgentCompletionOutput`, etc.). `/v1/account/logs` only ever returns rows written with `category="completion"`, and that row is written at the end of a *successful* billable run — a rejected (4xx) or failed (5xx) request never reaches that point, so it never appears here. This endpoint is a cost and usage ledger, not an error log; get your error/status-code signal from the client (see the [Production Readiness Checklist](/docs/guides/guides/production-readiness-checklist)), not from `/v1/account/logs`.
 
 ```python
 def fetch_logs():
@@ -55,56 +57,51 @@ def fetch_logs():
 
 
 def last_24h_breakdown():
-    data = fetch_logs()
+    payload = fetch_logs()
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
 
-    by_type = defaultdict(lambda: {"count": 0, "errors": 0, "cost": 0.0, "tokens": 0})
-    untyped = {"count": 0, "errors": 0, "cost": 0.0, "tokens": 0}
+    by_type = defaultdict(lambda: {"count": 0, "cost": 0.0, "tokens": 0})
+    untyped = {"count": 0, "cost": 0.0, "tokens": 0}
 
-    for log in data.get("logs", []):
-        ts_raw = log.get("timestamp")
+    for row in payload.get("logs", []):
+        ts_raw = row.get("created_at")
         if not ts_raw:
             continue
         ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
         if ts < cutoff:
             continue
 
-        # swarm_type lives inside the request payload echoed in the log
-        swarm_type = (
-            log.get("data", {}).get("swarm_type")
-            or log.get("swarm_type")
-            or None
-        )
+        data = row.get("data") or {}
+        usage = data.get("usage") or {}
+
+        # swarm_type is only present on SwarmCompletion payloads; agent,
+        # reasoning-agent, and workflow completions fall into "untyped".
+        swarm_type = data.get("swarm_type")
         bucket = by_type[swarm_type] if swarm_type else untyped
 
         bucket["count"] += 1
-        bucket["cost"] += float(log.get("cost", 0) or 0)
-        bucket["tokens"] += int(log.get("tokens_used", 0) or 0)
-        if (log.get("status_code") or 200) >= 400:
-            bucket["errors"] += 1
+        bucket["cost"] += float(usage.get("total_cost", 0) or 0)
+        bucket["tokens"] += int(usage.get("total_tokens", 0) or 0)
 
     print("Last 24 hours, by swarm_type")
-    print("-" * 70)
-    print(f"{'swarm_type':<22} {'reqs':>6} {'errs':>6} {'tokens':>10} {'cost':>10}")
-    print("-" * 70)
+    print("-" * 60)
+    print(f"{'swarm_type':<22} {'reqs':>6} {'tokens':>10} {'cost':>10}")
+    print("-" * 60)
     for swarm_type, b in sorted(by_type.items(), key=lambda kv: kv[1]["cost"], reverse=True):
         print(
             f"{(swarm_type or '-'):<22} "
-            f"{b['count']:>6} {b['errors']:>6} "
-            f"{b['tokens']:>10,} ${b['cost']:>8.4f}"
+            f"{b['count']:>6} {b['tokens']:>10,} ${b['cost']:>8.4f}"
         )
     if untyped["count"]:
         print(
-            f"{'(single-agent)':<22} "
-            f"{untyped['count']:>6} {untyped['errors']:>6} "
-            f"{untyped['tokens']:>10,} ${untyped['cost']:>8.4f}"
+            f"{'(agent / other)':<22} "
+            f"{untyped['count']:>6} {untyped['tokens']:>10,} ${untyped['cost']:>8.4f}"
         )
 
     total_cost = sum(b["cost"] for b in by_type.values()) + untyped["cost"]
-    total_err = sum(b["errors"] for b in by_type.values()) + untyped["errors"]
     total_req = sum(b["count"] for b in by_type.values()) + untyped["count"]
-    print("-" * 70)
-    print(f"Total: {total_req} requests, {total_err} errors, ${total_cost:.4f}")
+    print("-" * 60)
+    print(f"Total: {total_req} successful completions, ${total_cost:.4f}")
 
 
 if __name__ == "__main__":
@@ -112,7 +109,7 @@ if __name__ == "__main__":
 ```
 
 <Note>
-The exact shape of each log entry can vary slightly — `swarm_type`, `agent_name`, and `model_name` may appear at the top level or nested under `data`. The code above is defensive against both. See the [Swarm Logs reference](/docs/examples/examples/swarm-logs) for the full schema.
+`count` in the top-level response is the true total number of matching rows in your account (across every API key, including revoked ones) — `logs` itself is capped at the 1000 newest rows. If `count` exceeds 1000, page by time yourself (e.g. only trust `logs` for the last-24h window shown here) rather than assuming `logs` holds everything.
 </Note>
 
 ## Step 3: Reconcile Logged Costs Against Live Pricing
@@ -129,12 +126,14 @@ def fetch_current_pricing() -> dict:
 def reconcile_today():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    # Logs side: sum all of today's entries (the only durable record of spend)
+    # Logs side: sum all of today's entries (the only durable record of spend).
+    # Cost lives in the nested response payload (row["data"]["usage"]["total_cost"]),
+    # not on the row itself.
     logs = fetch_logs().get("logs", [])
     logs_cost = sum(
-        float(log.get("cost", 0) or 0)
-        for log in logs
-        if (log.get("timestamp") or "").startswith(today)
+        float(((row.get("data") or {}).get("usage") or {}).get("total_cost", 0) or 0)
+        for row in logs
+        if (row.get("created_at") or "").startswith(today)
     )
 
     # Rates side: pull the live pricing rate card
@@ -213,7 +212,7 @@ For enterprise and regulated workloads — healthcare, financial services, legal
 - "Reconstruct the chain of agent outputs that produced this trade recommendation."
 - "Produce the model name, system prompt, and output for the decision made at 14:32 UTC."
 
-The `/v1/account/logs` endpoint is filtered to your API key and excludes client IP addresses for privacy, but otherwise retains the request shape, the model invoked, the response time, and the cost. Combined with deterministic agent configs (low temperature, pinned model names, fixed `max_loops`), it gives you a reproducible record per agent call — which is what most regulators actually want.
+The `/v1/account/logs` endpoint is filtered to your API key and excludes any row whose payload contains client IP information. Each row is the full response body of a successful, billable run — `job_id`, `output`/`outputs`, `usage` (tokens and cost), and for swarm completions `execution_time` and `number_of_agents`. It does not carry the model name back to you; if you need to reconstruct which model produced a given output, pin `model_name` per agent on your side and correlate by `job_id` or the run's `name`. Combined with deterministic agent configs (low temperature, pinned model names, fixed `max_loops`) on your own side, this gives you a reproducible record per completion — which is what most regulators actually want.
 
 <Info>
 The platform's existing log retention is suitable for debugging and operational analytics. For workloads with formal retention requirements (GxP, HIPAA, SOX, SR 11-7), export logs to your own storage on a daily cadence — the [Swarm Logs examples](/docs/examples/examples/swarm-logs) show CSV/JSON/compressed export patterns.
@@ -224,7 +223,7 @@ The platform's existing log retention is suitable for debugging and operational 
 A pragmatic daily cron looks like this:
 
 1. **00:05 UTC** — pull `/v1/usage/costs` to snapshot the current rate card; diff it against yesterday's snapshot to catch pricing changes
-2. **00:10 UTC** — pull `/v1/account/logs`; archive yesterday's entries to S3 / your log lake; aggregate by `swarm_type` and `model_name` for finance — this log aggregation is also where your daily total cost comes from, since there's no separate daily-rollup endpoint
+2. **00:10 UTC** — pull `/v1/account/logs`; archive yesterday's entries to S3 / your log lake; aggregate by `swarm_type` (from `data.swarm_type`, present on swarm completions) for finance — this log aggregation is also where your daily total cost comes from, since there's no separate daily-rollup endpoint
 3. **00:15 UTC** — pull `/v1/account/credits`; alert if `total_credits < daily_budget * 7`
 4. **Continuously** — every production request logs its `X-RateLimit-Remaining-Minute`; alert if a rolling 5-minute average drops below 20% of `X-RateLimit-Limit-Minute`
 

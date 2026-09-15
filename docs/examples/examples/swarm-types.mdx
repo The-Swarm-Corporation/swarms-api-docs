@@ -93,7 +93,9 @@ Different swarm types are optimized for different workflows - choose the right a
       -H "x-api-key: your-api-key" \
       -H "Content-Type: application/json"
 
-    # Example response:
+    # Example response (truncated — swarm_types_metadata has one entry per
+    # swarm_type with name, description, category, best_for, parameters and
+    # documentation_url; see "Understanding the Response" below):
     # {
     #   "status": true,
     #   "timestamp": "2026-07-13T19:37:41.821232",
@@ -105,20 +107,38 @@ Different swarm types are optimized for different workflows - choose the right a
     #     "GroupChat",
     #     "MultiAgentRouter",
     #     "HierarchicalSwarm",
-    #     "auto",
     #     "MajorityVoting",
     #     "CouncilAsAJudge",
     #     "HeavySwarm",
-    #     "BatchedGridWorkflow",
     #     "LLMCouncil",
     #     "DebateWithJudge",
     #     "RoundRobin",
     #     "PlannerWorkerSwarm"
+    #   ],
+    #   "swarm_types_metadata": [
+    #     {
+    #       "swarm_type": "AgentRearrange",
+    #       "name": "Agent Rearrange",
+    #       "description": "Runs agents according to an explicit flow you define with `rearrange_flow`, supporting sequential (`->`) and concurrent (`,`) steps so you can reorganize how agents pass work to one another.",
+    #       "category": "routing",
+    #       "best_for": [
+    #         "Custom execution graphs mixing sequential and parallel stages",
+    #         "Reorganizing a pipeline without changing the agents themselves",
+    #         "Fine-grained control over which agents run when"
+    #       ],
+    #       "parameters": ["rearrange_flow"],
+    #       "documentation_url": "https://docs.swarms.ai/docs/documentation/multi-agent/agent_rearrange"
+    #     }
+    #     # ...one entry for each of the 14 swarm_types
     #   ]
     # }
     ```
   </Tab>
 </Tabs>
+
+<Note>
+`swarm_types` is a flat list of the 14 identifiers you pass as `swarm_type` in a `SwarmSpec`. `swarm_types_metadata` carries the same 14 types with rich metadata: `name`, `description`, `category` (`workflow`, `collaboration`, `routing`, `judgment`, or `auto`), `best_for` (representative use cases), `parameters` (swarm-type-specific `SwarmSpec` fields beyond the common `agents`/`task`/`max_loops`), and `documentation_url` (`null` for types without a dedicated docs page).
+</Note>
 
 ## Swarm Type Selection Guide
 
@@ -231,26 +251,28 @@ Different swarm types are optimized for different workflows - choose the right a
 
 ## Swarm Type Comparison
 
-The `/v1/swarms/available` endpoint currently returns 16 swarm types:
+The `/v1/swarms/available` endpoint currently returns 14 swarm types (the `swarm_type` value, its `category`, and the first `best_for` use case from `swarm_types_metadata`):
 
-| Swarm Type | Best For | Execution | Complexity | Scalability |
-|------------|----------|-----------|------------|-------------|
-| **AgentRearrange** | Adaptive workflows, optimization | Dynamic | High | Medium |
-| **MixtureOfAgents** | Complex problems, diverse expertise | Parallel | High | High |
-| **SequentialWorkflow** | Step-by-step processes, pipelines | Sequential | Medium | Medium |
-| **ConcurrentWorkflow** | Independent tasks, batch processing | Parallel | Low | High |
-| **GroupChat** | Collaborative discussions, brainstorming | Interactive | Medium | Low |
-| **MultiAgentRouter** | Routing tasks to the best-suited agent | Dynamic | Medium | High |
-| **HierarchicalSwarm** | Structured organizations, management | Hierarchical | High | Medium |
-| **auto** | Letting the API pick the best swarm type for the task | Dynamic | Low | Medium |
-| **MajorityVoting** | Consensus-driven decisions | Parallel | Medium | Medium |
-| **CouncilAsAJudge** | Multi-perspective evaluation and judging | Parallel | High | Low |
-| **HeavySwarm** | Large-scale, high-effort research and analysis | Hybrid | High | Medium |
-| **BatchedGridWorkflow** | Running many agent/task combinations at once | Parallel | Medium | High |
-| **LLMCouncil** | Panel-style deliberation across multiple models | Parallel | High | Low |
-| **DebateWithJudge** | Adversarial debate resolved by a judge agent | Sequential | High | Low |
-| **RoundRobin** | Rotating a task through agents in turn | Sequential | Low | Medium |
-| **PlannerWorkerSwarm** | Planner agent delegating to worker agents | Hierarchical | Medium | Medium |
+| Swarm Type | Category | Best For | Type-Specific Parameters |
+|------------|----------|----------|---------------------------|
+| **AgentRearrange** | routing | Custom execution graphs mixing sequential and parallel stages | `rearrange_flow` |
+| **MixtureOfAgents** | collaboration | Complex tasks that benefit from multiple expert perspectives | — |
+| **SequentialWorkflow** | workflow | Multi-stage pipelines where each step builds on the previous | — |
+| **ConcurrentWorkflow** | workflow | Independent subtasks that do not depend on one another | — |
+| **GroupChat** | collaboration | Brainstorming and open-ended discussion | — |
+| **MultiAgentRouter** | routing | Routing heterogeneous requests to the right specialist | — |
+| **HierarchicalSwarm** | collaboration | Large tasks that need decomposition and coordination | `director_model_name`, `director_settings` |
+| **MajorityVoting** | judgment | Reducing variance and hallucination through consensus | — |
+| **CouncilAsAJudge** | judgment | Evaluating, scoring or grading outputs | `council_judge_model_name` |
+| **HeavySwarm** | collaboration | Deep, thorough analysis of complex questions | `heavy_swarm_question_agent_model_name`, `heavy_swarm_worker_model_name`, `heavy_swarm_variant`, `heavy_swarm_max_loops` |
+| **LLMCouncil** | judgment | Deliberative decision-making | `chairman_model` |
+| **DebateWithJudge** | judgment | Exploring trade-offs from multiple sides | — |
+| **RoundRobin** | workflow | Evenly distributing turns across agents | — |
+| **PlannerWorkerSwarm** | collaboration | Tasks that benefit from explicit planning before execution | — |
+
+<Warning>
+`swarm_type: "auto"` and `swarm_type: "SpreadSheetSwarm"` are rejected with a 400 error ("...are not supported currently") by `/v1/swarm/completions` — always pass one of the 14 types above.
+</Warning>
 
 ## Advanced Swarm Configuration
 

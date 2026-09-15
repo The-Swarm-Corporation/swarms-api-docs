@@ -20,12 +20,20 @@ The following examples:
   - Swarm completions (input/output tokens + per‑agent fee)
   - Agent completions (input/output tokens)
   - Images, MCP calls, search, and scrape operations
-  - Optional **night-time discount** multiplier (applies to swarm completion token costs only)
+  - **Night-time discount** multiplier, auto-detected the same way the API applies it
+
+<Note>
+The night-time discount is not a client-side guess — it mirrors `api/deductions_utils.py` exactly: off-peak is **8:00 PM through 5:59 AM in `America/Los_Angeles`** (`now.hour >= 20 or now.hour < 6`), and the discount multiplies the swarm completion **token cost only** — the per-agent fee is always charged in full, at any hour.
+</Note>
 
 <Tabs>
   <Tab title="Python">
     ```python
     import os
+    from datetime import datetime
+    from typing import Optional
+
+    import pytz
     import requests
     from dotenv import load_dotenv
 
@@ -39,6 +47,18 @@ The following examples:
         "Content-Type": "application/json",
     }
 
+    # Mirrors api/deductions_utils.py exactly: off-peak is 8 PM through
+    # 5:59 AM in the pricing timezone (America/Los_Angeles).
+    PRICING_TIMEZONE = "America/Los_Angeles"
+    NIGHT_START_HOUR = 20
+    NIGHT_END_HOUR = 6
+
+    def is_night_time(now: Optional[datetime] = None) -> bool:
+        """Whether the off-peak discount applies right now (server-side rule)."""
+        if now is None:
+            now = datetime.now(pytz.timezone(PRICING_TIMEZONE))
+        return now.hour >= NIGHT_START_HOUR or now.hour < NIGHT_END_HOUR
+
     def get_pricing():
         resp = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers)
         resp.raise_for_status()
@@ -49,8 +69,13 @@ The following examples:
                       agent_input_tokens: int = 0, agent_output_tokens: int = 0,
                       images: int = 0, mcp_calls: int = 0,
                       searches: int = 0, scrapes: int = 0,
-                      night_time: bool = False) -> float:
+                      night_time: Optional[bool] = None) -> float:
         up = usage_pricing
+
+        # Auto-detect off-peak the same way the server does, unless the
+        # caller overrides it (e.g. to price a job scheduled for later).
+        if night_time is None:
+            night_time = is_night_time()
 
         def tokens_to_m(tokens: int) -> float:
             return tokens / 1_000_000.0
@@ -58,7 +83,8 @@ The following examples:
         cost = 0.0
 
         # Swarm completions (the night-time discount applies only to
-        # swarm input/output token costs, not the per-agent fee)
+        # swarm input/output token costs, not the per-agent fee — see
+        # charge_swarm_usage in api/deductions_utils.py)
         swarm_token_cost = (
             tokens_to_m(swarm_input_tokens) * up["swarm_completions_input_cost_per_1m"]
             + tokens_to_m(swarm_output_tokens) * up["swarm_completions_output_cost_per_1m"]
@@ -94,7 +120,8 @@ The following examples:
             mcp_calls=10,
             searches=20,
             scrapes=5,
-            night_time=True,
+            # night_time=None (default) auto-detects via is_night_time();
+            # pass True/False explicitly to price a different time window.
         )
 
         print(f"💰 Estimated workload cost: ${est}")

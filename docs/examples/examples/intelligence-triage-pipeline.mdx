@@ -234,7 +234,7 @@ for label, names in stages:
             print(f"\n[{name}]\n{str(output)[:500]}...")
 
 usage = result.get("usage", {})
-print(f"\nTotal cost: ${usage.get('token_cost', 0):.4f}")
+print(f"\nTotal cost: ${usage.get('total_cost', 0):.4f}")
 print(f"Total tokens: {usage.get('total_tokens', 0)}")
 ```
 

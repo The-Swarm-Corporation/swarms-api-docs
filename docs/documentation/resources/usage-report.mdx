@@ -1,11 +1,11 @@
 ---
 title: 'Usage Report'
-description: 'API reference for the GET /v1/usage/costs endpoint — retrieve the current per-operation pricing used to calculate your usage costs.'
+description: 'API reference for reporting on your Swarms API usage: current pricing (GET /v1/usage/costs), request logs (GET /v1/account/logs), and a metrics summary (GET /v1/account/metrics/summary).'
 ---
 
 
 <Info>
-There is no dedicated endpoint that returns a historical, day-by-day breakdown of your spend. The Swarms API exposes the **current pricing model** via `/v1/usage/costs`, plus a handful of related endpoints for checking your balance and activity — see [Related Endpoints](#related-endpoints) below.
+There is no dedicated endpoint that returns a historical, day-by-day breakdown of your spend. Instead, the Swarms API exposes three complementary pieces: the **current pricing model** (`/v1/usage/costs`), your **raw request logs** (`/v1/account/logs`), and an **at-a-glance metrics summary** (`/v1/account/metrics/summary`). Combine these client-side for a custom usage report — see each section below.
 </Info>
 
 The Usage endpoint returns the unified pricing model the API uses to calculate costs for every operation (token costs, agent costs, search/scrape costs, and the night-time discount). Use it to compute expected costs before you run a request, or to keep your own cost estimates in sync with the live pricing.
@@ -145,15 +145,91 @@ None. This endpoint always returns the current pricing model in effect.
 
 ---
 
+## Request Logs
+
+`GET /v1/account/logs` returns your account's full API request history — every logged request across all of your API keys (including revoked ones), excluding client IP information.
+
+<Note>
+`GET /v1/swarm/logs` is a **deprecated alias** for the same endpoint, kept only for backwards compatibility. Use `/v1/account/logs` in new integrations.
+</Note>
+
+```bash
+curl -H "x-api-key: $SWARMS_API_KEY" \
+     https://api.swarms.world/v1/account/logs
+```
+
+### SwarmLogsOutput Object
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | `string` | Status of the request |
+| `count` | `integer` | Exact total number of matching log entries across every API key on the account, including revoked ones. This is **not** `len(logs)` — `logs` is capped at the 1000 newest entries, so `count` exceeds it once your account passes 1000 requests |
+| `logs` | `array` | Log entries with timestamps, endpoints, and status (capped at the 1000 newest) |
+| `timestamp` | `string` | ISO timestamp when the response was generated |
+
+```json
+{
+  "status": "success",
+  "count": 1284,
+  "logs": [
+    {
+      "endpoint": "/v1/agent/completions",
+      "status": "success",
+      "timestamp": "2026-09-14T09:12:03+00:00"
+    }
+  ],
+  "timestamp": "2026-09-14T12:00:00+00:00"
+}
+```
+
+---
+
+## Metrics Summary
+
+`GET /v1/account/metrics/summary` returns an at-a-glance overview of your core usage metrics across all of your API keys.
+
+<Note>
+`GET /v1/metrics/summary` is a **deprecated alias** for the same endpoint, kept only for backwards compatibility. Use `/v1/account/metrics/summary` in new integrations.
+</Note>
+
+```bash
+curl -H "x-api-key: $SWARMS_API_KEY" \
+     https://api.swarms.world/v1/account/metrics/summary
+```
+
+### MetricsSummaryOutput Object
+
+| Field | Type | Description |
+|---|---|---|
+| `success` | `boolean` | Whether the summary was retrieved successfully |
+| `unique_agents` | `integer` | Number of unique agent configurations you've used |
+| `total_completion_calls` | `integer` | Lifetime count of completion calls |
+| `successful_completions` | `integer` | Lifetime count of completions with status `success` |
+| `completions_last_24h` | `integer` | Completion calls in the last 24 hours |
+| `completions_last_7d` | `integer` | Completion calls in the last 7 days |
+| `timestamp` | `string` | ISO timestamp when the summary was generated |
+
+```json
+{
+  "success": true,
+  "unique_agents": 14,
+  "total_completion_calls": 1284,
+  "successful_completions": 1259,
+  "completions_last_24h": 37,
+  "completions_last_7d": 214,
+  "timestamp": "2026-09-14T12:00:00+00:00"
+}
+```
+
+---
+
 ## Related Endpoints
 
-For actual usage and spend tracking (rather than the pricing model itself), use:
+For other account-level usage and spend tracking, use:
 
 | Need | Endpoint | Returns |
 |---|---|---|
 | Current credit balance | `GET /v1/account/credits` | `credit`, `free_credit`, `referral_credits`, `total_credits` |
-| Lifetime/recent completion counts | `GET /v1/account/metrics/summary` | Unique agents used, lifetime and successful completion counts, completions in the last 24h/7d |
-| Raw request history | `GET /v1/swarm/logs` | All logged API requests for your account, which you can aggregate client-side into a custom report |
 | Current rate limit usage | `GET /v1/rate/limits` | Requests used/remaining per minute, hour, and day |
 
 <Note>

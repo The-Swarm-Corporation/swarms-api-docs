@@ -323,5 +323,5 @@ batch_code_review(snippets)
 ```
 
 <Note>
-MajorityVoting runs all agents independently in parallel, then a Consensus-Agent tallies the votes and synthesizes the reasoning into a final verdict. Use an odd number of agents (3, 5, 7) to guarantee a clear majority and avoid ties. Each agent should have a distinct evaluation focus and clear voting instructions in their system prompt.
+MajorityVoting runs all agents independently in parallel, then a separate `Consensus-Agent` (always model `gpt-5.4` - not configurable through `SwarmSpec`) tallies the votes and synthesizes the reasoning into a final verdict. Use an odd number of agents (3, 5, 7) to guarantee a clear majority and avoid ties. Each agent should have a distinct evaluation focus and clear voting instructions in their system prompt.
 </Note>

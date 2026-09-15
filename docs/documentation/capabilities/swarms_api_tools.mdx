@@ -8,6 +8,10 @@ The Swarms API supports two distinct capabilities for controlling agent output:
 - **Structured Outputs** — enforce a JSON schema on the LLM's response using `llm_args.response_format`
 - **Tools / Function Calling** — provide tool definitions the LLM can invoke using `tools_list_dictionary`
 
+<Note>
+`tools_list_dictionary` is one of three separate tool mechanisms the API exposes. The other two — the built-in `auto_search`/`web_scraper` tools (`tools_enabled`) and the autonomous looper's tools (`selected_tools`, only used when `max_loops` is `"auto"`) — are documented on the [Tools](/docs/documentation/capabilities/tools) page.
+</Note>
+
 ## Structured Outputs
 
 Structured outputs guarantee that an agent's response conforms to a JSON schema you define. This uses the model provider's native `response_format` parameter (e.g., OpenAI's structured outputs), passed through `llm_args` in the agent config.
@@ -555,7 +559,7 @@ Each agent returns its own structured output in the `output` array:
 
 Tools let the LLM invoke functions during execution. This is separate from structured outputs — tools define **actions** the model can take, while structured outputs control the **format** of the model's response.
 
-Use `tools_list_dictionary` in the agent config to define available tools using the OpenAI function calling schema.
+Use `tools_list_dictionary` in the agent config to define available tools using the OpenAI function calling schema. This is for *your own* functions — for the API's built-in `auto_search`/`web_scraper` tools or the autonomous looper's tools, see the [Tools](/docs/documentation/capabilities/tools) page instead.
 
 ### Defining Tools
 
@@ -1360,5 +1364,15 @@ Structured outputs via `response_format` work with models that support OpenAI's 
 
 <Accordion title="Can I use structured outputs and tools together?">
 Yes. Set `llm_args.response_format` for the output format and `tools_list_dictionary` for available tools on the same agent.
+</Accordion>
+
+<Accordion title="How is tools_list_dictionary different from tools_enabled and selected_tools?">
+`tools_list_dictionary` defines your own custom functions using an OpenAI-style schema — the model decides when to call them, and your application executes them.
+
+`tools_enabled` (on the request body, alongside `agent_config`) turns on the API's two built-in tools, `auto_search` and `web_scraper`, which the API executes for you.
+
+`selected_tools` (in `agent_config`) restricts the autonomous execution loop's own tool set (planning, file, and sub-agent tools), and only applies when `agent_config.max_loops` is `"auto"`.
+
+All three can be combined on the same request. See the [Tools](/docs/documentation/capabilities/tools) page for the built-in and autonomous-loop mechanisms.
 </Accordion>
 </AccordionGroup>

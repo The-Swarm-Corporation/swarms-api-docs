@@ -70,9 +70,9 @@ Upgrade to premium when **any** of these are true. The premium tier is \$100/mon
 
 ### Audit and Compliance
 
-- [ ] Daily export of `/v1/account/logs` to your own log lake (S3, BigQuery, etc.)
+- [ ] Daily export of `/v1/account/logs` to your own log lake (S3, BigQuery, etc.) — note it only contains successful, billable runs (`category="completion"`); rejected or failed requests never appear there, so capture those from the client, not from this endpoint
 - [ ] Pin `model_name` per agent. Do not let your code "pick a model" at runtime in regulated workloads
-- [ ] For regulated workloads, set `temperature=0` (or omit it on Opus 4.8) and `max_loops=1` for reproducibility
+- [ ] For regulated workloads, set `temperature=0` (or omit `temperature` entirely — if unset, no temperature is sent and the provider's own default applies) and `max_loops=1` for reproducibility
 
 ## The Wrapper
 
@@ -243,14 +243,20 @@ class ProductionClient:
     # ---- post-flight ----
 
     def verify_in_logs(self, request_id: str) -> bool:
-        """Confirm the request landed in /v1/account/logs (audit-trail check)."""
+        """Confirm the request landed in /v1/account/logs (audit-trail check).
+
+        Each log row's ``data`` field is the full SwarmCompletion response —
+        the swarm's name comes back as ``swarm_name``, not ``name``. Only
+        successful, billable runs are ever logged here, so this only confirms
+        success; it can't tell you a request failed.
+        """
         r = requests.get(f"{BASE_URL}/v1/account/logs", headers=HEADERS, timeout=30)
         r.raise_for_status()
         marker = request_id[:8]
         for entry in r.json().get("logs", []):
             data = entry.get("data") or {}
-            name = data.get("name") or entry.get("name") or ""
-            if marker in name:
+            swarm_name = data.get("swarm_name") or ""
+            if marker in swarm_name:
                 return True
         return False
 ```
@@ -304,7 +310,7 @@ The wrapper tags every request's `name` with the first 8 characters of the UUID 
 | Cumulative budget | Scale to job size, hard cap | Prevents a bad config from emptying your account |
 | Credit safety margin | 1.5x estimated cost | Covers retries and minor cost variance |
 | Request timeout | 600s | Long swarms run for minutes; 60s is too aggressive |
-| `temperature` (regulated) | 0 (or omit on Opus 4.8) | Reproducibility for audit |
+| `temperature` (regulated) | 0, or omit entirely for provider default | Reproducibility for audit |
 | `max_loops` per agent | 1 unless you have a reason | Reduces blast radius of misbehavior |
 
 ## Common Pitfalls

@@ -14,6 +14,13 @@ The pricing endpoint is **read-only** and safe to call in automation. Always tre
 ## Quick Start
 
 <Tabs>
+  <Tab title="cURL">
+    ```bash
+    curl -X GET "https://api.swarms.world/v1/usage/costs" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json"
+    ```
+  </Tab>
   <Tab title="Python">
     ```python
     import os
@@ -280,7 +287,11 @@ The endpoint returns a `usage_pricing` object plus a `timestamp`:
     "scrape_cost": 0.15,
     "night_time_discount": 0.5
   },
-  "timestamp": "2024-01-01T12:00:00Z"
+  "timestamp": "2026-09-14T12:00:00Z"
 }
 ```
+
+<Note>
+`GET /v1/usage/costs` is not yet exposed as a dedicated method on the `swarms-client` SDK (0.8.0) — use `requests` or `fetch` directly, as above.
+</Note>
 

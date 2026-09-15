@@ -169,12 +169,12 @@ for stage_num, stage_agents in enumerate(stages, 1):
             print(f"\n[{agent_name}]")
             print(str(output)[:300] + "...\n")
 
-# Display cost info (the graph-workflow endpoint returns a flat `usage`
-# object with `token_cost`, not the nested `billing_info` shape used by
-# /v1/swarm/completions)
+# Display cost info. GraphWorkflowOutput.usage is a flat object -
+# {input_tokens, output_tokens, total_tokens, total_cost, cost_per_agent} -
+# not the nested `billing_info` shape /v1/swarm/completions returns.
 usage = result.get('usage', {})
-if 'token_cost' in usage:
-    print(f"\nTotal cost: ${usage['token_cost']:.4f}")
+if 'total_cost' in usage:
+    print(f"\nTotal cost: ${usage['total_cost']:.4f}")
 else:
     print(f"\nTotal cost: Not available")
 ```
@@ -287,10 +287,10 @@ graph TD
     D --> E[Editor]
     E --> F[SEO Specialist<br/>End Point]
 
-    style A fill:#
-    style B fill:#
-    style C fill:#
-    style F fill:#
+    style A fill:#d4edda
+    style B fill:#d4edda
+    style C fill:#d4edda
+    style F fill:#cce5ff
 ```
 
 ---

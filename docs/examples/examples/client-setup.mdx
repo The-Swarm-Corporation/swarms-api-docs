@@ -38,7 +38,10 @@ from swarms_client import SwarmsClient
 load_dotenv()
 
 # Initialize the client
-client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+    base_url="https://api.swarms.world",
+)
 
 # Check available models
 print("Available Models:")

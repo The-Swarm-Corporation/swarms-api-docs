@@ -370,7 +370,7 @@ def display_results(result: dict) -> None:
                 print(f"\n  ... [{len(lines) - 120} more lines] ...")
 
     usage = result.get("usage", {})
-    total_cost = usage.get("token_cost", "N/A")
+    total_cost = usage.get("total_cost", "N/A")
     total_tokens = usage.get("total_tokens", "N/A")
 
     print(f"\n{'='*70}")

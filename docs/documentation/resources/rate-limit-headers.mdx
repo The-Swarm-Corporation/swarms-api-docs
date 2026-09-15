@@ -20,6 +20,8 @@ Rate-limited responses include these headers:
 |--------|------|-------------|
 | `X-RateLimit-Limit-Minute` | integer | Maximum requests allowed per minute for your tier |
 | `X-RateLimit-Remaining-Minute` | integer | Requests remaining in the current minute window |
+| `X-RateLimit-Limit-Hour` | integer | Maximum requests allowed per hour for your tier |
+| `X-RateLimit-Remaining-Hour` | integer | Requests remaining in the current hour window |
 | `X-RateLimit-Limit-Day` | integer | Maximum requests allowed per day for your tier |
 | `X-RateLimit-Remaining-Day` | integer | Requests remaining in the current day window |
 | `X-RateLimit-Reset` | unix timestamp | When the current minute window resets (seconds since epoch) |
@@ -35,6 +37,8 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 X-RateLimit-Limit-Minute: 100
 X-RateLimit-Remaining-Minute: 94
+X-RateLimit-Limit-Hour: 350
+X-RateLimit-Remaining-Hour: 328
 X-RateLimit-Limit-Day: 1200
 X-RateLimit-Remaining-Day: 1047
 X-RateLimit-Reset: 1713700800
@@ -52,6 +56,8 @@ HTTP/1.1 429 Too Many Requests
 Content-Type: application/json
 X-RateLimit-Limit-Minute: 100
 X-RateLimit-Remaining-Minute: 0
+X-RateLimit-Limit-Hour: 350
+X-RateLimit-Remaining-Hour: 12
 X-RateLimit-Limit-Day: 1200
 X-RateLimit-Remaining-Day: 1100
 X-RateLimit-Reset: 1713700860

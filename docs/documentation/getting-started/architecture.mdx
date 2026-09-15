@@ -11,7 +11,7 @@ The Swarms API provides a comprehensive multi-tier architecture for building int
 | ---------- | ------------------ | -------------- | ----------- | -------------------- | ------------------------------------------------- | --------------------------------- |
 | **Tier 1** | Individual Agents  | 1              | Low-Medium  | Focused tasks        | Content generation, data analysis, Q\&A           | `/v1/agent/completions`           |
 | **Tier 2** | Reasoning Agents   | 1-2 (internal) | Medium-High | Complex reasoning    | Mathematical proofs, logical validation, research | `/v1/reasoning-agent/completions` |
-| **Tier 3** | Multi-Agent Swarms | 3-10,000+      | High        | Enterprise workflows | Process automation, large-scale systems, R\&D     | `/v1/swarm/completions`           |
+| **Tier 3** | Multi-Agent Swarms | 1-2,000      | High        | Enterprise workflows | Process automation, large-scale systems, R\&D     | `/v1/swarm/completions`           |
 
 #### Tier 1: Individual Agents
 
@@ -125,36 +125,40 @@ response = requests.post(
 
 **Large-scale agent systems for complex workflows**
 
-Multi-agent swarms represent the most sophisticated tier, capable of orchestrating anywhere from 3 to 10,000+ agents working together in coordinated workflows. These systems are designed for enterprise-scale applications and complex business processes.
+Multi-agent swarms represent the most sophisticated tier, capable of orchestrating up to 2,000 agents (`SwarmSpec.agents`) working together in coordinated workflows. These systems are designed for enterprise-scale applications and complex business processes.
 
 **Key Characteristics**
 
-* **Massive Scale**: 3 to 10,000+ agents per swarm
+* **Large Scale**: Up to 2,000 agents per swarm (`SwarmSpec.agents`), with up to 50 execution loops
 * **Coordinated Workflows**: Agents work together in structured processes
-* **Multiple Swarm Types**: 16+ different swarm architectures available
+* **Multiple Swarm Types**: 14 swarm architectures available via the `swarm_type` field
 * **Enterprise-Grade**: Built for complex business applications
 * **Dynamic Routing**: Intelligent task distribution and agent selection
 
 **Available Swarm Types**
 
-| Swarm Type               | Description                       | Agent Count | Best For                                         |
-| ------------------------ | --------------------------------- | ----------- | ------------------------------------------------- |
-| **SequentialWorkflow**   | Linear task progression           | 3-50        | Process automation, step-by-step workflows       |
-| **ConcurrentWorkflow**   | Parallel task execution           | 5-100       | Parallel processing, independent tasks           |
-| **GroupChat**            | Interactive agent discussions     | 3-20        | Collaborative problem solving, brainstorming     |
-| **MixtureOfAgents**      | Specialized agent selection       | 5-200       | Complex tasks requiring multiple expertise areas |
-| **MajorityVoting**       | Consensus-based decision making   | 5-50        | Decision making, validation tasks                |
-| **CouncilAsAJudge**      | Expert panel with final judge     | 5-30        | Expert evaluation, quality assessment            |
-| **AgentRearrange**       | Dynamic agent reordering          | 3-100       | Adaptive workflows, optimization                 |
-| **MultiAgentRouter**     | Intelligent task routing          | 10-500      | Large-scale task distribution                    |
-| **HierarchicalSwarm**    | Nested agent hierarchies          | 10-1000     | Complex organizational structures                |
-| **HeavySwarm**           | Question, worker, and synthesis agents | 3-10   | Deep research, comprehensive analysis            |
-| **LLMCouncil**           | Council of models with a chairman | 3-10        | Multi-model deliberation, synthesis              |
-| **DebateWithJudge**      | Structured debate with a judge    | 3-5         | Argument evaluation, contested questions         |
-| **RoundRobin**           | Agents take turns in rotation     | 3-20        | Balanced participation, iterative refinement     |
-| **PlannerWorkerSwarm**   | Planner delegates to workers      | 3-50        | Task decomposition, project execution            |
-| **BatchedGridWorkflow**  | Grid of tasks across agents       | 2-100       | Running many task/agent combinations             |
-| **auto**                 | Automatically selects a swarm type | Dynamic    | Letting the API pick the best architecture       |
+The `swarm_type` field on `POST /v1/swarm/completions` accepts these 14 values. Call `GET /v1/swarms/available` for the live, full metadata (description, category, best-for use cases, and tuning parameters) for each.
+
+| Swarm Type               | Description                       | Best For                                         |
+| ------------------------ | ---------------------------------- | ------------------------------------------------- |
+| **SequentialWorkflow**   | Linear task progression           | Process automation, step-by-step workflows       |
+| **ConcurrentWorkflow**   | Parallel task execution           | Parallel processing, independent tasks           |
+| **GroupChat**            | Interactive agent discussions     | Collaborative problem solving, brainstorming     |
+| **MixtureOfAgents**      | Specialized agent selection       | Complex tasks requiring multiple expertise areas |
+| **MajorityVoting**       | Consensus-based decision making   | Decision making, validation tasks                |
+| **CouncilAsAJudge**      | Expert panel with a final judge model (`council_judge_model_name`) | Expert evaluation, quality assessment |
+| **AgentRearrange**       | Dynamic agent reordering via a flow expression | Adaptive workflows, optimization    |
+| **MultiAgentRouter**     | Intelligent task routing          | Large-scale task distribution                    |
+| **HierarchicalSwarm**    | A director agent (`director_model_name`) delegates to workers | Complex organizational structures |
+| **HeavySwarm**           | Question, worker, and synthesis agents | Deep research, comprehensive analysis            |
+| **LLMCouncil**           | Council of models synthesized by a chairman (`chairman_model`) | Multi-model deliberation, synthesis |
+| **DebateWithJudge**      | Structured debate with a judge    | Argument evaluation, contested questions         |
+| **RoundRobin**           | Agents take turns in rotation     | Balanced participation, iterative refinement     |
+| **PlannerWorkerSwarm**   | Planner delegates to workers      | Task decomposition, project execution            |
+
+<Note>
+Grid-style batch execution (many agents across many tasks) and directed-graph orchestration are separate endpoints rather than `swarm_type` values — see `POST /v1/batched-grid-workflow/completions` and `POST /v1/graph-workflow/completions` (both Premium).
+</Note>
 
 **Use Cases**
 
@@ -215,7 +219,7 @@ response = requests.post(
 
 | Aspect             | Individual Agents | Reasoning Agents  | Multi-Agent Swarms   |
 | ------------------ | ----------------- | ----------------- | -------------------- |
-| **Agent Count**    | 1                 | 1-2 (internal)    | 3-10,000+            |
+| **Agent Count**    | 1                 | 1-2 (internal)    | 1-2,000            |
 | **Complexity**     | Low-Medium        | Medium-High       | High-Extreme         |
 | **Use Case**       | Focused tasks     | Complex reasoning | Enterprise workflows |
 | **Setup Time**     | Minutes           | Minutes-Hours     | Hours-Days           |
@@ -269,26 +273,13 @@ You can combine different tiers for optimal results:
 
 ### Performance Considerations
 
-#### Individual Agents
+Exact latency and throughput depend on the model, prompt size, and `max_loops` you configure, and are not published as fixed numbers. In general, latency and cost scale with the number of agents and loops in a run:
 
-* **Latency**: 1-5 seconds
-* **Throughput**: High (1000+ requests/minute)
-* **Cost**: \$0.01-0.10 per request
-* **Memory**: Minimal
+* **Individual Agents**: One model call per loop. The fastest and cheapest tier for a given task.
+* **Reasoning Agents**: 1-2 internal model calls per loop, so latency and cost are typically higher than a single agent call.
+* **Multi-Agent Swarms**: Latency and cost scale with `number_of_agents` and `max_loops` (up to 2,000 agents and 50 loops).
 
-#### Reasoning Agents
-
-* **Latency**: 5-30 seconds
-* **Throughput**: Medium (100-500 requests/minute)
-* **Cost**: \$0.05-0.50 per request
-* **Memory**: Moderate
-
-#### Multi-Agent Swarms
-
-* **Latency**: 30 seconds - 10 minutes
-* **Throughput**: Variable (10-100 requests/minute)
-* **Cost**: \$0.10-5.00 per request
-* **Memory**: High
+Every completion charges a token cost plus, for swarms and workflows, a flat \$0.01 per agent (`swarm_completions_agent_cost`). Token rates are unified across agent and swarm completions: \$6.50 per 1M input tokens, \$18.50 per 1M output tokens, with a 50% night-time discount (8 PM - 6 AM Pacific) on the token component for swarm completions. See <a href="/docs/documentation/resources/pricing">Pricing</a> or call `GET /v1/usage/costs` for the full breakdown, and rate-limit tier (free tokens_per_agent=200,000 vs premium 2,000,000) at `GET /v1/rate/limits`.
 
 ### Best Practices
 

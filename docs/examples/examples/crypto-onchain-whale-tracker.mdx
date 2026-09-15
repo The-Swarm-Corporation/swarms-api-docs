@@ -14,7 +14,7 @@ Every twelve seconds the largest wallets on four chains get classified — and a
 - Real-time alert routing into Slack and Discord with severity scoring, including programmatic muting on quiet hours
 
 <Info>
-Continuous block-by-block polling breaches the Free tier per-day cap within a few hours of running. Observability for missed alerts — execution traces, retry queues, and per-agent latency — is Premium-only. See the [Rate Limits documentation](/docs/documentation/resources/ratelimits) before you flip this loop on in production.
+Continuous block-by-block polling breaches the Free tier per-day cap within a few hours of running. Watch the `X-RateLimit-*` response headers (or poll `GET /v1/rate/limits`) so you catch a tightening window before you start dropping blocks to 429s. See the [Rate Limits documentation](/docs/documentation/resources/ratelimits) before you flip this loop on in production.
 </Info>
 
 ## Why This Matters
@@ -23,7 +23,7 @@ Whale wallets historically lead the tape by 15 to 60 minutes — a \$40M wBTC pu
 
 ## The Architecture
 
-```
+```text
                     ┌──────────────────────┐
                     │  Block Trigger Loop  │
                     │  (every 12 seconds)  │
@@ -43,12 +43,12 @@ Whale wallets historically lead the tape by 15 to 60 minutes — a \$40M wBTC pu
                                  ▼
                   ┌──────────────────────────┐
                   │   Movement Classifier    │
-                  │      (grok-4)            │
+                  │      (xai/grok-4.3)        │
                   └──────────────┬───────────┘
                                  ▼
                   ┌──────────────────────────┐
                   │     Alert Generator      │
-                  │   (claude-sonnet-4.5)    │
+                  │   (claude-sonnet-5)      │
                   └──────────────┬───────────┘
                                  ▼
                   ┌──────────────────────────┐
@@ -252,7 +252,7 @@ ALERT_TOOLS = [POST_WHALE_ALERT]
 
 ## Step 3: Define the Concurrent Per-Chain Agents
 
-Each chain monitor runs on `gpt-4.1-mini` — fast and cheap is the only thing that matters when you are firing this swarm every 12 seconds. The Movement Classifier runs on `grok-4` for its real-time bias and willingness to commit to a classification under uncertainty. The Alert Generator runs on `claude-sonnet-4.5` because the natural-language quality of the Slack message is what makes the desk actually read it.
+Each chain monitor runs on `gpt-4.1-mini` — fast and cheap is the only thing that matters when you are firing this swarm every 12 seconds. The Movement Classifier runs on `xai/grok-4.3` for its real-time bias and willingness to commit to a classification under uncertainty. The Alert Generator runs on `claude-sonnet-5` because the natural-language quality of the Slack message is what makes the desk actually read it.
 
 ```python
 CHAIN_MONITOR_PROMPT = (
@@ -307,7 +307,7 @@ def build_whale_swarm(block_targets: dict[str, int]) -> dict:
         "agent_name": "Movement Classifier",
         "description": "Classifies whale movements across chains in real time.",
         "system_prompt": MOVEMENT_CLASSIFIER_PROMPT,
-        "model_name": "grok-4",
+        "model_name": "xai/grok-4.3",
         "role": "worker",
         "max_loops": 1,
         "max_tokens": 6144,
@@ -319,7 +319,7 @@ def build_whale_swarm(block_targets: dict[str, int]) -> dict:
         "agent_name": "Alert Generator",
         "description": "Writes severity-scored Slack/Discord alerts.",
         "system_prompt": ALERT_GENERATOR_PROMPT,
-        "model_name": "claude-sonnet-4.5",
+        "model_name": "claude-sonnet-5",
         "role": "worker",
         "max_loops": 1,
         "max_tokens": 2048,
@@ -431,10 +431,10 @@ The math is brutal:
 - 12-second cadence → **300 calls/hour**, **7,200 calls/day**
 - Free tier caps are **100/minute**, **350/hour**, **1,200/day** — the per-day cap is breached in **4 hours**
 - Paid tiers (Pro, Ultra, Premium) share **2,000/minute**, **10,000/hour**, **100,000/day**, which holds this loop
-- A paid tier also gives you the execution traces you need to debug missed blocks
+- Watch `X-RateLimit-Remaining-*` on every response (or poll `GET /v1/rate/limits`) so you can back off before a 429 costs you a block
 
 <Info>
-Live whale tracking is a Premium workload by construction. If you try to run this loop on Free you will hit 429s, miss blocks, and have no observability to tell which blocks you missed. See [Rate Limits](/docs/documentation/resources/ratelimits) for the per-tier numbers and upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+Live whale tracking is a Premium workload by construction. If you try to run this loop on Free you will hit 429s and miss blocks once the per-day cap is exhausted. See [Rate Limits](/docs/documentation/resources/ratelimits) for the per-tier numbers and upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings).
 </Info>
 
 ## Step 6: The Alert Output Schema
@@ -479,13 +479,13 @@ def persist_alerts(swarm_response: dict, path: str = "whale_alerts.jsonl") -> No
 
 | Stack | Monthly cost | What you actually get |
 | --- | --- | --- |
-| **This stack** (gpt-4.1-mini chains + grok-4 classifier + sonnet-4.5 alerter, night-mode discount on quiet 02:00–06:00 UTC) | **~\$750/mo** (~\$25/day) | Programmable layer you own, four chains, custom whale list, structured outputs to your warehouse |
+| **This stack** (gpt-4.1-mini chains + xai/grok-4.3 classifier + sonnet-5 alerter, night-mode discount applied automatically 8pm–6am Pacific) | **~\$750/mo** (~\$25/day) | Programmable layer you own, four chains, custom whale list, structured outputs to your warehouse |
 | Retail whale-alert Twitter / Telegram services | \$50 – \$500/mo | Read-only Twitter feed, no classification, no programmatic access |
 | Nansen Alpha (single chain) | \$1,500/mo | Best-in-class labels, read-only dashboard, no programmable layer |
 | Arkham Intelligence Pro | \$1,000/mo | Strong labels, dashboard + alerts, no per-block classification |
 | Building this in-house with engineers | \$40,000+/mo | One mid backend + one ML engineer plus infra; what you would actually do without this |
 
-Night-mode tip: between 02:00 and 06:00 UTC most chains are quiet. Drop the watcher to a 60-second cadence in that window — call cost falls ~5x and you almost never miss meaningful flow.
+Night-mode tip: the API applies its off-peak token-cost discount automatically between 8pm and 6am Pacific (`America/Los_Angeles`) — no request changes needed. Separately, most chains are quieter in the early-UTC-morning hours; if you want to cut call volume too (not just get the automatic discount), drop the watcher to a 60-second cadence during that quiet window.
 
 The point is not that this is cheaper than a Twitter bot. The point is that a Twitter bot is read-only. This is a programmable layer with structured outputs that route into your own systems — execution, risk, research database — at whale-feed latency.
 

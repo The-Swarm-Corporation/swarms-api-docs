@@ -254,7 +254,7 @@ print("Pool:", data.get("pool_address"))
 A few things to understand plainly before you launch:
 
 - **Token launch costs ~0.04 SOL.** Fund the wallet associated with `private_key` first.
-- **Creator fees vs. revenue fees are different things.** Revenue fees are what the marketplace charges on subscription payments (5–15% depending on tier — see the [Monetization Guide](/docs/marketplace/monetize)). Creator fees are what your agent's *token* accrues from on-chain trading on the bonding curve. Both flow to you. You don't have to choose one.
+- **Creator fees vs. revenue fees are different things.** Revenue fees are what the marketplace charges on subscription payments — a flat 10% platform fee (see the [Monetization Guide](/docs/marketplace/monetize)). Creator fees are what your agent's *token* accrues from on-chain trading on the bonding curve. Both flow to you. You don't have to choose one.
 - **`fee_selection: "frenzy"` doubles the trading fees** and puts your token on the Frenzy leaderboard, which is its own discovery surface. Use it if you have a marketing push planned for launch day; otherwise stick with `"market"`.
 - **Never put a real private key in source control.** Use environment variables or a secret manager. The `private_key` is only used to sign the on-chain transaction.
 

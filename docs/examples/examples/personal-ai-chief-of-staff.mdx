@@ -28,7 +28,7 @@ A great Chief of Staff does three things: triages your inbox so you only see wha
                                      v
                        +---------------------------+
                        |   Main Chief of Staff     |
-                       |   (claude-sonnet-4.5)     |
+                       |   (claude-sonnet-4-5)     |
                        |   + conversation_history  |
                        +---------------------------+
                           |          |          |
@@ -44,7 +44,7 @@ A great Chief of Staff does three things: triages your inbox so you only see wha
           v                 v                 v                 v
   +---------------+ +---------------+ +---------------+
   | Inbox Triager | | Meeting Prep  | | Notion Logger |
-  | (haiku-4.5)   | | (gpt-4.1-mini)| | (haiku-4.5)   |
+  | (haiku-4-5)   | | (gpt-4.1-mini)| | (haiku-4-5)   |
   +---------------+ +---------------+ +---------------+
 ```
 
@@ -95,7 +95,7 @@ INBOX_TRIAGER = {
         "calendar invites, and notifications unless they require a response. "
         "Return a compact digest grouped by priority bucket."
     ),
-    "model_name": "claude-haiku-4.5",
+    "model_name": "claude-haiku-4-5",
     "max_loops": "auto",
     "mcp_url": GMAIL_MCP_URL,
 }
@@ -112,12 +112,10 @@ MEETING_PREP = {
     ),
     "model_name": "gpt-4.1-mini",
     "max_loops": "auto",
-    "mcp_configs": {
-        "connections": [
-            {"url": GCAL_MCP_URL},
-            {"url": GMAIL_MCP_URL},
-        ]
-    },
+    "mcp_configs": [
+        {"url": GCAL_MCP_URL},
+        {"url": GMAIL_MCP_URL},
+    ],
 }
 
 NOTION_LOGGER = {
@@ -129,7 +127,7 @@ NOTION_LOGGER = {
         "today's date. Do not create duplicates — search first. Keep notes "
         "concise and factual; one bullet per fact."
     ),
-    "model_name": "claude-haiku-4.5",
+    "model_name": "claude-haiku-4-5",
     "max_loops": "auto",
     "mcp_url": NOTION_MCP_URL,
 }
@@ -141,7 +139,7 @@ Sub-agents inherit `max_loops="auto"` so they can call MCP tools repeatedly unti
 
 ## Step 3: Wire Up the Main Chief of Staff Agent
 
-The main agent gets all three MCP servers attached *and* a roster of the three sub-agents under `handoffs`. It uses `claude-sonnet-4.5` because the orchestration model matters most — it's the one deciding when to delegate vs. just answer.
+The main agent gets all three MCP servers attached *and* a roster of the three sub-agents under `handoffs`. It uses `claude-sonnet-4-5` because the orchestration model matters most — it's the one deciding when to delegate vs. just answer.
 
 ```python
 def build_cos_config():
@@ -166,17 +164,15 @@ def build_cos_config():
             "- For calendar slots, return them as structured ISO datetimes.\n"
             "- Talk like a competent human CoS, not a chatbot. No 'I'd be happy to'."
         ),
-        "model_name": "claude-sonnet-4.5",
+        "model_name": "claude-sonnet-4-5",
         "max_loops": "auto",
         "max_tokens": 8192,
         "temperature": 0.2,
-        "mcp_configs": {
-            "connections": [
-                {"url": GMAIL_MCP_URL},
-                {"url": GCAL_MCP_URL},
-                {"url": NOTION_MCP_URL},
-            ]
-        },
+        "mcp_configs": [
+            {"url": GMAIL_MCP_URL},
+            {"url": GCAL_MCP_URL},
+            {"url": NOTION_MCP_URL},
+        ],
         "handoffs": [INBOX_TRIAGER, MEETING_PREP, NOTION_LOGGER],
     }
 

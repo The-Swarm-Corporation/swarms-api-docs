@@ -125,6 +125,10 @@ def due_diligence_swarm(company: str, ticker: str) -> dict:
 
 In a real workload, the watchlist comes from a portfolio database. Here we hard-code 50 tickers.
 
+<Warning>
+**Batch size limit**: `/v1/swarm/batch/completions` accepts at most **50** `SwarmSpec` items per request — this tutorial is deliberately sized to that ceiling. A request with more than 50 items is rejected with an HTTP 422 validation error before any swarm runs. If your watchlist grows past 50, chunk it the same way [Batch Agent Completions at Scale](/docs/examples/examples/batch-agent-scale-tutorial) chunks leads, and submit the chunks concurrently.
+</Warning>
+
 ```python
 WATCHLIST = [
     ("NVIDIA", "NVDA"),

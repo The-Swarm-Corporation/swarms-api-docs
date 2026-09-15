@@ -42,7 +42,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Engagement Team
 
-Four workers each own one chapter of the deck. The Engagement Director sees every worker's output and is told, very explicitly, to produce a slide-by-slide outline — not a memo.
+Four workers each own one chapter of the deck. The Engagement Director is told, very explicitly, to produce a slide-by-slide outline — not a memo — but see the mechanism note below for what it actually takes to get that agent to see the other four outputs.
 
 ```python
 def build_engagement(client_brief: str) -> dict:
@@ -170,7 +170,7 @@ def build_engagement(client_brief: str) -> dict:
 ```
 
 <Note>
-For `HierarchicalSwarm` you only define the workers and the coordinator — the framework handles the routing, output collection, and synthesis pass. The director sees every worker's output before producing the final deck.
+`HierarchicalSwarm` always builds its own director from `director_model_name` (default `gpt-5.4`) that decomposes the task and dispatches it to every agent in `agents` — the Engagement Director above runs as one of the director's workers, not as a privileged synthesizer, and with the default `max_loops: 1` and parallel worker execution, no agent (Engagement Director included) sees another specialist's output before writing its own deck outline. For a guaranteed synthesis pass, either set `"max_loops": 2` on the swarm (the framework's director is handed every first-round output on its second pass and can route the synthesis to the Engagement Director by name/description), or collect the four specialist outputs client-side and issue one more `/v1/agent/completions` call using the Engagement Director's system prompt.
 </Note>
 
 ## Step 3: Run the Engagement

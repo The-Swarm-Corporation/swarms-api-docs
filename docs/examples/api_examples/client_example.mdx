@@ -33,7 +33,10 @@ from swarms_client import SwarmsClient
 
 load_dotenv()
 
-client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+client = SwarmsClient(
+    api_key=os.getenv("SWARMS_API_KEY"),
+    base_url="https://api.swarms.world",
+)
 
 print(json.dumps(client.models.list_available(), indent=4))
 print(json.dumps(client.health.check(), indent=4))

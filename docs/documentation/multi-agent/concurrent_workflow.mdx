@@ -92,11 +92,15 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
 
 <Tab title="Python (requests)">
 ```python
+import os
 import requests
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_BASE_URL = "https://api.swarms.world"
-API_KEY = "your_api_key_here"
+API_KEY = os.getenv("SWARMS_API_KEY")
 
 headers = {
     "x-api-key": API_KEY,
@@ -457,6 +461,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 ```
+
+## Output Shape
+
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. For `ConcurrentWorkflow` specifically, each requested agent receives the same original `task` independently and runs on a thread pool — there is one turn per agent, but because the agents run in parallel rather than a fixed sequence, the order turns land in `output` reflects when each agent finished, not the order the agents appear in the request.
 
 ## Best Practices
 

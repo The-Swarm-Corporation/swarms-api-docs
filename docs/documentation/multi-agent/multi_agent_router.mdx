@@ -92,11 +92,15 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
 
 <Tab title="Python (requests)">
 ```python
+import os
 import requests
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_BASE_URL = "https://api.swarms.world"
-API_KEY = "your_api_key_here"
+API_KEY = os.getenv("SWARMS_API_KEY")
 
 headers = {
     "x-api-key": API_KEY,
@@ -457,6 +461,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 ```
+
+## Output Shape
+
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `MultiAgentRouter` runs an internal router step that inspects the task and hands it off via function calling — a task can be routed to a single specialist or split across several agents at once when the router decides more than one applies. `output` reflects the routing decision plus the response from each agent the router actually handed the task to; an agent in your `agents` array that the router does not select never runs and contributes no turn.
 
 ## Best Practices
 

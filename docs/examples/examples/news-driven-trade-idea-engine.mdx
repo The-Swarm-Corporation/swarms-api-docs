@@ -15,7 +15,7 @@ Two thousand articles cross the wire today. Eighty actually overlap your book. T
 - Sustained high-volume throughput with the observability needed to track a missed-news SLA
 
 <Info>
-This pipeline runs continuously against a 24/7 news firehose at sustained volume. Upgrade to Premium at [https://swarms.world/platform/account](https://swarms.world/platform/account) for the throughput headroom, priority processing, and the observability dashboard needed to monitor the missed-news SLA. See the [Production Observability Guide](/docs/guides/guides/production-observability) for the metrics that matter when news latency is the product.
+This pipeline runs continuously against a 24/7 news firehose at sustained volume. The Free tier's request-rate ceiling (100/minute, 350/hour, 1,200/day) is easy to hit once the overlap gate is firing dozens of swarm calls a day on top of your other traffic; Premium raises that to 2,000/minute, 10,000/hour, 100,000/day. Upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings). See the [Production Observability Guide](/docs/guides/guides/production-observability) for the metrics that matter when news latency is the product.
 </Info>
 
 ## Why This Matters
@@ -24,7 +24,7 @@ Most PMs are drowning in a news firehose where 99% of articles are irrelevant to
 
 ## The Architecture
 
-```
+```text
                  ┌─────────────────────────────┐
                  │  Bloomberg / Reuters / AP   │
                  │      News Webhook Feed      │
@@ -48,7 +48,7 @@ Most PMs are drowning in a news firehose where 99% of articles are irrelevant to
                   │ no-op  │   │            HierarchicalSwarm               │
                   │ (drop) │   │  ┌─────────────────────────────────────┐   │
                   └────────┘   │  │          News Director              │   │
-                               │  │   (claude-sonnet-4.5, coordinator)  │   │
+                               │  │   (claude-sonnet-5, coordinator)  │   │
                                │  └────┬────────┬────────┬─────────┬────┘   │
                                │       │        │        │         │        │
                                │       ▼        ▼        ▼         ▼        │
@@ -59,7 +59,7 @@ Most PMs are drowning in a news firehose where 99% of articles are irrelevant to
                                │           ▼        ▼                        │
                                │   ┌─────────────────────────────────────┐   │
                                │   │      Trade Idea Synthesizer         │   │
-                               │   │    (claude-sonnet-4.5, output)      │   │
+                               │   │    (claude-sonnet-5, output)      │   │
                                │   └──────────────────┬──────────────────┘   │
                                └──────────────────────┼──────────────────────┘
                                                       │
@@ -279,18 +279,9 @@ ALL_TOOLS = [
 
 ## Step 3: Define the Hierarchical Swarm
 
-The News Director runs on `claude-sonnet-4.5` because synthesizing multi-sector takes into a single coherent dispatch needs strong reasoning. The four sector workers run on `gpt-4.1-mini` — they are doing tight, scoped, per-sector reasoning over a single article, which is exactly the workload that cheap fast models eat for breakfast. The Trade Idea Synthesizer goes back to `claude-sonnet-4.5` because the final thesis is the artifact that lands in front of the PM.
+`HierarchicalSwarm` supplies its own director agent — set via the SwarmSpec-level `director_model_name` field, not as an entry in `agents` — so every agent you list below is a worker the director can route to. The director runs on `claude-sonnet-5` because synthesizing multi-sector takes into a single coherent dispatch needs strong reasoning. The four sector workers run on `gpt-4.1-mini` — they are doing tight, scoped, per-sector reasoning over a single article, which is exactly the workload that cheap fast models eat for breakfast. The Trade Idea Synthesizer goes back to `claude-sonnet-5` because the final thesis is the artifact that lands in front of the PM.
 
 ```python
-NEWS_DIRECTOR_PROMPT = (
-    "You are the News Director on a multi-sector trading desk. An article has just "
-    "crossed the wire and at least one ticker on the firm's book is mentioned. "
-    "Route the article to the relevant sector workers (Tech, Energy, Healthcare, "
-    "Financials), collect their per-ticker takes, and hand a clean, deduplicated "
-    "package of {ticker, sentiment, signal_strength, sector_take} to the Trade Idea "
-    "Synthesizer. Do not write the thesis yourself — coordinate."
-)
-
 SECTOR_WORKER_PROMPT_TEMPLATE = (
     "You are the {sector} sector specialist. You have one job: for every ticker in "
     "your sector that the News Director hands you, use `extract_entities`, "
@@ -313,28 +304,25 @@ def build_news_swarm(article_text: str, article_url: str, overlap: list[str]) ->
     return {
         "name": "News-Driven Trade Idea Engine",
         "description": (
-            "News Director coordinates sector workers and a Trade Idea Synthesizer "
-            "to emit portfolio-overlapped trade theses to Slack."
+            "The director routes the article across sector workers and a Trade Idea "
+            "Synthesizer to emit portfolio-overlapped trade theses to Slack."
         ),
         "swarm_type": "HierarchicalSwarm",
+        "director_model_name": "claude-sonnet-5",
+        "director_settings": {"temperature": 0.2, "max_tokens": 4096},
         "max_loops": 1,
         "task": (
+            "You are directing a multi-sector trading desk's response to a live news "
+            "article. Route the article to the relevant sector workers (Tech, Energy, "
+            "Healthcare, Financials), collect their per-ticker takes, and hand a clean, "
+            "deduplicated package to the Trade Idea Synthesizer, which posts one trade "
+            "thesis per overlapping ticker to Slack.\n\n"
             f"Article URL: {article_url}\n"
             f"Overlapping book tickers: {', '.join(overlap)}\n\n"
             f"Article body:\n{article_text}\n\n"
             "Produce one trade thesis per overlapping ticker and post each to Slack."
         ),
         "agents": [
-            {
-                "agent_name": "News Director",
-                "description": "Coordinator — routes the article across sector workers.",
-                "system_prompt": NEWS_DIRECTOR_PROMPT,
-                "model_name": "claude-sonnet-4.5",
-                "role": "coordinator",
-                "max_loops": 1,
-                "max_tokens": 4096,
-                "temperature": 0.2,
-            },
             {
                 "agent_name": "Tech Sector Worker",
                 "description": "Per-ticker takes for Tech sector names.",
@@ -399,7 +387,7 @@ def build_news_swarm(article_text: str, article_url: str, overlap: list[str]) ->
                 "agent_name": "Trade Idea Synthesizer",
                 "description": "Emits the final structured thesis to Slack.",
                 "system_prompt": SYNTHESIZER_PROMPT,
-                "model_name": "claude-sonnet-4.5",
+                "model_name": "claude-sonnet-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 4096,
@@ -506,12 +494,22 @@ def fire_swarm(article_text: str, article_url: str, overlap: list[str]) -> int:
     result = response.json()
 
     # Count theses actually posted (Synthesizer calls post_trade_thesis_to_slack).
+    # The Synthesizer's final message is either a text summary
+    # (tool_call_summary=True, the default) or a list of raw tool-call objects
+    # shaped {"function": {"name": ..., "arguments": ...}} — see the Tools
+    # guide for the raw shape.
     synthesizer_output = next(
         (o for o in result.get("output", []) if "Trade Idea Synthesizer" in o.get("role", "")),
         {},
     )
-    theses = synthesizer_output.get("tool_calls", []) or []
-    return len([t for t in theses if t.get("name") == "post_trade_thesis_to_slack"])
+    content = synthesizer_output.get("content", "")
+    if isinstance(content, list):
+        return len([
+            c for c in content
+            if isinstance(c, dict)
+            and c.get("function", {}).get("name") == "post_trade_thesis_to_slack"
+        ])
+    return str(content).count("post_trade_thesis_to_slack")
 ```
 
 ## Step 6: The Trade Thesis Output Schema
@@ -544,7 +542,7 @@ Every thesis the synthesizer posts to Slack is a structured object. This is what
 
 ## Step 7: Production Observability
 
-At sustained continuous volume, observability is not optional — it is the SLA. The Premium observability dashboard tracks the metrics that matter when news latency *is* the product: articles ingested per minute, articles passing the overlap gate, swarm calls fired, theses posted to Slack, p50/p99 article-to-Slack latency, and — most importantly — the **missed-news SLA**: any article that overlapped the book but failed to produce a thesis within the 60-second budget. The dashboard, the priority processing queue that keeps the missed-news SLA inside the budget at peak earnings-week volume, and the per-route throughput headroom are Premium-tier features. See the [Production Observability Guide](/docs/guides/guides/production-observability) for the full set of metrics and alerting recipes.
+At sustained continuous volume, observability is not optional — it is the SLA. Track the metrics that matter when news latency *is* the product in your own logging layer: articles ingested per minute, articles passing the overlap gate, swarm calls fired, theses posted to Slack, p50/p99 article-to-Slack latency, and — most importantly — the **missed-news SLA**: any article that overlapped the book but failed to produce a thesis within the 60-second budget. `GET /v1/account/logs` gives you the request-level audit trail and `GET /v1/rate/limits` gives you the live rate-limit window, both of which feed straight into that dashboard; Premium's higher per-minute/hour/day ceiling (see above) is what keeps the missed-news SLA inside budget at peak earnings-week volume. See the [Production Observability Guide](/docs/guides/guides/production-observability) for the full set of metrics and alerting recipes.
 
 ## Real Cost vs. Bloomberg + Headcount
 

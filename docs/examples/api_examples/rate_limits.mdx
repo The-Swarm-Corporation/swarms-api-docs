@@ -1,18 +1,20 @@
 ---
 title: "Rate Limits Example"
-description: "Python code example for checking API rate limits and health status using the Swarms API."
+description: "Check current rate limit usage and configured limits with GET /v1/rate/limits."
 ---
 
 ## Overview
 
-This example demonstrates how to check API rate limits and health status using the Swarms API client.
+`GET /v1/rate/limits` returns your current request counts for the last minute, hour, and day, the configured limits for your subscription tier, and your tier (`free` or `premium`). Use it to build usage dashboards or to back off before you hit `429 Too Many Requests`.
+
+<Info>
+Every authenticated response also carries live `X-RateLimit-*` headers (`X-RateLimit-Limit-Minute`, `X-RateLimit-Remaining-Minute`, `-Hour`, `-Day`, `X-RateLimit-Reset`, `X-RateLimit-Tier`), and a `429` response adds `Retry-After`. Reading those headers off any response is cheaper than calling this endpoint separately if you just need the current remaining count.
+</Info>
 
 ## Step 1: Installation
 
-Install the required package:
-
 ```bash
-pip install swarms-client python-dotenv
+pip install requests swarms-client python-dotenv
 ```
 
 ## Step 2: API Key Setup
@@ -25,20 +27,120 @@ SWARMS_API_KEY=your_api_key_here
 
 ## Step 3: Code Example
 
-```python
-from swarms_client import SwarmsClient
-from dotenv import load_dotenv
-import os
+<Tabs>
+  <Tab title="cURL">
+    ```bash
+    curl -X GET "https://api.swarms.world/v1/rate/limits" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json"
+    ```
+  </Tab>
+  <Tab title="Python (requests)">
+    ```python
+    import os
+    import json
+    import requests
+    from dotenv import load_dotenv
 
-load_dotenv()
+    load_dotenv()
 
-client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+    API_KEY = os.getenv("SWARMS_API_KEY")
+    BASE_URL = "https://api.swarms.world"
 
-response = client.client.rate.get_limits()
-print(response)
+    headers = {
+        "x-api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
 
-print(client.health.check())
-```
+    response = requests.get(f"{BASE_URL}/v1/rate/limits", headers=headers)
+    response.raise_for_status()
+    data = response.json()
+    print(json.dumps(data, indent=2))
+
+    minute = data["rate_limits"]["minute"]
+    print(f"Requests this minute: {minute['count']}/{minute['limit']} "
+          f"({minute['remaining']} remaining, tier={data['tier']})")
+    ```
+  </Tab>
+  <Tab title="swarms-client">
+    ```python
+    import os
+    from swarms_client import SwarmsClient
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    # Pass base_url explicitly so the SDK targets the documented API host
+    # (its built-in default points at an internal Cloud Run URL).
+    client = SwarmsClient(
+        api_key=os.getenv("SWARMS_API_KEY"),
+        base_url="https://api.swarms.world",
+    )
+
+    response = client.client.rate.get_limits()
+    print(response)
+
+    print(client.health.check())
+    ```
+  </Tab>
+</Tabs>
 
 Run the script to check your current rate limits and API health status.
 
+## Understanding the Response
+
+```json
+{
+  "success": true,
+  "rate_limits": {
+    "minute": {
+      "count": 12,
+      "limit": 100,
+      "exceeded": false,
+      "remaining": 88,
+      "reset_time": "2026-09-14T12:01:00.000Z"
+    },
+    "hour": {
+      "count": 340,
+      "limit": 350,
+      "exceeded": false,
+      "remaining": 10,
+      "reset_time": "2026-09-14T13:00:00.000Z"
+    },
+    "day": {
+      "count": 900,
+      "limit": 1200,
+      "exceeded": false,
+      "remaining": 300,
+      "reset_time": "2026-09-15T00:00:00.000Z"
+    }
+  },
+  "limits": {
+    "maximum_requests_per_minute": 100,
+    "maximum_requests_per_hour": 350,
+    "maximum_requests_per_day": 1200,
+    "tokens_per_agent": 200000
+  },
+  "tier": "free",
+  "timestamp": "2026-09-14T12:00:30.000Z"
+}
+```
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `success` | boolean | Whether the request succeeded |
+| `rate_limits` | object | `minute`, `hour`, `day` windows, each with `count`, `limit`, `exceeded`, `remaining`, `reset_time` |
+| `limits` | object | The configured limits for your tier: `maximum_requests_per_minute`, `maximum_requests_per_hour`, `maximum_requests_per_day`, `tokens_per_agent` |
+| `tier` | string | Your current subscription tier: `free` or `premium` |
+| `timestamp` | string | ISO timestamp when this snapshot was generated |
+
+<Note>
+Default limits by tier (`api/schemas.py` `RateLimitsFreeTier` / `RateLimitsPremiumTier`):
+
+| Tier | Per minute | Per hour | Per day | Tokens per agent |
+|------|-----------:|---------:|--------:|------------------:|
+| `free` | 100 | 350 | 1,200 (`50 * 24`) | 200,000 |
+| `premium` | 2,000 | 10,000 | 100,000 | 2,000,000 |
+
+A user is on the `premium` tier if their account has an active subscription or a `pro`/`ultra`/`premium` tier on file; otherwise they're on `free`. If the tier lookup fails internally, the API falls open to the free-tier limits rather than blocking the request.
+</Note>

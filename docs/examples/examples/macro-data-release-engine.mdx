@@ -13,7 +13,7 @@ description: "A scheduled, latency-critical reasoning swarm that parses the rele
 - Roughly eight dollars per event, ~50 high-stakes events per year — the kind of capability a macro desk pays a strategist \$400k for
 
 <Info>
-`reasoning_effort: "high"` on `claude-opus-4-8` and `GraphWorkflow` are **Premium-only** features. Latency-critical events also benefit from priority processing on the Premium tier. See the [Reasoning Agents tutorial](/docs/examples/examples/reasoning-agents-tutorial) for the full primer on reasoning-effort tuning, and [upgrade your account](https://swarms.world/platform/account) before running this in production.
+This pipeline needs a Premium account for two independent reasons: `claude-opus-4-8` is a Premium-only model, and `POST /v1/graph-workflow/completions` is a Premium-only endpoint. `reasoning_effort` itself is a plain `AgentSpec` field available on any tier — it is the model choice and the endpoint that gate this example. See the [Reasoning Agents tutorial](/docs/examples/examples/reasoning-agents-tutorial) for the full primer on reasoning-effort tuning, and [upgrade your account](https://cloud.swarms.world/settings) before running this in production.
 </Info>
 
 ## Why This Matters
@@ -45,7 +45,7 @@ The first ninety seconds after a macro print is where the alpha lives. CPI cross
                          post_slack_alert()
 ```
 
-Three things to notice. First, the reasoning step is a single dedicated node — that is where the deliberation budget goes, not on every downstream worker. Second, the four asset workers run on diversified models on purpose: real-time edge for FX (grok-4), cheap commodities (gpt-4.1-mini), strong reasoning for equities (sonnet-4.5), structured rates work (gpt-4.1). Third, the entire DAG is one API call — one billing event, one `job_id`, one replayable artifact for the compliance log.
+Three things to notice. First, the reasoning step is a single dedicated node — that is where the deliberation budget goes, not on every downstream worker. Second, the four asset workers run on diversified models on purpose: real-time edge for FX (grok-4.3), cheap commodities (gpt-4.1-mini), strong reasoning for equities (sonnet-4.5), structured rates work (gpt-4.1). Third, the entire DAG is one API call — one billing event, one `job_id`, one replayable artifact for the compliance log.
 
 ## Step 1: Setup
 
@@ -319,7 +319,7 @@ Four asset-class strategists fan out from the hypothesis, then a synthesizer col
 | Desk | Model | Why |
 | --- | --- | --- |
 | Rates | `gpt-4.1` | Structured, numerate, strong on yield-curve mechanics |
-| FX | `xai/grok-4` | Real-time edge — picks up the live tape and positioning chatter |
+| FX | `xai/grok-4.3` | Real-time edge — picks up the live tape and positioning chatter |
 | Equities | `claude-sonnet-4-5` | Best at sector rotation reasoning under regime shifts |
 | Commodities | `gpt-4.1-mini` | Cheap and adequate — commodities reaction is mostly mechanical |
 | Synthesizer | `claude-sonnet-4-5` | Needs to read four theses and write one tight brief |
@@ -405,7 +405,7 @@ def build_release_swarm(release_id: str, release_ts: str) -> dict:
                 "agent_name": "FXStrategist",
                 "description": "FX desk thesis.",
                 "system_prompt": FX_PROMPT,
-                "model_name": "xai/grok-4",
+                "model_name": "xai/grok-4.3",
                 "max_loops": 1,
                 "max_tokens": 1500,
                 "temperature": 0.3,
@@ -510,7 +510,7 @@ def schedule_release(release_id: str, ts_et_str: str) -> None:
     result = fire_release_swarm(release_id, ts_et_str)
     elapsed = time.time() - t0
 
-    cost = result.get("usage", {}).get("token_cost", 0)
+    cost = result.get("usage", {}).get("total_cost", 0)
     print(f"{release_id} done in {elapsed:.1f}s — cost ${cost:.2f}")
 
 

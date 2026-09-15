@@ -222,3 +222,26 @@ Execution time: 42.5s
 <Note>
 HierarchicalSwarm creates its own director agent (model set by `director_model_name`, default `gpt-5.4`) that plans the work, assigns it to the agents you supply, and synthesizes their outputs. Every agent in `agents` is a worker.
 </Note>
+
+### Step 5: Customize the Director
+
+Pass `director_model_name` to change which model runs the director, and `director_settings` for director-specific hyperparameters (`temperature`, `top_p`, `max_tokens`, etc.):
+
+```python
+swarm_config = {
+    "name": "Software Development Team",
+    "swarm_type": "HierarchicalSwarm",
+    "task": requirements,
+    "agents": [...],  # same worker agents as above
+    "director_model_name": "claude-sonnet-5",
+    "director_settings": {
+        "temperature": 0.2,
+        "max_tokens": 4000
+    },
+    "max_loops": 1
+}
+```
+
+<Tip>
+`director_model_name` and `director_settings` are `SwarmSpec` fields, not `AgentSpec` fields - set them alongside `swarm_type` and `agents`, not inside any agent object.
+</Tip>

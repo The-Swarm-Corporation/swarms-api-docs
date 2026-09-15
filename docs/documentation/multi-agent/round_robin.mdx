@@ -1,31 +1,30 @@
 ---
 title: "RoundRobin"
-description: "Randomized round-robin task distribution where agents take turns collaborating with full conversation context"
+description: "Deterministic round-robin task distribution where agents take turns collaborating with full conversation context, cycling through the roster once per loop"
 ---
 
 **Swarm Type**: `RoundRobin`
 
 ## Overview
 
-The RoundRobin swarm implements a collaborative communication pattern where agents take turns processing a task in a randomized round-robin fashion. Each loop, agents are shuffled into a random order and each receives the full conversation history, encouraging them to build upon and refine previous agents' contributions. This creates a natural collaborative dynamic similar to a brainstorming session.
+The RoundRobin swarm implements a collaborative communication pattern where agents take turns processing a task in a true round-robin fashion. Agents are visited in the order you list them in `agents`, cycling through the full roster once per loop — for `N` agents and `max_loops` loops, the schedule is `agents[t % N]` for each turn `t`. Every agent reads the full conversation history accumulated by the agents that spoke before it, encouraging them to build upon and refine previous agents' contributions. This creates a natural collaborative dynamic similar to a brainstorming session.
 
 Key features:
-- **Randomized Turn Order**: Agents are shuffled each loop for varied interaction patterns
+- **Deterministic Turn Order**: Agents are visited in the exact order you list them, identically on every loop
 - **Full Conversation Context**: Every agent sees the complete conversation history from prior agents
-- **Collaborative Prompting**: Built-in prompts encourage agents to acknowledge and extend others' contributions
-- **Iterative Refinement**: Multiple loops allow the group to progressively deepen their analysis
-- **Automatic Retries**: Exponential backoff retry logic for resilient agent execution
+- **Collaborative Prompting**: Built-in turn headers tell each agent who spoke before and after it, encouraging agents to acknowledge and extend others' contributions
+- **Iterative Refinement**: Multiple loops allow the group to progressively deepen their analysis, with each agent receiving exactly `max_loops` turns
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     T["Task"] --> A["Turn 1"] --> B["Turn 2"] --> C["Turn 3"] --> O["Result"]
-    C -.->|"next loop, reshuffled"| A
+    C -.->|"next loop, same order"| A
 ```
 
-Agents take turns, each reading the full conversation so far. The turn order is reshuffled
-at the start of every loop.
+Agents take turns in the order they appear in `agents`, each reading the full conversation so
+far. That same order repeats on every loop.
 
 ## Use Cases
 
@@ -413,5 +412,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
 - Use 3-5 agents for optimal collaboration — too many agents dilute the conversation context
 - Each agent should have a clearly distinct expertise so contributions don't overlap
 - Increase `max_loops` when you want agents to iterate and refine each other's ideas across multiple rounds
-- Agent order is randomized each loop, so design prompts that work regardless of speaking position
+- Agent order is fixed and follows the order you list them in `agents`, identically on every loop — put the agent that should open the discussion first and the one that should synthesize it last
 - Ideal for tasks where diverse perspectives and iterative refinement produce better results than parallel independent work

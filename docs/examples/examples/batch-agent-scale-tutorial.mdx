@@ -151,6 +151,12 @@ Parse each agent response, slot leads into A/B/C/D tiers, and forward only A-tie
 tiers: dict[str, list[dict]] = {"A": [], "B": [], "C": [], "D": []}
 
 for lead, result in zip(leads, all_results):
+    # A failed item has "success": False and no "outputs" — the batch
+    # endpoint reports failures per item instead of raising for the request.
+    if not result.get("success", True):
+        tiers["D"].append({**lead, "score": 0, "tier": "D", "reason": f"agent_error: {result.get('detail')}"})
+        continue
+
     try:
         # The agent output is a JSON string inside the response envelope.
         output_text = result["outputs"][-1]["content"] if isinstance(result.get("outputs"), list) else result.get("output", "")
@@ -169,7 +175,7 @@ for item in tiers["A"][:5]:
 ```
 
 <Note>
-The exact response shape depends on the model and whether the agent returns structured outputs. Wrap the JSON parse in a try/except and dump unparseable rows to a review queue — never let one bad row halt a 10k-lead pipeline.
+Each result carries its own `success` flag — a failed item returns `{"success": false, "name": ..., "detail": ..., "status_code": ...}` in its slot, not an `outputs` field, and does not fail the rest of the batch. Check `success` before parsing `outputs`. The exact shape of a *successful* output still depends on the model and whether the agent returns structured content, so also wrap the JSON parse in a try/except and dump unparseable rows to a review queue — never let one bad row halt a 10k-lead pipeline.
 </Note>
 
 ## The Cost Math

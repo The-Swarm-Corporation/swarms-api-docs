@@ -14,8 +14,57 @@ Access to these endpoints is restricted to Pro and Ultra plans. To upgrade, see 
 | `/v1/graph-workflow/completions` | POST | Execute graph workflows with directed agent nodes and edges. Enables complex multi-agent collaboration with parallel execution, automatic compilation, and comprehensive workflow orchestration. |
 | `/v1/agent/batch/completions` | POST | Process multiple agent tasks in parallel batches with high-throughput batch processing capabilities. Ideal for large-scale document analysis, data processing, and enterprise-scale operations. |
 | `/v1/swarm/batch/completions` | POST | Execute batch swarm completions with concurrent multi-agent execution for complex collaborative workflows at scale. |
-| `/v1/reasoning-agent/completions` | POST | Execute advanced reasoning agent tasks using specialized reasoning architectures like self-consistency, majority voting, and iterative refinement for improved answer quality and reliability. |
+| `/v1/reasoning-agent/completions` | POST | Execute advanced reasoning agent tasks using specialized reasoning architectures such as `self-consistency`, `ire` (iterative refinement), and `ReflexionAgent` for improved answer quality and reliability. See `GET /v1/reasoning-agent/types` for the full, authoritative list of supported types. |
 | `/v1/batched-grid-workflow/completions` | POST | Execute multiple tasks across multiple agents in a grid pattern with parallel batch processing. Creates comprehensive task-agent matrices for comparative analysis and multi-perspective evaluation. |
+
+### Discovering Premium Endpoints via the API
+
+`GET /v1/account/premium-endpoints` returns this same list programmatically, along with the upgrade URL:
+
+```bash
+curl -H "x-api-key: $SWARMS_API_KEY" \
+     https://api.swarms.world/v1/account/premium-endpoints
+```
+
+```json
+{
+  "status": true,
+  "timestamp": "2026-09-14T12:00:00+00:00",
+  "total": 5,
+  "premium_endpoints": [
+    {
+      "route": "/v1/agent/batch/completions",
+      "name": "Batch Agent Completions",
+      "description": "process multiple agent tasks concurrently in a single request"
+    },
+    {
+      "route": "/v1/batched-grid-workflow/completions",
+      "name": "Batched Grid Workflows",
+      "description": "execute grid-based workflows with multiple agents and tasks in parallel"
+    },
+    {
+      "route": "/v1/graph-workflow/completions",
+      "name": "Graph Workflows",
+      "description": "orchestrate complex multi-agent workflows with directed graphs and parallel execution"
+    },
+    {
+      "route": "/v1/reasoning-agent/completions",
+      "name": "Reasoning Agent Completions",
+      "description": "leverage advanced reasoning capabilities with enhanced agent intelligence"
+    },
+    {
+      "route": "/v1/swarm/batch/completions",
+      "name": "Batch Swarm Completions",
+      "description": "execute multiple swarm workflows in parallel"
+    }
+  ],
+  "upgrade_url": "https://cloud.swarms.world/settings"
+}
+```
+
+<Note>
+The `upgrade_url` returned by this endpoint (`https://cloud.swarms.world/settings`) differs from the `upgrade_url` in a 403 premium-required error body (`https://swarms.world/platform/account`). Both point to account/billing settings; use whichever your integration already reads.
+</Note>
 
 ### Why These Endpoints Require Premium Access
 

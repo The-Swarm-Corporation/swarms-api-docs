@@ -13,6 +13,10 @@ description: "Attach OpenAI-style function tools to agents inside a multi-agent 
 Every multi-agent architecture on Swarms accepts the same per-agent `tools_list_dictionary`. The pattern below works identically for `SequentialWorkflow`, `HierarchicalSwarm`, `AgentRearrange`, `GroupChat`, `MixtureOfAgents`, and the rest — only the `swarm_type` changes.
 </Info>
 
+<Warning>
+`tools_list_dictionary` lives on each agent object (`AgentSpec`), inside `SwarmSpec.agents[]` — there is no swarm-level tools field. Don't confuse it with `tools_enabled`, which is a field on `AgentCompletion` for the single-agent `POST /v1/agent/completions` endpoint (referencing the platform's built-in tools, e.g. `auto_search`/`web_scraper` from `GET /v1/tools/available`) — `tools_enabled` does not exist on `SwarmSpec` or its agents.
+</Warning>
+
 ## Step 1: Setup
 
 ```python

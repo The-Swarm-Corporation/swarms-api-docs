@@ -86,6 +86,26 @@ if __name__ == "__main__":
     print(json.dumps(result, indent=2))
 ```
 
+Equivalent raw request:
+
+```bash
+curl -X POST "https://api.swarms.world/v1/agent/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_config": {
+      "agent_name": "Crypto Quant Analyst",
+      "system_prompt": "You are a Crypto Quant Analyst with deep expertise in quantitative analysis of cryptocurrency markets.",
+      "model_name": "gpt-4.1",
+      "role": "worker",
+      "max_loops": 1,
+      "max_tokens": 8192,
+      "temperature": 0.3
+    },
+    "task": "Analyze Bitcoin (BTC)."
+  }'
+```
+
 ## Adding Live Market Data via MCP
 
 To give the agent access to real-time market data, attach an MCP server URL. Any OKX/Binance/CoinGecko MCP server works as long as it exposes the right tools.

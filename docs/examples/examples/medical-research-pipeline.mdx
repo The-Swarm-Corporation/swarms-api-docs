@@ -169,7 +169,7 @@ payload = {
                 "strength of evidence (high / moderate / low / very low) "
                 "using GRADE-style reasoning and explain your rating."
             ),
-            "model_name": "anthropic/claude-opus-4-8",
+            "model_name": "claude-opus-4-8",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 6144,
@@ -217,7 +217,7 @@ payload = {
                 "verdict, plus an enumerated list of required revisions "
                 "if any."
             ),
-            "model_name": "anthropic/claude-opus-4-8",
+            "model_name": "claude-opus-4-8",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 6144,
@@ -227,8 +227,12 @@ payload = {
 ```
 
 <Note>
-The Clinical Research Specialist and Evidence Synthesizer run on `gpt-4.1` at low temperature (0.3) for repeatable structured output. The Clinical Trial Analyst and Recommendations Editor run on `anthropic/claude-opus-4-8` — Opus reasoning is well-suited to critical appraisal and final editorial review. The `temperature` field is intentionally omitted for the Opus 4.8 agents (the API drops it before forwarding to Anthropic; see the [Claude Opus 4.8 example](/docs/examples/examples/claude-opus-4-8)).
+The Clinical Research Specialist and Evidence Synthesizer run on `gpt-4.1` at low temperature (0.3) for repeatable structured output. The Clinical Trial Analyst and Recommendations Editor run on `claude-opus-4-8` — Opus reasoning is well-suited to critical appraisal and final editorial review. The `temperature` field is intentionally omitted for the Opus 4.8 agents (the API drops it before forwarding to Anthropic; see the [Claude Opus 4.8 example](/docs/examples/examples/claude-opus-4-8)).
 </Note>
+
+<Warning>
+`claude-opus-4-8` is a premium-only model. A free-tier API key is rejected on any agent that sets it (`claude-sonnet-5`, `gpt-5.5`, and `gemini-3.5-flash` are the suggested free-tier alternatives) — you need an active Pro, Ultra, or Premium subscription for the Clinical Trial Analyst and Recommendations Editor agents above to run. Manage your plan at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+</Warning>
 
 ## Step 7: Run the Pipeline
 

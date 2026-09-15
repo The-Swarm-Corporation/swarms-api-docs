@@ -6,7 +6,7 @@ description: "Stream individual tokens from every agent in a SequentialWorkflow 
 ## What This Example Shows
 
 - How to enable swarm-level streaming with `stream: true` on `/v1/swarm/completions`
-- The full SSE event taxonomy for swarms: `metadata`, `agent_start`, `chunk`, `agent_end`, `usage`, `end`
+- The full SSE event taxonomy for swarms: `metadata`, `start`, `status`, `agent_start`, `chunk`, `agent_end`, `usage`, `end`, `done`, and the `error` event sent on failure
 - How to parse the SSE stream into typed events with agent attribution on every chunk
 - How to detect parallel-phase interleaving in `AgentRearrange` (when two agents stream concurrently)
 - Why this differs from single-agent streaming on `/v1/agent/completions`
@@ -45,20 +45,27 @@ headers = {
 
 ## Step 2: Understand the SSE Event Types
 
-When `stream=true` is set on a `SequentialWorkflow` or `AgentRearrange` swarm, the API responds with a Server-Sent Events stream. Each event has an `event:` line and a `data:` JSON payload.
+When `stream=true` is set on **any** swarm type, `/v1/swarm/completions` responds with a Server-Sent Events stream instead of a JSON body — the HTTP status is `200` even if the swarm run later fails, so failures show up as an `error` event, not an HTTP error code. Each event has an `event:` line and a `data:` JSON payload. This is the exact event sequence emitted by `api/swarm_streaming.py`:
 
 | Event | Emitted | Payload (key fields) |
 | --- | --- | --- |
-| `metadata` | Once, at the start | `job_id`, `swarm_name`, `swarm_type`, `number_of_agents` |
-| `start` | Once, before agents run | Swarm-level status |
-| `agent_start` | Once per agent, when it begins | `agent` (name) |
-| `chunk` | Many per agent — one per token (or small group) | `agent`, `content` (the token text) |
-| `agent_end` | Once per agent, when it finishes | `agent` (final per-agent content is not included in this event — collect it from the `chunk` events) |
-| `usage` | Once, near the end | `input_tokens`, `output_tokens`, `total_tokens`, `billing_info` |
-| `end` | Once, terminal | `execution_time`, `status` (does not include the aggregated output — collect it from the `chunk`/`agent_end` events as you stream) |
+| `metadata` | Once, at the start | `job_id`, `status: "initializing"`, `swarm_name`, `description`, `swarm_type`, `number_of_agents`, `timestamp`, `stream: true` |
+| `start` | Once, right after `metadata` | `message: "Starting swarm processing..."` |
+| `status` | Once, after agents and the router are built | `status: "executing"`, `message`, `input_tokens`, `timestamp` |
+| `agent_start` | **`SequentialWorkflow`/`AgentRearrange` only** — once per agent, when it begins | `agent` (name), `timestamp` |
+| `chunk` | See below — shape differs by swarm type | See below |
+| `agent_end` | **`SequentialWorkflow`/`AgentRearrange` only** — once per agent, when it finishes | `agent` (final per-agent content is not included in this event — collect it from the `chunk` events), `timestamp` |
+| `usage` | Once, near the end | `input_tokens`, `output_tokens`, `total_tokens`, `total_cost`, `billing_info` (the same cost-breakdown object the non-streaming response nests under `usage.billing_info`) |
+| `end` | Once, terminal on success | `job_id`, `status: "success"`, `execution_time`, `timestamp`, `complete: true`, plus `tasks`/`messages` if the request included them (does not include the aggregated output — collect it from the `chunk`/`agent_end` events as you stream) |
+| `done` | Once, always last on success | `message: "Swarm processing complete"` |
+| `error` | Instead of the rest, if anything in the generator raises | `error` (string, prefixed `"SwarmCompletionError: "`), `timestamp` |
+
+<Warning>
+`chunk` has two different shapes depending on `swarm_type`. For `SequentialWorkflow` and `AgentRearrange` (the only types with per-token `arun_stream` support), each `chunk` carries one token: `{"content": "...", "agent": "...", "timestamp": "..."}`. For every other swarm type, the whole swarm still runs first (not streamed internally), then exactly **one** `chunk` event is sent with the complete result: `{"output": ..., "timestamp": "..."}` — no `agent` or `content` field. Branch on `swarm_type` (or check for the `content`/`agent` keys) before assuming per-token shape.
+</Warning>
 
 <Note>
-The defining feature of swarm streaming is that **every `chunk` event carries an `agent` field**. That's how you attribute a token to the correct worker when multiple agents are running. Single-agent streaming on `/v1/agent/completions` does not need this — there is only one agent.
+The defining feature of per-token swarm streaming is that **every `chunk` event carries an `agent` field**. That's how you attribute a token to the correct worker when multiple agents are running. Single-agent streaming on `/v1/agent/completions` does not need this — there is only one agent.
 </Note>
 
 ## Step 3: A Reusable SSE Parser
@@ -255,13 +262,16 @@ The interleaved chunk stream becomes N independent, growing text buffers — exa
 
 <AccordionGroup>
   <Accordion title="Which swarm types support `stream=true`?">
-    Per-token streaming is currently supported for `SequentialWorkflow` and `AgentRearrange`. Other swarm types either don't expose per-token output or stream at the agent level only — check `/v1/swarms/available` for the current list.
+    `stream: true` is accepted for every `swarm_type`, but only `SequentialWorkflow` and `AgentRearrange` stream per-token `chunk` events with `agent`/`content` fields. Every other swarm type still runs to completion server-side first, then sends the entire result as a single `chunk` event (`{"output": ..., "timestamp": ...}`) — you still get the `metadata`/`start`/`status`/`usage`/`end`/`done` events around it, so streaming is still useful for status updates and cost, just not per-token text.
   </Accordion>
   <Accordion title="Why isn't my stream actually streaming?">
     Two common causes: (1) you forgot `stream=True` on the `requests.post` call (the API streams but your client buffers the whole response), or (2) a reverse proxy is buffering. Set `X-Accel-Buffering: no` in your request headers and make sure your client reads with `response.iter_lines()`, not `response.text`.
   </Accordion>
   <Accordion title="How do I know when an individual agent is finished vs. the whole swarm?">
-    `agent_end` fires once per agent. `end` fires once for the entire swarm after the last agent finishes and usage is reported. If you want to update per-agent UI state, key off `agent_end`; if you want to dismiss a global spinner, key off `end`.
+    `agent_end` fires once per agent (on the two per-token swarm types only). `end` fires once for the entire swarm after the last agent finishes and usage is reported, followed by a final `done` event. If you want to update per-agent UI state, key off `agent_end`; if you want to dismiss a global spinner, key off `end` or `done`.
+  </Accordion>
+  <Accordion title="How do I handle errors mid-stream?">
+    The HTTP response starts with a `200` as soon as the stream opens, before the swarm has actually run — so a failure never shows up as a non-200 status. Instead, the generator catches the exception and emits a single `event: error` with `{"error": "SwarmCompletionError: ...", "timestamp": "..."}`, then the stream ends without `usage`/`end`/`done`. Always watch for `event: error` in your parser, not just HTTP status codes.
   </Accordion>
 </AccordionGroup>
 

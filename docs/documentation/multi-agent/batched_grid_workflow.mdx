@@ -1,6 +1,6 @@
 ---
 title: "BatchedGridWorkflow"
-description: "Execute multiple tasks across multiple agents in a grid pattern, with each agent processing all tasks in parallel batches"
+description: "Run each agent on its own paired task, concurrently, with optional multi-loop refinement. A premium-only endpoint."
 ---
 
 **Swarm Type**: `BatchedGridWorkflow`
@@ -11,40 +11,50 @@ description: "Execute multiple tasks across multiple agents in a grid pattern, w
 
 ## Overview
 
-The BatchedGridWorkflow swarm type executes multiple tasks across multiple agents in a grid-like pattern, where each agent processes every task independently. This creates a comprehensive matrix of results, allowing you to compare how different agents approach the same set of tasks. The workflow supports iterative refinement through the `max_loops` parameter, enabling agents to improve their outputs over multiple iterations.
+BatchedGridWorkflow pairs each agent in `agent_completions` with the task at the same index in `tasks` — `agent_completions[0]` runs `tasks[0]`, `agent_completions[1]` runs `tasks[1]`, and so on. All pairs run concurrently. This is **not** a full agent × task matrix: an agent never sees any task other than the one at its own index.
+
+<Warning>
+`agent_completions` and `tasks` must be the **same length**. A request where the two arrays differ in length fails with a `400` before any agent runs. Both arrays also accept at most 50 entries (the same limit used by `/v1/swarm/batch/completions`).
+</Warning>
+
+To have several agents look at the *same* input — the "multiple experts review one thing" use case — repeat the identical task string once per agent in `tasks`. That's what the example below does: three analysts, three identical task strings, one shared subject.
+
+`max_loops` reruns the same agent/task pairs for that many iterations, reusing the same agent instances across loops. Because each agent keeps its own conversation memory between calls, later loops can build on what that agent said earlier — this is how iterative refinement works here, not a larger grid.
 
 Key features:
-- **Grid Execution Pattern**: Each agent processes every task, creating a complete task-agent matrix
-- **Parallel Batch Processing**: All agent-task combinations run in parallel for maximum efficiency
-- **Iterative Refinement**: Support for multiple loops to refine and improve outputs
-- **Comparative Analysis**: Easy comparison of different agent approaches to the same tasks
-- **Structured Output Mapping**: Results organized by agent name for each task
+- **Index-paired execution**: agent *i* always runs task *i*, never another agent's task
+- **Concurrent execution**: all pairs for a given loop run in parallel
+- **Iterative refinement**: `max_loops > 1` reruns the same pairs, and agents retain memory across loops
+- **One result set per loop**: the response's `outputs` is a list with one entry per loop, each entry mapping every agent's name to its output for that loop
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    T1["Task 1"] --> A1["Agent 1"]
-    T1 --> A2["Agent 2"]
-    T2["Task 2"] --> A1
-    T2 --> A2
-    A1 --> G["Results grid"]
-    A2 --> G
+    subgraph "One loop (repeated max_loops times)"
+    A0["agent_completions[0]"] --> P0["tasks[0]"]
+    A1["agent_completions[1]"] --> P1["tasks[1]"]
+    A2["agent_completions[2]"] --> P2["tasks[2]"]
+    end
+    P0 --> R["outputs[loop] = {agent_name: output}"]
+    P1 --> R
+    P2 --> R
 ```
 
-Every agent runs every task, so the output is a matrix: one result per agent-task pair.
+Each agent only ever runs the task paired with it by index. Repeating the same task string across every entry in `tasks` is what makes multiple agents analyze the same subject.
 
 ## Use Cases
 
-- A/B testing different agent configurations on the same tasks
-- Multi-perspective analysis where each expert reviews all aspects
-- Quality assurance with multiple reviewers checking all items
-- Comparative research across different methodological approaches
-- Content generation with multiple styles or tones for the same topics
+- Multiple independent agent/task jobs dispatched and billed as one request (same idea as `/v1/agent/batch/completions`, but with built-in support for repeated, memory-carrying refinement loops)
+- Multi-perspective analysis: several specialist agents reviewing the same input (repeat the task string per agent)
+- Iterative refinement: one agent revising its own answer to the same task over several loops, using its own memory of earlier loops
+- A/B testing different agent configurations against identical input
 
 ## API Usage
 
 ### Basic BatchedGridWorkflow Example
+
+Three analysts, each paired with the *same* task string, so every agent reviews the same subject from its own angle.
 
 <Tabs>
 <Tab title="Shell (curl)">
@@ -53,8 +63,8 @@ curl -X POST "https://api.swarms.world/v1/batched-grid-workflow/completions" \
   -H "x-api-key: $SWARMS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Product Review Analysis Grid",
-    "description": "Multiple analysts reviewing multiple product categories",
+    "name": "Product Review Analysis",
+    "description": "Three analysts reviewing the same product category",
     "agent_completions": [
       {
         "agent_name": "Technical Analyst",
@@ -83,8 +93,8 @@ curl -X POST "https://api.swarms.world/v1/batched-grid-workflow/completions" \
     ],
     "tasks": [
       "Analyze the smartphone market segment and top products",
-      "Analyze the laptop market segment and top products",
-      "Analyze the tablet market segment and top products"
+      "Analyze the smartphone market segment and top products",
+      "Analyze the smartphone market segment and top products"
     ],
     "max_loops": 1
   }'
@@ -93,20 +103,25 @@ curl -X POST "https://api.swarms.world/v1/batched-grid-workflow/completions" \
 
 <Tab title="Python (requests)">
 ```python
+import os
 import requests
-import json
 
 API_BASE_URL = "https://api.swarms.world"
-API_KEY = "your_api_key_here"
+API_KEY = os.getenv("SWARMS_API_KEY")
 
 headers = {
     "x-api-key": API_KEY,
     "Content-Type": "application/json"
 }
 
+# Same task string repeated once per agent — each agent is paired with the
+# task at its own index, so this is how you get three agents reviewing one
+# subject rather than three agents reviewing three different subjects.
+same_task = "Analyze the smartphone market segment and top products"
+
 workflow_config = {
-    "name": "Product Review Analysis Grid",
-    "description": "Multiple analysts reviewing multiple product categories",
+    "name": "Product Review Analysis",
+    "description": "Three analysts reviewing the same product category",
     "agent_completions": [
         {
             "agent_name": "Technical Analyst",
@@ -133,31 +148,29 @@ workflow_config = {
             "temperature": 0.3
         }
     ],
-    "tasks": [
-        "Analyze the smartphone market segment and top products",
-        "Analyze the laptop market segment and top products",
-        "Analyze the tablet market segment and top products"
-    ],
+    "tasks": [same_task, same_task, same_task],
     "max_loops": 1
 }
 
 response = requests.post(
     f"{API_BASE_URL}/v1/batched-grid-workflow/completions",
     headers=headers,
-    json=workflow_config
+    json=workflow_config,
+    timeout=600,
 )
 
 if response.status_code == 200:
     result = response.json()
     print("BatchedGridWorkflow completed successfully!")
     print(f"Job ID: {result['job_id']}")
-    print(f"Total cost: ${result['usage']['token_cost']}")
+    print(f"Total cost: ${result['usage']['total_cost']}")
     print(f"Output tokens: {result['usage']['output_tokens']}")
 
-    # Access results by task and agent
-    for task_idx, task_results in enumerate(result['outputs']):
-        print(f"\nTask {task_idx + 1} results:")
-        for agent_name, output in task_results.items():
+    # outputs is a list with one entry per loop (max_loops == 1 here), each
+    # entry mapping every agent's name to its output for that loop.
+    for loop_idx, loop_results in enumerate(result["outputs"]):
+        print(f"\nLoop {loop_idx + 1} results:")
+        for agent_name, output in loop_results.items():
             print(f"  {agent_name}: {output[:100]}...")
 else:
     print(f"Error: {response.status_code} - {response.text}")
@@ -167,16 +180,21 @@ else:
 <Tab title="JavaScript (fetch)">
 ```javascript
 const API_BASE_URL = "https://api.swarms.world";
-const API_KEY = "your_api_key_here";
+const API_KEY = process.env.SWARMS_API_KEY;
 
 const headers = {
     "x-api-key": API_KEY,
     "Content-Type": "application/json"
 };
 
+// Same task string repeated once per agent — each agent is paired with the
+// task at its own index, so this is how three agents end up reviewing one
+// shared subject instead of three different subjects.
+const sameTask = "Analyze the smartphone market segment and top products";
+
 const workflowConfig = {
-    name: "Product Review Analysis Grid",
-    description: "Multiple analysts reviewing multiple product categories",
+    name: "Product Review Analysis",
+    description: "Three analysts reviewing the same product category",
     agent_completions: [
         {
             agent_name: "Technical Analyst",
@@ -203,11 +221,7 @@ const workflowConfig = {
             temperature: 0.3
         }
     ],
-    tasks: [
-        "Analyze the smartphone market segment and top products",
-        "Analyze the laptop market segment and top products",
-        "Analyze the tablet market segment and top products"
-    ],
+    tasks: [sameTask, sameTask, sameTask],
     max_loops: 1
 };
 
@@ -221,13 +235,14 @@ fetch(`${API_BASE_URL}/v1/batched-grid-workflow/completions`, {
     if (result.status === "success") {
         console.log("BatchedGridWorkflow completed successfully!");
         console.log(`Job ID: ${result.job_id}`);
-        console.log(`Total cost: $${result.usage.token_cost}`);
+        console.log(`Total cost: $${result.usage.total_cost}`);
         console.log(`Output tokens: ${result.usage.output_tokens}`);
 
-        // Access results by task and agent
-        result.outputs.forEach((taskResults, taskIdx) => {
-            console.log(`\nTask ${taskIdx + 1} results:`);
-            for (const [agentName, output] of Object.entries(taskResults)) {
+        // outputs is a list with one entry per loop; each entry maps every
+        // agent's name to its output for that loop.
+        result.outputs.forEach((loopResults, loopIdx) => {
+            console.log(`\nLoop ${loopIdx + 1} results:`);
+            for (const [agentName, output] of Object.entries(loopResults)) {
                 console.log(`  ${agentName}: ${output.substring(0, 100)}...`);
             }
         });
@@ -247,6 +262,7 @@ import (
     "fmt"
     "io/ioutil"
     "net/http"
+    "os"
 )
 
 type AgentSpec struct {
@@ -259,20 +275,24 @@ type AgentSpec struct {
 }
 
 type WorkflowConfig struct {
-    Name              string      `json:"name"`
-    Description       string      `json:"description"`
-    AgentCompletions  []AgentSpec `json:"agent_completions"`
-    Tasks             []string    `json:"tasks"`
-    MaxLoops          int         `json:"max_loops"`
+    Name             string      `json:"name"`
+    Description      string      `json:"description"`
+    AgentCompletions []AgentSpec `json:"agent_completions"`
+    Tasks            []string    `json:"tasks"`
+    MaxLoops         int         `json:"max_loops"`
 }
 
 func main() {
-    API_BASE_URL := "https://api.swarms.world"
-    API_KEY := "your_api_key_here"
+    apiBaseURL := "https://api.swarms.world"
+    apiKey := os.Getenv("SWARMS_API_KEY")
+
+    // Same task string repeated once per agent — agents are paired with
+    // tasks by index, so this is how three agents review one subject.
+    sameTask := "Analyze the smartphone market segment and top products"
 
     workflowConfig := WorkflowConfig{
-        Name:        "Product Review Analysis Grid",
-        Description: "Multiple analysts reviewing multiple product categories",
+        Name:        "Product Review Analysis",
+        Description: "Three analysts reviewing the same product category",
         AgentCompletions: []AgentSpec{
             {
                 AgentName:    "Technical Analyst",
@@ -299,18 +319,14 @@ func main() {
                 Temperature:  0.3,
             },
         },
-        Tasks: []string{
-            "Analyze the smartphone market segment and top products",
-            "Analyze the laptop market segment and top products",
-            "Analyze the tablet market segment and top products",
-        },
+        Tasks:    []string{sameTask, sameTask, sameTask},
         MaxLoops: 1,
     }
 
     jsonData, _ := json.Marshal(workflowConfig)
 
-    req, _ := http.NewRequest("POST", API_BASE_URL+"/v1/batched-grid-workflow/completions", bytes.NewBuffer(jsonData))
-    req.Header.Set("x-api-key", API_KEY)
+    req, _ := http.NewRequest("POST", apiBaseURL+"/v1/batched-grid-workflow/completions", bytes.NewBuffer(jsonData))
+    req.Header.Set("x-api-key", apiKey)
     req.Header.Set("Content-Type", "application/json")
 
     client := &http.Client{}
@@ -331,16 +347,21 @@ func main() {
 ```rust
 use reqwest::Client;
 use serde_json::{json, Value};
+use std::env;
 use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let api_base_url = "https://api.swarms.world";
-    let api_key = "your_api_key_here";
+    let api_key = env::var("SWARMS_API_KEY").expect("SWARMS_API_KEY environment variable is required");
+
+    // Same task string repeated once per agent — agents are paired with
+    // tasks by index, so this is how three agents review one subject.
+    let same_task = "Analyze the smartphone market segment and top products";
 
     let workflow_config = json!({
-        "name": "Product Review Analysis Grid",
-        "description": "Multiple analysts reviewing multiple product categories",
+        "name": "Product Review Analysis",
+        "description": "Three analysts reviewing the same product category",
         "agent_completions": [
             {
                 "agent_name": "Technical Analyst",
@@ -367,11 +388,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "temperature": 0.3
             }
         ],
-        "tasks": [
-            "Analyze the smartphone market segment and top products",
-            "Analyze the laptop market segment and top products",
-            "Analyze the tablet market segment and top products"
-        ],
+        "tasks": [same_task, same_task, same_task],
         "max_loops": 1
     });
 
@@ -398,65 +415,60 @@ async fn main() -> Result<(), Box<dyn Error>> {
 </Tab>
 </Tabs>
 
-**Example Response**:
+**Example Response** (one entry in `outputs` because `max_loops` is 1; all three agents reviewed the same repeated task string):
 ```json
 {
     "job_id": "batched-grid-workflow-XyZ123AbC456",
-    "name": "Product Review Analysis Grid",
-    "description": "Multiple analysts reviewing multiple product categories",
+    "name": "Product Review Analysis",
+    "description": "Three analysts reviewing the same product category",
     "status": "success",
     "outputs": [
         {
-            "Technical Analyst": "Smartphone Market Analysis: The current smartphone market is dominated by flagship devices with advanced processors (Snapdragon 8 Gen 3, Apple A17 Pro), high refresh rate displays (120Hz+), and improved camera systems with computational photography...",
-            "User Experience Analyst": "Smartphone Market Analysis: Modern smartphones excel in user experience with intuitive interfaces, gesture navigation, and seamless ecosystem integration. Top products like iPhone 15 Pro and Samsung Galaxy S24 Ultra offer polished UX with minimal learning curves...",
-            "Value Analyst": "Smartphone Market Analysis: The smartphone market offers varied value propositions. Flagship devices ($800-$1200) provide premium features but face strong competition from mid-range options ($400-$600) that deliver 80% of the performance at half the cost..."
-        },
-        {
-            "Technical Analyst": "Laptop Market Analysis: The laptop segment showcases impressive technical advancement with Apple's M3 chips, Intel's 14th Gen processors, and AMD's Ryzen 7000 series. Performance metrics show 40% improvements in multi-core workloads...",
-            "User Experience Analyst": "Laptop Market Analysis: User experience varies significantly by form factor and OS. MacBook Air/Pro lead in build quality and battery life, while Windows ultrabooks like Dell XPS offer flexibility. Gaming laptops trade portability for performance...",
-            "Value Analyst": "Laptop Market Analysis: Value positioning spans from budget Chromebooks ($300-$500) to premium workstations ($2000+). Best value currently found in mid-tier business laptops ($800-$1200) offering professional features without premium pricing..."
-        },
-        {
-            "Technical Analyst": "Tablet Market Analysis: Tablet technology centers on display quality (OLED, mini-LED), processor efficiency (M2, Snapdragon 8 Gen 2), and stylus integration. iPad Pro and Galaxy Tab S9 Ultra lead with desktop-class performance...",
-            "User Experience Analyst": "Tablet Market Analysis: Tablets excel for content consumption and creative work. iPad ecosystem offers superior app quality, while Android tablets provide better customization. Surface Pro bridges tablet-laptop gap with full desktop OS...",
-            "Value Analyst": "Tablet Market Analysis: Tablet value depends on use case. Budget tablets ($200-$400) suit basic needs, while premium options ($800-$1300) justify cost for professionals and creatives. Mid-tier options ($400-$600) offer best balance..."
+            "Technical Analyst": "Smartphone Market Analysis: The current smartphone market is dominated by flagship devices with advanced processors, high refresh rate displays, and improved camera systems with computational photography...",
+            "User Experience Analyst": "Smartphone Market Analysis: Modern smartphones excel in user experience with intuitive interfaces, gesture navigation, and seamless ecosystem integration...",
+            "Value Analyst": "Smartphone Market Analysis: The smartphone market offers varied value propositions. Flagship devices provide premium features but face strong competition from mid-range options..."
         }
     ],
     "usage": {
         "input_tokens": 450,
-        "output_tokens": 4850,
-        "total_tokens": 5300,
-        "token_cost": 0.12265,
+        "output_tokens": 2100,
+        "total_tokens": 2550,
+        "total_cost": 0.06765,
         "cost_per_agent": 0.03
     },
-    "timestamp": "2025-01-12T10:30:45.123456Z"
+    "timestamp": "2026-09-14T10:30:45.123456Z"
 }
 ```
 
 ## Advanced Example: Multi-Loop Refinement
 
+Same agent, same task, run for three loops. Because the agent instance is reused across loops and keeps its own conversation memory, each loop can build on what it wrote before.
+
 <Tabs>
 <Tab title="Python">
 ```python
+import os
 import requests
 
 API_BASE_URL = "https://api.swarms.world"
-API_KEY = "your_api_key_here"
+API_KEY = os.getenv("SWARMS_API_KEY")
 
 headers = {
     "x-api-key": API_KEY,
     "Content-Type": "application/json"
 }
 
-# Example with multiple loops for iterative refinement
+# One task, repeated per agent, run across 3 refinement loops.
+essay_task = "Write about the impact of artificial intelligence on society. In each loop, revise and strengthen the previous draft."
+
 workflow_config = {
-    "name": "Creative Writing Grid with Refinement",
-    "description": "Multiple writing styles with iterative improvement",
+    "name": "Essay Draft Refinement",
+    "description": "Three writers refining the same essay over multiple loops",
     "agent_completions": [
         {
             "agent_name": "Technical Writer",
             "description": "Clear, precise technical writing",
-            "system_prompt": "You are a technical writer. Write clearly and precisely, focusing on accuracy and comprehensibility. In subsequent loops, refine based on previous output.",
+            "system_prompt": "You are a technical writer. Write clearly and precisely, focusing on accuracy and comprehensibility.",
             "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.4
@@ -464,7 +476,7 @@ workflow_config = {
         {
             "agent_name": "Creative Writer",
             "description": "Engaging, narrative-driven writing",
-            "system_prompt": "You are a creative writer. Write engagingly with vivid descriptions and narrative flow. In subsequent loops, enhance the storytelling elements.",
+            "system_prompt": "You are a creative writer. Write engagingly with vivid descriptions and narrative flow.",
             "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.7
@@ -472,37 +484,35 @@ workflow_config = {
         {
             "agent_name": "Academic Writer",
             "description": "Formal, research-oriented writing",
-            "system_prompt": "You are an academic writer. Write formally with citations, evidence-based arguments, and scholarly tone. In subsequent loops, strengthen the academic rigor.",
+            "system_prompt": "You are an academic writer. Write formally with evidence-based arguments and a scholarly tone.",
             "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.3
         }
     ],
-    "tasks": [
-        "Write about the impact of artificial intelligence on society",
-        "Write about climate change solutions"
-    ],
-    "max_loops": 3  # Run 3 iterations for refinement
+    "tasks": [essay_task, essay_task, essay_task],
+    "max_loops": 3
 }
 
 response = requests.post(
     f"{API_BASE_URL}/v1/batched-grid-workflow/completions",
     headers=headers,
-    json=workflow_config
+    json=workflow_config,
+    timeout=600,
 )
 
 if response.status_code == 200:
     result = response.json()
     print(f"Workflow completed with {workflow_config['max_loops']} refinement loops")
     print(f"Total tokens: {result['usage']['total_tokens']}")
-    print(f"Total cost: ${result['usage']['token_cost']:.4f}")
+    print(f"Total cost: ${result['usage']['total_cost']:.4f}")
 
-    # Compare different writing styles for each topic
-    for task_idx, task_results in enumerate(result['outputs']):
+    # One entry per loop, each mapping agent name -> that loop's output.
+    for loop_idx, loop_results in enumerate(result["outputs"]):
         print(f"\n{'='*60}")
-        print(f"Topic {task_idx + 1}")
-        print('='*60)
-        for agent_name, output in task_results.items():
+        print(f"Loop {loop_idx + 1}")
+        print("=" * 60)
+        for agent_name, output in loop_results.items():
             print(f"\n{agent_name}:")
             print(output[:200] + "...")
 else:
@@ -510,6 +520,10 @@ else:
 ```
 </Tab>
 </Tabs>
+
+<Note>
+To refine several *different* topics in parallel, issue one request per topic (looping client-side), repeating that topic's task string across every agent in the request. A single request only ever pairs each agent with one task per loop.
+</Note>
 
 ## Request Schema
 
@@ -519,20 +533,20 @@ else:
 |-------|------|----------|-------------|
 | `name` | string | No | The name of the batched grid workflow |
 | `description` | string | No | A description of what the workflow does |
-| `agent_completions` | array | Yes | List of agent configurations (see AgentSpec below) |
-| `tasks` | array | Yes | List of tasks that each agent will process |
-| `max_loops` | integer | No | Number of iterations for refinement (default: 1). Must be between 1 and 50 — values outside that range are rejected with a `422` validation error |
+| `agent_completions` | array | No | List of agent configurations (see AgentSpec below). Paired 1:1 by index with `tasks`. At most 50 entries |
+| `tasks` | array | No | List of task strings, one per agent, matched by index to `agent_completions`. At most 50 entries. Must be the same length as `agent_completions` — a mismatch returns a `400` before any agent runs |
+| `max_loops` | integer | No | Number of times to rerun the same agent/task pairs, reusing the same agent instances (default: 1). Must be between 1 and 50 — values outside that range are rejected with a `422` validation error |
 | `imgs` | array | No | Accepted for forward compatibility, but not currently used in execution — passing images here has no effect on the run |
 
 ### AgentSpec
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `agent_name` | string | Yes | Unique name for the agent |
+| `agent_name` | string | No | Unique name for the agent |
 | `description` | string | No | Description of the agent's role |
 | `system_prompt` | string | No | System prompt defining agent behavior |
 | `model_name` | string | No | Model to use (e.g., "gpt-4.1", "claude-sonnet-4-20250514"); defaults to `claude-sonnet-5` |
-| `max_loops` | integer or string | No | Max loops per agent, or `"auto"` (default: 1) |
+| `max_loops` | integer or string | No | Max internal loops for this single agent's own run, or `"auto"` (default: 1). Independent of the workflow-level `max_loops` above |
 | `max_tokens` | integer | No | Maximum tokens the agent can generate (default: 16000); values below 1 are rejected with a 422 validation error |
 | `temperature` | float | No | Sampling temperature; if omitted, the provider's own default applies |
 | `role` | string | No | Agent's role within the swarm (default: "worker") |
@@ -546,8 +560,8 @@ else:
 | `job_id` | string | Unique identifier for the workflow execution |
 | `name` | string | Name of the workflow |
 | `description` | string | Description of the workflow |
-| `status` | string | Execution status ("success" or "error") |
-| `outputs` | array | Array of task results, each containing agent outputs mapped by agent name |
+| `status` | string | Execution status ("success"; a failed run returns a `400` instead of a `status: "error"` body — see Error Handling) |
+| `outputs` | array | One entry per loop (length == `max_loops`); each entry maps every agent's name to its output for that loop |
 | `usage` | object | Token usage and cost information |
 | `timestamp` | string | ISO 8601 timestamp of completion |
 
@@ -555,105 +569,80 @@ else:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `input_tokens` | integer | Total input tokens consumed |
-| `output_tokens` | integer | Total output tokens generated |
+| `input_tokens` | integer | Total input tokens consumed building the agents |
+| `output_tokens` | integer | Total output tokens across all loops and agents |
 | `total_tokens` | integer | Sum of input and output tokens |
-| `token_cost` | float | Total credits charged for the run: input and output token costs plus `cost_per_agent` |
-| `cost_per_agent` | float | Fixed cost per agent (0.01 credits per agent) |
+| `total_cost` | float | Total credits charged for the run: token costs plus `cost_per_agent` |
+| `cost_per_agent` | float | `0.01` credits per agent in `agent_completions` (charged once per request, not per loop) |
 
 ## Pricing
 
 BatchedGridWorkflow uses unified pricing with agent costs. For detailed pricing information, see the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
 
-## Grid Execution Pattern
+## Partial Failures
 
-The BatchedGridWorkflow creates a matrix where:
-- **Rows**: Represent tasks
-- **Columns**: Represent agents
-- **Cells**: Contain each agent's response to each task
+This endpoint does **not** report partial failures the way `/v1/agent/batch/completions` and `/v1/swarm/batch/completions` do. Those two return `200` with per-item `success`/`status` fields even when some items fail. BatchedGridWorkflow is all-or-nothing at the request level:
 
-```
-                Agent 1         Agent 2         Agent 3
-Task 1      [Response 1.1]  [Response 1.2]  [Response 1.3]
-Task 2      [Response 2.1]  [Response 2.2]  [Response 2.3]
-Task 3      [Response 3.1]  [Response 3.2]  [Response 3.3]
-```
+- If `agent_completions` and `tasks` differ in length, or agent construction fails, the whole request fails with a single `400` and no `outputs` are returned.
+- If the workflow run itself raises, the whole request fails with a `400` whose `detail` starts with `"BatchedGridWorkflowCompletionError: "` followed by the underlying error.
+- Nothing is charged for a request that fails outright — billing only happens after a successful run.
 
-The output structure groups results by task:
-```python
-outputs = [
-    {  # Task 1 results
-        "Agent 1": "Response 1.1",
-        "Agent 2": "Response 1.2",
-        "Agent 3": "Response 1.3"
-    },
-    {  # Task 2 results
-        "Agent 1": "Response 2.1",
-        "Agent 2": "Response 2.2",
-        "Agent 3": "Response 2.3"
-    }
-]
-```
+Because of this, don't rely on this endpoint for large fan-outs where you expect some items to fail independently — use `/v1/agent/batch/completions` for that instead, and reserve BatchedGridWorkflow for cases where you want index-paired agents/tasks with shared, memory-carrying refinement loops.
 
 ## Best Practices
 
 ### When to Use BatchedGridWorkflow
 
-- **Comparative Analysis**: Need multiple perspectives on the same set of tasks
-- **A/B Testing**: Testing different agent configurations on identical inputs
-- **Multi-Expert Review**: Multiple specialists reviewing the same items
-- **Style Variations**: Generating content in different styles or tones
-- **Quality Assurance**: Multiple reviewers checking all aspects
+- **Multi-perspective analysis**: several specialist agents reviewing the same input (repeat the task string per agent)
+- **Iterative refinement**: `max_loops > 1` when an agent should revise its own answer using memory of earlier loops
+- **A/B testing**: comparing different agent configurations against identical input
+- **Paired dispatch**: N independent agent/task jobs in one request, when you don't need per-item failure isolation
 
-### When to Use Other Workflows
+### When to Use Other Endpoints
 
-- **Sequential dependencies**: Use [SequentialWorkflow](/docs/documentation/multi-agent/sequential_workflow)
-- **Independent parallel tasks**: Use [ConcurrentWorkflow](/docs/documentation/multi-agent/concurrent_workflow)
-- **Task routing**: Use [MultiAgentRouter](/docs/documentation/multi-agent/multi_agent_router)
-- **Consensus decisions**: Use [MajorityVoting](/docs/documentation/multi-agent/majority_voting)
+- **Independent jobs where some may fail**: use [Batch Agent Completions](/docs/examples/examples/batch-processing) — failures are reported per item instead of failing the whole request
+- **Sequential dependencies**: use [SequentialWorkflow](/docs/documentation/multi-agent/sequential_workflow)
+- **Independent parallel tasks within one swarm**: use [ConcurrentWorkflow](/docs/documentation/multi-agent/concurrent_workflow)
+- **Task routing**: use [MultiAgentRouter](/docs/documentation/multi-agent/multi_agent_router)
+- **Consensus decisions**: use [MajorityVoting](/docs/documentation/multi-agent/majority_voting)
 
 ### Design Recommendations
 
-1. **Agent Diversity**: Design agents with distinct specializations for meaningful comparisons
-2. **Task Granularity**: Break complex topics into specific tasks for better analysis
-3. **Temperature Settings**: Use lower temperatures (0.3-0.5) for analytical tasks, higher (0.6-0.8) for creative tasks
-4. **Iterative Refinement**: Use `max_loops > 1` when quality improvement is worth the added cost
-5. **Result Processing**: Implement post-processing to compare and synthesize agent outputs
+1. **Match array lengths first**: build `agent_completions` and `tasks` together so they never drift out of sync
+2. **Repeat task strings deliberately**: duplicate a task string across every agent when you want a shared-subject comparison; use distinct strings when you want independent paired jobs
+3. **Temperature Settings**: use lower temperatures (0.3-0.5) for analytical tasks, higher (0.6-0.8) for creative tasks
+4. **Iterative Refinement**: use `max_loops > 1` when quality improvement from an agent revisiting its own memory is worth the added cost
+5. **Result Processing**: iterate `outputs` by loop index, not by task index
 
 ### Cost Optimization
 
-- Start with fewer agents and tasks to test your workflow
-- Use appropriate models (`claude-sonnet-4-20250514` or `gpt-4.1` for quality, `gpt-4.1-mini` for cost)
+- Start with a small agent/task pair count to test your workflow before scaling to 50
+- Use appropriate models (`claude-sonnet-4-20250514` or `gpt-4.1` for quality, a smaller model for cost-sensitive runs)
 - Monitor token usage and adjust prompt verbosity
-- Cache common results when possible
-- Batch multiple related workflows in a single session
+- Remember `max_loops` multiplies output tokens roughly linearly — a `max_loops=3` run costs about 3x the output tokens of `max_loops=1`
 
 ## Error Handling
 
 The API returns standard HTTP status codes:
 
 - **200**: Success
-- **400**: Bad request (invalid configuration)
+- **400**: Bad request — `agent_completions`/`tasks` length mismatch, invalid agent configuration, or a failure during workflow execution
 - **401**: Unauthorized (invalid API key)
 - **402**: Payment required (insufficient credits)
+- **403**: Forbidden (account is not on a premium tier)
+- **422**: Validation error — `agent_completions` or `tasks` has more than 50 entries, or `max_loops` is outside 1-50
 - **500**: Server error
 
-Example error response:
+Example error response for a length mismatch:
 ```json
 {
-    "detail": "BatchedGridWorkflowCompletionError: Invalid agent configuration"
+    "detail": "BatchedGridWorkflowCompletionError: The number of agents must match the number of tasks."
 }
 ```
 
-## Limitations
-
-- Maximum recommended: 10 agents × 10 tasks (100 total executions per workflow)
-- Each agent-task combination counts toward rate limits
-- Large grids may experience longer processing times
-- Token limits apply per agent execution
-
 ## Related Workflows
 
+- [Batch Agent Completions](/docs/examples/examples/batch-processing) - For independent jobs with per-item failure reporting
 - [SequentialWorkflow](/docs/documentation/multi-agent/sequential_workflow) - For step-by-step processing
 - [ConcurrentWorkflow](/docs/documentation/multi-agent/concurrent_workflow) - For parallel independent tasks
 - [MixtureOfAgents](/docs/documentation/multi-agent/mixture_of_agents) - For combining diverse specialists

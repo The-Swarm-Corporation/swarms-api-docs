@@ -40,7 +40,7 @@ The request body is a single `ReasoningAgentSpec` object.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `task` | `string` | Yes | `null` | The task to be completed by the reasoning agent |
+| `task` | `string` | No* | `null` | The task to be completed by the reasoning agent. Not enforced by the schema, but the run has nothing to do without it — always send it |
 | `agent_name` | `string` | No | `"reasoning-agent"` | Unique name assigned to the reasoning agent |
 | `description` | `string` | No | `"A reasoning agent that can answer questions and help with tasks."` | Explanation of the agent's purpose and capabilities |
 | `model_name` | `string` | No | `"claude-sonnet-4-20250514"` | The AI model backing the reasoning agent |
@@ -58,19 +58,24 @@ The request body is a single `ReasoningAgentSpec` object.
 
 | Value | Description |
 |-------|-------------|
-| `reasoning-duo` | Two agents in dialogue — one reasons, one critiques |
-| `reasoning-agent` | Single agent with extended reasoning |
-| `self-consistency` | Samples multiple independent answers and reconciles them |
-| `consistency-agent` | Consistency-checking variant |
-| `ire` | Iterative reflective expansion |
-| `ire-agent` | IRE agent variant |
-| `ReflexionAgent` | Reflects on prior attempts and revises |
-| `GKPAgent` | Generated-knowledge prompting |
-| `AgentJudge` | Judges and scores candidate answers |
+| `reasoning-duo` | Two internal agents per call: a reasoning/critique pass (fixed to `gpt-4o`) and a main answering pass on your requested `model_name` |
+| `reasoning-agent` | Alias for `reasoning-duo` — identical two-agent architecture |
+| `self-consistency` | Samples multiple independent answers (`num_samples`) and reconciles them into one result |
+| `consistency-agent` | Alias for `self-consistency` |
+| `ire` | Iterative Reflective Expansion — expands and revises a solution over repeated passes, driven by `num_samples` rather than `max_loops` |
+| `ire-agent` | Alias for `ire` |
+| `ReflexionAgent` | Attempts the task, evaluates its own output, and revises using a short/long-term memory of prior attempts |
+| `GKPAgent` | Generates supporting background knowledge first, then reasons from it to answer |
+| `AgentJudge` | Reviews and critiques a candidate output rather than generating a fresh answer from scratch |
 
 <Note>
 The default is `reasoning_duo` (underscore), while the enum lists `reasoning-duo` (hyphen). Pass one of the enumerated values explicitly rather than relying on the default. Call [`GET /v1/reasoning-agent/types`](/docs/examples/examples/reasoning-agent-types) for the live list.
 </Note>
+
+Two more implementation details, grounded in the `swarms` package's `ReasoningAgentRouter` (the router this endpoint delegates to) and not visible from the table above:
+
+- For `ire`/`ire-agent`, this endpoint does not forward `max_loops` to the router at all — that architecture uses `num_samples` as its loop count instead.
+- For `GKPAgent`, `max_loops` has no effect: its underlying implementation doesn't accept a loop count.
 
 ### Output Types
 
@@ -215,7 +220,8 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
   "usage": {
     "input_tokens": 180,
     "output_tokens": 940,
-    "total_tokens": 1120
+    "total_tokens": 1120,
+    "total_cost": 0.019345
   }
 }
 ```
@@ -231,7 +237,7 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 | `agent_name` | `string` | Name of the agent |
 | `agent_type` | `string` | The reasoning architecture that ran (the `swarm_type`) |
 | `agent_id` | `string` | Unique identifier for the agent instance |
-| `usage` | `object` | Token counts — integer values keyed by name |
+| `usage` | `object` | `input_tokens`, `output_tokens`, `total_tokens` (integers), plus `total_cost` (a float — the credits charged for this run) |
 
 <Warning>
 `outputs` is deliberately untyped in the schema: a `self-consistency` run and a `reasoning-duo` run return different structures, and `output_type` changes it again. Do not assume a fixed shape — branch on `agent_type`, or pin `output_type` to `final` when you only need the answer string.
@@ -242,11 +248,16 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 | Code | Meaning |
 |------|---------|
 | `200` | Completion returned successfully |
-| `401` | Missing or invalid `x-api-key` |
-| `402` | Credit balance below $1.00 |
+| `400` | API key present but not recognized — rejected before the request reaches the route handler |
+| `401` | Missing `x-api-key` (and no `Authorization: Bearer` fallback) |
+| `402` | Credit balance at or below $1.00 |
 | `403` | Free tier — premium subscription required |
-| `422` | Validation error — malformed body or missing `x-api-key` header |
+| `422` | Malformed request body (e.g. invalid `swarm_type`, or `max_loops` outside 1–50) |
 | `429` | Rate limit exceeded |
+
+<Note>
+This endpoint is both premium-only and billable, so a request is checked, in order, for: API key presence (401), API key validity (400), credit balance (402), and premium tier (403) — all before the reasoning agent runs. Every error from this pre-flight check is returned in the shape `{"error": {"type": ..., "message": ..., "detail": ..., "status_code": ...}}`.
+</Note>
 
 ## When to Use a Reasoning Agent
 

@@ -282,10 +282,44 @@ Batch processing is ideal for:
 
 ## Expected Output
 
-The batch processor will return results for each task:
-- Bloodwork analysis with diagnosis and recommendations
-- Radiology report summary in patient-friendly language
-- Each result maintains the structure and quality of individual agent runs
+The endpoint returns an envelope, not a bare array — `batch_id`, `total_requests`, `execution_time`, `timestamp`, and a `results` array with one entry per item **in request order**:
+
+```json
+{
+    "batch_id": "agent-batch-a1b2c3d4",
+    "total_requests": 2,
+    "execution_time": 4.82,
+    "timestamp": "2026-09-14T10:30:45.123456Z",
+    "results": [
+        {
+            "job_id": "agent-e5f6g7h8",
+            "success": true,
+            "name": "Bloodwork Diagnosis Expert",
+            "description": "Expert in blood work interpretation.",
+            "temperature": 0.5,
+            "outputs": [{"role": "assistant", "content": "..."}],
+            "usage": {"input_tokens": 210, "output_tokens": 180, "total_tokens": 390, "total_cost": 0.0047},
+            "timestamp": "2026-09-14T10:30:44.900000Z"
+        },
+        {
+            "success": false,
+            "name": "Radiology Report Summarizer",
+            "detail": "Failed to run agent: ...",
+            "status_code": 500
+        }
+    ]
+}
+```
+
+A failed item does **not** abort the batch or raise an HTTP error for the whole request — the request still returns `200`, and that item's slot in `results` has `"success": false` plus `detail`/`status_code` instead of `outputs`/`usage`. Always check `success` on each result before reading `outputs`:
+
+```python
+for item in result["results"]:
+    if item.get("success"):
+        print(item["name"], "->", item["outputs"])
+    else:
+        print(item.get("name"), "FAILED:", item.get("detail"))
+```
 
 ## Environment Setup
 

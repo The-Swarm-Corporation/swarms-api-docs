@@ -7,16 +7,20 @@ description: "Run single agents and multi-agent swarms on Anthropic's strongest 
 
 - How to point a single agent at Claude Opus 4.8
 - How to run a hierarchical multi-agent swarm on Opus 4.8
-- The correct model name to use (`anthropic/claude-opus-4-8`)
-- Why you should omit `temperature` for this model
+- The correct model name to use (`claude-opus-4-8`)
+- Why this is a premium-only model, and the free-tier alternative
 
 <Info>
 Claude Opus 4.8 is Anthropic's most capable reasoning model. It is wired into every multi-agent primitive on the Swarms platform — sequential workflows, hierarchical swarms, agent rearrange, group chats, mixture-of-agents, and more. Switching is a one-line change in your agent config.
 </Info>
 
 <Warning>
-Claude Opus 4.8 has deprecated the `temperature` parameter. Do not pass `temperature` in your `agent_config` for this model — the Swarms API will omit it automatically when the field is unset, and the provider's own default will apply. Setting `temperature` to a number will be rejected by Anthropic with a 400.
+`claude-opus-4-8` is a **premium-only** model. A free-tier API key that requests it gets back a 403 with `"error": "Premium model access required"` and a list of `suggested_alternatives` (`claude-sonnet-5`, `gpt-5.5`, `gemini-3.5-flash`). Upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account), or use `claude-sonnet-5` — the free-tier default model — if you don't have a premium subscription.
 </Warning>
+
+<Note>
+Leaving `temperature` unset is always safe: the Swarms API only sends a `temperature` value upstream when you set one, and the provider applies its own default otherwise. If a specific model rejects a numeric `temperature`, omitting the field avoids the problem.
+</Note>
 
 ## Step 1: Get Your API Key
 
@@ -64,7 +68,7 @@ result = client.agent.run(
             "explaining their clinical significance, and recommending next diagnostic or treatment steps. "
             "Provide clear, evidence-based explanations and consider differential diagnoses based on blood test findings."
         ),
-        "model_name": "anthropic/claude-opus-4-8",
+        "model_name": "claude-opus-4-8",
         "max_loops": 1,
         "max_tokens": 8192,
     },
@@ -78,8 +82,8 @@ print(json.dumps(result, indent=4))
 
 | Field | Before | With Opus 4.8 |
 | --- | --- | --- |
-| `model_name` | `gpt-4.1`, `claude-haiku-4-5-20251001`, etc. | `anthropic/claude-opus-4-8` |
-| `temperature` | `0.5` (or any float) | omit the field entirely |
+| `model_name` | `gpt-4.1`, `claude-haiku-4-5-20251001`, etc. | `claude-opus-4-8` |
+| Subscription | any tier | premium tier required |
 | Everything else | — | unchanged |
 
 ## Multi-Agent Swarm on Claude Opus 4.8
@@ -118,7 +122,7 @@ result = client.swarms.run(
                 "You are an ETF analyst. Given a ticker, summarize the fund's "
                 "exposure, recent flows, and near-term outlook in under 200 words."
             ),
-            "model_name": "anthropic/claude-opus-4-8",
+            "model_name": "claude-opus-4-8",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 4096,
@@ -130,7 +134,7 @@ result = client.swarms.run(
                 "You are an equity analyst. Given a ticker, summarize the company's "
                 "fundamentals, catalysts, and near-term outlook in under 200 words."
             ),
-            "model_name": "anthropic/claude-opus-4-8",
+            "model_name": "claude-opus-4-8",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 4096,
@@ -147,7 +151,7 @@ For `HierarchicalSwarm`, you only need to define the worker agents — the direc
 
 ## Using Opus 4.8 in Other Swarm Types
 
-Every other swarm architecture takes the same `model_name`. Drop `"model_name": "anthropic/claude-opus-4-8"` into any agent inside any of these swarm configs:
+Every other swarm architecture takes the same `model_name`. Drop `"model_name": "claude-opus-4-8"` into any agent inside any of these swarm configs:
 
 - `SequentialWorkflow`
 - `ConcurrentWorkflow`
@@ -160,19 +164,14 @@ Every other swarm architecture takes the same `model_name`. Drop `"model_name": 
 - `HeavySwarm`
 - `LLMCouncil`
 - `DebateWithJudge`
-- `BatchedGridWorkflow`
 - `RoundRobin`
 - `PlannerWorkerSwarm`
-- `auto`
 
 ## Common Pitfalls
 
 <AccordionGroup>
-  <Accordion title="500 error: '`temperature` is deprecated for this model.'">
-    You set `temperature` in your `agent_config`. Remove the field entirely — the Swarms API will then omit it from the upstream Anthropic call. If you have legacy code that always sends a float, set it to `None` and rely on the Swarms API to strip it.
-  </Accordion>
-  <Accordion title="422 error on swarm_type">
-    Use `HierarchicalSwarm` (correctly spelled). Earlier versions of the API accepted the misspelled `HiearchicalSwarm`; the current schema only accepts the correct spelling.
+  <Accordion title="Premium model access required">
+    You called `claude-opus-4-8` from a free-tier API key. The response is a 403 with `"error": "Premium model access required"` and a `suggested_alternatives` list. Either upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) or switch `model_name` to a free-tier model such as `claude-sonnet-5`.
   </Accordion>
   <Accordion title="Where do I find pricing?">
     The Swarms API bills token usage at the same flat rate for every model — $6.50 per million input tokens and $18.50 per million output tokens. See the [pricing page](/docs/documentation/resources/pricing) for current rates.

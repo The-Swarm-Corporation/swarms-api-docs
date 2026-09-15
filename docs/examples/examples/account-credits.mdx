@@ -8,7 +8,7 @@ description: 'Retrieve your current API credit balance including regular, free, 
 Retrieve your current API credit balance from the `/v1/account/credits` endpoint. This endpoint provides detailed information about all credit types associated with your account, including regular credits, free credits, referral credits, and the total available balance.
 
 <Info>
-Credits are automatically deducted after each API request completes. Free credits are used first, followed by regular credits. Check your balance regularly to ensure you have sufficient credits for your operations.
+Credits are automatically deducted after each API request completes, drawing down `free_credit` first, then `referral_credits`, then `credit` (regular/purchased). Check your balance regularly to ensure you have sufficient credits for your operations.
 </Info>
 
 ## Quick Start
@@ -258,12 +258,17 @@ Credits are automatically deducted after each API request completes. Free credit
 
 ## Credit Usage Order
 
-Credits are deducted in the following order:
+Each charge is deducted from your account in this exact order (see `deduct_credits` in `api/database_ops.py`):
 
-1. **Free Credits** - Used first for all API operations
-2. **Regular Credits** - Used once free credits are exhausted (purchased and referral credits are combined into this balance)
+1. **`free_credit`** - Spent first
+2. **`referral_credits`** - Spent next, once `free_credit` is exhausted
+3. **`credit`** (regular/purchased) - Spent last, once both of the above are exhausted
 
-This ensures you maximize the value of free credits before drawing down your paid balance.
+Each bucket is tracked and returned separately in the `CreditBalanceOutput` response — `referral_credits` is not merged into `credit`. This ensures you maximize the value of free and referral credits before drawing down your paid balance. A request fails with `402 Payment Required` if `credit + free_credit + referral_credits` is less than the charge.
+
+<Note>
+Separately from the per-request charge check above, billable endpoints (`/v1/swarm/completions`, `/v1/chat/completions`, `/v1/agent/completions`, `/v1/agent/batch/completions`, and the other completion routes) require a **total credit balance greater than $1.00** (`credit + free_credit + referral_credits`) before the request is even accepted — this is a pre-flight guard in the API key middleware, independent of what the specific request ends up costing.
+</Note>
 
 ## Use Cases
 

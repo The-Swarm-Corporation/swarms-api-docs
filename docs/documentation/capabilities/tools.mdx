@@ -1,532 +1,210 @@
 ---
-title: 'Streaming'
-description: 'Real-time streaming responses for immediate agent feedback and better user experience'
+title: 'Tools'
+description: 'The three ways an agent can call tools: built-in tools, the autonomous looper, and custom function calling'
 ---
 
+<Note>
+This page was previously a duplicate of the [Streaming Responses](/docs/examples/examples/streaming) guide. It now documents the API's tool mechanisms, which live under this "Tools" section of the docs.
+</Note>
 
+The Swarms API gives an agent access to tools through three independent mechanisms. They can be combined on the same request.
 
-The Swarms API supports real-time streaming responses, allowing you to receive agent outputs as they're generated. This provides immediate feedback and a better user experience for long-running tasks.
+| Mechanism | Field | Where | What it gives the agent |
+|-----------|-------|-------|--------------------------|
+| Built-in tools | `tools_enabled` | Top level of the `/v1/agent/completions` request body | Search the web (`auto_search`) and scrape a page (`web_scraper`) |
+| Autonomous looper tools | `selected_tools` | `agent_config` (only used when `agent_config.max_loops` is `"auto"`) | Planning, file, and sub-agent tools for the autonomous execution loop |
+| Custom function tools | `tools_list_dictionary` | `agent_config` | Your own function-calling tools, defined with an OpenAI-style JSON schema |
 
-<Info>
-Streaming is enabled by setting `"streaming_on": true` in your agent configuration.
-</Info>
+Custom function tools (`tools_list_dictionary`) and structured JSON output (`llm_args.response_format`) are documented in full, with worked examples and response parsing, on the [Structured Outputs & Function Calling](/docs/documentation/capabilities/swarms_api_tools) page. This page covers the other two mechanisms: built-in tools and the autonomous looper's tools.
 
-## Quick Start
+## Built-in tools (`tools_enabled`)
 
-Enable streaming by adding the `streaming_on` parameter to your agent configuration:
+The API ships exactly two built-in tools. Enable them by name in the `tools_enabled` array on the request body — a sibling of `agent_config`, not a field inside it:
+
+```json
+{
+  "agent_config": {
+    "agent_name": "Research Assistant",
+    "model_name": "gpt-4.1",
+    "max_loops": 1
+  },
+  "tools_enabled": ["auto_search", "web_scraper"],
+  "task": "Find the latest release notes for the Swarms Python SDK and summarize the changes."
+}
+```
+
+| Tool | What it does |
+|------|--------------|
+| `auto_search` | Runs a web search and returns results the agent can reason over. |
+| `web_scraper` | Fetches and formats the content of a URL. |
+
+Fetch the live catalog of built-in tool names at any time:
+
+```bash
+curl -X GET "https://api.swarms.world/v1/tools/available" \
+  -H "x-api-key: $SWARMS_API_KEY"
+```
+
+```json
+{
+  "status": "success",
+  "tools": ["auto_search", "web_scraper"]
+}
+```
 
 <Tabs>
-  <Tab title="Python">
-    ```python
-    import requests
-    import json
-    import os
-    from dotenv import load_dotenv
+<Tab title="Python">
+```python
+import os
+import requests
+from dotenv import load_dotenv
 
-    load_dotenv()
+load_dotenv()
 
-    API_KEY = os.getenv("SWARMS_API_KEY")
-    BASE_URL = "https://api.swarms.world"
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
 
-    headers = {
-        "x-api-key": API_KEY,
-        "Content-Type": "application/json",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no"
-    }
+headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
-    payload = {
-        "agent_config": {
-            "agent_name": "Research Analyst",
-            "model_name": "claude-sonnet-4-20250514",
-            "max_tokens": 8192,
-            "streaming_on": True
-        },
-        "task": "What are the key trends in AI development?"
-    }
+payload = {
+    "agent_config": {
+        "agent_name": "Research Assistant",
+        "description": "Researches a topic using live web search",
+        "system_prompt": "Use search to find current information before answering.",
+        "model_name": "gpt-4.1",
+        "max_loops": 1,
+        "max_tokens": 4096,
+    },
+    "tools_enabled": ["auto_search", "web_scraper"],
+    "task": "Find the latest release notes for the Swarms Python SDK and summarize the changes.",
+}
 
-    response = requests.post(
-        f"{BASE_URL}/v1/agent/completions",
-        headers=headers,
-        json=payload,
-        stream=True
-    )
-    ```
-  </Tab>
-  <Tab title="JavaScript">
-    ```javascript
-    const fetch = require('node-fetch');
-    require('dotenv').config();
+response = requests.post(
+    f"{BASE_URL}/v1/agent/completions",
+    headers=headers,
+    json=payload,
+)
+response.raise_for_status()
+print(response.json())
+```
+</Tab>
+<Tab title="TypeScript">
+```typescript
+const API_KEY = process.env.SWARMS_API_KEY;
+const BASE_URL = "https://api.swarms.world";
 
-    const API_KEY = process.env.SWARMS_API_KEY;
-    const BASE_URL = "https://api.swarms.world";
+const payload = {
+  agent_config: {
+    agent_name: "Research Assistant",
+    description: "Researches a topic using live web search",
+    system_prompt: "Use search to find current information before answering.",
+    model_name: "gpt-4.1",
+    max_loops: 1,
+    max_tokens: 4096,
+  },
+  tools_enabled: ["auto_search", "web_scraper"],
+  task: "Find the latest release notes for the Swarms Python SDK and summarize the changes.",
+};
 
-    const headers = {
-        "x-api-key": API_KEY,
-        "Content-Type": "application/json",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no"
-    };
+const response = await fetch(`${BASE_URL}/v1/agent/completions`, {
+  method: "POST",
+  headers: {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(payload),
+});
 
-    const payload = {
-        agent_config: {
-            agent_name: "Research Analyst",
-            model_name: "claude-sonnet-4-20250514",
-            max_tokens: 8192,
-            streaming_on: true
-        },
-        task: "What are the key trends in AI development?"
-    };
-
-    const response = await fetch(`${BASE_URL}/v1/agent/completions`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload)
-    });
-    ```
-  </Tab>
-  <Tab title="cURL">
-    ```bash
-    curl -X POST "https://api.swarms.world/v1/agent/completions" \
-      -H "x-api-key: your-api-key" \
-      -H "Content-Type: application/json" \
-      -H "Connection: keep-alive" \
-      -H "X-Accel-Buffering: no" \
-      -d '{
-        "agent_config": {
-          "agent_name": "Research Analyst",
-          "model_name": "claude-sonnet-4-20250514",
-          "max_tokens": 8192,
-          "streaming_on": true
-        },
-        "task": "What are the key trends in AI development?"
-      }' \
-      --no-buffer -N
-    ```
-  </Tab>
+const result = await response.json();
+console.log(JSON.stringify(result, null, 2));
+```
+</Tab>
+<Tab title="cURL">
+```bash
+curl -X POST "https://api.swarms.world/v1/agent/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_config": {
+      "agent_name": "Research Assistant",
+      "description": "Researches a topic using live web search",
+      "system_prompt": "Use search to find current information before answering.",
+      "model_name": "gpt-4.1",
+      "max_loops": 1,
+      "max_tokens": 4096
+    },
+    "tools_enabled": ["auto_search", "web_scraper"],
+    "task": "Find the latest release notes for the Swarms Python SDK and summarize the changes."
+  }'
+```
+</Tab>
 </Tabs>
 
-## Stream Format
+### Billing
 
-The API uses Server-Sent Events (SSE) format. Each frame is a `data:` line, optionally preceded by an `event:` line naming the event type. The very first frame (job metadata) is sent **without** an `event:` line — identify it by `"type": "metadata"` inside the payload:
+| Tool | Cost |
+|------|------|
+| `auto_search` | $0.04 per request |
+| `web_scraper` | $0.15 per request |
 
-```
-data: {"job_id": "abc123", "success": true, "name": "Research Analyst", "temperature": 0.7, "stream": true, "type": "metadata"}
+<Warning>
+Each built-in tool listed in `tools_enabled` is charged **once per agent completion request**, at the moment the request is set up — not per individual search or scrape the agent performs during its run, and regardless of whether the agent ends up calling the tool at all while completing the task. Only enable a tool for requests that actually need it.
+</Warning>
 
-event: start
-data: {"message": "Starting agent processing..."}
+Current per-unit prices are also available from [`GET /v1/usage/costs`](/docs/documentation/resources/pricing) (`usage_pricing.search_cost`, `usage_pricing.scrape_cost`) rather than hardcoding them, since they can change.
 
-event: chunk
-data: {"content": "Based on current research", "timestamp": "2026-07-09T12:00:00Z"}
+## Autonomous looper tools (`selected_tools`)
 
-event: chunk
-data: {"content": ", AI development shows", "timestamp": "2026-07-09T12:00:01Z"}
+When `agent_config.max_loops` is set to `"auto"`, the agent runs in an autonomous execution loop backed by its own internal tool set — separate from `tools_enabled` and `tools_list_dictionary`. Use `agent_config.selected_tools` to restrict which of these tools are available; omit it (or pass `"all"`) to allow every tool in the list below.
 
-event: usage
-data: {"input_tokens": 42, "output_tokens": 108, "total_tokens": 150, "img_cost": 0, "total_cost": 0.00075}
-
-event: end
-data: {"job_id": "abc123", "usage": {"...": "..."}, "timestamp": "2026-07-09T12:00:02Z", "complete": true}
-
-event: done
-data: {"message": "Agent processing complete"}
-```
-
-On failure, a single `error` event is sent instead of `usage`/`end`/`done`:
-
-```
-event: error
-data: {"error": "AgentCompletionError: ...", "timestamp": "2026-07-09T12:00:02Z"}
+```json
+{
+  "agent_config": {
+    "agent_name": "Autonomous Coordinator",
+    "model_name": "gpt-4.1",
+    "max_loops": "auto",
+    "selected_tools": ["create_plan", "think", "complete_task", "respond_to_user"]
+  },
+  "task": "Plan and execute a multi-step research task, reporting back when done."
+}
 ```
 
-## Parsing Streams
+The full set of 12 tools the autonomous loop can use:
 
-Here's how to parse streaming responses in different languages:
+| Tool | Description |
+|------|--------------|
+| `create_plan` | Create or revise the step-by-step plan for completing the task. Can be called again mid-run to add, split, drop, or reorder steps as the agent learns more. |
+| `think` | Analyze the current situation and decide the next action. |
+| `subtask_done` | Mark a subtask as completed and move to the next step in the plan. |
+| `complete_task` | Mark the main task as complete and provide a comprehensive summary. |
+| `respond_to_user` | Send a message or response to the user — for status updates, questions, or important information. |
+| `create_file` | Create a new file with specified content in the agent's workspace. |
+| `update_file` | Update an existing file, replacing its contents or appending to it. |
+| `read_file` | Read the contents of a file. |
+| `list_directory` | List files and directories at a given path. |
+| `delete_file` | Delete a file. Irreversible — use with caution. |
+| `create_sub_agent` | Create one or more specialized sub-agents, cached for reuse across task assignments. |
+| `assign_task` | Assign a task to one or more previously created sub-agents; they run asynchronously. |
 
-<Tabs>
-  <Tab title="Python">
-    ```python
-    def parse_streaming_response(response):
-        """Parse streaming response and handle events"""
-        full_content = ""
-        current_event = None
-        
-        for line in response.iter_lines():
-            if not line:
-                continue
-                
-            line = line.decode("utf-8")
-            
-            # Parse event type
-            if line.startswith("event: "):
-                current_event = line[7:].strip()
-                continue
-            
-            # Parse event data
-            elif line.startswith("data: "):
-                try:
-                    data = json.loads(line[6:])
-                    
-                    # The first frame has no "event:" line — identify it by
-                    # its "type" field instead.
-                    if current_event is None and data.get("type") == "metadata":
-                        print(f"Job ID: {data.get('job_id')}")
-                        print(f"Agent: {data.get('name')}")
-                        print("-" * 40)
+<Warning>
+`run_bash` is **not** permitted. There is no arbitrary shell-execution tool available through the autonomous loop, regardless of what `selected_tools` requests — the API filters the tool list down to the 12 above before the agent runs.
+</Warning>
 
-                    elif current_event == "start":
-                        print(data.get("message", "Starting..."))
+`create_sub_agent` and `assign_task` power dynamic sub-agent delegation — see [Sub-Agent Delegation](/docs/documentation/capabilities/sub_agents) for a full walkthrough, including how sub-agents inherit the coordinator's model and tools.
 
-                    elif current_event == "chunk":
-                        content = data.get("content", "")
-                        full_content += content
-                        print(content, end="", flush=True)
-                    
-                    elif current_event == "usage":
-                        print(f"\nTokens used: {data.get('total_tokens')}")
-                        print(f"Cost: ${data.get('total_cost', 0):.4f}")
+## Related resources
 
-                    elif current_event == "end":
-                        print(f"\nJob {data.get('job_id')} complete")
-
-                    elif current_event == "done":
-                        print("\n✅ Complete!")
-                    
-                    elif current_event == "error":
-                        print(f"\n❌ Error: {data.get('error')}")
-                        
-                except json.JSONDecodeError:
-                    continue
-        
-        return full_content
-    ```
-  </Tab>
-  <Tab title="JavaScript">
-    ```javascript
-    async function parseStreamingResponse(response) {
-        let fullContent = "";
-        let currentEvent = null;
-        
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
-            
-            for (const line of lines) {
-                if (line.startsWith('event: ')) {
-                    currentEvent = line.substring(7).trim();
-                    continue;
-                }
-                
-                if (line.startsWith('data: ')) {
-                    try {
-                        const data = JSON.parse(line.substring(6));
-                        
-                        // The first frame has no "event: " line — identify it
-                        // by its "type" field instead.
-                        if (currentEvent === null && data.type === 'metadata') {
-                            console.log(`Job ID: ${data.job_id}`);
-                            console.log(`Agent: ${data.name}`);
-                            console.log("-".repeat(40));
-                        } else if (currentEvent === 'start') {
-                            console.log(data.message || "Starting...");
-                        } else if (currentEvent === 'chunk') {
-                            const content = data.content || "";
-                            fullContent += content;
-                            process.stdout.write(content);
-                        } else if (currentEvent === 'usage') {
-                            console.log(`\nTokens used: ${data.total_tokens}`);
-                            console.log(`Cost: $${data.total_cost?.toFixed(4) || 0}`);
-                        } else if (currentEvent === 'end') {
-                            console.log(`\nJob ${data.job_id} complete`);
-                        } else if (currentEvent === 'done') {
-                            console.log("\n✅ Complete!");
-                        } else if (currentEvent === 'error') {
-                            console.log(`\n❌ Error: ${data.error}`);
-                        }
-                    } catch (e) {
-                        // Skip malformed JSON
-                    }
-                }
-            }
-        }
-        
-        return fullContent;
-    }
-    ```
-  </Tab>
-  <Tab title="Go">
-    ```go
-    func parseStreamingResponse(body io.Reader) {
-        scanner := bufio.NewScanner(body)
-        var currentEvent string
-        var fullContent strings.Builder
-        
-        for scanner.Scan() {
-            line := scanner.Text()
-            
-            if strings.HasPrefix(line, "event: ") {
-                currentEvent = strings.TrimSpace(line[7:])
-                continue
-            }
-            
-            if strings.HasPrefix(line, "data: ") {
-                var data StreamData
-                if err := json.Unmarshal([]byte(line[6:]), &data); err != nil {
-                    continue
-                }
-                
-                switch currentEvent {
-                case "":
-                    // The first frame has no "event: " line — identify it by
-                    // its "type" field instead.
-                    if data.Type == "metadata" {
-                        fmt.Printf("Job ID: %s\n", data.JobID)
-                        fmt.Printf("Agent: %s\n", data.Name)
-                        fmt.Println(strings.Repeat("-", 40))
-                    }
-                case "chunk":
-                    fullContent.WriteString(data.Content)
-                    fmt.Print(data.Content)
-                case "usage":
-                    fmt.Printf("\nTokens used: %d\n", data.TotalTokens)
-                    fmt.Printf("Cost: $%.4f\n", data.TotalCost)
-                case "done":
-                    fmt.Println("\n✅ Complete!")
-                case "error":
-                    fmt.Printf("\n❌ Error: %s\n", data.Error)
-                }
-            }
-        }
-        
-        fmt.Printf("\n📝 Total content: %d characters\n", fullContent.Len())
-    }
-    ```
-  </Tab>
-</Tabs>
-
-## Complete Examples
-
-<Tabs>
-  <Tab title="Python">
-    ```python
-    import requests
-    import json
-    import os
-    from dotenv import load_dotenv
-
-    load_dotenv()
-
-    def run_streaming_agent():
-        """Complete example of streaming agent request"""
-        
-        API_KEY = os.getenv("SWARMS_API_KEY")
-        BASE_URL = "https://api.swarms.world"
-        
-        headers = {
-            "x-api-key": API_KEY,
-            "Content-Type": "application/json",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-        
-        payload = {
-            "agent_config": {
-                "agent_name": "Research Analyst",
-                "model_name": "claude-sonnet-4-20250514",
-                "max_tokens": 8192,
-                "streaming_on": True
-            },
-            "task": "What are the best ways to find samples of diabetes from blood samples?"
-        }
-        
-        print("🚀 Starting streaming request...")
-        
-        response = requests.post(
-            f"{BASE_URL}/v1/agent/completions",
-            headers=headers,
-            json=payload,
-            stream=True,
-            timeout=60
-        )
-        
-        if response.status_code != 200:
-            print(f"❌ Error: {response.status_code} - {response.text}")
-            return
-        
-        # Parse the streaming response
-        full_content = parse_streaming_response(response)
-        print(f"\n📝 Total content: {len(full_content)} characters")
-
-    # Run the example
-    if __name__ == "__main__":
-        run_streaming_agent()
-    ```
-  </Tab>
-  <Tab title="JavaScript">
-    ```javascript
-    const fetch = require('node-fetch');
-    require('dotenv').config();
-
-    async function runStreamingAgent() {
-        const API_KEY = process.env.SWARMS_API_KEY;
-        const BASE_URL = "https://api.swarms.world";
-        
-        const headers = {
-            "x-api-key": API_KEY,
-            "Content-Type": "application/json",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        };
-        
-        const payload = {
-            agent_config: {
-                agent_name: "Research Analyst",
-                model_name: "claude-sonnet-4-20250514",
-                max_tokens: 8192,
-                streaming_on: true
-            },
-            task: "What are the best ways to find samples of diabetes from blood samples?"
-        };
-        
-        console.log("🚀 Starting streaming request...");
-        
-        try {
-            const response = await fetch(`${BASE_URL}/v1/agent/completions`, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(payload)
-            });
-            
-            if (!response.ok) {
-                console.error(`❌ Error: ${response.status} - ${await response.text()}`);
-                return;
-            }
-            
-            // Parse streaming response
-            const fullContent = await parseStreamingResponse(response);
-            console.log(`\n📝 Total content: ${fullContent.length} characters`);
-            
-        } catch (error) {
-            console.error("Request failed:", error);
-        }
-    }
-
-    // Run the example
-    runStreamingAgent();
-    ```
-  </Tab>
-  <Tab title="cURL">
-    ```bash
-    #!/bin/bash
-
-    API_KEY="your-api-key-here"
-    BASE_URL="https://api.swarms.world"
-
-    echo "🚀 Starting streaming request..."
-
-    curl -X POST "${BASE_URL}/v1/agent/completions" \
-      -H "x-api-key: ${API_KEY}" \
-      -H "Content-Type: application/json" \
-      -H "Connection: keep-alive" \
-      -H "X-Accel-Buffering: no" \
-      -d '{
-        "agent_config": {
-          "agent_name": "Research Analyst",
-          "model_name": "claude-sonnet-4-20250514",
-          "max_tokens": 8192,
-          "streaming_on": true
-        },
-        "task": "What are the best ways to find samples of diabetes from blood samples?"
-      }' \
-      --no-buffer \
-      -N
-    ```
-  </Tab>
-</Tabs>
-
-## Event Types
-
-| Event | Description | Data Fields |
-|-------|-------------|-------------|
-| *(none — first frame)* | Job metadata, sent before any `event:` line | `job_id`, `success`, `name`, `description`, `temperature`, `timestamp`, `stream`, `type` (`"metadata"`) |
-| `start` | Agent processing has begun | `message` |
-| `chunk` | Content piece | `content`, `timestamp` |
-| `usage` | Token usage and cost, sent once near the end | `input_tokens`, `output_tokens`, `total_tokens`, `img_cost`, `total_cost` |
-| `end` | Final job metadata | `job_id`, `usage`, `timestamp`, `complete` |
-| `done` | Stream finished | `message` |
-| `error` | Error info | `error`, `timestamp` |
-
-## Best Practices
-
-### Error Handling
-
-Always handle potential errors in your stream processing:
-
-```python
-try:
-    response = requests.post(url, json=payload, stream=True, timeout=60)
-    if response.status_code != 200:
-        print(f"Error: {response.status_code} - {response.text}")
-        return
-    
-    full_content = parse_streaming_response(response)
-    
-except requests.exceptions.RequestException as e:
-    print(f"Request failed: {e}")
-except json.JSONDecodeError as e:
-    print(f"JSON decode error: {e}")
-```
-
-### Timeout Management
-
-Set appropriate timeouts for your use case:
-
-```python
-# For quick responses
-response = requests.post(url, json=payload, stream=True, timeout=30)
-
-# For long-running tasks  
-response = requests.post(url, json=payload, stream=True, timeout=300)
-```
-
-## Benefits
-
-- **Real-time Feedback**: See results as they're generated
-- **Better UX**: Reduced perceived latency  
-- **Progress Tracking**: Monitor long-running operations
-- **Error Handling**: Immediate error feedback
-
-## Troubleshooting
-
-<AccordionGroup>
-  <Accordion title="Connection Timeouts">
-    Increase timeout values for long-running tasks. Set appropriate timeouts based on your expected response time.
-  </Accordion>
-
-  <Accordion title="JSON Decode Errors">
-    Handle malformed data gracefully by wrapping JSON parsing in try-catch blocks.
-  </Accordion>
-
-  <Accordion title="Incomplete Streams">
-    Always check for `done` or `error` events to ensure the stream completed successfully.
-  </Accordion>
-
-  <Accordion title="Memory Usage">
-    Process chunks incrementally for large responses to avoid memory issues.
-  </Accordion>
-</AccordionGroup>
-
-### Debug Mode
-
-Enable debug logging to troubleshoot stream issues:
-
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
+<CardGroup cols={2}>
+<Card title="Structured Outputs & Function Calling" icon="brackets-curly" href="/docs/documentation/capabilities/swarms_api_tools">
+`tools_list_dictionary` custom tools and `llm_args.response_format`
+</Card>
+<Card title="Sub-Agent Delegation" icon="sitemap" href="/docs/documentation/capabilities/sub_agents">
+`create_sub_agent` / `assign_task` and the `handoffs` field
+</Card>
+<Card title="MCP Integration" icon="plug" href="/docs/documentation/capabilities/mcp_integration">
+Connect agents to external MCP servers and their tools
+</Card>
+<Card title="Pricing" icon="tag" href="/docs/documentation/resources/pricing">
+Full, current pricing for every billable feature
+</Card>
+</CardGroup>

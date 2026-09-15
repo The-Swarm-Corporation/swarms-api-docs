@@ -104,7 +104,7 @@ payload = {
             "and a priority. If the message spans multiple categories, pick "
             "the highest-severity one and tag the others."
         ),
-        "model_name": "claude-haiku-4.5",
+        "model_name": "claude-haiku-4-5",
         "tools_list_dictionary": [slack_tool],
         "max_tokens": 1024,
         "temperature": 0.2,
@@ -308,16 +308,16 @@ Compare to Swarms on `/v1/agent/completions`. A representative agent call from t
 ```
 input_cost  = (600 / 1_000_000) * 6.50  = $0.0039
 output_cost = (250 / 1_000_000) * 18.50 = $0.0046
-per_call    ≈ $0.0085  →  round to ~$0.005–$0.01 depending on model and length
+per_call    ≈ $0.0085  (varies with model, prompt length, and tool-schema size)
 ```
 
-At ~\$0.005 per call, **10,000 agent calls cost about \$50** — and each one is a full multi-step reasoning flow, not one Zap node.
+At ~\$0.0085 per call, **10,000 agent calls cost about \$85** — and each one is a full multi-step reasoning flow, not one Zap node. (Note: `/v1/agent/completions` charges the agent-completions token rates only — there's no separate per-agent flat fee on single-agent completions; that `$0.01`/agent fee is specific to `/v1/swarm/completions`.)
 
-| Volume | Zapier (7-step Zap) | Swarms agent call | Savings |
+| Volume | Zapier (7-step Zap) | Swarms agent call (~\$0.0085/call) | Savings |
 | --- | --- | --- | --- |
-| 1,000 runs/mo | 7,000 tasks → Professional + overage | \$5 | ~94% |
-| 5,000 runs/mo | Team / Company tier | \$25 | ~85% |
-| 10,000 runs/mo | Enterprise quote (4-figure) | \$50 | ~95% |
+| 1,000 runs/mo | 7,000 tasks → Professional + overage | ~\$8.50 | ~89% |
+| 5,000 runs/mo | Team / Company tier | ~\$42.50 | ~75% |
+| 10,000 runs/mo | Enterprise quote (4-figure) | ~\$85 | ~90% |
 
 And the Swarms call replaces *the entire 7-step graph* — including the ChatGPT step you were already paying for.
 

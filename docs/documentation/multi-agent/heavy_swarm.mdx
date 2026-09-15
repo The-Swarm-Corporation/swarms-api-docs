@@ -7,12 +7,12 @@ description: "High-capacity multi-agent swarm that decomposes complex tasks into
 
 ## Overview
 
-The HeavySwarm is a sophisticated multi-agent orchestration system inspired by X.AI's Grok 4 Heavy architecture. It automatically decomposes complex tasks into specialized questions and executes them using five built-in specialized agents: Research, Analysis, Alternatives, Verification, and Synthesis. Unlike other swarm types, HeavySwarm creates and manages its own agents internally — pass an empty `agents` array (`"agents": []`) in the request.
+The HeavySwarm is a sophisticated multi-agent orchestration system inspired by X.AI's Grok 4 Heavy architecture. It automatically decomposes complex tasks into specialized questions and executes them using a built-in team of specialized agents — by default Research, Analysis, Alternatives, Verification, and Synthesis. Unlike other swarm types, HeavySwarm creates and manages its own agents internally — pass an empty `agents` array (`"agents": []`) in the request. The size and composition of that internal team is controlled by `heavy_swarm_variant` (see below).
 
 Key features:
 - **Automatic Task Decomposition**: Complex tasks are intelligently broken down into specialized questions using function calling
-- **Five Specialized Agents**: Research, Analysis, Alternatives, Verification, and Synthesis agents work in concert
-- **Parallel Execution**: Four specialist agents execute simultaneously for maximum efficiency
+- **Specialized Agent Teams**: In the default variant, Research, Analysis, Alternatives, Verification, and Synthesis agents work in concert
+- **Parallel Execution**: Specialist agents execute simultaneously for maximum efficiency
 - **Iterative Refinement**: Multi-loop execution where each loop builds upon previous results
 - **Comprehensive Synthesis**: A dedicated synthesis agent integrates all findings into an executive-ready report
 
@@ -62,6 +62,18 @@ Since HeavySwarm manages its own agents, it uses dedicated parameters at the swa
 | `heavy_swarm_question_agent_model_name` | `string` | `"gpt-4.1"` | Model used for the question generation phase. This agent decomposes the task into specialized questions. |
 | `heavy_swarm_worker_model_name` | `string` | `"claude-sonnet-4-20250514"` | Model used for all five specialized worker agents (Research, Analysis, Alternatives, Verification, Synthesis). |
 | `heavy_swarm_variant` | `string` | `"default"` | Which agent variant to run. One of `"default"`, `"medium"`, or `"heavy"`. |
+
+`heavy_swarm_variant` swaps the entire worker roster, not just a setting:
+
+| Variant | Worker count | Composition |
+|---------|---------------|-------------|
+| `"default"` | 5 | The Research, Analysis, Alternatives, Verification, and Synthesis agents described above. |
+| `"medium"` | 4 | A Captain-Swarm leader plus Harper (research/facts), Benjamin (logic/math/code), and Lucas (creative/contrarian analysis). |
+| `"heavy"` | 16 | A Grok-style captain coordinating 15 domain specialists for maximum coverage. |
+
+<Note>
+`heavy_swarm_worker_model_name` applies to every worker in the chosen variant. The question-generation phase always uses `heavy_swarm_question_agent_model_name`, regardless of variant.
+</Note>
 
 ## Use Cases
 
@@ -525,7 +537,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             "content": "Executive Summary: The renewable energy sector presents strong investment fundamentals with verified compound growth trajectories. Key Insights: Solar PV costs have declined 89% since 2010, wind energy capacity factors have improved 25%... Actionable Recommendations: 1. Overweight solar and battery storage... Risks & Mitigation: Supply chain concentration in key materials..."
         }
     ],
-    "number_of_agents": 5,
+    "number_of_agents": 0,
     "execution_time": 62.4,
     "usage": {
         "input_tokens": 85,
@@ -533,7 +545,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "total_tokens": 5485,
         "billing_info": {
             "cost_breakdown": {
-                "agent_cost": 0.05,
+                "agent_cost": 0.0,
                 "input_token_cost": 0.000553,
                 "output_token_cost": 0.0999,
                 "token_counts": {
@@ -541,10 +553,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_output_tokens": 5400,
                     "total_tokens": 5485
                 },
-                "num_agents": 5,
+                "num_agents": 0,
                 "night_time_discount_applied": false
             },
-            "total_cost": 0.150452,
+            "total_cost": 0.100453,
             "discount_active": false,
             "discount_type": "none",
             "discount_percentage": 0
@@ -553,12 +565,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
+<Note>
+Because the request's `agents` array stays empty, `number_of_agents` in the response — and the flat per-agent billing fee that scales with it — is `0` for HeavySwarm, regardless of how many workers the chosen `heavy_swarm_variant` actually runs internally. You are still billed for the input and output tokens all of those internal agents consume.
+</Note>
+
 ## Best Practices
 
 - Use HeavySwarm for complex tasks that benefit from multi-perspective analysis rather than simple queries
 - Start with `heavy_swarm_max_loops: 1` and increase only when deeper iterative analysis is needed
 - Choose the question agent model carefully — it determines the quality of task decomposition which drives the entire workflow
 - Use a capable worker model (e.g., `claude-sonnet-4-20250514`) for the specialized agents to get high-quality research, analysis, and verification
-- HeavySwarm requires an empty `agents` array (`"agents": []`) in the request — all five agents are created and managed internally
+- HeavySwarm requires an empty `agents` array (`"agents": []`) in the request — the worker team is created and managed internally, sized by `heavy_swarm_variant`
 - For time-sensitive tasks, keep `max_loops` at 1; increase for comprehensive research where thoroughness is prioritized over speed
 - Schedule non-urgent deep analysis during off-peak hours (8 PM - 6 AM PT) for cost savings

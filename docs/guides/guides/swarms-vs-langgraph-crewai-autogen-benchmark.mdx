@@ -4,9 +4,13 @@ description: "Same NVDA investment-memo task, same model, four frameworks. Swarm
 ---
 
 
+<Warning>
+The LOC, token, wall-clock, cost, and quality-score figures on this page are **illustrative, not measured**. We have not published a certified, reproducible benchmark run for this task, and the numbers below have not been independently verified against a live run of all four frameworks. Treat them as representative of the *shape* of the tradeoff (Swarms pushes orchestration server-side and cuts client-side code and re-serialization; LangGraph/CrewAI/AutoGen run the state machine in your process) rather than exact figures you should quote. The code samples for all four frameworks are real and intended to be runnable — run them yourself against your own task and model to get numbers you can trust.
+</Warning>
+
 ## TL;DR
 
-We picked one realistic, multi-step task — *"Produce an investment memo on NVDA covering fundamentals, technicals, macro, and a final BUY/SELL/HOLD call with rationale"* — and built it four times: once on the **Swarms API** (`HierarchicalSwarm`), once on **LangGraph** (`StateGraph`), once on **CrewAI** (`Crew` + `Process.sequential`), once on **AutoGen** (`GroupChat` + `GroupChatManager`). Same model (`gpt-4.1`), same role prompts, three runs each, averaged.
+We picked one realistic, multi-step task — *"Produce an investment memo on NVDA covering fundamentals, technicals, macro, and a final BUY/SELL/HOLD call with rationale"* — and built it four times: once on the **Swarms API** (`HierarchicalSwarm`), once on **LangGraph** (`StateGraph`), once on **CrewAI** (`Crew` + `Process.sequential`), once on **AutoGen** (`GroupChat` + `GroupChatManager`). Same model (`gpt-4.1`), same role prompts. The comparison below is illustrative (see the warning above) — it reflects typical, representative differences in code volume and orchestration overhead between the four approaches, not a single certified benchmark run.
 
 | Framework | LOC | Tokens (avg) | Wall-clock | Cost / run | Quality (1–10) |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -42,12 +46,14 @@ Each output was scored blind on five dimensions, 2 points each:
 
 ## Methodology
 
+This is the methodology the numbers below are meant to represent — a template for running this comparison yourself, not a description of a certified run we're publishing artifacts for (see the warning at the top of this page):
+
 - **Model:** `gpt-4.1` in every framework, same temperature settings (analyst roles at 0.4, synthesizer at 0.2).
-- **Prompts:** Identical analyst role prompts across all four implementations. The only thing that varied was the orchestration code.
-- **Runs:** Three runs per framework, averaged. Token counts include every agent's input + output, not just the final synthesizer.
-- **Region:** US-East. Each implementation called OpenAI directly except Swarms, which used the public `/v1/swarm/completions` endpoint.
-- **Timing:** `time.perf_counter()` around the top-level orchestration call. Cold start excluded — the first run primed connections; we averaged runs 2 / 3 / 4.
-- **Cost basis:** OpenAI list pricing for `gpt-4.1` for LangGraph / CrewAI / AutoGen (`$2.50 / 1M` input, `$10 / 1M` output). Swarms used the published swarm completions rate (`$6.50 / 1M` input, `$18.50 / 1M` output) plus `$0.01` per agent — the apples-to-apples comparison still favours Swarms because token volume is meaningfully lower (no Python-process re-serialization of state on every hop).
+- **Prompts:** Identical analyst role prompts across all four implementations. The only thing that varies is the orchestration code.
+- **Runs:** Multiple runs per framework, averaged, to smooth out per-call variance. Token counts should include every agent's input + output, not just the final synthesizer.
+- **Each implementation calls OpenAI directly except Swarms, which uses the public `/v1/swarm/completions` endpoint.**
+- **Timing:** `time.perf_counter()` around the top-level orchestration call, with a cold-start run excluded from the average.
+- **Cost basis:** Swarms' published swarm-completions rate — `$6.50 / 1M` input, `$18.50 / 1M` output, plus `$0.01` per agent (all verified against the live `/v1/usage/costs` pricing model). For an apples-to-apples comparison against LangGraph / CrewAI / AutoGen, price their OpenAI calls at whatever `gpt-4.1` rate OpenAI is currently publishing — we did not re-verify a specific historical OpenAI rate for this page, so plug in the current one when you reproduce this.
 
 ## Swarms — Implementation
 
@@ -342,6 +348,8 @@ Two things hit you when you actually run this. First, `RoundRobinGroupChat` is t
 
 ## Results — Lines of Code
 
+LOC counts below are a direct count of the four code samples above (excluding imports, blank lines, and prompt strings) — these are real and you can verify them by counting the snippets yourself:
+
 | Framework | LOC (excl. imports, blank lines, prompts) | Notes |
 | --- | ---: | --- |
 | Swarms | **~40** | One HTTP call, no state class |
@@ -351,9 +359,11 @@ Two things hit you when you actually run this. First, `RoundRobinGroupChat` is t
 
 If you remove the prompt strings (which are identical across all four), Swarms is the only one of the four that fits comfortably above the fold in a code review. That matters because in production you don't ship the prototype — you ship the version you can hand to a teammate without a walkthrough.
 
-## Results — Cost and Latency
+## Results — Cost and Latency (Illustrative)
 
-Three runs each, averaged. Cold start excluded.
+<Warning>
+The numbers in this table were not captured from an actual timed run of all four frameworks — see the warning at the top of this page. They illustrate the *direction and rough order of magnitude* of the gap (server-side parallel fan-out plus a compact hand-off to the synthesizer vs. a full message/state history re-read on every hop), not measured values. Run the four snippets above yourself, with your own timing and token accounting, for numbers you can cite.
+</Warning>
 
 | Framework | Input tokens | Output tokens | Wall-clock | Cost / run |
 | --- | ---: | ---: | ---: | ---: |
@@ -362,13 +372,13 @@ Three runs each, averaged. Cold start excluded.
 | CrewAI | ~18,400 | ~7,600 | ~38s | ~\$0.13 |
 | AutoGen | ~23,000 | ~9,000 | ~45s | ~\$0.16 |
 
-Why Swarms is fastest: the three analyst agents in `HierarchicalSwarm` run **in parallel server-side**, and the synthesizer reads their outputs directly without a Python-process round-trip per hop. LangGraph parallelism in our implementation is real (the fan-out from `start`), but each node still pays a Python-side LangChain serialization cost. CrewAI's `Process.sequential` is genuinely sequential. AutoGen's `RoundRobinGroupChat` is sequential by construction and pays a re-read tax on every turn.
+The structural reason Swarms tends to be cheaper and faster on this shape of task: the three analyst agents in `HierarchicalSwarm` run in parallel server-side, and the synthesizer reads their outputs directly without a Python-process round-trip per hop. LangGraph's fan-out from a `start` node is real parallelism, but each node still pays a Python-side LangChain serialization cost. CrewAI's `Process.sequential` is genuinely sequential. AutoGen's `RoundRobinGroupChat` is sequential by construction and pays a re-read tax on every turn as the chat history grows. Whether this nets out to the specific numbers above on your task and model depends on your prompts, model choice, and network conditions — verify it yourself.
 
-Cost tracks the same story: the more text travels between Python and the model, the more your bill grows.
+## Results — Output Quality (Illustrative)
 
-## Results — Output Quality
-
-Three reviewers blind-scored each memo against the rubric (5 dimensions × 2 points each). Averages:
+<Warning>
+These quality scores are illustrative, not from a scored review panel — see the warning at the top of this page. Treat the qualitative descriptions below (what each framework tends to get right or wrong on a role-separated synthesis task) as the more defensible takeaway; the specific point totals are placeholders for "these were all competitive, with CrewAI and AutoGen more prone to hedged or context-bled output on this task shape."
+</Warning>
 
 | Framework | Fundamentals | Technicals | Macro | Decisive call | Citations | **Total** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -377,13 +387,13 @@ Three reviewers blind-scored each memo against the rubric (5 dimensions × 2 poi
 | CrewAI | 1.7 | 1.6 | 1.6 | 1.5 | 1.6 | **8.0** |
 | AutoGen | 1.7 | 1.5 | 1.6 | 1.5 | 1.7 | **8.0** |
 
-**Swarms** produced clean, structured memos with the four PM-call fields (CALL / CONVICTION / KEY SIGNAL / RISK) in every run. The hierarchical roles kept the analysts in their lane and the PM decisive — across the three runs we never saw the PM hedge "BUY with conviction LOW pending more data," which is the failure mode you get when the synthesizer has weak role separation.
+**Swarms** tends to produce clean, structured memos with the four PM-call fields (CALL / CONVICTION / KEY SIGNAL / RISK) present. Hierarchical roles keep the analysts in their lane and the PM decisive — a well-separated synthesizer role is less prone to hedging ("BUY with conviction LOW pending more data"), which is the failure mode you get when the synthesizer has weak role separation.
 
-**LangGraph** matched Swarms on quality and was slightly more thorough on technicals — likely because the `TypedDict` made the upstream context unambiguous to the PM node. The output read like a memo from a more deliberate team. The cost is the latency: the explicit state transitions take real time, and you wrote the marshalling code yourself.
+**LangGraph** can match Swarms on quality when the `TypedDict` makes the upstream context unambiguous to the PM node — the tradeoff is the latency of explicit state transitions and marshalling code you write yourself.
 
-**CrewAI** wrote the most stylistically polished prose and lost the most points on **decisiveness** — twice in three runs the PM hedged across the three lenses rather than picking a dominant signal. We suspect this is a side-effect of the `backstory` / `goal` framing, which encourages the PM to "balance perspectives." Tunable with prompt edits, but it's a default behaviour worth knowing about.
+**CrewAI** tends to write stylistically polished prose but is more prone to losing points on **decisiveness** — the PM hedging across the three lenses rather than picking a dominant signal. This is plausibly a side-effect of the `backstory` / `goal` framing, which encourages the PM to "balance perspectives." Tunable with prompt edits, but worth knowing about as a default behaviour.
 
-**AutoGen** had the most varied output across runs — sometimes excellent, sometimes a wall of chat where the PM partially re-derived the analyst briefs. The `GroupChat` transport bleeds context between agents in a way the others don't, and at gpt-4.1 temperatures that's a mixed blessing.
+**AutoGen** tends to have the most varied output across runs — sometimes excellent, sometimes a wall of chat where the PM partially re-derives the analyst briefs. The `GroupChat` transport bleeds context between agents in a way the others don't, which can cut either way depending on temperature and task.
 
 ## Where Each Framework Wins
 
@@ -395,34 +405,24 @@ Three reviewers blind-scored each memo against the rubric (5 dimensions × 2 poi
 
 **Swarms** wins on **shipping production multi-agent quickly**. The orchestration runs server-side, so you don't manage a Python process, a state class, a termination condition, or a chat transport. You describe the agents and the swarm type, the API runs the team, you read the output. That's the entire posture. It's the one to pick when "this needs to be a real product by next sprint" is the constraint.
 
-## Why Swarms Came Out On Top On This Task
+## Why Swarms Tends To Win On This Shape Of Task
 
-Three concrete reasons, not vibes:
+Three structural reasons, independent of the specific (illustrative) numbers above:
 
-1. **Zero orchestration code.** The `HierarchicalSwarm` payload *is* the architecture. There's no `StateGraph` to compile, no `Crew` to wire, no `GroupChat` termination sentinel to debug at 2 AM. The 40-LOC number is real — it's not a stripped-down skeleton, it's the production file.
-2. **Server-side parallel fan-out.** The three analysts run concurrently inside the API, not inside your Python process. That's where the 22-second wall-clock comes from: the slowest analyst plus the PM, not the sum of all four. Replicating that in LangGraph requires the no-op fan-out node we showed; the others run sequentially out of the box.
-3. **Lower token volume per hop.** Swarms' hierarchical transport hands the PM a compact briefing assembled by the platform — not the entire LangChain message history, not the full GroupChat transcript. That's the cost-per-run gap in the table above, and it widens linearly the more agents you add.
+1. **Zero orchestration code.** The `HierarchicalSwarm` payload *is* the architecture. There's no `StateGraph` to compile, no `Crew` to wire, no `GroupChat` termination sentinel to debug at 2 AM. The ~40-LOC count is a real count of the snippet shown above, not a stripped-down skeleton.
+2. **Server-side parallel fan-out.** The three analysts run concurrently inside the API, not inside your Python process — the wall-clock is bounded by the slowest analyst plus the PM, not the sum of all four. Replicating that in LangGraph requires the no-op fan-out node shown above; CrewAI's `Process.sequential` and AutoGen's `RoundRobinGroupChat` run sequentially out of the box.
+3. **Lower token volume per hop.** Swarms' hierarchical transport hands the PM a compact briefing assembled by the platform — not the entire LangChain message history, not the full GroupChat transcript. That's the structural source of the cost-per-run gap in the illustrative table above, and it should widen the more agents you add.
 
 The honest counter-case: if you need conditional edges, replayable checkpointing, or human-in-the-loop pauses *today*, LangGraph beats Swarms on those primitives. We say so in [the LangGraph migration guide](/docs/guides/migration/from-langgraph) — the answer for some workloads is to keep LangGraph for the parts of your pipeline that need it and route the analyst-team shape to Swarms.
 
-## Reproduce This Benchmark
+## Reproduce This Comparison Yourself
 
-All four implementations, the prompts, the rubric, and the scoring script:
+We have not published a separate benchmark-harness repository for this page. The four code samples above are complete and runnable as shown:
 
-```
-git clone https://github.com/The-Swarm-Corporation/multi-agent-benchmark
-cd multi-agent-benchmark
-pip install -r requirements.txt
+- **Swarms** needs only `requests` and a `SWARMS_API_KEY`.
+- **LangGraph**, **CrewAI**, and **AutoGen** each need their own SDK (`langgraph` + `langchain-openai`, `crewai`, `autogen-agentchat` + `autogen-ext` respectively) and an `OPENAI_API_KEY`.
 
-export SWARMS_API_KEY=...
-export OPENAI_API_KEY=...
-
-python run.py --framework all --runs 3 --ticker NVDA --report results.md
-```
-
-The repo runs each implementation three times, averages the cost / latency / token numbers, and writes a Markdown report with the rubric scores. Fork it, swap the ticker, swap the model, swap the rubric — the point is that running this is cheap and the answer is reproducible.
-
-If you want a different task (legal memo, security review, RAG pipeline) the same harness applies — replace the role prompts and rubric, keep the four-framework structure.
+To reproduce a comparison like the one above: run each snippet 3+ times, wrap the top-level call in `time.perf_counter()`, sum each framework's own token-usage reporting (`response.usage` for the OpenAI-backed calls, `resp.json()["usage"]` for Swarms), and price the tokens at each provider's current published rate. Swap in your own task, prompts, and rubric — the four-framework structure and the token/cost accounting pattern carry over.
 
 ## Next Steps
 

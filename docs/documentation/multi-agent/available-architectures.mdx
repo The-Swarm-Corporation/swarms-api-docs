@@ -5,48 +5,175 @@ description: "Comprehensive reference of all available multi-agent swarm archite
 
 ## Overview
 
-The Swarms API provides a diverse range of multi-agent architectures, each designed to solve specific types of problems and workflows. These architectures enable you to orchestrate multiple AI agents in various patterns, from simple sequential workflows to complex hierarchical systems. Understanding the available architectures helps you select the optimal pattern for your use case, whether you need parallel processing, consensus-based decision making, or dynamic task routing.
+The Swarms API provides a diverse range of multi-agent architectures, each designed to solve specific types of problems and workflows. Set a request's `swarm_type` field (in the [`SwarmSpec`](/docs/documentation/multi-agent/swarm_completions#request-body-swarmspec) body of `POST /v1/swarm/completions`) to one of the values below to select the architecture.
 
-Multi-agent architectures can be combined and nested to create sophisticated systems that leverage the strengths of different patterns. Each architecture type has unique characteristics that make it suitable for specific scenarios, such as linear processing pipelines, collaborative problem-solving, or high-throughput batch operations. The flexibility of these architectures allows you to build custom solutions that match your exact requirements.
+This page is a curated summary. The authoritative, machine-readable version of the same information — the same `name`, `description`, `category`, `best_for` and `parameters` for every type — is served live by:
 
-## Available Architectures
+```bash
+curl -X GET "https://api.swarms.world/v1/swarms/available" \
+  -H "x-api-key: $SWARMS_API_KEY"
+```
 
-The following table provides a comprehensive list of all available multi-agent architectures in the Swarms API:
+which returns `{"status", "timestamp", "swarm_types": [...], "swarm_types_metadata": [...]}`. Call it if you want to check this list programmatically rather than trusting a docs page to stay current.
 
-| Swarm Type | Description | Documentation |
-|------------|-------------|--------------|
-| `AgentRearrange` | Dynamically reorganize agents to optimize task performance | [Learn More](/docs/documentation/multi-agent/agent_rearrange) |
-| `MixtureOfAgents` | Combine diverse specialist agents for complex tasks | [Learn More](/docs/documentation/multi-agent/mixture_of_agents) |
-| `SequentialWorkflow` | Executes tasks in a strict, predefined order | [Learn More](/docs/documentation/multi-agent/sequential_workflow) |
-| `ConcurrentWorkflow` | Runs independent tasks in parallel for higher throughput | [Learn More](/docs/documentation/multi-agent/concurrent_workflow) |
-| `MultiAgentRouter` | Intelligent dispatcher that routes tasks based on capabilities/load | [Learn More](/docs/documentation/multi-agent/multi_agent_router) |
-| `HierarchicalSwarm` | Multi-level structures with delegation and escalation | [Learn More](/docs/documentation/multi-agent/hierarchical_swarm) |
-| `MajorityVoting` | Consensus-based decision-making across multiple agents | [Learn More](/docs/documentation/multi-agent/majority_voting) |
-| `BatchedGridWorkflow` | Execute multiple tasks across multiple agents in a grid pattern | [Learn More](/docs/documentation/multi-agent/batched_grid_workflow) |
-| `GraphWorkflow` | Execute a graph workflow with directed agent nodes and edges (available via a dedicated `/v1/graph-workflow/completions` endpoint rather than the `swarm_type` field) | [Learn More](/docs/documentation/multi-agent/graph_workflow) |
-| `GroupChat` | Collaborative problem-solving through conversation | - |
-| `CouncilAsAJudge` | Council-based evaluation system | - |
-| `PlannerWorkerSwarm` | Separates planning from execution: planner agents break the task into sub-tasks that worker agents pull from a shared queue | - |
-| `HeavySwarm` | High-capacity swarm processing | [Learn More](/docs/documentation/multi-agent/heavy_swarm) |
-| `LLMCouncil` | Language model council for decisions | - |
-| `DebateWithJudge` | Structured debate with judgment | [Learn More](/docs/documentation/multi-agent/debate_with_judge) |
-| `RoundRobin` | Round-robin task distribution | [Learn More](/docs/documentation/multi-agent/round_robin) |
-| `auto` | Automatic swarm type selection | - |
+<Note>
+As of this writing there are **14** supported `swarm_type` values. `"auto"` and `"SpreadSheetSwarm"` are explicitly rejected with a `400` error ("not supported currently") if you send them, even though you may see them referenced elsewhere. `BatchedGridWorkflow` and `GraphWorkflow` are **not** `swarm_type` values at all — each is a separate, premium-only endpoint. See [Not a `swarm_type`](#not-a-swarm-type-separate-endpoints) below.
+</Note>
 
 ## Architecture Categories
 
-The available architectures can be broadly categorized into several groups:
+`GET /v1/swarms/available` groups every architecture into one of these categories:
 
-**Workflow Patterns**: `SequentialWorkflow`, `ConcurrentWorkflow`, `GraphWorkflow`, and `BatchedGridWorkflow` provide different execution patterns for organizing agent tasks.
+- **`workflow`** — ordered or parallel execution patterns
+- **`collaboration`** — agents work together toward one result
+- **`routing`** — organize or dispatch work across agents
+- **`judgment`** — decision-making, voting, and evaluation
 
-**Collaboration Patterns**: `GroupChat`, `MixtureOfAgents`, and `MajorityVoting` enable agents to work together collaboratively.
+## All 14 Architectures
 
-**Routing & Organization**: `MultiAgentRouter`, `HierarchicalSwarm`, `AgentRearrange`, `RoundRobin`, and `PlannerWorkerSwarm` help organize and distribute work among agents.
+| `swarm_type` | Category | Description | Docs |
+|---|---|---|---|
+| `AgentRearrange` | routing | Runs agents according to an explicit flow you define with `rearrange_flow`, supporting sequential (`->`) and concurrent (`,`) steps so you can reorganize how agents pass work to one another. | [Agent Rearrange](/docs/documentation/multi-agent/agent_rearrange) |
+| `MixtureOfAgents` | collaboration | Several specialist agents work on the task in parallel and an aggregator agent synthesizes their outputs into a single consolidated answer. | [Mixture of Agents](/docs/documentation/multi-agent/mixture_of_agents) |
+| `SequentialWorkflow` | workflow | Executes agents one after another in a fixed order, passing each agent's output as the input to the next — a linear pipeline. | [Sequential Workflow](/docs/documentation/multi-agent/sequential_workflow) |
+| `ConcurrentWorkflow` | workflow | Runs all agents in parallel on the same task and returns their outputs together, maximizing throughput when the steps are independent. | [Concurrent Workflow](/docs/documentation/multi-agent/concurrent_workflow) |
+| `GroupChat` | collaboration | Agents hold a multi-turn conversation, responding to one another to collaboratively reason toward a shared conclusion. | [Group Chat](/docs/documentation/multi-agent/group_chat) |
+| `MultiAgentRouter` | routing | A router agent inspects each task and dispatches it to the most appropriate specialist agent based on their capabilities. | [Multi-Agent Router](/docs/documentation/multi-agent/multi_agent_router) |
+| `HierarchicalSwarm` | collaboration | A director agent decomposes the task, delegates sub-tasks to worker agents, and integrates their results, supporting multi-level delegation and escalation. | [Hierarchical Swarm](/docs/documentation/multi-agent/hierarchical_swarm) |
+| `MajorityVoting` | judgment | Multiple agents independently answer the same question and the majority answer is selected, improving reliability. | [Majority Voting](/docs/documentation/multi-agent/majority_voting) |
+| `CouncilAsAJudge` | judgment | A council of agents evaluates and rates candidate answers across dimensions, with a judge model delivering the final ruling. | [Council as a Judge](/docs/documentation/multi-agent/council_as_a_judge) |
+| `HeavySwarm` | collaboration | A high-capacity, structured pipeline (question -> research and analysis -> synthesis) with configurable variants for maximum coverage and depth on demanding tasks. Can run without predefined agents. | [Heavy Swarm](/docs/documentation/multi-agent/heavy_swarm) |
+| `LLMCouncil` | judgment | A panel of LLM-backed agents deliberates on the task and a chairman agent synthesizes their responses into a consensus answer. | [LLM Council](/docs/documentation/multi-agent/llm_council) |
+| `DebateWithJudge` | judgment | Agents argue opposing positions across structured rounds while a judge agent weighs the arguments and decides the outcome. | [Debate with Judge](/docs/documentation/multi-agent/debate_with_judge) |
+| `RoundRobin` | workflow | Agents take turns in a fixed rotation, cycling through the roster so the work is shared evenly across loops. | [Round Robin](/docs/documentation/multi-agent/round_robin) |
+| `PlannerWorkerSwarm` | collaboration | Separates planning from execution: planner agents break the task into sub-tasks that worker agents pull from a shared queue and execute. | [Planner / Worker Swarm](/docs/documentation/multi-agent/planner_worker_swarm) |
 
-**Specialized Systems**: `HeavySwarm` provides specialized capabilities for specific use cases.
+Descriptions above are the exact strings the live API returns for each type's `description` field.
 
-**Decision & Evaluation**: `MajorityVoting`, `CouncilAsAJudge`, `DebateWithJudge`, and `LLMCouncil` focus on decision-making and evaluation processes.
+## Tuning Parameters by Architecture
+
+Every architecture accepts the common `SwarmSpec` fields (`agents`, `task`/`tasks`/`messages`, `max_loops`, `name`, `description`, `stream`, `multi_agent_collab_prompt`, `list_all_agents`, `img`). Some architectures also read additional, type-specific fields — sending them for a different `swarm_type` is harmless but has no effect. Full field definitions are on the [Swarm Completions Reference](/docs/documentation/multi-agent/swarm_completions#request-body-swarmspec).
+
+| `swarm_type` | Extra parameters |
+|---|---|
+| `AgentRearrange` | `rearrange_flow` (**required** for this type) |
+| `HierarchicalSwarm` | `director_model_name`, `director_settings` |
+| `CouncilAsAJudge` | `council_judge_model_name` |
+| `HeavySwarm` | `heavy_swarm_question_agent_model_name`, `heavy_swarm_worker_model_name`, `heavy_swarm_variant`, `heavy_swarm_max_loops` |
+| `LLMCouncil` | `chairman_model` |
+| All others (`MixtureOfAgents`, `SequentialWorkflow`, `ConcurrentWorkflow`, `GroupChat`, `MultiAgentRouter`, `MajorityVoting`, `DebateWithJudge`, `RoundRobin`, `PlannerWorkerSwarm`) | none — only the common fields |
+
+## Best-For Use Cases
+
+<AccordionGroup>
+
+<Accordion title="AgentRearrange — routing">
+- Custom execution graphs mixing sequential and parallel stages
+- Reorganizing a pipeline without changing the agents themselves
+- Fine-grained control over which agents run when
+</Accordion>
+
+<Accordion title="MixtureOfAgents — collaboration">
+- Complex tasks that benefit from multiple expert perspectives
+- Combining domain specialists (e.g. legal + financial + technical)
+- Improving answer quality by synthesizing parallel drafts
+</Accordion>
+
+<Accordion title="SequentialWorkflow — workflow">
+- Multi-stage pipelines where each step builds on the previous
+- Deterministic, ordered processing (e.g. research -> draft -> edit)
+- ETL-style transformations
+</Accordion>
+
+<Accordion title="ConcurrentWorkflow — workflow">
+- Independent subtasks that do not depend on one another
+- Fan-out processing for lower latency
+- Gathering several independent analyses at once
+</Accordion>
+
+<Accordion title="GroupChat — collaboration">
+- Brainstorming and open-ended discussion
+- Collaborative problem-solving that needs back-and-forth
+- Simulating a panel or team meeting
+</Accordion>
+
+<Accordion title="MultiAgentRouter — routing">
+- Routing heterogeneous requests to the right specialist
+- Exposing a single entry point over many domain agents
+- Capability-based task dispatch
+</Accordion>
+
+<Accordion title="HierarchicalSwarm — collaboration">
+- Large tasks that need decomposition and coordination
+- Manager/worker patterns with oversight
+- Workflows requiring delegation and result aggregation
+</Accordion>
+
+<Accordion title="MajorityVoting — judgment">
+- Reducing variance and hallucination through consensus
+- Classification or decision tasks with a discrete answer
+- Higher-confidence answers via agreement
+</Accordion>
+
+<Accordion title="CouncilAsAJudge — judgment">
+- Evaluating, scoring or grading outputs
+- Quality assurance and review
+- Multi-criteria assessment of responses
+
+Full walkthrough: [Council as a Judge](/docs/documentation/multi-agent/council_as_a_judge). It is a valid, fully supported `swarm_type` today; send `council_judge_model_name` (default `"gpt-5.4"`) to control the judge model.
+</Accordion>
+
+<Accordion title="HeavySwarm — collaboration">
+- Deep, thorough analysis of complex questions
+- Research-heavy tasks that need broad coverage
+- When answer quality matters more than latency or cost
+
+`HeavySwarm` is the one architecture that can run with `agents: []` — it builds its own question/research/analysis/synthesis team internally. See [Heavy Swarm](/docs/documentation/multi-agent/heavy_swarm).
+</Accordion>
+
+<Accordion title="LLMCouncil — judgment">
+- Deliberative decision-making
+- Synthesizing diverse model opinions
+- High-stakes questions that benefit from a panel
+
+Full walkthrough: [LLM Council](/docs/documentation/multi-agent/llm_council). It is a valid, fully supported `swarm_type` today; send `chairman_model` (default `"gpt-5.1"`) to control the model that synthesizes the panel's responses.
+</Accordion>
+
+<Accordion title="DebateWithJudge — judgment">
+- Exploring trade-offs from multiple sides
+- Adversarial stress-testing of a position
+- Decisions that benefit from argument and rebuttal
+</Accordion>
+
+<Accordion title="RoundRobin — workflow">
+- Evenly distributing turns across agents
+- Cyclical processing where each agent contributes in order
+- Simple, fair task rotation
+</Accordion>
+
+<Accordion title="PlannerWorkerSwarm — collaboration">
+- Tasks that benefit from explicit planning before execution
+- Decoupling decomposition from the work itself
+- Queue-based parallel execution of sub-tasks
+
+Full walkthrough: [Planner / Worker Swarm](/docs/documentation/multi-agent/planner_worker_swarm). It is a valid, fully supported `swarm_type` today and takes only the common `SwarmSpec` fields.
+</Accordion>
+
+</AccordionGroup>
+
+## Not a `swarm_type` — separate endpoints
+
+Two related workflow types are **not** values you can pass to `swarm_type`; each has its own request/response schema and its own endpoint:
+
+| Name | Endpoint | Notes |
+|---|---|---|
+| `BatchedGridWorkflow` | `POST /v1/batched-grid-workflow/completions` (premium) | Pairs a roster of `agent_completions` against a list of `tasks` for high-throughput grid-style batch processing. See [Batched Grid Workflow](/docs/documentation/multi-agent/batched_grid_workflow). |
+| `GraphWorkflow` | `POST /v1/graph-workflow/completions` (premium) | Directed graph of agent nodes and edges with entry/end points and optional auto-compilation. See [Graph Workflow](/docs/documentation/multi-agent/graph_workflow). |
+
+## Rejected values
+
+`"auto"` (automatic architecture selection) and `"SpreadSheetSwarm"` are checked explicitly by the API and rejected with a `400 Bad Request` ("SpreadSheetSwarm and auto swarm types are not supported currently"). Do not send either as `swarm_type`.
 
 ## Getting Started
 
-To use any of these architectures, make a request to the `/v1/swarm/completions` endpoint with the `swarm_type` parameter set to your desired architecture. For detailed information about each architecture, including usage examples and best practices, follow the links in the table above or refer to the [Multi-Agent Overview](/docs/documentation/multi-agent/overview) page.
+To use any of the 14 supported architectures, make a request to `/v1/swarm/completions` with `swarm_type` set to your desired value, an `agents` array (required for every type except `HeavySwarm`), and a `task` (or `tasks`/`messages`). See the [Swarm Completions Reference](/docs/documentation/multi-agent/swarm_completions) for the full request/response schema, or the [Multi-Agent Overview](/docs/documentation/multi-agent/overview) for a conceptual introduction.

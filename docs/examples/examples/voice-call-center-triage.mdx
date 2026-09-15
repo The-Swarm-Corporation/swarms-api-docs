@@ -135,7 +135,7 @@ BOOKING_AGENT = {
         "ask one question at a time. "
         "If you commit to a booking, restate the time and date once for confirmation."
     ),
-    "model_name": "claude-haiku-4.5",
+    "model_name": "claude-haiku-4-5",
     "max_loops": 1,
     "temperature": 0.3,
 }
@@ -172,7 +172,7 @@ EMERGENCY_AGENT = {
         "Otherwise, capture the caller's name, callback number, and the nature of the emergency, "
         "then tell them an on-call specialist will call back within fifteen minutes."
     ),
-    "model_name": "claude-sonnet-4.5",
+    "model_name": "claude-sonnet-4-5",
     "max_loops": 1,
     "temperature": 0.1,
 }
@@ -189,7 +189,7 @@ FAQ_AGENT = {
         "If you do not know the answer, say so and offer to take a message. "
         "Speak naturally — no lists, no markdown."
     ),
-    "model_name": "grok-4",
+    "model_name": "xai/grok-4",
     "max_loops": 1,
     "temperature": 0.3,
 }
@@ -261,7 +261,7 @@ async def vapi_webhook(request: Request):
 ```
 
 <Note>
-The `timeout=20` matters. If Swarms takes longer than the turn budget, Vapi will stall the caller — pick fast models (`gpt-4.1-mini`, `claude-haiku-4.5`) for routing and only escalate to a larger model on flagged calls.
+The `timeout=20` matters. If Swarms takes longer than the turn budget, Vapi will stall the caller — pick fast models (`gpt-4.1-mini`, `claude-haiku-4-5`) for routing and only escalate to a larger model on flagged calls.
 </Note>
 
 ## Step 5: End-of-Call Summary → CRM
@@ -377,7 +377,7 @@ A real-feeling voice call needs round-trip turn latency under ~1.5 seconds. Here
 | TTS first audio chunk | ~150–250 ms | Vapi |
 | **Total to first audio out** | **~850 ms – 1.6 s** | |
 
-Keep the router on `gpt-4.1-mini` or `claude-haiku-4.5`. Only escalate to `gpt-4.1` or `claude-sonnet-4.5` on flagged calls (emergencies, high-value accounts). Cap `max_tokens` aggressively — voice replies are short anyway, and a 200-token cap shaves real milliseconds off the response.
+Keep the router on `gpt-4.1-mini` or `claude-haiku-4-5`. Only escalate to `gpt-4.1` or `claude-sonnet-4-5` on flagged calls (emergencies, high-value accounts). Cap `max_tokens` aggressively — voice replies are short anyway, and a 200-token cap shaves real milliseconds off the response.
 
 ## Real Cost
 

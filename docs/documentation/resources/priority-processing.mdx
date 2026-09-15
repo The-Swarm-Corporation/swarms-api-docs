@@ -1,36 +1,29 @@
 ---
 title: 'Priority Processing'
-description: 'Learn how the Swarms API handles request priority for premium subscribers during high demand periods'
+description: 'What premium subscribers get today that free-tier accounts do not, verified against the API implementation.'
 ---
 
+<Warning>
+This page previously described a request-priority queue and availability-zone routing for premium accounts. Neither could be confirmed against the Swarms API application source — there is no queue-priority or region-routing logic in the reviewed codebase. Those claims have been removed rather than restated as fact. What follows is limited to premium behavior that is actually implemented and verifiable.
+</Warning>
 
-The Swarms API uses a fair and efficient system to handle requests, especially during periods of high demand. Premium subscribers (such as those on Pro, Ultra, or higher tiers) receive priority processing for their requests. This helps ensure faster and more reliable performance when the system is busy.
+## What Premium Actually Changes
 
-Free tier users may experience slightly longer wait times under heavy load, but the system is designed to serve everyone reliably.
+Premium tiers (`pro`, `ultra`, `premium`, resolved from an active subscription or account tier) get:
 
-## How Priority Works
+- **Higher rate limits**: 2,000 requests/minute, 10,000/hour, 100,000/day, versus 100/minute, 350/hour, 1,200/day on the free tier. See [Rate Limits](/docs/documentation/resources/ratelimits).
+- **10x the per-agent token limit**: 2,000,000 tokens per agent versus 200,000 on the free tier.
+- **Access to 5 premium-only endpoints**: batch agent completions, batch swarm completions, reasoning agent completions, batched grid workflows, and graph workflows. See [Premium Endpoints](/docs/documentation/resources/premium-endpoints).
+- **Access to premium-only models**: a set of frontier models are rejected on the free tier with suggested free-tier alternatives. See [Pricing](/docs/documentation/resources/pricing).
 
-### Premium Priority
+Nothing in the reviewed API source reorders or prioritizes in-flight requests by tier — a premium account gets a materially higher ceiling before hitting a 429, not a faster response for any individual request.
 
-Requests from premium accounts are processed ahead of free tier requests when resources are limited. This includes benefits like access to closer servers (availability zones) for reduced latency.
+## Under Heavy Load
 
-### Fairness for All
-
-The system prevents any single tier from overwhelming resources, ensuring free users still get service without excessive delays.
-
-### No Changes Needed
-
-This happens automatically based on your API key and subscription no extra code or settings required on your end.
-
-## Benefits for Premium Users
-
-- Quicker response times during peak usage
-- Better overall performance and consistency
-- Additional perks like higher rate limits and priority support
+If you are being rate-limited, the response carries `Retry-After` and the `X-RateLimit-*` headers so you can back off correctly — see [Rate Limit Headers](/docs/documentation/resources/rate-limit-headers). Upgrading raises your rate-limit ceiling; it does not change how the underlying request is scheduled.
 
 <Info>
-To upgrade to a premium plan and unlock priority processing, visit your <a href="https://swarms.world/platform/account">Account Dashboard</a> or check the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
+To upgrade your plan, visit your <a href="https://swarms.world/platform/account">Account Dashboard</a> or check the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
 </Info>
 
-If you have questions, feel free to reach out to <a href="https://cal.com/swarms/swarms-technical-support?overlayCalendar=true">support</a>!
-
+If you have questions, reach out to <a href="https://cal.com/swarms/swarms-technical-support?overlayCalendar=true">support</a>.

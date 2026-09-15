@@ -24,6 +24,10 @@ A sell-side analyst on a 14-hour day during peak earnings season can read, parse
 
 Four specialists run in parallel against the same transcript. A Synthesizer agent merges their outputs into one structured note, which gets persisted to the research DB and pinged to Slack.
 
+<Info>
+`claude-opus-4-8` (used below for the Material Disclosure Detector) is a premium-only model — the API rejects it on a free-tier key and suggests a free-tier alternative such as `claude-sonnet-5`. Pair it with a premium key, or swap in `claude-sonnet-5` if you're prototyping on the free tier.
+</Info>
+
 ```text
 +----------------------------+
 |  Earnings Call Transcript  |
@@ -627,7 +631,7 @@ The crontab line that fires it at 5pm ET each weekday during the earnings burst:
 ```
 
 <Info>
-Most earnings calls during peak season land between 4:30pm and 5:00pm ET, immediately after the tape. Firing at 5:00pm ET catches the tail of late prints and gives the batch a clean window before market open the next morning. Premium-tier rate limits matter here: 125 ConcurrentWorkflows fired across three back-to-back 50-swarm batches consume meaningful concurrency, and queue contention on a free tier turns a 6-minute batch into a 90-minute one. The [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide covers the throughput tradeoffs in depth.
+Most earnings calls during peak season land between 4:30pm and 5:00pm ET, immediately after the tape. Firing at 5:00pm ET catches the tail of late prints and gives the batch a clean window before market open the next morning. `/v1/swarm/batch/completions` is premium-only — a free-tier key gets a 403 on this call, not just a slower one, so this workload requires a Premium key regardless of volume. The [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide covers scheduling this batch off-peak for the token-cost discount.
 </Info>
 
 ## Real Cost vs. Junior Analyst
@@ -650,5 +654,5 @@ Material disclosure detection is an assistive layer, not a compliance system of 
 ## Next Steps
 
 - [Build an AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) — the HierarchicalSwarm variant when you need a director synthesizing analyst briefs instead of fanning out in parallel
-- [Sell-Side Research Pipeline](/docs/examples/examples/sell-side-research-pipeline) — composing earnings notes, cited research, and reasoning agents into a single end-of-day deliverable (planned)
+- [Sell-Side Research Pipeline](/docs/examples/examples/sell-side-research-pipeline) — composing earnings notes, cited research, and reasoning agents into a single end-of-day deliverable
 - [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) — model routing, token budgeting, and batch scheduling patterns that keep the per-call number under a dollar at scale

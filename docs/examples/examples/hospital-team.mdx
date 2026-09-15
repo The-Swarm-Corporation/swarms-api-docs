@@ -131,16 +131,19 @@ print(json.dumps(out, indent=4))
 
 ### Agent Roles
 
-- **Leader Agent (Dr. Smith)**: Coordinates the team, makes final decisions
-- **Worker Agents (Nurses & Assistant)**: Execute specific tasks and report back
+- **Dr. Smith**: Written as the senior-physician persona among the agents you list
+- **Nurses & Assistant**: The other agents you list, each scoped to one lane of care
 
 ### Swarm Type: HierarchicalSwarm
 
-This swarm type creates a clear chain of command where:
-1. The leader agent receives the initial task
-2. Worker agents process their specialized areas
-3. Results flow back to the leader for final synthesis
-4. The leader provides the comprehensive final output
+<Warning>
+`HierarchicalSwarm` always builds its own director from `director_model_name` (default `gpt-5.4`) that decomposes the task and dispatches it to every agent in `agents` — Dr. Smith runs as one of the director's workers here, not as a privileged coordinator, and `role: "leader"` on her agent config is just a descriptive string with no special effect on execution. With the default `max_loops: 1` and parallel worker execution, no agent (Dr. Smith included) sees another agent's output before writing its own, so nothing here guarantees results flow back to Dr. Smith for a final synthesis. For a real synthesis pass, either set `"max_loops": 2` on the swarm (the framework's director is handed every first-round output on its second pass and can route the synthesis to Dr. Smith by name/description), or collect the other agents' outputs client-side and issue one more `client.agents.run(...)` (or `/v1/agent/completions`) call using Dr. Smith's system prompt.
+</Warning>
+
+This swarm type works like this:
+1. The framework's own director agent reads the task and decides which of your listed agents should handle which piece of it
+2. The agents you configured each process their assigned piece independently, in parallel
+3. The response contains the director's task breakdown plus every agent's independent output — there is no automatic final-synthesis step unless you add one (see the warning above)
 
 ## Expected Output
 

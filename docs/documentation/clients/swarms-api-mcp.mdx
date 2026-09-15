@@ -228,9 +228,15 @@ Common `agent_config` fields:
 | `rearrange_flow` | string | No | Task ordering for `AgentRearrange` |
 | `stream` | boolean | `false` | Stream output |
 
-Valid `swarm_type` values:
+Valid `swarm_type` values (from `GET /v1/swarms/available`):
 
-`AgentRearrange`, `MixtureOfAgents`, `SequentialWorkflow`, `ConcurrentWorkflow`, `GroupChat`, `MultiAgentRouter`, `HierarchicalSwarm`, `MajorityVoting`, `CouncilAsAJudge`, `HeavySwarm`, `BatchedGridWorkflow`, `LLMCouncil`, `DebateWithJudge`, `RoundRobin`, `PlannerWorkerSwarm`, `auto`
+`AgentRearrange`, `MixtureOfAgents`, `SequentialWorkflow`, `ConcurrentWorkflow`, `GroupChat`, `MultiAgentRouter`, `HierarchicalSwarm`, `MajorityVoting`, `CouncilAsAJudge`, `HeavySwarm`, `LLMCouncil`, `DebateWithJudge`, `RoundRobin`, `PlannerWorkerSwarm`
+
+<Note>
+Batched grid workflows and graph workflows are separate endpoints
+(`POST /v1/batched-grid-workflow/completions`, `POST /v1/graph-workflow/completions`),
+not `swarm_type` values — see the Specialized Workflows tools below.
+</Note>
 
 ## TypeScript
 

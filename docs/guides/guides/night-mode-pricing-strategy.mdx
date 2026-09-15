@@ -18,17 +18,24 @@ The single highest-ROI cost lever the Swarms API offers is its overnight discoun
 
 ## How the Discount Works
 
-The discount is applied server-side, in `api/swarm_completions.py`, inside the `calculate_swarm_cost` function. When a swarm completion finishes, the billing function checks the current hour in `America/Los_Angeles`:
+The discount is applied server-side, in `api/deductions_utils.py`. `is_night_time()` reads the wall-clock hour in the `PRICING_TIMEZONE` constant — `America/Los_Angeles` — and `charge_swarm_usage()` (called by the swarm-completions billing path) multiplies the token components by `pricing.night_time_discount` only when that check is true:
 
 ```python
-# Excerpt from api/swarm_completions.py — the billing path
-california_tz = pytz.timezone("America/Los_Angeles")
-current_time = datetime.now(california_tz)
-is_night_time = current_time.hour >= 20 or current_time.hour < 6  # 8 PM to 6 AM
+# Excerpt from api/deductions_utils.py — the off-peak check
+PRICING_TIMEZONE = "America/Los_Angeles"
+NIGHT_START_HOUR = 20
+NIGHT_END_HOUR = 6
 
-if is_night_time:
-    input_token_cost *= pricing.night_time_discount   # 0.50 = 50% off
-    output_token_cost *= pricing.night_time_discount  # 0.50 = 50% off
+def is_night_time(now: Optional[datetime] = None) -> bool:
+    if now is None:
+        now = datetime.now(pytz.timezone(PRICING_TIMEZONE))
+    return now.hour >= NIGHT_START_HOUR or now.hour < NIGHT_END_HOUR
+
+# In charge_swarm_usage(), once night_time is resolved:
+if night_time:
+    input_cost *= pricing.night_time_discount   # 0.50 = 50% off
+    output_cost *= pricing.night_time_discount  # 0.50 = 50% off
+# agent_cost is added to total_cost after this block, so it is never discounted.
 ```
 
 **What's discounted:**
@@ -203,7 +210,11 @@ for job in JOBS:
 
 ## Scheduling Recipe 2: Airflow DAG
 
-For teams already running Airflow, this is the production-grade pattern. The DAG runs once per night at 9 PM PT, fans out to N batch jobs in parallel via `batch_swarm_completions`, and writes a cost-discount audit so you can prove the 50% landed.
+For teams already running Airflow, this is the production-grade pattern. The DAG runs once per night at 9 PM PT, fans out to N batch jobs in parallel via `/v1/swarm/batch/completions`, and writes a cost-discount audit so you can prove the 50% landed.
+
+<Note>
+`/v1/swarm/batch/completions` is a premium-only endpoint (`GET /v1/account/premium-endpoints` lists it alongside `/v1/agent/batch/completions`, `/v1/reasoning-agent/completions`, `/v1/batched-grid-workflow/completions`, and `/v1/graph-workflow/completions`). If your account is on the free tier, submit the jobs in `JOBS` as separate `/v1/swarm/completions` calls instead, as in Recipe 1.
+</Note>
 
 ```python
 # dags/nightly_swarm_batch.py

@@ -24,7 +24,11 @@ headers = {
 
 ### Step 2: Define the Discussion Panel
 
-Create agents with distinct expertise who will collaborate through group conversation:
+Create agents with distinct expertise who will collaborate through group conversation.
+
+<Warning>
+For `GroupChat`, `max_loops` is the maximum number of **total messages posted across the whole conversation** (one speaker per turn), not a per-agent iteration count - the framework default is 20. The API's own `SwarmSpec.max_loops` default is 1, so leaving `max_loops` unset (or at `1`) lets only a single agent speak once. Set it high enough for every participant to get at least one turn (the chat can also end early if no agent has anything worth adding).
+</Warning>
 
 ```python
 def run_product_brainstorm(product_brief: str) -> dict:
@@ -101,7 +105,7 @@ Ground the discussion in real customer needs. Challenge ideas that overlook usab
                 "temperature": 0.5
             }
         ],
-        "max_loops": 1
+        "max_loops": 12
     }
 
     response = requests.post(
@@ -144,6 +148,8 @@ for output in result.get("output", []):
     print(f"{participant.upper()}")
     print(f"{'='*50}")
     print(content[:800] + "...")
+
+print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
 ```
 
 **Expected Output:**
@@ -224,6 +230,8 @@ RETENTION HOOKS I'd prioritize:
 
 COMMON OBJECTION: "How is this different from Jira automation rules?"
 Answer: We need a clear comparison page and a 2-minute demo video...
+
+Total cost: $0.0847
 ```
 
 <Note>

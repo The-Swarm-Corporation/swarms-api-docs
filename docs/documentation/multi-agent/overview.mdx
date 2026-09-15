@@ -32,11 +32,11 @@ The request body uses the `SwarmSpec` schema. All parameters are organized in th
 |-----------|------|----------|---------|-------------|
 | `name` | `string` | No | - | The name of the swarm, which serves as an identifier for the group of agents and their collective task. Maximum length: 100 characters. |
 | `description` | `string` | No | - | A comprehensive description of the swarm's objectives, capabilities, and intended outcomes. |
-| `swarm_type` | `string` | No | - | The classification of the swarm, indicating its operational style and methodology. See Swarm Architectures table below for available values. |
-| `max_loops` | `integer` | No | `1` | The maximum number of execution loops allowed for the swarm, enabling repeated processing if needed. |
-| `task` | `string` | No | - | The specific task or objective that the swarm is designed to accomplish. |
+| `swarm_type` | `string` | No | - | The classification of the swarm, indicating its operational style and methodology. One of 14 values — see [Available Architectures](/docs/documentation/multi-agent/available-architectures). |
+| `max_loops` | `integer` | No | `1` | The maximum number of execution loops allowed for the swarm, enabling repeated processing if needed. **At most 50** — exceeding it returns a `422`. |
+| `task` | `string` | No | - | The specific task or objective that the swarm is designed to accomplish. At least one of `task`, `tasks`, or `messages` is required. |
 | `tasks` | `array[string]` | No | - | A list of tasks that the swarm should complete. Used for workflows that handle multiple tasks. |
-| `agents` | `array[AgentSpec]` | No | - | A list of agents or specifications that define the agents participating in the swarm. See Agent Configuration table below. |
+| `agents` | `array[AgentSpec]` | No | - | A list of agents or specifications that define the agents participating in the swarm. **At most 2000** — exceeding it returns a `422`. Required for every `swarm_type` except `HeavySwarm`, which can build its own team. See Agent Configuration table below. |
 | `rearrange_flow` | `string` | No | - | Instructions on how to rearrange the flow of tasks among agents, if applicable. Used with `AgentRearrange` swarm type. |
 | `messages` | `array[object] \| object` | No | - | A list of messages or a message object that the swarm should process. Used for conversational workflows like `GroupChat`. |
 | `img` | `string` | No | - | An optional image URL that may be associated with the swarm's task or representation. |
@@ -77,7 +77,7 @@ Each agent in the `agents` array can be configured with the following parameters
 | `llm_args` | `object` | No | - | Additional arguments to pass to the LLM such as `top_p`, `frequency_penalty`, `presence_penalty`, etc. |
 | `dynamic_temperature_enabled` | `boolean` | No | `false` | A flag indicating whether the agent should dynamically adjust its temperature based on the task. |
 | `tool_call_summary` | `boolean` | No | `true` | A parameter enabling an agent to summarize tool calls. |
-| `reasoning_effort` | `string` | No | - (unset) | The effort to put into reasoning. Options: `'none'`, `'minimal'`, `'low'`, `'medium'`, `'high'`, `'xhigh'`, `'ultra'`, `'max'`. Used with reasoning-enabled models. For Claude 5-family models (`claude-sonnet-5`, `claude-opus-5`, `claude-fable-5`) reasoning parameters are currently ignored and the agent runs without extended thinking. |
+| `reasoning_effort` | `string` | No | - (unset) | The effort to put into reasoning, tracking the reasoning levels the installed litellm advertises. Options: `'minimal'`, `'low'`, `'medium'`, `'high'`, `'none'`, `'xhigh'`, `'ultra'`, `'max'`. `'max'` is the deepest tier and needs no beta header. At `'xhigh'` and above, pair with a large `max_tokens` so the model has room to think and answer. |
 | `thinking_tokens` | `integer` | No | - | The number of tokens to use for thinking. Used with reasoning-enabled models. |
 | `reasoning_enabled` | `boolean` | No | `false` | A parameter enabling an agent to use reasoning capabilities. |
 | `publish_to_marketplace` | `boolean` | No | `false` | A flag indicating whether to publish this agent to the Swarms marketplace. |
@@ -99,7 +99,7 @@ Each agent in the `agents` array can be configured with the following parameters
 | `authorization_token` | `string` | No | - | Authentication token for accessing the MCP server. |
 | `transport` | `string` | No | `"streamable_http"` | The transport protocol to use for the MCP server. |
 | `headers` | `object` | No | - | Headers to send to the MCP server. |
-| `timeout` | `integer` | No | `10` | Timeout for the MCP server in seconds. |
+| `timeout` | `integer` | No | `30` | Request timeout for the MCP server, in seconds. |
 
 #### Multiple MCP Connections
 
@@ -118,14 +118,16 @@ The endpoint returns a `SwarmCompletion` object with the following parameters:
 | `swarm_name` | `string` | The name of the swarm. |
 | `description` | `string` | The description of the swarm. |
 | `swarm_type` | `string` | The type of the swarm. |
-| `output` | `any` | The output of the swarm. Can be a string, array, or object depending on the swarm type. |
-| `number_of_agents` | `integer` | The number of agents in the swarm. |
+| `output` | `any` | The output of the swarm. Can be a string, array, or object depending on the swarm type — every architecture runs through a `SwarmRouter` with `output_type` forced to `"dict"` server-side, so in practice `output` is typically a list of `{"role": ..., "content": ...}` turns. |
+| `number_of_agents` | `integer` | The number of agents in the swarm, counted from the request's `agents` array (`0` for `HeavySwarm` runs that supply no agents). |
 | `execution_time` | `number` | The execution time of the swarm in seconds. |
 | `usage` | `object` | Usage statistics including token counts and costs. |
+| `tasks` | `array[string]` | Present only when the request set `tasks` — echoes it back so results can be matched to what was sent. Absent otherwise. |
+| `messages` | `array[object] \| object` | Present only when the request set `messages` — echoes it back. Absent otherwise. |
 
 ## Swarm Architectures
 
-Each multi-agent architecture type is designed for specific use cases and can be combined to create powerful multi-agent systems. Below is a comprehensive table of all available swarm architectures with links to their detailed documentation:
+Each multi-agent architecture type is designed for specific use cases and can be combined to create powerful multi-agent systems. There are **14** supported `swarm_type` values, exactly matching what `GET /v1/swarms/available` returns live. See [Available Architectures](/docs/documentation/multi-agent/available-architectures) for the full description, category, best-for use cases, and tuning parameters of each.
 
 | Swarm Type | Description | Documentation |
 |------------|-------------|--------------|
@@ -133,19 +135,20 @@ Each multi-agent architecture type is designed for specific use cases and can be
 | `MixtureOfAgents` | Combine diverse specialist agents for complex tasks | [Learn More](/docs/documentation/multi-agent/mixture_of_agents) |
 | `SequentialWorkflow` | Executes tasks in a strict, predefined order | [Learn More](/docs/documentation/multi-agent/sequential_workflow) |
 | `ConcurrentWorkflow` | Runs independent tasks in parallel for higher throughput | [Learn More](/docs/documentation/multi-agent/concurrent_workflow) |
+| `GroupChat` | Collaborative problem-solving through conversation | [Learn More](/docs/documentation/multi-agent/group_chat) |
 | `MultiAgentRouter` | Intelligent dispatcher that routes tasks based on capabilities/load | [Learn More](/docs/documentation/multi-agent/multi_agent_router) |
 | `HierarchicalSwarm` | Multi-level structures with delegation and escalation | [Learn More](/docs/documentation/multi-agent/hierarchical_swarm) |
 | `MajorityVoting` | Consensus-based decision-making across multiple agents | [Learn More](/docs/documentation/multi-agent/majority_voting) |
-| `BatchedGridWorkflow` | Execute multiple tasks across multiple agents in a grid pattern | [Learn More](/docs/documentation/multi-agent/batched_grid_workflow) |
-| `GraphWorkflow` | Execute a graph workflow with directed agent nodes and edges (available via a dedicated `/v1/graph-workflow/completions` endpoint rather than the `swarm_type` field) | [Learn More](/docs/documentation/multi-agent/graph_workflow) |
-| `GroupChat` | Collaborative problem-solving through conversation | - |
-| `CouncilAsAJudge` | Council-based evaluation system | - |
-| `PlannerWorkerSwarm` | Separates planning from execution: planner agents break the task into sub-tasks that worker agents pull from a shared queue | - |
+| `CouncilAsAJudge` | Council-based evaluation system | [Learn More](/docs/documentation/multi-agent/council_as_a_judge) |
 | `HeavySwarm` | High-capacity swarm processing | [Learn More](/docs/documentation/multi-agent/heavy_swarm) |
-| `LLMCouncil` | Language model council for decisions | - |
+| `LLMCouncil` | Language model council for decisions | [Learn More](/docs/documentation/multi-agent/llm_council) |
 | `DebateWithJudge` | Structured debate with judgment | [Learn More](/docs/documentation/multi-agent/debate_with_judge) |
 | `RoundRobin` | Round-robin task distribution | [Learn More](/docs/documentation/multi-agent/round_robin) |
-| `auto` | Automatic swarm type selection | - |
+| `PlannerWorkerSwarm` | Separates planning from execution: planner agents break the task into sub-tasks that worker agents pull from a shared queue | [Learn More](/docs/documentation/multi-agent/planner_worker_swarm) |
+
+<Note>
+`BatchedGridWorkflow` and `GraphWorkflow` are **not** `swarm_type` values — each has its own dedicated, premium-only endpoint (`/v1/batched-grid-workflow/completions` and `/v1/graph-workflow/completions`). `"auto"` and `"SpreadSheetSwarm"` are rejected with a `400` error if sent as `swarm_type`. See [Available Architectures](/docs/documentation/multi-agent/available-architectures) for details.
+</Note>
 
 ## Best Practices
 
@@ -163,23 +166,19 @@ Industry-specific patterns also guide architecture selection. In finance, risk a
 
 ### Cost Optimization
 
-Effective cost management is essential for scaling your multi-agent systems. Batch processing, which groups related tasks together, can reduce costs by 20-30%. For Swarm Completions, scheduling non-urgent tasks during off-peak hours (8 PM - 6 AM PT) provides a 50% cost reduction on tokens. Token optimization through precise prompts and focused tasks yields 10-20% savings, while caching reusable results can reduce costs by 30-40%. Agent optimization by using the minimum required agents saves 15-25%, smart routing to specialized agents provides 10-15% savings, and prompt engineering to optimize input tokens delivers 15-20% cost reduction.
+Swarm completions bill a flat per-agent fee (`swarm_completions_agent_cost`, $0.01 by default) plus token costs (`swarm_completions_input_cost_per_1m` / `swarm_completions_output_cost_per_1m`, $6.50 / $18.50 per 1M tokens by default — see [Pricing](/docs/documentation/resources/pricing) for current values). Only the token component is discounted off-peak; the per-agent fee is charged in full regardless of time.
 
-When choosing service tiers, the standard tier is ideal for real-time processing, time-sensitive tasks, and critical workflows, offering immediate execution with higher priority and predictable timing, though at a higher cost with a 5-minute timeout. The off-peak tier for Swarm Completions is perfect for batch processing, non-urgent tasks, and cost-sensitive workloads, providing a 50% cost reduction on tokens during the 8 PM - 6 AM PT window, with the limitation that it only applies to Swarm Completions and has time window restrictions.
+The clearest, verifiable cost lever is timing: requests are automatically billed at a **50% discount on the token cost** when the server's clock, in the `America/Los_Angeles` timezone, falls between 8 PM and 6 AM (20:00–05:59 PT) — there is no separate "off-peak tier" to opt into; the discount applies automatically based on when the request runs. Beyond that, the usual principles apply: use only as many agents as the task needs (each one adds a flat per-agent fee), keep `max_tokens` and prompts focused on what the task requires, and pick a `max_loops` no larger than necessary — extra loops re-run the same agents and add tokens without a documented cost multiplier to justify them.
 
 ### Production Best Practices
 
-Implementing robust production practices ensures reliable and efficient multi-agent systems. Always use appropriate swarm types for your specific tasks, implement comprehensive error handling with retry logic, and monitor and log all executions to track performance and identify issues. Cache repeated results to reduce redundant processing, rotate API keys regularly for security, and choose the appropriate service tier based on task urgency. For Swarm Completions, schedule non-urgent tasks during off-peak hours (8 PM - 6 AM PT) to benefit from the night-time discount.
+Implementing robust production practices ensures reliable and efficient multi-agent systems. Use the swarm type suited to your task shape (see [Available Architectures](/docs/documentation/multi-agent/available-architectures)), implement error handling with retry logic for transient failures, and log responses (`job_id`, `execution_time`, `usage`) to track cost and performance over time. Check your credit balance and rate-limit headers (`X-RateLimit-*`, see [Rate Limit Headers](/docs/documentation/resources/rate-limit-headers)) rather than assuming a request will succeed.
 
-Avoid common anti-patterns that can compromise your system's reliability and security. Never hardcode API keys in your application code, always respect rate limits to prevent service disruptions, and ensure error handling is implemented for all API calls. Avoid using excessive agent counts when fewer agents can accomplish the task, maintain adequate monitoring to track system health, and always implement retry logic for failed requests to handle transient failures gracefully.
+Avoid common anti-patterns that can compromise your system's reliability and security. Never hardcode API keys in your application code — load them from the environment. Respect rate limits to prevent `429` responses, and stay above the minimum credit balance (billable routes require a total balance greater than $1.00, or requests are rejected with `402` before any work runs). Avoid using more agents than a task requires — every agent in the `agents` array adds a flat per-agent fee whether or not its output changes the final result.
 
 ### Error Handling
 
-Robust error handling is critical for production systems. For 400 errors (Input Validation), implement pre-request validation with fallback mechanisms to catch issues before they reach the API. Handle 401 errors (Auth Management) through secure key rotation and proper storage of credentials. When encountering 429 errors (Rate Limiting), implement exponential backoff with queuing to manage rate limit constraints. For 500 errors (Resilience), use retry mechanisms with circuit breaking to prevent cascading failures. Handle 503 errors (High Availability) with multi-region redundancy when possible, and manage 504 errors (Timeout Handling) with adaptive timeouts that can return partial results when appropriate.
-
-### Performance Benchmarks
-
-Monitoring performance metrics helps ensure your multi-agent systems meet production standards. Target response times should be under 2 seconds, with warnings when exceeding 5 seconds. Maintain success rates above 99%, with alerts when dropping below 95%. Keep cost per task under \$0.05, with warnings when exceeding \$0.10. Aim for cache hit rates above 80%, with alerts when dropping below 60%. Error rates should remain under 1%, with warnings when exceeding 5%. Retry rates should stay under 10%, with alerts when exceeding 30%. These benchmarks help maintain optimal system performance and cost efficiency.
+The API returns standard HTTP status codes. `401` means a missing or invalid `x-api-key` — rotate and store keys securely. `402` means your credit balance is below the required minimum. `403` means the request used a model or endpoint gated to premium accounts. `422` is a validation error — the response body's `detail` array names the offending field and constraint (see the [Errors reference](/docs/documentation/multi-agent/swarm_completions#errors)); validate `max_loops` (≤ 50), `agents` length (≤ 2000), and `temperature` (0–2) client-side before sending. `429` means you exceeded a rate-limit window — back off using the `Retry-After` header. `500` is a server-side failure — retry with backoff.
 
 ## Example Usage
 
@@ -213,10 +212,14 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
 
 <Tab title="Python (requests)">
 ```python
+import os
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_BASE_URL = "https://api.swarms.world"
-API_KEY = "your_api_key_here"
+API_KEY = os.getenv("SWARMS_API_KEY")
 
 headers = {
     "x-api-key": API_KEY,

@@ -78,7 +78,7 @@ headers = {
 | `mcp_config` | `MCPConnection` | No | `null` | MCP connection configuration |
 | `mcp_configs` | `MultipleMCPConnections` | No | `null` | Multiple MCP connections configuration |
 | `tool_call_summary` | `boolean` | No | `true` | Whether to summarize tool calls |
-| `reasoning_effort` | `string` | No | `null` (unset) | Reasoning effort level: `"none"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"ultra"`, or `"max"`. For Claude 5-family models (`claude-sonnet-5`, `claude-opus-5`, `claude-fable-5`) reasoning parameters are currently ignored and the agent runs without extended thinking |
+| `reasoning_effort` | `string` | No | `null` (unset) | Reasoning effort level: `"none"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"ultra"`, or `"max"`. At `"xhigh"` and above, pair with a large `max_tokens` so the model has room to think and answer |
 | `thinking_tokens` | `integer` | No | `null` | Number of tokens for thinking |
 | `reasoning_enabled` | `boolean` | No | `false` | Whether to enable reasoning capabilities |
 
@@ -116,7 +116,7 @@ headers = {
 | `input_tokens` | `integer` | Total number of input tokens consumed |
 | `output_tokens` | `integer` | Total number of output tokens generated |
 | `total_tokens` | `integer` | Sum of input and output tokens |
-| `token_cost` | `float` | Total credits charged for the run: input and output token costs plus `cost_per_agent` |
+| `total_cost` | `float` | Total credits charged for the run: input and output token costs plus `cost_per_agent` |
 | `cost_per_agent` | `float` | Cost per agent (0.01 * number_of_agents) |
 
 ## Cost Calculation
@@ -215,7 +215,7 @@ if response.status_code == 200:
     print(f"  Input tokens: {result['usage']['input_tokens']}")
     print(f"  Output tokens: {result['usage']['output_tokens']}")
     print(f"  Total tokens: {result['usage']['total_tokens']}")
-    print(f"  Token cost: ${result['usage']['token_cost']:.4f}")
+    print(f"  Token cost: ${result['usage']['total_cost']:.4f}")
 else:
     print(f"Error: {response.status_code}")
     print(response.text)
@@ -236,7 +236,7 @@ else:
     "input_tokens": 1250,
     "output_tokens": 3200,
     "total_tokens": 4450,
-    "token_cost": 0.087325,
+    "total_cost": 0.087325,
     "cost_per_agent": 0.02
   },
   "timestamp": "2024-01-15T10:30:45.123456+00:00"
@@ -344,7 +344,7 @@ if response.status_code == 200:
     print(f"  Input tokens: {result['usage']['input_tokens']}")
     print(f"  Output tokens: {result['usage']['output_tokens']}")
     print(f"  Total tokens: {result['usage']['total_tokens']}")
-    print(f"  Token cost: ${result['usage']['token_cost']:.4f}")
+    print(f"  Token cost: ${result['usage']['total_cost']:.4f}")
     print(f"  Cost per agent: ${result['usage']['cost_per_agent']:.4f}")
 else:
     print(f"Error: {response.status_code}")
@@ -368,7 +368,7 @@ else:
     "input_tokens": 3800,
     "output_tokens": 8500,
     "total_tokens": 12300,
-    "token_cost": 0.22195,
+    "total_cost": 0.22195,
     "cost_per_agent": 0.04
   },
   "timestamp": "2024-01-15T10:35:20.456789+00:00"
@@ -545,7 +545,7 @@ if response.status_code == 200:
     print(f"  Input tokens: {usage.get('input_tokens', 0)}")
     print(f"  Output tokens: {usage.get('output_tokens', 0)}")
     print(f"  Total tokens: {usage.get('total_tokens', 0)}")
-    print(f"  Token cost: ${usage.get('token_cost', 0):.4f}")
+    print(f"  Token cost: ${usage.get('total_cost', 0):.4f}")
     print(f"  Cost per agent: ${usage.get('cost_per_agent', 0):.4f}")
 else:
     print(f"Error: {response.status_code}")
@@ -574,7 +574,7 @@ else:
     "input_tokens": 12000,
     "output_tokens": 25000,
     "total_tokens": 37000,
-    "token_cost": 0.6305,
+    "total_cost": 0.6305,
     "cost_per_agent": 0.09
   },
   "timestamp": "2024-01-15T10:40:15.789012+00:00"
@@ -691,7 +691,7 @@ if response.status_code == 200:
     print(f"  Input tokens: {usage.get('input_tokens', 0)}")
     print(f"  Output tokens: {usage.get('output_tokens', 0)}")
     print(f"  Total tokens: {usage.get('total_tokens', 0)}")
-    print(f"  Token cost: ${usage.get('token_cost', 0):.4f}")
+    print(f"  Token cost: ${usage.get('total_cost', 0):.4f}")
     print(f"  Cost per agent: ${usage.get('cost_per_agent', 0):.4f}")
 else:
     print(f"Error: {response.status_code}")
@@ -714,7 +714,7 @@ else:
     "input_tokens": 2100,
     "output_tokens": 4800,
     "total_tokens": 6900,
-    "token_cost": 0.13245,
+    "total_cost": 0.13245,
     "cost_per_agent": 0.03
   },
   "timestamp": "2024-01-15T10:45:30.345678+00:00"
@@ -820,7 +820,7 @@ async def run_vision_workflow():
                 print(f"  Input tokens: {usage.get('input_tokens', 0)}")
                 print(f"  Output tokens: {usage.get('output_tokens', 0)}")
                 print(f"  Total tokens: {usage.get('total_tokens', 0)}")
-                print(f"  Token cost: ${usage.get('token_cost', 0):.4f}")
+                print(f"  Token cost: ${usage.get('total_cost', 0):.4f}")
                 print(f"  Cost per agent: ${usage.get('cost_per_agent', 0):.4f}")
                 return result
             else:
@@ -859,7 +859,7 @@ if __name__ == "__main__":
     "input_tokens": 3500,
     "output_tokens": 4200,
     "total_tokens": 7700,
-    "token_cost": 0.13045,
+    "total_cost": 0.13045,
     "cost_per_agent": 0.03
   },
   "timestamp": "2024-01-15T10:50:45.567890+00:00"

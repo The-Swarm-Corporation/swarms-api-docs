@@ -24,7 +24,11 @@ headers = {
 
 ### Step 2: Define Expert Panel
 
-Create multiple experts who will all analyze the same startup from different perspectives:
+Create multiple experts who will all analyze the same startup from different perspectives.
+
+<Warning>
+The API always reuses the **last** agent in `agents` as MixtureOfAgents' aggregator (in addition to running it as a normal worker on layer 1): it re-invokes that agent with every other agent's output appended to the task and records the synthesis under that same agent's name. `max_loops` sets the number of worker layers (`layers`), so with the default `max_loops: 1` each worker (including the last one) runs once, then the last agent runs a second time to aggregate. Put a dedicated synthesis agent last if you don't want a domain-specialist prompt reused for aggregation.
+</Warning>
 
 ```python
 def run_due_diligence(startup_info: str) -> dict:
@@ -95,6 +99,19 @@ Provide a LEGAL SCORE (1-10) with justification.""",
                 "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3
+            },
+            {
+                "agent_name": "Investment Committee Chair",
+                "description": "Synthesizes all expert analyses into a final verdict",
+                "system_prompt": """You are the investment committee chair. You will be given the task plus every other expert's analysis. Synthesize them into:
+1. A consolidated OVERALL SCORE (1-10)
+2. The top 3 cross-cutting risks
+3. A final recommendation: Proceed / Negotiate / Pass
+
+Do not repeat each expert's analysis verbatim - synthesize.""",
+                "model_name": "gpt-4.1",
+                "max_loops": 1,
+                "temperature": 0.2
             }
         ],
         "max_loops": 1
@@ -135,43 +152,40 @@ DETAILS:
 # Run analysis
 result = run_due_diligence(startup)
 
-# Extract scores and display
+# Extract per-expert scores and display
 def extract_score(content):
     match = re.search(r'score[:\s]+(\d+)/10', content.lower())
     return int(match.group(1)) if match else None
 
-scores = {}
+# "Investment Committee Chair" is the last agent, so the API reuses it as the
+# MixtureOfAgents aggregator: its entry is the synthesized final verdict, not
+# an independent expert opinion. Report it separately from the four experts.
+CHAIR_NAME = "Investment Committee Chair"
+
+expert_scores = {}
+chair_synthesis = None
 for output in result.get("output", []):
-    expert = output["role"]
+    role = output["role"]
     content = output["content"]
+
+    if role == CHAIR_NAME:
+        # Two entries can carry this name (an uninformed layer-1 pass, then
+        # the real aggregation) - the later one in the list is the synthesis.
+        chair_synthesis = content
+        continue
+
     score = extract_score(content)
-    scores[expert] = score
+    expert_scores[role] = score
 
     print(f"\n{'='*50}")
-    print(f"{expert.upper()}" + (f" - Score: {score}/10" if score else ""))
+    print(f"{role.upper()}" + (f" - Score: {score}/10" if score else ""))
     print(f"{'='*50}")
     print(content[:600] + "...")
 
-# Aggregate
-if scores:
-    valid_scores = [s for s in scores.values() if s]
-    avg = sum(valid_scores) / len(valid_scores)
-
-    print(f"\n{'='*50}")
-    print("AGGREGATE ASSESSMENT")
-    print(f"{'='*50}")
-    for expert, score in scores.items():
-        bar = "#" * (score or 0) + "-" * (10 - (score or 0))
-        print(f"{expert:20} [{bar}] {score}/10")
-
-    print(f"\nOVERALL SCORE: {avg:.1f}/10")
-
-    if avg >= 7:
-        print("RECOMMENDATION: Proceed with investment")
-    elif avg >= 5:
-        print("RECOMMENDATION: Address concerns before proceeding")
-    else:
-        print("RECOMMENDATION: Pass")
+print(f"\n{'='*50}")
+print("INVESTMENT COMMITTEE CHAIR (synthesis)")
+print(f"{'='*50}")
+print(chair_synthesis)
 
 print(f"\nTotal cost: ${result['usage']['billing_info']['total_cost']:.4f}")
 ```
@@ -203,19 +217,21 @@ FINANCIAL ANALYSIS
 Revenue: $180K ARR with 25% MoM growth is strong for seed stage...
 
 ==================================================
-AGGREGATE ASSESSMENT
+INVESTMENT COMMITTEE CHAIR (synthesis)
 ==================================================
-Technical Expert      [#######---] 7/10
-Financial Analyst     [########--] 8/10
-Market Strategist     [#######---] 7/10
-Legal Advisor         [######----] 6/10
+OVERALL SCORE: 7/10
 
-OVERALL SCORE: 7.0/10
-RECOMMENDATION: Proceed with investment
+Top risks:
+1. Heavy reliance on the OpenAI API for the core product (vendor lock-in, margin risk)
+2. Competing against well-funded incumbents (Fivetran, dbt)
+3. Burn rate not disclosed relative to the $4M ask
+
+RECOMMENDATION: Negotiate - strong growth and retention, but address API
+dependency and provide burn/runway detail before closing.
 
 Total cost: $0.1523
 ```
 
 <Note>
-MixtureOfAgents gives you multiple expert perspectives on the same input. Each expert sees identical information but analyzes through their specialized lens, revealing insights a single analyst might miss.
+MixtureOfAgents gives you multiple expert perspectives on the same input, then synthesizes them via the last agent in `agents`. Each worker sees identical information on layer 1 and analyzes through their specialized lens; on later layers (`max_loops > 1`) each worker also sees the previous layer's combined output. `agents[-1]` runs both as a normal worker and, again, as the aggregator that reads every other agent's answer.
 </Note>

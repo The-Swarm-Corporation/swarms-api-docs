@@ -1,30 +1,33 @@
 ---
 title: 'Global Availability'
-description: 'Swarms platform is now globally available across four regions for reduced latency and improved reliability.'
+description: 'Swarms API base URL and network-level notes for connecting from anywhere.'
 ---
 
+<Warning>
+This page previously described a named multi-region deployment (specific regions, automatic geographic routing, and per-region load balancing). Those infrastructure details could not be verified against the Swarms API application source and have been removed rather than restated as fact. If you rely on region-specific guarantees (data residency, regional failover SLAs), confirm current infrastructure details with the Swarms team before depending on them.
+</Warning>
 
-To serve our growing international user base, the Swarms platform is now globally available across four regions:
+## Connecting to the API
 
-- **US West**
-- **US East**
-- **Europe**
-- **Asia**
+All requests go to a single base URL regardless of where you connect from:
 
-This deployment significantly reduces latency for global customers, offering faster response times and improved reliability for enterprise-scale workloads.
+```
+https://api.swarms.world
+```
 
-### Automatic Routing
+There is no region-specific hostname or path — use this base URL for every request, from any location.
 
-When you make a request to the Swarms API, you are automatically routed to the closest server based on your geographic location. This intelligent routing ensures:
+```bash
+curl -H "x-api-key: $SWARMS_API_KEY" \
+     https://api.swarms.world/health
+```
 
-- **Optimal Performance**: Your requests are handled by the nearest data center
-- **Minimal Latency**: Network distance is minimized for faster response times
-- **Seamless Experience**: No configuration needed - routing happens automatically
-- **Load Balancing**: Traffic is distributed efficiently across regions
+## What This Means for Your Integration
 
-### Benefits
+- **No configuration needed**: Point your client at `https://api.swarms.world` — there is nothing region-specific to select or configure.
+- **Standard HTTP networking applies**: Latency to `https://api.swarms.world` depends on your own network path and DNS resolution, like any other HTTPS API.
+- **Retries and timeouts**: Treat the API like any internet-hosted HTTPS service — implement normal timeout and retry handling (see [Rate Limit Headers](/docs/documentation/resources/rate-limit-headers) for `Retry-After` on 429s).
 
-- **Reduced Latency**: Connect to the nearest region for optimal performance
-- **Improved Reliability**: Multiple regions ensure high availability and redundancy
-- **Enterprise-Scale**: Built to handle enterprise workloads with global distribution
-- **Faster Response Times**: Geographic proximity to users ensures quicker API responses
+## If You Need Region or Residency Guarantees
+
+If your use case requires guarantees about where requests are processed or data is stored, contact [technical support](/docs/documentation/resources/technical-support) or your account team directly rather than relying on this page — those details are outside what the public API surface exposes.

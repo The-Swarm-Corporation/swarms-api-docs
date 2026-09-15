@@ -88,7 +88,8 @@ result = analyze_market("Tesla Inc.")
 
 if result.get("success"):
     print(f"Agent: {result['name']}")
-    print(f"Output:\n{result['outputs'][:2000]}...")
+    output_text = str(result["outputs"])
+    print(f"Output:\n{output_text[:2000]}...")
 else:
     print(f"Error: {result}")
 ```
@@ -105,6 +106,18 @@ The coordinator will autonomously:
 <Note>
 Sub-agent workflows take longer than single-agent calls since multiple agents are created and run. Use a timeout of 300 seconds or more for complex delegation tasks.
 </Note>
+
+### Restricting the Tool Set
+
+By default, an agent with `max_loops="auto"` can use every safe autonomous tool, including `create_sub_agent` and `assign_task`. To limit the coordinator to only planning and delegation (no file I/O), set `selected_tools` on `agent_config`:
+
+```python
+"agent_config": {
+    ...,
+    "max_loops": "auto",
+    "selected_tools": ["create_plan", "think", "create_sub_agent", "assign_task", "subtask_done", "complete_task"],
+}
+```
 
 ## Next Steps
 

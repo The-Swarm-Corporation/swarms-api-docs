@@ -89,6 +89,26 @@ def build_payload() -> Dict[str, Any]:
 
 The `/v1/batched-grid-workflow/completions` endpoint is async-friendly. Use `httpx.AsyncClient` to avoid blocking your event loop.
 
+Equivalent raw request:
+
+```bash
+curl -X POST "https://api.swarms.world/v1/batched-grid-workflow/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "ETF Analysis Grid",
+    "max_loops": 1,
+    "agent_completions": [
+      {"agent_name": "Risk Analyst", "model_name": "gpt-4.1", "system_prompt": "You are a risk analyst.", "max_loops": 1},
+      {"agent_name": "Quantitative Analyst", "model_name": "gpt-4.1", "system_prompt": "You are a quantitative analyst.", "max_loops": 1}
+    ],
+    "tasks": [
+      "Analyze the top energy ETFs including XLE, VDE, and IYE.",
+      "Analyze the top semiconductor ETFs including SMH, SOXX, and XSD."
+    ]
+  }'
+```
+
 ```python
 async def run_grid() -> Dict[str, Any]:
     async with httpx.AsyncClient(timeout=300.0) as client:
@@ -134,5 +154,5 @@ Output shape: `outputs[task_index][agent_name] = response`. If you flatten this 
 Batched Grid is the right choice when each task is independent — no shared state, no inter-agent communication, just maximum parallelism.
 
 <Warning>
-`BatchedGridWorkflow` is a premium endpoint. See the [pricing page](/docs/documentation/resources/pricing) for cost details.
+**Premium Tier Required**: The `/v1/batched-grid-workflow/completions` endpoint is restricted to Pro, Ultra, and Premium plan subscribers. Free tier users will receive a 403 error. See [Premium Endpoints](/docs/documentation/resources/premium-endpoints) and the [pricing page](/docs/documentation/resources/pricing) for cost details.
 </Warning>

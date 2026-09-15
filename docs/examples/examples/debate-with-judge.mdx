@@ -152,7 +152,7 @@ VERDICT: For most startups, begin with a modular monolith...
 
 ### Step 4: Multi-Loop Refinement
 
-Run multiple debate rounds where the judge's feedback helps both sides sharpen their arguments:
+Run multiple debate rounds where the judge's feedback helps both sides sharpen their arguments. Each loop runs Pro, then Con, then Judge in order, feeding the judge's synthesis into the next round as the new topic - `output` will contain `3 * max_loops` entries, with role names repeating per round:
 
 ```python
 # Run 2 loops — debaters refine their arguments based on judge feedback

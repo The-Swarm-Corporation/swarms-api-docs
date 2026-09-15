@@ -179,8 +179,12 @@ def build_review_swarm(diff_text: str, pr_title: str, pr_description: str) -> di
     }
 ```
 
+<Warning>
+`HierarchicalSwarm` always builds its own director from `director_model_name` (default `gpt-5.4`) that decomposes the task and dispatches it to every agent in `agents` — the Lead Reviewer above runs as one of the director's workers, not as a privileged synthesizer, and with the default `max_loops: 1` and parallel worker execution, no agent (Lead Reviewer included) sees another specialist's findings before writing its own. `extract_lead_comment` below reads whatever the Lead Reviewer produced on its own pass, which may not actually be the compressed four-way summary the prompt asks for. For a guaranteed synthesis pass, either set `"max_loops": 2` on the swarm (the framework's director is handed every first-round finding on its second pass and can route the synthesis to the Lead Reviewer by name/description), or collect the four specialists' findings client-side and issue one more `/v1/agent/completions` call using the Lead Reviewer's system prompt before you post to GitHub.
+</Warning>
+
 <Note>
-The Lead Reviewer's output is the comment you post to GitHub. The four specialist outputs are the audit trail — every flagged issue is fully traceable back to the reviewer who raised it.
+The Lead Reviewer's output is meant to be the comment you post to GitHub, and the four specialist outputs are the audit trail — every flagged issue is fully traceable back to the reviewer who raised it — but see the warning above for what it takes to make that reliable.
 </Note>
 
 ## Step 3: Review a Single Diff

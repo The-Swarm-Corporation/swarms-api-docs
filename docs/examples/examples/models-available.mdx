@@ -103,8 +103,8 @@ The `/v1/models/available` endpoint returns all models currently supported by th
     #     "gpt-4.1-mini",
     #     "gpt-4-turbo",
     #     "claude-sonnet-4-20250514",
-    #     "claude-haiku-3.5",
-    #     "groq/llama-3.1-70b-versatile",
+    #     "claude-haiku-4-5",
+    #     "groq/llama-3.3-70b-versatile",
     #     "openrouter/aion-labs/aion-3.0"
     #   ]
     # }
@@ -127,8 +127,8 @@ The models endpoint returns a flat list of all available model identifiers, filt
     "gpt-4",
     "gpt-3.5-turbo",
     "claude-sonnet-4-20250514",
-    "claude-haiku-3.5",
-    "groq/llama-3.1-70b-versatile",
+    "claude-haiku-4-5",
+    "groq/llama-3.3-70b-versatile",
     "groq/llama-3.1-8b-instant"
   ]
 }
@@ -210,8 +210,8 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
     # Best for quick responses, simple tasks, cost optimization
     recommended_models = [
         "gpt-4.1-mini",              # Fastest and most cost-effective
-        "llama-3.1-8b-instant",     # Very fast inference
-        "claude-haiku-3.5"         # Fast with good quality
+        "groq/llama-3.1-8b-instant",     # Very fast inference
+        "claude-haiku-4-5"         # Fast with good quality
     ]
     ```
   </Tab>
@@ -248,7 +248,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
         "gpt-4.1",
         "gpt-4.1-mini",
         "claude-sonnet-4-20250514",
-        "claude-haiku-3.5"
+        "claude-haiku-4-5"
     ]
 
     # Example: Streaming-enabled agent
@@ -310,7 +310,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
             if priority == "quality":
                 return "gpt-4.1" if "gpt-4.1" in available_models else "claude-sonnet-4-20250514"
             elif priority == "speed":
-                return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models else "claude-haiku-3.5"
+                return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models else "claude-haiku-4-5"
             else:  # balanced
                 return "gpt-4.1-mini"
 
@@ -318,7 +318,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
             return "gpt-4.1" if "gpt-4.1" in available_models else "claude-sonnet-4-20250514"
 
         elif task_type == "fast":
-            return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models else "llama-3.1-8b-instant"
+            return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models else "groq/llama-3.1-8b-instant"
 
         elif task_type == "vision":
             return "gpt-4.1" if "gpt-4.1" in available_models else "gpt-4-turbo"
@@ -337,9 +337,9 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
         const modelPreferences = {
             creative: {
                 quality: ["gpt-4.1", "claude-sonnet-4-20250514"],
-                speed: ["gpt-4.1-mini", "claude-haiku-3.5"],
+                speed: ["gpt-4.1-mini", "claude-haiku-4-5"],
                 balanced: ["gpt-4.1-mini"],
-                cost: ["gpt-4.1-mini", "llama-3.1-8b-instant"]
+                cost: ["gpt-4.1-mini", "groq/llama-3.1-8b-instant"]
             },
             analytical: {
                 quality: ["gpt-4.1", "claude-sonnet-4-20250514"],
@@ -349,9 +349,9 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
             },
             fast: {
                 quality: ["gpt-4.1-mini"],
-                speed: ["gpt-4.1-mini", "llama-3.1-8b-instant"],
+                speed: ["gpt-4.1-mini", "groq/llama-3.1-8b-instant"],
                 balanced: ["gpt-4.1-mini"],
-                cost: ["gpt-4.1-mini", "llama-3.1-8b-instant"]
+                cost: ["gpt-4.1-mini", "groq/llama-3.1-8b-instant"]
             },
             vision: {
                 quality: ["gpt-4.1"],
@@ -379,9 +379,9 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
 | `gpt-4.1` | 128k+ | Complex reasoning, vision | Medium | High |
 | `gpt-4.1-mini` | 128k+ | General purpose, fast tasks | Fast | Low |
 | `claude-sonnet-4-20250514` | 200k+ | Creative writing, analysis | Medium | High |
-| `claude-haiku-3.5` | 200k+ | Fast responses | Fast | Low |
-| `llama-3.1-70b` | 128k | Complex tasks | Medium | Medium |
-| `llama-3.1-8b` | 128k | Simple tasks | Fast | Low |
+| `claude-haiku-4-5` | 200k+ | Fast responses | Fast | Low |
+| `groq/llama-3.3-70b-versatile` | 128k | Complex tasks | Medium | Medium |
+| `groq/llama-3.1-8b-instant` | 128k | Simple tasks | Fast | Low |
 
 ## Cost Optimization
 
@@ -393,7 +393,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
         Select optimal model based on task complexity and budget
         """
         if task_complexity == "low":
-            return "gpt-4.1-mini" if budget_constraint == "strict" else "llama-3.1-8b-instant"
+            return "gpt-4.1-mini" if budget_constraint == "strict" else "groq/llama-3.1-8b-instant"
         elif task_complexity == "medium":
             return "gpt-4.1-mini" if budget_constraint == "strict" else "gpt-4.1"
         else:  # high complexity
@@ -410,7 +410,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
         const optimizationMatrix = {
             low: {
                 strict: "gpt-4.1-mini",
-                flexible: "llama-3.1-8b-instant"
+                flexible: "groq/llama-3.1-8b-instant"
             },
             medium: {
                 strict: "gpt-4.1-mini",

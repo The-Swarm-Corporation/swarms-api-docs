@@ -32,6 +32,10 @@ flowchart TD
 The supervisor splits the task, hands pieces to workers, then validates and merges what
 comes back.
 
+<Note>
+The "Supervisor" in the diagram is a director agent that `HierarchicalSwarm` creates for you automatically — it is not one of the entries in `agents`. Every agent you list in `agents` runs as a worker the director can delegate to, even if you name one of them "coordinator." Tune the director itself with the top-level `director_model_name` and `director_settings` fields (see [Configuring the Director](#configuring-the-director) below).
+</Note>
+
 ## Use Cases
 
 - Complex project management and coordination
@@ -57,8 +61,8 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
     "agents": [
       {
         "agent_name": "Research Coordinator",
-        "description": "Supervisor agent coordinating research efforts and synthesizing results",
-        "system_prompt": "You are a research coordinator supervising a team of specialized researchers. Delegate tasks, coordinate efforts, and synthesize final results into a comprehensive report.",
+        "description": "Worker agent that synthesizes the team's findings into a final report",
+        "system_prompt": "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
         "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.3
@@ -122,8 +126,8 @@ swarm_config = {
     "agents": [
         {
             "agent_name": "Research Coordinator",
-            "description": "Supervisor agent coordinating research efforts and synthesizing results",
-            "system_prompt": "You are a research coordinator supervising a team of specialized researchers. Delegate tasks, coordinate efforts, and synthesize final results into a comprehensive report.",
+            "description": "Worker agent that synthesizes the team's findings into a final report",
+            "system_prompt": "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
             "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.3
@@ -199,8 +203,8 @@ const swarmConfig = {
     agents: [
         {
             agent_name: "Research Coordinator",
-            description: "Supervisor agent coordinating research efforts and synthesizing results",
-            system_prompt: "You are a research coordinator supervising a team of specialized researchers. Delegate tasks, coordinate efforts, and synthesize final results into a comprehensive report.",
+            description: "Worker agent that synthesizes the team's findings into a final report",
+            system_prompt: "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
             model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.3
@@ -301,8 +305,8 @@ func main() {
         Agents: []Agent{
             {
                 AgentName:    "Research Coordinator",
-                Description:  "Supervisor agent coordinating research efforts and synthesizing results",
-                SystemPrompt: "You are a research coordinator supervising a team of specialized researchers. Delegate tasks, coordinate efforts, and synthesize final results into a comprehensive report.",
+                Description:  "Worker agent that synthesizes the team's findings into a final report",
+                SystemPrompt: "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
                 ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.3,
@@ -382,8 +386,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "agents": [
             {
                 "agent_name": "Research Coordinator",
-                "description": "Supervisor agent coordinating research efforts and synthesizing results",
-                "system_prompt": "You are a research coordinator supervising a team of specialized researchers. Delegate tasks, coordinate efforts, and synthesize final results into a comprehensive report.",
+                "description": "Worker agent that synthesizes the team's findings into a final report",
+                "system_prompt": "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
                 "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3
@@ -458,7 +462,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     "output": [
         {
             "role": "Research Coordinator",
-            "content": "As the Research Coordinator, I have synthesized the findings from our specialized research team into a comprehensive report on AI's impact on healthcare..."
+            "content": "As the lead researcher, I have synthesized the findings from our specialized research team into a comprehensive report on AI's impact on healthcare..."
         },
         {
             "role": "Technology Researcher",

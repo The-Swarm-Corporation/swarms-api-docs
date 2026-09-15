@@ -37,6 +37,7 @@ load_dotenv()
 
 client = SwarmsClient(
     api_key=os.getenv("SWARMS_API_KEY"),
+    base_url="https://api.swarms.world",
 )
 ```
 
@@ -110,31 +111,69 @@ client = SwarmsClient(api_key="your_api_key_here")
 ```python
 client = SwarmsClient(
     api_key=os.getenv("SWARMS_API_KEY"),
-    base_url="https://api.swarms.world",  # Optional custom base URL
-    timeout=30.0,  # Request timeout in seconds
+    base_url="https://api.swarms.world",  # Recommended: set explicitly
+    timeout=30.0,  # Request timeout in seconds (SDK default: 60s)
+    max_retries=2,  # Retries on transient errors (SDK default: 2)
 )
 ```
 
+<Note>
+If `base_url` is omitted, the installed `swarms-client` falls back to its own
+built-in default host rather than `https://api.swarms.world`. Always pass
+`base_url="https://api.swarms.world"` explicitly to avoid depending on
+whatever host ships baked into a given SDK version.
+</Note>
+
 ## Core Operations
+
+### Single Agent Completion
+
+```python
+# Run a single agent (POST /v1/agent/completions)
+agent_response = client.agent.run(
+    agent_config={
+        "agent_name": "research-agent",
+        "system_prompt": "You are a concise research assistant.",
+        "model_name": "gpt-4.1",
+        "max_loops": 1,
+        "max_tokens": 4096,
+        "temperature": 0.3,
+    },
+    task="Summarize the key drivers of inflation in 2024.",
+)
+
+print(agent_response["outputs"])
+print(agent_response["usage"])
+```
 
 ### Swarm Management
 
 ```python
-# Create and run a swarm
+# Create and run a swarm (POST /v1/swarm/completions)
 swarm_response = client.swarms.run(
     name="Data Analysis Swarm",
     description="Analyzes complex datasets",
     swarm_type="SequentialWorkflow",
     task="Analyze the sales data for Q4",
-    agents=[...]
+    agents=[
+        {"agent_name": "data-cleaner", "model_name": "gpt-4.1", "max_loops": 1},
+        {"agent_name": "analyst", "model_name": "gpt-4.1", "max_loops": 1},
+    ],
 )
 
-# Get swarm logs
+# Get request logs — GET /v1/swarm/logs (a deprecated alias for GET /v1/account/logs)
 logs = client.swarms.get_logs()
 
-# Check available swarms
+# Check available swarm types — GET /v1/swarms/available
 available = client.swarms.check_available()
 ```
+
+<Note>
+`client.swarms.get_logs()` calls `GET /v1/swarm/logs`, a deprecated alias.
+The canonical endpoint, `GET /v1/account/logs`, is not yet exposed on this
+SDK resource; call it directly with `requests` — see
+[Endpoints Not Yet in the SDK](#endpoints-not-yet-in-the-sdk) below.
+</Note>
 
 ### Model Information
 
@@ -205,24 +244,78 @@ results = asyncio.run(main())
 
 ### Batch Operations
 
+<Warning>
+`POST /v1/swarm/batch/completions` and `POST /v1/agent/batch/completions` are
+**premium-only** endpoints. Calling them on a free-tier API key returns an
+error. See [Premium Endpoints](/docs/documentation/resources/premium-endpoints).
+</Warning>
+
+Run several swarms concurrently in a single request with `client.swarms.batch.run`:
+
 ```python
-# Process multiple tasks
+# POST /v1/swarm/batch/completions — executes all swarms concurrently server-side
+batch_response = client.swarms.batch.run(
+    body=[
+        {
+            "name": "Q1 Feedback Swarm",
+            "swarm_type": "ConcurrentWorkflow",
+            "task": "Analyze customer feedback for Q1",
+            "agents": [
+                {"agent_name": "analyst", "model_name": "gpt-4.1", "max_loops": 1}
+            ],
+        },
+        {
+            "name": "Monthly Report Swarm",
+            "swarm_type": "ConcurrentWorkflow",
+            "task": "Generate monthly report summary",
+            "agents": [
+                {"agent_name": "writer", "model_name": "gpt-4.1", "max_loops": 1}
+            ],
+        },
+    ]
+)
+
+for result in batch_response:
+    print(result["status"], result.get("swarm_name"))
+```
+
+The single-agent equivalent, `client.agent.batch.run`, takes a list of
+`{"agent_config": ..., "task": ...}` objects and posts to
+`/v1/agent/batch/completions` (batch limit: 50 agent completions per request):
+
+```python
+# POST /v1/agent/batch/completions
+agent_batch_response = client.agent.batch.run(
+    body=[
+        {
+            "agent_config": {"agent_name": "analyst", "model_name": "gpt-4.1", "max_loops": 1},
+            "task": "Analyze customer feedback for Q1",
+        },
+        {
+            "agent_config": {"agent_name": "writer", "model_name": "gpt-4.1", "max_loops": 1},
+            "task": "Generate monthly report summary",
+        },
+    ]
+)
+```
+
+If you are on the free tier, run tasks sequentially against the
+non-premium `client.swarms.run` or `client.agent.run` instead:
+
+```python
 tasks = [
     "Analyze customer feedback for Q1",
     "Generate monthly report summary",
-    "Review system performance metrics"
+    "Review system performance metrics",
 ]
 
-responses = []
-for task in tasks:
-    response = client.swarms.run(
-        name=f"Batch Task - {task[:20]}...",
-        description="Batch processing task",
-        swarm_type="ConcurrentWorkflow",
+responses = [
+    client.agent.run(
+        agent_config={"agent_name": "worker", "model_name": "gpt-4.1", "max_loops": 1},
         task=task,
-        agents=[...]
     )
-    responses.append(response)
+    for task in tasks
+]
 ```
 
 ## Helper Methods
@@ -324,6 +417,119 @@ analysis_pipeline = client.swarms.run(
     ],
 )
 ```
+
+## Endpoints Not Yet in the SDK
+
+The installed `swarms-client` (0.8.0) wraps a subset of the Swarms API:
+`client.agent.run`, `client.agent.batch.run`, `client.swarms.run`,
+`client.swarms.batch.run`, `client.swarms.get_logs`,
+`client.swarms.check_available`, `client.models.list_available`,
+`client.health.check`, and `client.client.rate.get_limits`.
+
+Newer endpoints — reasoning agents, graph workflows, batched grid workflows,
+the auto agent builder, and the account/usage endpoints — are not yet
+wrapped by a dedicated resource. Call them directly with `requests` using
+the same `x-api-key` header:
+
+```python
+import os
+import requests
+
+API_KEY = os.getenv("SWARMS_API_KEY")
+BASE_URL = "https://api.swarms.world"
+HEADERS = {"x-api-key": API_KEY, "Content-Type": "application/json"}
+
+# Reasoning agent completion — POST /v1/reasoning-agent/completions (premium)
+reasoning = requests.post(
+    f"{BASE_URL}/v1/reasoning-agent/completions",
+    headers=HEADERS,
+    json={
+        "agent_name": "reasoning-agent",
+        "model_name": "claude-sonnet-5",
+        "swarm_type": "reasoning-duo",
+        "task": "Should we launch the product in Q2 or Q3?",
+    },
+)
+print(reasoning.json())
+
+# Reasoning agent types — GET /v1/reasoning-agent/types
+reasoning_types = requests.get(
+    f"{BASE_URL}/v1/reasoning-agent/types", headers=HEADERS
+).json()
+
+# Graph workflow — POST /v1/graph-workflow/completions (premium)
+graph = requests.post(
+    f"{BASE_URL}/v1/graph-workflow/completions",
+    headers=HEADERS,
+    json={
+        "name": "research-pipeline",
+        "agents": [
+            {"agent_name": "researcher", "model_name": "gpt-4.1", "max_loops": 1},
+            {"agent_name": "writer", "model_name": "gpt-4.1", "max_loops": 1},
+        ],
+        "edges": [{"source": "researcher", "target": "writer"}],
+        "task": "Research and write a one-page brief on solid-state batteries.",
+    },
+)
+
+# Batched grid workflow — POST /v1/batched-grid-workflow/completions (premium)
+grid = requests.post(
+    f"{BASE_URL}/v1/batched-grid-workflow/completions",
+    headers=HEADERS,
+    json={
+        "agent_completions": [
+            {"agent_name": "worker", "model_name": "gpt-4.1", "max_loops": 1}
+        ],
+        "tasks": ["Summarize article A", "Summarize article B"],
+    },
+)
+
+# Auto agent builder — POST /v1/auto-agent-builder/completions (generates AgentSpecs, does not execute them)
+builder = requests.post(
+    f"{BASE_URL}/v1/auto-agent-builder/completions",
+    headers=HEADERS,
+    json={"task": "Build a team that triages customer support tickets.", "max_agents": 3},
+).json()
+generated_agents = builder["agents"]  # ready-to-post AgentSpec objects
+
+# Account credit balance — GET /v1/account/credits
+credits = requests.get(f"{BASE_URL}/v1/account/credits", headers=HEADERS).json()
+
+# API request logs — GET /v1/account/logs (canonical; /v1/swarm/logs is a deprecated alias)
+account_logs = requests.get(f"{BASE_URL}/v1/account/logs", headers=HEADERS).json()
+
+# Usage metrics summary — GET /v1/account/metrics/summary
+metrics = requests.get(f"{BASE_URL}/v1/account/metrics/summary", headers=HEADERS).json()
+
+# Which endpoints require a premium subscription — GET /v1/account/premium-endpoints
+premium_info = requests.get(f"{BASE_URL}/v1/account/premium-endpoints", headers=HEADERS).json()
+
+# Pricing details — GET /v1/usage/costs
+pricing = requests.get(f"{BASE_URL}/v1/usage/costs", headers=HEADERS).json()
+
+# Saved agent configurations — GET /v1/agents/list
+saved_agents = requests.get(f"{BASE_URL}/v1/agents/list", headers=HEADERS).json()
+
+# Available API tools (auto_search, web_scraper) — GET /v1/tools/available
+tools = requests.get(f"{BASE_URL}/v1/tools/available", headers=HEADERS).json()
+
+# OpenAI-compatible chat completions — POST /v1/chat/completions
+chat = requests.post(
+    f"{BASE_URL}/v1/chat/completions",
+    headers=HEADERS,
+    json={"model": "gpt-4.1", "messages": [{"role": "user", "content": "Hello"}]},
+).json()
+
+# OpenAI-compatible model list — GET /v1/models
+openai_models = requests.get(f"{BASE_URL}/v1/models", headers=HEADERS).json()
+```
+
+<Tip>
+The OpenAI-compatible endpoints (`/v1/chat/completions`, `/v1/models`) also
+work as a drop-in with the official `openai` Python SDK: pass
+`base_url="https://api.swarms.world/v1"` and `api_key=os.getenv("SWARMS_API_KEY")`
+to `OpenAI(...)`.
+</Tip>
 
 ## Troubleshooting
 

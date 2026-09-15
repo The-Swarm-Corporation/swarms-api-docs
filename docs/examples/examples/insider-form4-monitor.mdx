@@ -15,7 +15,7 @@ Every weekday at 5:30pm ET, a ranked digest of the day's most-significant inside
 - `/v1/swarm/batch/completions` running the whole day's filings in a single overnight job
 
 <Info>
-EDGAR publishes 500-1000 Form 4s every trading day. Single-shot `/v1/swarm/completions` calls breach Free-tier rate caps by mid-morning. The batch endpoint is the right tool — note that it requires a premium tier (Pro, Ultra, or Premium) — see [Rate Limits](/docs/documentation/resources/ratelimits) for the per-tier numbers and upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) for Pro/Ultra/Premium throughput.
+EDGAR publishes 500-1000 Form 4s every trading day. Single-shot `/v1/swarm/completions` calls breach Free-tier rate caps by mid-morning. The batch endpoint is the right tool — note that it requires a premium tier (Pro, Ultra, or Premium) — see [Rate Limits](/docs/documentation/resources/ratelimits) for the per-tier numbers and upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings) for Pro/Ultra/Premium throughput.
 </Info>
 
 ## Why This Matters
@@ -24,7 +24,7 @@ Cluster insider buying has 30+ years of peer-reviewed alpha behind it — when t
 
 ## The Architecture
 
-```
+```text
 EDGAR Form 4 RSS (500-1000/day)
             │
             ▼

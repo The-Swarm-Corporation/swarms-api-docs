@@ -36,10 +36,10 @@ headers = {
 
 ### Step 3: Define the Research Function
 
-HeavySwarm creates its own five specialized agents internally — pass an empty `agents` array and configure the swarm using HeavySwarm-specific parameters:
+HeavySwarm creates its own specialized agents internally — pass an empty `agents` array and configure the swarm using HeavySwarm-specific parameters:
 
 ```python
-def run_heavy_analysis(task: str, heavy_swarm_max_loops: int = 1, max_loops: int = 1) -> dict:
+def run_heavy_analysis(task: str, heavy_swarm_max_loops: int = 1) -> dict:
     """Run a deep multi-perspective analysis using HeavySwarm."""
 
     swarm_config = {
@@ -51,7 +51,7 @@ def run_heavy_analysis(task: str, heavy_swarm_max_loops: int = 1, max_loops: int
         "heavy_swarm_max_loops": heavy_swarm_max_loops,
         "heavy_swarm_question_agent_model_name": "gpt-4.1",
         "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
-        "max_loops": max_loops
+        "heavy_swarm_variant": "default"
     }
 
     response = requests.post(
@@ -63,6 +63,19 @@ def run_heavy_analysis(task: str, heavy_swarm_max_loops: int = 1, max_loops: int
 
     return response.json()
 ```
+
+<Warning>
+For `HeavySwarm`, the top-level `max_loops` field is not used - it only controls how many worker agents you supply (irrelevant here since `agents` is empty). Use `heavy_swarm_max_loops` to control HeavySwarm's own iteration count.
+</Warning>
+
+<Note>
+`heavy_swarm_variant` picks an entirely different agent roster, not just a size knob:
+- `"default"` (the default) — 5 agents: Question Generator, `Research-Agent`, `Analysis-Agent`, `Alternatives-Agent`, `Verification-Agent`, then a Synthesis Agent. This is what the rest of this page demonstrates.
+- `"medium"` — 4 Grok-backed agents (a Captain plus Harper, Benjamin, and Lucas).
+- `"heavy"` — 16 agents (a Grok lead plus 15 domain specialists).
+
+Switching `heavy_swarm_variant` changes the `role` values in `output`, so code that matches on agent name (like `Research-Agent` below) only applies to the `"default"` variant.
+</Note>
 
 ### Step 4: Run the Analysis
 
@@ -201,14 +214,13 @@ key findings:
 
 ### Step 5: Multi-Loop Deep Dive (Optional)
 
-For tasks requiring deeper analysis, increase `heavy_swarm_max_loops` and `max_loops`. Each iteration builds on previous results:
+For tasks requiring deeper analysis, increase `heavy_swarm_max_loops`. Each iteration builds on the previous loop's synthesized result:
 
 ```python
 # Run a deeper 2-loop analysis for thorough due diligence
 deep_result = run_heavy_analysis(
     task="Conduct due diligence on CoreWeave as a potential investment. Evaluate their GPU cloud infrastructure business model, competitive positioning against AWS/Azure/GCP, financial health, customer concentration risk, and long-term defensibility.",
-    heavy_swarm_max_loops=2,
-    max_loops=2
+    heavy_swarm_max_loops=2
 )
 
 # The synthesis agent output from the final loop contains the most refined analysis

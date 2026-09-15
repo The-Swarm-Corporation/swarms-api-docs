@@ -10,12 +10,14 @@ Welcome to the Swarms API Resources hub. This page provides quick access to all 
 | Resource | Description | Key Topics |
 |----------|-------------|------------|
 | [Rate Limits](/docs/documentation/resources/ratelimits) | API request limits and throttling information | Request quotas, sliding windows, premium limits |
+| [Rate Limit Headers](/docs/documentation/resources/rate-limit-headers) | `X-RateLimit-*` response headers for tracking usage | Headers, `Retry-After`, tier detection |
 | [Pricing](/docs/documentation/resources/pricing) | Pricing structure and credit deduction details | Subscription plans, usage-based pricing, discounts |
-| [Security](/docs/documentation/resources/security) | Security certifications and compliance standards | SOC 2, HIPAA, GDPR, data protection |
-| [Response Compression](/docs/documentation/resources/response-compression) | Optimize response sizes with compression | LZ4, Gzip, performance optimization |
+| [Usage Report](/docs/documentation/resources/usage-report) | Current pricing, request logs, and metrics summary | `/v1/usage/costs`, `/v1/account/logs`, `/v1/account/metrics/summary` |
+| [Security](/docs/documentation/resources/security) | Security certifications and technical security controls | SOC 2, HIPAA, GDPR, authentication, response headers |
+| [Response Compression](/docs/documentation/resources/response-compression) | Optimize response sizes with compression | Zstandard, LZ4, Gzip, performance optimization |
 | [Premium Endpoints](/docs/documentation/resources/premium-endpoints) | Exclusive endpoints for paid tiers | Batch processing, advanced workflows |
-| [Priority Processing](/docs/documentation/resources/priority-processing) | Faster processing for priority requests | Queue prioritization, latency reduction |
-| [Global Availability](/docs/documentation/resources/global-availability) | Worldwide infrastructure and regions | Multi-region deployment, edge locations |
+| [Priority Processing](/docs/documentation/resources/priority-processing) | What premium accounts actually get today | Higher rate limits, premium endpoints and models |
+| [Global Availability](/docs/documentation/resources/global-availability) | Connecting to the Swarms API base URL | Base URL, networking notes |
 | [Community](/docs/documentation/resources/community) | Connect with the Swarms community | Discord, social media, events |
 | [Technical Support](/docs/documentation/resources/technical-support) | Get help and support options | Support tiers, contact methods |
 | [Referral Program](/docs/documentation/resources/referral) | Earn credits by referring users | Referral rewards, program details |
@@ -35,14 +37,14 @@ Welcome to the Swarms API Resources hub. This page provides quick access to all 
 <Card title="Performance & Optimization" icon="gauge-high">
   Maximize your API efficiency:
   - [Response Compression](/docs/documentation/resources/response-compression) - Reduce payload sizes
-  - [Priority Processing](/docs/documentation/resources/priority-processing) - Get faster responses
-  - [Global Availability](/docs/documentation/resources/global-availability) - Leverage edge locations
+  - [Priority Processing](/docs/documentation/resources/priority-processing) - What premium tiers raise
+  - [Global Availability](/docs/documentation/resources/global-availability) - Base URL and networking notes
 </Card>
 
 <Card title="Premium Features" icon="crown">
   Unlock advanced capabilities:
   - [Premium Endpoints](/docs/documentation/resources/premium-endpoints) - Access exclusive APIs
-  - [Priority Processing](/docs/documentation/resources/priority-processing) - Skip the queue
+  - [Priority Processing](/docs/documentation/resources/priority-processing) - Higher rate limits on premium
 </Card>
 
 <Card title="Community & Support" icon="users">
@@ -61,8 +63,8 @@ Welcome to the Swarms API Resources hub. This page provides quick access to all 
 | What You Need | Go To |
 |---------------|-------|
 | Understand API limits before building | [Rate Limits](/docs/documentation/resources/ratelimits) |
-| Optimize response times | [Response Compression](/docs/documentation/resources/response-compression) |
-| Deploy globally | [Global Availability](/docs/documentation/resources/global-availability) |
+| Optimize response sizes | [Response Compression](/docs/documentation/resources/response-compression) |
+| Find the API base URL | [Global Availability](/docs/documentation/resources/global-availability) |
 
 ### For Teams & Enterprises
 

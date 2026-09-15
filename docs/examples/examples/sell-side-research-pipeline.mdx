@@ -13,7 +13,7 @@ description: "A HierarchicalSwarm that ingests sell-side PDFs from Goldman, JPM,
 - The structured signal payload your OMS, EMS, or research database actually wants — not free-form text
 
 <Info>
-This pipeline processes a high volume of PDF documents per day. The batch endpoint and parallel function-tool execution sit on the paid tiers (Pro, Ultra, Premium) — the Free tier caps you at 1,200 requests per day. Read the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) before turning the cron on, and upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+This pipeline processes a high volume of PDF documents per day. `/v1/swarm/batch/completions` (Step 5) is a **premium-only** endpoint (Pro, Ultra, Premium) — the Free tier caps you at 1,200 requests per day, which this end-of-day sweep across 150+ notes will exceed. Read the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) before turning the cron on, and upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings).
 </Info>
 
 ## Why This Matters
@@ -22,7 +22,7 @@ Every PM in the firm wakes up to a ranked sheet of rating + target deltas — al
 
 ## The Architecture
 
-```
+```text
                 Email inbox / S3 drop
                          |
                          v
@@ -36,7 +36,7 @@ Every PM in the firm wakes up to a ranked sheet of rating + target deltas — al
    |                                                 |
    |        +-----------------------------+          |
    |        |   Research Director         |          |
-   |        |   (claude-sonnet-4.5)       |          |
+   |        |   (claude-sonnet-4-5)       |          |
    |        +-------------+---------------+          |
    |                      |                          |
    |        +-------------+-------------+            |
@@ -293,7 +293,7 @@ def build_swarm_for_note(pdf_ref: str, ticker: str) -> dict:
                 "agent_name": "Research Director",
                 "description": "Director — synthesizes worker output into a signal.",
                 "system_prompt": RESEARCH_DIRECTOR_PROMPT,
-                "model_name": "anthropic/claude-sonnet-4-5",
+                "model_name": "claude-sonnet-4-5",
                 "role": "coordinator",
                 "max_loops": 1,
                 "max_tokens": 4096,
@@ -309,7 +309,7 @@ def build_swarm_for_note(pdf_ref: str, ticker: str) -> dict:
                 "agent_name": "Rating Tracker",
                 "description": "Extracts rating + rating change.",
                 "system_prompt": RATING_TRACKER_PROMPT,
-                "model_name": "openai/gpt-4.1-mini",
+                "model_name": "gpt-4.1-mini",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 1024,
@@ -320,7 +320,7 @@ def build_swarm_for_note(pdf_ref: str, ticker: str) -> dict:
                 "agent_name": "Price Target Tracker",
                 "description": "Extracts new vs. prior price target.",
                 "system_prompt": PRICE_TARGET_PROMPT,
-                "model_name": "openai/gpt-4.1",
+                "model_name": "gpt-4.1",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 1024,
@@ -400,18 +400,25 @@ def sweep_inbox_for_today() -> list[tuple[str, str]]:
     ]
 
 
+# /v1/swarm/batch/completions accepts at most 50 swarms per request.
+BATCH_SIZE_LIMIT = 50
+
+
 def run_eod_batch() -> list[dict]:
     notes = sweep_inbox_for_today()
     payload = [build_swarm_for_note(pdf_ref, ticker) for pdf_ref, ticker in notes]
 
-    response = requests.post(
-        f"{BASE_URL}/v1/swarm/batch/completions",
-        headers=headers,
-        json=payload,
-        timeout=1800,
-    )
-    response.raise_for_status()
-    return response.json()
+    results = []
+    for i in range(0, len(payload), BATCH_SIZE_LIMIT):
+        response = requests.post(
+            f"{BASE_URL}/v1/swarm/batch/completions",
+            headers=headers,
+            json=payload[i:i + BATCH_SIZE_LIMIT],
+            timeout=1800,
+        )
+        response.raise_for_status()
+        results.extend(response.json())
+    return results
 
 
 results = run_eod_batch()
@@ -445,9 +452,7 @@ with open("eod_signals.jsonl", "w") as f:
     for sig in signals:
         f.write(json.dumps(sig) + "\n")
 
-total_cost = sum(
-    r.get("usage", {}).get("billing_info", {}).get("total_cost", 0) for r in results
-)
+total_cost = sum(r.get("usage", {}).get("billing_info", {}).get("total_cost", 0) for r in results)
 print(f"Processed {len(results)} notes — emitted {len(signals)} signals for ${total_cost:.2f}")
 ```
 

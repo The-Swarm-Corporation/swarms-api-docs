@@ -3,15 +3,18 @@ title: Swarms MCP Client Proxy — Quickstart (x402)
 description: Use x402 to access paid endpoints on Swarms MCP Client Proxy with Python and TypeScript.
 ---
 
-<Callout type="info">
-  <b>Base URL</b>: <code>https://mcp-gateway.swarms.world/</code><br />
-  Service homepage: <Link href="https://mcp-gateway.swarms.world/">https://mcp-gateway.swarms.world/</Link>
-  <br /><br />
-  x402 clients handle 402 flows automatically (detect payment, construct headers, retry).
-  Provide a wallet signer via <code>PRIVATE_KEY</code> or a server wallet.
-  Learn more at the x402 docs.
-  <br />
-</Callout>
+<Info>
+**Base URL**: `https://mcp-gateway.swarms.world/`
+Service homepage: [https://mcp-gateway.swarms.world/](https://mcp-gateway.swarms.world/)
+
+x402 clients handle 402 flows automatically (detect payment, construct headers, retry).
+Provide a wallet signer via `PRIVATE_KEY` or a server wallet.
+Learn more at the x402 docs.
+</Info>
+
+<Note>
+This gateway (`mcp-gateway.swarms.world`) is a separate, x402-metered service from the main Swarms API (`api.swarms.world`) documented elsewhere on this site — it uses on-chain USDC micropayments instead of `x-api-key` credits.
+</Note>
 
 <Steps>
   <Step title="Prerequisites">
@@ -115,13 +118,13 @@ main().catch(err => {
   </Step>
 
   <Step title="Discover MCP Tools (GET /mcp/tools)">
-    <Callout>
+    <Note>
       Query parameters:
       <ul>
         <li><code>url</code> — Target MCP server URL</li>
         <li><code>format</code> — <code>openai</code> | <code>mcp</code> (default <code>openai</code>)</li>
       </ul>
-    </Callout>
+    </Note>
     <Tabs>
       <Tab title="Python">
 
@@ -176,14 +179,14 @@ main().catch(err => {
   </Step>
 
   <Step title="Discover MCP Tools (POST /mcp/tools)">
-    <Callout>
+    <Note>
       JSON body:
       <ul>
         <li><code>url</code> — Target MCP server URL</li>
         <li><code>format</code> — <code>openai</code> | <code>mcp</code> (optional)</li>
         <li><code>authorization_token</code> — Bearer token passed to the MCP server (optional)</li>
       </ul>
-    </Callout>
+    </Note>
     <Tabs>
       <Tab title="Python">
 
@@ -248,7 +251,7 @@ main().catch(err => {
   </Step>
 
   <Step title="Proxy a Tool Call (POST /mcp/request)">
-    <Callout>
+    <Note>
       JSON body:
       <ul>
         <li><code>url</code> — Target MCP server URL</li>
@@ -256,7 +259,7 @@ main().catch(err => {
         <li><code>arguments</code> — Tool arguments (object)</li>
         <li><code>authorization_token</code> — Bearer token for target MCP (optional)</li>
       </ul>
-    </Callout>
+    </Note>
     <Tabs>
       <Tab title="Python">
 
@@ -324,13 +327,10 @@ main().catch(err => {
   </Step>
 </Steps>
 
-<Callout type="success">
-  You're ready to integrate paid endpoints with x402. Use the hosted base URL above or point to your local server if self-hosting.
-  <br />
-  Links:
-  <ul>
-    <li>Service homepage: <Link href="https://mcp-gateway.swarms.world/">https://mcp-gateway.swarms.world/</Link></li>
-  </ul>
-</Callout>
+<Tip>
+You're ready to integrate paid endpoints with x402. Use the hosted base URL above or point to your local server if self-hosting.
+
+Links: service homepage — [https://mcp-gateway.swarms.world/](https://mcp-gateway.swarms.world/)
+</Tip>
 
 

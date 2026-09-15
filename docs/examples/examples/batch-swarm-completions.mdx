@@ -12,6 +12,10 @@ description: "Execute multiple multi-agent swarm workflows in parallel using the
 **Multi-Agent vs Single Agent**: This example covers batch processing for **multi-agent swarms** (`/v1/swarm/batch/completions`). For batching **single agent tasks**, see [Batch Agent Completions (Single Agent)](/docs/examples/examples/batch-processing).
 </Info>
 
+<Warning>
+**Batch size limit**: A single request to `/v1/swarm/batch/completions` accepts at most **50** `SwarmSpec` items. Requests with more than 50 items are rejected with an HTTP 422 validation error. To process larger volumes, split your work into chunks of 50 and submit multiple requests — see [Batch Swarm Completions for Overnight Reports](/docs/examples/examples/batch-swarm-scale-tutorial) for a worked example at exactly that limit.
+</Warning>
+
 Run many swarm jobs in a **single API call** using `/v1/swarm/batch/completions`.  
 This is ideal for:
 

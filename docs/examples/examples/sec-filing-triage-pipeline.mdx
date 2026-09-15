@@ -15,7 +15,7 @@ Every morning by 7am ET, every new 10-Q for every name in the book has a materia
 - An overnight **batch run** of 30-50 filings per portfolio per day against `/v1/swarm/batch/completions` — a premium-only endpoint (Pro, Ultra, or Premium tier)
 
 <Info>
-The `/v1/swarm/batch/completions` endpoint used in Step 5 is a premium feature — a Pro, Ultra, or Premium tier key unlocks it, and all three share the same request limits. Upgrade for the parallel execution and observability (per-filing cost, per-agent token counts, structured run logs) you need to actually trust this in production. Manage your plan at [https://swarms.world/platform/account](https://swarms.world/platform/account).
+The `/v1/swarm/batch/completions` endpoint used in Step 5 is a premium feature — a Pro, Ultra, or Premium tier key unlocks it, and all three share the same request limits. Upgrade for the parallel execution and observability (per-filing cost, per-agent token counts, structured run logs) you need to actually trust this in production. Manage your plan at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings).
 </Info>
 
 ## Why This Matters
@@ -24,7 +24,7 @@ Analysts do not read 10-Qs — they skim them for what changed. A 90-page Q3 fil
 
 ## The Architecture
 
-```
+```text
                                     SequentialWorkflow
    ┌──────────────┐
    │ EDGAR Feed   │  (cron polls EDGAR every ~15 min for new filings)
@@ -218,6 +218,10 @@ SCORE_MATERIALITY = {
 ## Step 3: Define the Pipeline Agents
 
 Five agents in a `SequentialWorkflow`. Each stage builds on the prior stage's output. Models are deliberately diversified — a cheap classifier on the front, two Claude models doing the deep legal-language work in the middle, and Sonnet writing the final memo.
+
+<Info>
+`claude-opus-4-8` (the Diff Engine below) is a premium-only model — a free-tier key gets rejected with a suggested alternative such as `claude-sonnet-5`. Use a premium key, or swap the Diff Engine to `claude-sonnet-5` on the free tier.
+</Info>
 
 ```python
 PIPELINE_AGENTS = [

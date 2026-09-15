@@ -87,11 +87,15 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
 
 <Tab title="Python (requests)">
 ```python
+import os
 import requests
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_BASE_URL = "https://api.swarms.world"
-API_KEY = "your_api_key_here"
+API_KEY = os.getenv("SWARMS_API_KEY")
 
 headers = {
     "x-api-key": API_KEY,
@@ -452,6 +456,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 ```
+
+## Output Shape
+
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. For `SequentialWorkflow` specifically, there is exactly one turn per agent, in the same order as the `agents` array in the request — each agent's `content` is generated after receiving the previous agent's output as its input, so the list doubles as an execution trace of the pipeline.
 
 ## Best Practices
 

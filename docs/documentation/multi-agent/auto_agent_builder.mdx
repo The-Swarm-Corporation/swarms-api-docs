@@ -86,7 +86,7 @@ Each entry in `agents` is an `AgentSpec`, but the builder populates only these f
 | `input_tokens` | `integer` | Tokens in your task (plus `system_prompt` if provided). |
 | `output_tokens` | `integer` | Tokens in the generated roster. |
 | `total_tokens` | `integer` | Sum of the above. |
-| `token_cost` | `float` | Total credits charged for this call. |
+| `total_cost` | `float` | Total credits charged for this call. |
 | `cost_per_agent` | `float` | Flat fee for the single builder agent ($0.01). Not multiplied by roster size. |
 
 ## Cost Calculation
@@ -97,7 +97,7 @@ The endpoint bills one builder-agent call:
 - Output tokens: $18.50 per 1M tokens
 - Flat builder-agent fee: $0.01
 
-`token_cost = input_cost + output_cost + cost_per_agent`. The generated agents cost nothing until you run them. See [Pricing](/docs/documentation/resources/pricing) for current rates.
+`total_cost = input_cost + output_cost + cost_per_agent`. The generated agents cost nothing until you run them. See [Pricing](/docs/documentation/resources/pricing) for current rates.
 
 ## Error Responses
 
@@ -156,7 +156,7 @@ Example response:
     "input_tokens": 14,
     "output_tokens": 612,
     "total_tokens": 626,
-    "token_cost": 0.021413,
+    "total_cost": 0.021413,
     "cost_per_agent": 0.01
   },
   "timestamp": "2026-08-13T12:00:00.000000+00:00"

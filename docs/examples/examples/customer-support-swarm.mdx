@@ -190,7 +190,7 @@ def build_support_swarm(ticket_payload: str) -> dict:
                 "agent_name": "Triage Manager",
                 "description": "Coordinator — classifies the ticket and delegates to the right specialist.",
                 "system_prompt": TRIAGE_PROMPT,
-                "model_name": "claude-sonnet-4.5",
+                "model_name": "claude-sonnet-4-5",
                 "role": "coordinator",
                 "max_loops": 1,
                 "max_tokens": 2048,
@@ -210,7 +210,7 @@ def build_support_swarm(ticket_payload: str) -> dict:
                 "agent_name": "Technical Support Engineer",
                 "description": "Bugs, errors, API, integrations, performance.",
                 "system_prompt": TECHNICAL_PROMPT,
-                "model_name": "claude-haiku-4.5",
+                "model_name": "claude-haiku-4-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 2048,
@@ -230,7 +230,7 @@ def build_support_swarm(ticket_payload: str) -> dict:
                 "agent_name": "Product Liaison",
                 "description": "Feature requests, how-do-I, roadmap.",
                 "system_prompt": PRODUCT_PROMPT,
-                "model_name": "grok-4",
+                "model_name": "xai/grok-4",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 2048,
@@ -240,7 +240,7 @@ def build_support_swarm(ticket_payload: str) -> dict:
                 "agent_name": "Retention Specialist",
                 "description": "Cancellation, downgrade intent, churn signals.",
                 "system_prompt": RETENTION_PROMPT,
-                "model_name": "claude-haiku-4.5",
+                "model_name": "claude-haiku-4-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 2048,
@@ -261,8 +261,12 @@ def build_support_swarm(ticket_payload: str) -> dict:
 ```
 
 <Note>
-The Triage Manager runs on `claude-sonnet-4.5` because misrouting cascades into the wrong specialist and burns the whole pipeline. Specialists run on cheaper models (`gpt-4.1-mini`, `claude-haiku-4.5`, `grok-4`) — they are doing template-shaped writing and the cost difference is what keeps this near \$0.10/ticket. The Quality Reviewer steps up to `claude-opus-4-8` because the escalation decision is load-bearing.
+The Triage Manager runs on `claude-sonnet-4-5` because misrouting cascades into the wrong specialist and burns the whole pipeline. Specialists run on cheaper models (`gpt-4.1-mini`, `claude-haiku-4-5`, `xai/grok-4`) — they are doing template-shaped writing and the cost difference is what keeps this near \$0.10/ticket. The Quality Reviewer steps up to `claude-opus-4-8` because the escalation decision is load-bearing.
 </Note>
+
+<Warning>
+Two mechanism details matter before you rely on this in production. First, `claude-opus-4-8` is a premium-only model — a free-tier key is rejected on the Quality Reviewer agent, so this swarm needs an active Pro, Ultra, or Premium subscription regardless of `/v1/swarm/completions` itself not being a premium-only route. Second, `HierarchicalSwarm` always builds its own director from `director_model_name` (default `gpt-5.4`); the Triage Manager above is a worker like the other six, not a mechanism that literally routes the ticket to one specialist. With the default `max_loops: 1` and parallel worker execution, the framework's own director decides (from each agent's `description`) who gets dispatched, every dispatched agent — including the Quality Reviewer — works from the raw ticket rather than a prior agent's draft, and `extract_quality_review` below only finds a "Quality Reviewer" output if the director happened to dispatch that agent too. For deterministic one-of-five routing, use [`MultiAgentRouter`](/docs/examples/examples/voice-call-center-triage) for the classify step, then a second call (`SequentialWorkflow` or a plain `/v1/agent/completions` request) so the Quality Reviewer genuinely receives the chosen specialist's draft as input.
+</Warning>
 
 ## Step 3: Process a Single Ticket
 
@@ -496,7 +500,7 @@ A 500-ticket backlog at this swarm shape runs about \$50 end-to-end and finishes
 
 | Scenario | Cost per ticket | Cost per month (10K tickets) | Throughput |
 | --- | --- | --- | --- |
-| Customer support swarm (claude-sonnet-4.5 + mini-tier specialists) | ~\$0.10 | ~\$1,000 | minutes per batch |
+| Customer support swarm (claude-sonnet-4-5 + mini-tier specialists) | ~\$0.10 | ~\$1,000 | minutes per batch |
 | Tier-1 agent (fully loaded ~\$50k, ~30/day) | ~\$1.50 | ~\$15,000 | bounded by headcount |
 | BPO outsourced floor | ~\$0.80–\$2.50 | ~\$8,000–\$25,000 | hours to days |
 

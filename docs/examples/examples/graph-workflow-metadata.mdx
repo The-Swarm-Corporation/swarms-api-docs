@@ -256,7 +256,7 @@ for downstream in ["HumanEscalation", "ReviewQueueRouter", "PassiveLogger"]:
 #    up yourself (e.g. proportionally by node) using the cost_center tags in
 #    your local edge_index.
 usage = result.get("usage", {})
-print(f"\nTotal token cost: ${usage.get('token_cost', 0):.4f}")
+print(f"\nTotal token cost: ${usage.get('total_cost', 0):.4f}")
 print(f"Cost per agent: ${usage.get('cost_per_agent', 0):.4f}")
 ```
 

@@ -26,11 +26,19 @@ Before you begin, ensure you have:
 
 #### Installation
 
-**Python:**
+**Python (`requests`):**
 
 ```bash
 pip install requests python-dotenv
 ```
+
+**Python (official `swarms-client` SDK):**
+
+```bash
+pip install swarms-client
+```
+
+The [`swarms-client`](https://pypi.org/project/swarms-client/) package wraps every endpoint on this page (`client.agent.run(...)`, `client.swarms.run(...)`, etc.) so you don't have to build the raw HTTP requests yourself. This guide shows both the raw `requests` calls and, where useful, the equivalent `swarms-client` call.
 
 **JavaScript/TypeScript:**
 
@@ -99,7 +107,29 @@ console.log(response.data);
 
 A single agent requires an agent configuration and a task to execute:
 
-**Python:**
+**curl:**
+
+```bash
+curl -X POST "https://api.swarms.world/v1/agent/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_config": {
+      "agent_name": "Research Analyst",
+      "description": "An expert in analyzing and synthesizing research data",
+      "system_prompt": "You are a Research Analyst with expertise in data analysis and synthesis.",
+      "model_name": "claude-sonnet-5",
+      "role": "worker",
+      "max_loops": 1,
+      "max_tokens": 8192,
+      "temperature": 1,
+      "auto_generate_prompt": false
+    },
+    "task": "What are the key trends in renewable energy adoption?"
+  }'
+```
+
+**Python (`requests`):**
 
 ```python
 def run_single_agent():
@@ -112,7 +142,7 @@ def run_single_agent():
                 "Your role is to analyze provided information, identify key insights, "
                 "and present findings in a clear, structured format."
             ),
-            "model_name": "claude-sonnet-4-20250514",
+            "model_name": "claude-sonnet-5",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 8192,
@@ -131,6 +161,32 @@ def run_single_agent():
     return response.json()
 ```
 
+**Python (`swarms-client`):**
+
+```python
+import os
+from swarms_client import SwarmsClient
+from dotenv import load_dotenv
+
+load_dotenv()
+client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
+
+result = client.agent.run(
+    agent_config={
+        "agent_name": "Research Analyst",
+        "description": "An expert in analyzing and synthesizing research data",
+        "system_prompt": "You are a Research Analyst with expertise in data analysis and synthesis.",
+        "model_name": "claude-sonnet-5",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 8192,
+        "temperature": 1,
+    },
+    task="What are the key trends in renewable energy adoption?",
+)
+print(result)
+```
+
 **JavaScript/TypeScript:**
 
 ```javascript
@@ -140,7 +196,7 @@ async function runSingleAgent() {
             agent_name: "Research Analyst",
             description: "An expert in analyzing and synthesizing research data",
             system_prompt: "You are a Research Analyst with expertise in data analysis and synthesis.",
-            model_name: "claude-sonnet-4-20250514",
+            model_name: "claude-sonnet-5",
             role: "worker",
             max_loops: 1,
             max_tokens: 8192,
@@ -186,7 +242,7 @@ def run_agent_with_history():
             "agent_name": "Conversation Agent",
             "description": "An agent that maintains conversation context",
             "system_prompt": "You are a helpful assistant that maintains context.",
-            "model_name": "claude-sonnet-4-20250514",
+            "model_name": "claude-sonnet-5",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 8192,
@@ -220,19 +276,58 @@ def run_agent_with_history():
 
 ### Multi-Agent Swarms
 
-Multi-agent swarms enable complex problem-solving by coordinating multiple AI agents. Swarms support two primary workflow types:
+Multi-agent swarms enable complex problem-solving by coordinating multiple AI agents. Set the `swarm_type` field on `POST /v1/swarm/completions` to choose the orchestration pattern. The API supports 14 swarm types; call `GET /v1/swarms/available` for the full, current list with metadata. Two of the most common are shown below.
 
 #### Workflow Types
 
-**Sequential Workflow:** Agents execute in order, with each agent building upon the previous agent's output. This is ideal for tasks requiring step-by-step processing.
+**Sequential Workflow (`SequentialWorkflow`):** Agents execute in order, with each agent building upon the previous agent's output. This is ideal for tasks requiring step-by-step processing.
 
-**Concurrent Workflow:** Agents work simultaneously on the same task, providing parallel processing for faster results and diverse perspectives.
+**Concurrent Workflow (`ConcurrentWorkflow`):** Agents work simultaneously on the same task, providing parallel processing for faster results and diverse perspectives.
+
+Other supported types include `GroupChat`, `MixtureOfAgents`, `MajorityVoting`, `AgentRearrange`, `MultiAgentRouter`, `HierarchicalSwarm`, `HeavySwarm`, `LLMCouncil`, `CouncilAsAJudge`, `DebateWithJudge`, `RoundRobin`, and `PlannerWorkerSwarm` — see the [Architecture](/docs/documentation/getting-started/architecture) page for a description of each.
 
 #### Sequential Workflow Example
 
 Sequential workflows are perfect for analysis pipelines where each step depends on the previous one:
 
-**Python:**
+**curl:**
+
+```bash
+curl -X POST "https://api.swarms.world/v1/swarm/completions" \
+  -H "x-api-key: $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Financial Analysis Swarm",
+    "description": "Market analysis swarm",
+    "agents": [
+      {
+        "agent_name": "Market Analyst",
+        "description": "Analyzes market trends",
+        "system_prompt": "You are a financial analyst expert specializing in market trend analysis.",
+        "model_name": "gpt-4.1-mini",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 8192,
+        "temperature": 0.5
+      },
+      {
+        "agent_name": "Economic Forecaster",
+        "description": "Predicts economic trends",
+        "system_prompt": "You are an expert in economic forecasting. Use the market analysis to provide economic predictions.",
+        "model_name": "gpt-4.1-mini",
+        "role": "worker",
+        "max_loops": 1,
+        "max_tokens": 8192,
+        "temperature": 0.5
+      }
+    ],
+    "max_loops": 1,
+    "swarm_type": "SequentialWorkflow",
+    "task": "Analyze the current market conditions and provide economic forecasts."
+  }'
+```
+
+**Python (`requests`):**
 
 ```python
 def run_sequential_swarm():
@@ -276,6 +371,31 @@ def run_sequential_swarm():
     return response.json()
 ```
 
+**Python (`swarms-client`):**
+
+```python
+result = client.swarms.run(
+    name="Financial Analysis Swarm",
+    description="Market analysis swarm",
+    agents=[
+        {
+            "agent_name": "Market Analyst",
+            "system_prompt": "You are a financial analyst expert specializing in market trend analysis.",
+            "model_name": "gpt-4.1-mini",
+        },
+        {
+            "agent_name": "Economic Forecaster",
+            "system_prompt": "You are an expert in economic forecasting. Use the market analysis to provide economic predictions.",
+            "model_name": "gpt-4.1-mini",
+        },
+    ],
+    max_loops=1,
+    swarm_type="SequentialWorkflow",
+    task="Analyze the current market conditions and provide economic forecasts.",
+)
+print(result)
+```
+
 #### Concurrent Workflow Example
 
 Concurrent workflows are ideal when you need multiple perspectives or parallel processing:
@@ -292,7 +412,7 @@ def run_concurrent_swarm():
                 "agent_name": "Lab Data Analyzer",
                 "description": "Analyzes lab report data",
                 "system_prompt": "You are a medical data analyst specializing in lab results interpretation.",
-                "model_name": "claude-sonnet-4-20250514",
+                "model_name": "claude-sonnet-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 8192,
@@ -303,7 +423,7 @@ def run_concurrent_swarm():
                 "agent_name": "Clinical Specialist",
                 "description": "Provides clinical interpretations",
                 "system_prompt": "You are an expert in clinical diagnosis and patient care recommendations.",
-                "model_name": "claude-sonnet-4-20250514",
+                "model_name": "claude-sonnet-5",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 8192,
@@ -454,7 +574,7 @@ When creating tools for your agents:
 Choose the appropriate model based on your use case requirements:
 
 <Note>
-Some models are restricted to premium-tier accounts: all `groq/*` models, plus each provider's current top-tier frontier model (e.g. the `gpt-5.6` family, `claude-fable-5`, `claude-opus-5`/`claude-opus-4-8`, `gemini-3.1-pro`/`gemini-3.1-deep-think`, `grok-4.5`). Mid-tier and small models — including `gpt-4.1` — remain available on the free tier. Call `GET /v1/models/available` with your key for the authoritative, tier-aware list.
+If `model_name` is omitted, the agent uses the default model, **claude-sonnet-5**. A specific set of frontier models are premium-only: `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6`, `claude-fable-5`, `claude-opus-5`, `claude-opus-4-8`, `gemini-3.1-pro`, `gemini-3.1-deep-think`, `xai/grok-4.5`, `xai/grok-4.5-latest`, and any model id beginning with `groq/`. Every other model id, including `gpt-4.1`, is available on the free tier. Free-tier requests for a premium-only model are rejected with a 403 and a suggested alternative such as `claude-sonnet-5`.
 </Note>
 
 #### OpenAI Models
@@ -465,17 +585,16 @@ Some models are restricted to premium-tier accounts: all `groq/*` models, plus e
 
 #### Anthropic Models
 
-* **claude-sonnet-4-20250514**: Balanced performance and reasoning
 * **claude-sonnet-5**: Default model used when model_name is omitted
 
-#### Groq Models (premium tier only)
+#### Groq Models (premium only)
 
 * **groq/llama-3.3-70b-versatile**: High-performance open-source model
 * **groq/openai/gpt-oss-120b**: Large open-weight reasoning model
 
 #### Model Selection Guidelines
 
-* **Complex Analysis**: Use GPT-4 or Claude Sonnet 4 for tasks requiring deep reasoning
+* **Complex Analysis**: Use `gpt-5.5` or `claude-sonnet-5` for tasks requiring deep reasoning
 * **Fast Responses**: Choose gpt-4.1-mini for quick, straightforward tasks
 * **Creative Tasks**: Higher temperature settings work better with creative models
 * **Factual Tasks**: Lower temperature settings provide more consistent, factual responses
@@ -486,9 +605,10 @@ Some models are restricted to premium-tier accounts: all `groq/*` models, plus e
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| `GET` | `/` | API root / welcome message |
 | `GET` | `/health` | Health check |
 | `POST` | `/v1/agent/completions` | Single agent completions |
-| `POST` | `/v1/agent/batch/completions` | Batch agent completions (premium) |
+| `POST` | `/v1/agent/batch/completions` | Batch agent completions (premium, up to 50 per request) |
 | `POST` | `/v1/swarm/completions` | Swarm completions |
 | `POST` | `/v1/swarm/batch/completions` | Batch swarm completions (premium) |
 | `POST` | `/v1/reasoning-agent/completions` | Reasoning agent completions (premium) |
@@ -502,9 +622,10 @@ Some models are restricted to premium-tier accounts: all `groq/*` models, plus e
 | `GET` | `/v1/models/available` | List available models with metadata |
 | `GET` | `/v1/tools/available` | List available tools |
 | `GET` | `/v1/agents/list` | List your agents |
-| `GET` | `/v1/swarm/logs` | Retrieve your API request logs |
+| `GET` | `/v1/account/logs` | Retrieve your API request logs |
 | `GET` | `/v1/rate/limits` | View your rate limits and usage |
-| `GET` | `/v1/metrics/summary` | Usage metrics summary |
+| `GET` | `/v1/account/metrics/summary` | Usage metrics summary |
+| `GET` | `/v1/account/premium-endpoints` | List endpoints that require Premium |
 | `GET` | `/v1/usage/costs` | Usage cost breakdown |
 | `GET` | `/v1/account/credits` | Check your credit balance |
 

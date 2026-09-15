@@ -141,7 +141,7 @@ print(f"Execution time: {result['execution_time']:.1f}s")
 ```
 
 <Note>
-The director sees every specialist's output and writes the final synthesis. Workers do not see each other's drafts. Design your director prompt around "review, decide, recommend" — not "write a long report."
+`HierarchicalSwarm` always builds its own director from `director_model_name` (default `gpt-5.4`) that decomposes the task and dispatches it to every agent in `agents` — the Supply Chain Director above runs as one of the director's workers, not as a privileged synthesizer, and with the default `max_loops: 1` and parallel worker execution, no agent sees another specialist's output before writing its own. For a guaranteed synthesis pass, either set `"max_loops": 2` on the swarm (the framework's director gets every first-round output on its second pass and can route the synthesis to the Supply Chain Director by name/description), or collect the specialist outputs client-side and issue one more `/v1/agent/completions` call using the Supply Chain Director's system prompt. Design that prompt around "review, decide, recommend" — not "write a long report."
 </Note>
 
 ## Adapting the Pattern
