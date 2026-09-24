@@ -43,7 +43,7 @@ The request body uses the `SwarmSpec` schema. All parameters are organized in th
 | `stream` | `boolean` | No | `false` | A flag indicating whether the swarm should stream its output in real-time. |
 | `multi_agent_collab_prompt` | `boolean` | No | `true` | Inject the multi-agent collaboration prompt so agents coordinate with one another. Set to `false` to disable. |
 | `list_all_agents` | `boolean` | No | `false` | Whether to list all agents and their descriptions to one another so each agent is aware of the others. |
-| `heavy_swarm_question_agent_model_name` | `string` | No | `"gpt-4.1"` | For `HeavySwarm`: the model name to use for the question agent. |
+| `heavy_swarm_question_agent_model_name` | `string` | No | `"gpt-5.4"` | For `HeavySwarm`: the model name to use for the question agent. |
 | `heavy_swarm_worker_model_name` | `string` | No | `"claude-sonnet-4-20250514"` | For `HeavySwarm`: the model name to use for the worker agent. |
 | `heavy_swarm_max_loops` | `integer` | No | `1` | For `HeavySwarm`: the maximum number of loops each agent in the heavy swarm may run. |
 | `heavy_swarm_variant` | `string` | No | `"default"` | For `HeavySwarm`: which agent variant to run. One of `"default"`, `"medium"`, or `"heavy"`. |
