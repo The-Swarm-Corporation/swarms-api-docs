@@ -59,7 +59,7 @@ Since HeavySwarm manages its own agents, it uses dedicated parameters at the swa
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `heavy_swarm_max_loops` | `integer` | `1` | Number of execution loops per agent. Higher values enable iterative refinement for deeper analysis. |
-| `heavy_swarm_question_agent_model_name` | `string` | `"gpt-4.1"` | Model used for the question generation phase. This agent decomposes the task into specialized questions. |
+| `heavy_swarm_question_agent_model_name` | `string` | `"gpt-5.4"` | Model used for the question generation phase. This agent decomposes the task into specialized questions. |
 | `heavy_swarm_worker_model_name` | `string` | `"claude-sonnet-4-20250514"` | Model used for all five specialized worker agents (Research, Analysis, Alternatives, Verification, Synthesis). |
 | `heavy_swarm_variant` | `string` | `"default"` | Which agent variant to run. One of `"default"`, `"medium"`, or `"heavy"`. |
 
@@ -101,7 +101,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
     "task": "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
     "agents": [],
     "heavy_swarm_max_loops": 1,
-    "heavy_swarm_question_agent_model_name": "gpt-4.1",
+    "heavy_swarm_question_agent_model_name": "gpt-5.4",
     "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
     "max_loops": 1
   }'
@@ -128,7 +128,7 @@ swarm_config = {
     "task": "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
     "agents": [],
     "heavy_swarm_max_loops": 1,
-    "heavy_swarm_question_agent_model_name": "gpt-4.1",
+    "heavy_swarm_question_agent_model_name": "gpt-5.4",
     "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
     "max_loops": 1
 }
@@ -164,7 +164,7 @@ const swarmConfig = {
     task: "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
     agents: [],
     heavy_swarm_max_loops: 1,
-    heavy_swarm_question_agent_model_name: "gpt-4.1",
+    heavy_swarm_question_agent_model_name: "gpt-5.4",
     heavy_swarm_worker_model_name: "claude-sonnet-4-20250514",
     max_loops: 1
 };
@@ -220,7 +220,7 @@ func main() {
         Task:                          "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
         Agents:                        []interface{}{},
         HeavySwarmMaxLoops:            1,
-        HeavySwarmQuestionAgentModel:  "gpt-4.1",
+        HeavySwarmQuestionAgentModel:  "gpt-5.4",
         HeavySwarmWorkerModel:         "claude-sonnet-4-20250514",
         MaxLoops:                      1,
     }
@@ -263,7 +263,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "task": "Analyze the current state and future outlook of the renewable energy sector, including market trends, key players, investment opportunities, regulatory landscape, and technological innovations",
         "agents": [],
         "heavy_swarm_max_loops": 1,
-        "heavy_swarm_question_agent_model_name": "gpt-4.1",
+        "heavy_swarm_question_agent_model_name": "gpt-5.4",
         "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
         "max_loops": 1
     });
@@ -308,7 +308,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
     "task": "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
     "agents": [],
     "heavy_swarm_max_loops": 3,
-    "heavy_swarm_question_agent_model_name": "gpt-4.1",
+    "heavy_swarm_question_agent_model_name": "gpt-5.4",
     "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
     "max_loops": 2
   }'
@@ -335,7 +335,7 @@ swarm_config = {
     "task": "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
     "agents": [],
     "heavy_swarm_max_loops": 3,
-    "heavy_swarm_question_agent_model_name": "gpt-4.1",
+    "heavy_swarm_question_agent_model_name": "gpt-5.4",
     "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
     "max_loops": 2
 }
@@ -371,7 +371,7 @@ const swarmConfig = {
     task: "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
     agents: [],
     heavy_swarm_max_loops: 3,
-    heavy_swarm_question_agent_model_name: "gpt-4.1",
+    heavy_swarm_question_agent_model_name: "gpt-5.4",
     heavy_swarm_worker_model_name: "claude-sonnet-4-20250514",
     max_loops: 2
 };
@@ -427,7 +427,7 @@ func main() {
         Task:                          "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
         Agents:                        []interface{}{},
         HeavySwarmMaxLoops:            3,
-        HeavySwarmQuestionAgentModel:  "gpt-4.1",
+        HeavySwarmQuestionAgentModel:  "gpt-5.4",
         HeavySwarmWorkerModel:         "claude-sonnet-4-20250514",
         MaxLoops:                      2,
     }
@@ -470,7 +470,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "task": "Conduct a comprehensive due diligence analysis on the AI semiconductor industry, evaluating NVIDIA, AMD, and Intel as investment opportunities. Assess financial health, competitive positioning, supply chain risks, and 5-year growth projections",
         "agents": [],
         "heavy_swarm_max_loops": 3,
-        "heavy_swarm_question_agent_model_name": "gpt-4.1",
+        "heavy_swarm_question_agent_model_name": "gpt-5.4",
         "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514",
         "max_loops": 2
     });
