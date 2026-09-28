@@ -22,8 +22,8 @@ jobs:
     name: 🔍 Validate Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
       - run: npm install -g mint
@@ -34,8 +34,8 @@ jobs:
     name: 🔗 Internal Links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
       - run: npm install -g mint
@@ -46,8 +46,8 @@ jobs:
     name: ♿ Accessibility
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
       - run: npm install -g mint
@@ -59,10 +59,10 @@ jobs:
     name: 📝 Markdown Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       
       - name: Lint Markdown/MDX files
-        uses: DavidAnson/markdownlint-cli2-action@v22
+        uses: DavidAnson/markdownlint-cli2-action@v24
         with:
           globs: |
             docs/**/*.md
@@ -84,7 +84,7 @@ jobs:
     name: 📖 Spell Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       
       - name: Check spelling
         uses: crate-ci/typos@master
@@ -97,7 +97,7 @@ jobs:
     name: 🌐 External Links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       
       - name: Check external links
         uses: lycheeverse/lychee-action@v2
