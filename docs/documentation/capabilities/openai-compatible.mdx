@@ -229,6 +229,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 | 403 | `permission_error` | Insufficient permissions or subscription tier |
 | 429 | `rate_limit_error` | Rate limit exceeded |
 | 500 | `server_error` | Internal error during agent execution |
+| 503 | `server_error` | A premium model was requested and your subscription could not be verified; retry in a few seconds |
 
 All request-body validation failures on this endpoint — including out-of-range Swarms extension fields passed via `extra_body` (e.g. `max_loops: 0`, which violates `1 <= max_loops <= 50`) — are caught by a dedicated handler and returned as `400 invalid_request_error` in the OpenAI error shape above, not the raw FastAPI/Pydantic `{"detail": [...]}` shape used elsewhere in the Swarms API.
 
