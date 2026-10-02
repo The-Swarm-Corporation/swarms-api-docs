@@ -337,6 +337,7 @@ The first nine fields below are always present in a successful response. `tasks`
 | `422` | Validation error — see below |
 | `429` | Rate limit exceeded |
 | `500` | Internal server error |
+| `504` | The swarm did not finish within 240 seconds, usually because a model call keeps failing and being retried. Nothing was charged. Applies when `stream` is `false` |
 
 ### HTTPValidationError
 
