@@ -148,7 +148,7 @@ curl -X POST "https://api.swarms.world/v1/agent/completions" \
 | `web_scraper` | $0.15 per request |
 
 <Warning>
-Each built-in tool listed in `tools_enabled` is charged **once per agent completion request**, at the moment the request is set up — not per individual search or scrape the agent performs during its run, and regardless of whether the agent ends up calling the tool at all while completing the task. Only enable a tool for requests that actually need it.
+Each built-in tool listed in `tools_enabled` is charged **once per agent completion request that succeeds**, after the run finishes. A request that fails (for example an empty-output `400`, a provider error, or a `500`) is not charged the tool fee. The fee is not per individual search or scrape the agent performs during its run, and it is charged whether or not the agent ends up calling the tool while completing the task. Only enable a tool for requests that actually need it.
 </Warning>
 
 Current per-unit prices are also available from [`GET /v1/usage/costs`](/docs/documentation/resources/pricing) (`usage_pricing.search_cost`, `usage_pricing.scrape_cost`) rather than hardcoding them, since they can change.
