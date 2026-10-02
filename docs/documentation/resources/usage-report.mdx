@@ -204,7 +204,7 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
 | `success` | `boolean` | Whether the summary was retrieved successfully |
 | `unique_agents` | `integer` | Number of unique agent configurations you've used |
 | `total_completion_calls` | `integer` | Lifetime count of completion calls |
-| `successful_completions` | `integer` | Lifetime count of completions with status `success` |
+| `successful_completions` | `integer` | Lifetime count of completions that ran to a result, on every completion endpoint. A failed run writes no completion record, so this equals `total_completion_calls` |
 | `completions_last_24h` | `integer` | Completion calls in the last 24 hours |
 | `completions_last_7d` | `integer` | Completion calls in the last 7 days |
 | `timestamp` | `string` | ISO timestamp when the summary was generated |
@@ -214,7 +214,7 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
   "success": true,
   "unique_agents": 14,
   "total_completion_calls": 1284,
-  "successful_completions": 1259,
+  "successful_completions": 1284,
   "completions_last_24h": 37,
   "completions_last_7d": 214,
   "timestamp": "2026-09-14T12:00:00+00:00"

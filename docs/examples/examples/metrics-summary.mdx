@@ -81,19 +81,18 @@ SWARMS_API_KEY=your-api-key-here
 
 ## Step 4 — Render the dashboard tiles
 
-Pull the headline numbers out of the response and compute a success rate. These are the values you'd wire into dashboard cards.
+Pull the headline numbers out of the response. These are the values you'd wire into dashboard cards.
 
 <Tabs>
   <Tab title="Python">
     ```python
     total = data["total_completion_calls"]
     success = data["successful_completions"]
-    success_rate = (success / total * 100) if total else 0.0
 
     print("── Usage Summary ─────────────")
     print(f"Unique agents used:     {data['unique_agents']}")
     print(f"Total completions:      {total}")
-    print(f"Successful completions: {success}  ({success_rate:.1f}%)")
+    print(f"Successful completions: {success}")
     print(f"Completions (24h):      {data['completions_last_24h']}")
     print(f"Completions (7d):       {data['completions_last_7d']}")
     ```
@@ -102,12 +101,11 @@ Pull the headline numbers out of the response and compute a success rate. These 
     ```javascript
     const total = data.total_completion_calls;
     const success = data.successful_completions;
-    const successRate = total ? (success / total * 100).toFixed(1) : "0.0";
 
     console.log("── Usage Summary ─────────────");
     console.log(`Unique agents used:     ${data.unique_agents}`);
     console.log(`Total completions:      ${total}`);
-    console.log(`Successful completions: ${success}  (${successRate}%)`);
+    console.log(`Successful completions: ${success}`);
     console.log(`Completions (24h):      ${data.completions_last_24h}`);
     console.log(`Completions (7d):       ${data.completions_last_7d}`);
     ```
@@ -120,7 +118,7 @@ Example output:
 ── Usage Summary ─────────────
 Unique agents used:     80
 Total completions:      25583
-Successful completions: 13516  (52.8%)
+Successful completions: 25583
 Completions (24h):      2
 Completions (7d):       1151
 ```
@@ -134,7 +132,7 @@ Raw JSON response (`MetricsSummaryOutput`):
   "success": true,
   "unique_agents": 80,
   "total_completion_calls": 25583,
-  "successful_completions": 13516,
+  "successful_completions": 25583,
   "completions_last_24h": 2,
   "completions_last_7d": 1151,
   "timestamp": "2026-09-14T12:00:00.000Z"
@@ -146,7 +144,7 @@ Raw JSON response (`MetricsSummaryOutput`):
 | `success`                | Whether the request succeeded (`true` on a 200 response)  |
 | `unique_agents`          | How many distinct agents you've used                      |
 | `total_completion_calls` | Lifetime completion calls                                 |
-| `successful_completions` | Completions that finished with status `success`           |
+| `successful_completions` | Completions that ran to a result, on every completion endpoint. Equals `total_completion_calls` |
 | `completions_last_24h`   | Volume in the last day (for deltas / spike detection)     |
 | `completions_last_7d`    | Volume in the last week                                   |
 | `timestamp`              | ISO timestamp when the summary was generated              |
