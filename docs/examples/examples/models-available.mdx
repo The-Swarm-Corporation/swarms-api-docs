@@ -138,7 +138,7 @@ The models endpoint returns a flat list of all available model identifiers, filt
 |-------|------|--------------|
 | `success` | boolean | Whether the request succeeded |
 | `count` | integer | Number of models in the `models` list |
-| `models` | array of strings | Flat list of available model identifiers, filtered by your subscription tier (free tier accounts won't see premium or Groq models) |
+| `models` | array of strings | Flat list of available model identifiers, filtered by your subscription tier (free tier accounts won't see premium or Groq models). If your tier can't be verified, the endpoint returns `503` instead of a shorter list |
 
 By default, this list also includes models fetched live from OpenRouter (cached for 5 minutes) and prefixed with `openrouter/` (e.g. `openrouter/aion-labs/aion-3.0`). The base catalog is precomputed and cached server-side, so this endpoint is cheap to call.
 
@@ -437,7 +437,9 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
 <Tabs>
   <Tab title="Python">
     ```python
-    def get_available_models_with_fallback():
+    import time
+
+    def get_available_models_with_fallback(retries=3):
         """Get available models with proper error handling"""
         try:
             response = requests.get(
@@ -459,6 +461,9 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
             elif response.status_code == 429:
                 print("❌ Rate limit exceeded. Please wait before retrying.")
                 return []
+            elif response.status_code == 503 and retries > 0:
+                time.sleep(2)
+                return get_available_models_with_fallback(retries - 1)
             else:
                 print(f"❌ HTTP {response.status_code}: {response.text}")
                 return []
@@ -481,7 +486,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
   </Tab>
   <Tab title="JavaScript">
     ```javascript
-    async function getAvailableModelsWithFallback() {
+    async function getAvailableModelsWithFallback(retries = 3) {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -495,6 +500,10 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
             clearTimeout(timeoutId);
 
             if (!response.ok) {
+                if (response.status === 503 && retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return getAvailableModelsWithFallback(retries - 1);
+                }
                 if (response.status === 401) {
                     console.log("❌ Authentication failed. Check your API key.");
                 } else if (response.status === 429) {
