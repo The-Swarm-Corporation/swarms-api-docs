@@ -1293,6 +1293,7 @@ The API returns appropriate HTTP status codes and error messages:
 - **422 Unprocessable Entity**: Schema validation failures (e.g. a non-positive `max_loops` or `max_tokens`)
 - **429 Too Many Requests**: Rate limit exceeded
 - **500 Internal Server Error**: Server-side processing errors
+- **503 Service Unavailable**: Temporarily unable to verify your API key because the key store could not be reached. The key was not rejected and nothing ran; retry in a few seconds
 
 If an agent run produces no output for the given task, the API returns **HTTP 400** with a detail message like `Agent '<name>' produced no output for this task. Nothing was charged...` instead of a success response. Callers should treat this as a retryable, client-visible error — nothing is billed for it.
 
