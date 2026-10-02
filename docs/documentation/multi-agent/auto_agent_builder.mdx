@@ -109,6 +109,7 @@ The endpoint bills one builder-agent call:
 | `422` | Request failed schema validation (e.g. `max_agents` outside 1-100). |
 | `429` | Rate limit exceeded. |
 | `500` | Unexpected server error. |
+| `503` | Temporarily unable to verify your API key because the key store could not be reached. The key was not rejected and nothing ran; retry in a few seconds. |
 
 ## Examples
 
