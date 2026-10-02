@@ -204,7 +204,16 @@ Events are emitted in this order:
 5. `event: end` — `data: {"job_id": ..., "usage": {...}, "timestamp": ..., "complete": true}`
 6. `event: done` — `data: {"message": "Agent processing complete"}`
 
-If the run fails at any point, the stream instead emits a single `event: error` frame — `data: {"error": "AgentCompletionError: ...", "timestamp": "..."}` — and closes without a `done` event.
+If the run fails at any point, the stream instead emits a single `event: error` frame and closes without a `done` event.
+
+When the model provider rejects the request before any token is streamed, the error frame carries the provider's reason and a `status_code`: the HTTP status the same request returns without streaming (`400`, `404`, `429` or `502`). The stream itself has already answered `200`, so read `status_code` from the frame. No `usage` or `end` event is sent, and the run is not charged:
+
+```text
+event: error
+data: {"error": "The provider rejected the request for model 'gpt-5.4': Unsupported value: 'reasoning_effort' does not support 'minimal' with this model. Nothing was charged.", "status_code": 400, "timestamp": "..."}
+```
+
+Any other failure sends `data: {"error": "AgentCompletionError: ...", "timestamp": "..."}`.
 
 <Tabs>
 <Tab title="Python">
