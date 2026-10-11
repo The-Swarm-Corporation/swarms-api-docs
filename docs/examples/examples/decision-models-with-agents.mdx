@@ -1,0 +1,124 @@
+---
+title: "Gate and Judge an Agent with a Decision Model"
+description: "Put a decision model on either side of /v1/agent/completions: decide whether a task needs an agent at all, then grade the agent's answer before it ships."
+---
+
+## What This Example Shows
+
+- A `noul` question that decides whether a task needs an agent before you pay for one
+- A `/v1/agent/completions` call that runs only when the gate says yes
+- A `score` and a `noul` question, in one request, that judge the agent's answer before it ships
+- What each step cost in a live run on production
+
+## Why This Matters
+
+Agent calls are where the money goes. Many requests that reach an agent do not need one: a canned reply, a FAQ link or a refusal would do. And an agent's answer can be off-topic or half-finished with nothing to catch it. A decision call costs a few hundredths of a cent, several hundred times less than the agent call it gates, so you can afford to check every request on the way in and every answer on the way out.
+
+## Step 1: Setup
+
+```bash
+pip install requests
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+`decide` sends one decision completion and returns its answers. The gate and the judge both use it.
+
+```python
+import os
+
+import requests
+
+BASE_URL = "https://api.swarms.world"
+HEADERS = {"x-api-key": os.environ["SWARMS_API_KEY"]}
+
+
+def decide(state, questions):
+    response = requests.post(
+        f"{BASE_URL}/v1/decision/completions",
+        headers=HEADERS,
+        json={"model_name": "jev-latest", "state": state, "questions": questions},
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.json()["answers"]
+```
+
+## Step 2: Gate the Task
+
+Only pay for an agent when the task needs one. A `noul` below 0.5 means a canned reply is enough.
+
+```python
+task = "Compare PostgreSQL and MongoDB for storing order data in an e-commerce app, in 5 bullet points."
+
+gate = decide(task, {
+    "needs_agent": {
+        "type": "noul",
+        "instructions": "Does this request need a researched, written answer rather than a canned reply?",
+    },
+})
+if gate["needs_agent"]["noul"] < 0.5:
+    raise SystemExit("Send the canned reply instead.")
+```
+
+## Step 3: Run the Agent
+
+```python
+agent = requests.post(
+    f"{BASE_URL}/v1/agent/completions",
+    headers=HEADERS,
+    json={
+        "agent_config": {
+            "agent_name": "Database Advisor",
+            "system_prompt": "You are a pragmatic database architect. Be concise.",
+            "model_name": "gpt-5-mini",
+            "max_loops": 1,
+            "max_tokens": 2000,
+        },
+        "task": task,
+    },
+    timeout=300,
+)
+agent.raise_for_status()
+answer = agent.json()["outputs"][-1]["content"]
+```
+
+## Step 4: Judge the Answer
+
+The state is both the question and the answer, so the decision model grades the answer against what was asked. Both questions go in one request, and the state's tokens are billed once.
+
+```python
+verdict = decide({"question": task, "answer": answer}, {
+    "quality": {
+        "type": "score",
+        "instructions": "How well does the answer address the question?",
+        "criteria": ["Wrong or off-topic", "Partly answers it", "Fully and correctly answers it"],
+    },
+    "ship": {"type": "noul", "instructions": "Is this answer ready to send to a customer as is?"},
+})
+print(verdict["quality"]["score"], verdict["ship"]["noul"])
+```
+
+Send answers with a low `quality` score or a low `ship` probability to a person, or back to the agent for another pass.
+
+## The Live Run
+
+The script above, run on production with `gpt-5-mini`:
+
+| Step | Result | Cost |
+| --- | --- | --- |
+| Gate: needs an agent? | `noul` 0.74, so the agent runs | \$0.0000147 |
+| Agent: 42 tokens in, 727 out | 5 bullet points | \$0.013645 |
+| Judge: quality | `score` 1.96 of 2, P(fully answers) 0.97 | \$0.0000369, together with the `ship` question |
+| Judge: ready to ship? | `noul` 0.62 | (same request) |
+
+## The Cost Math
+
+- The gate cost \$0.0000147, about 900 times less than the \$0.013645 agent call.
+- Gate and judge together cost \$0.0000516, under 0.4% of the agent call.
+- Gating costs \$0.0000147 per request, and every skipped agent call saves about \$0.0136. Skipping about one agent call in every 900 requests pays for gating all of them.
+
+## Next Steps
+
+- [Pick a Swarm and the Best Draft](/docs/examples/examples/decision-models-with-swarms): the same pattern around `/v1/swarm/completions`
+- [Decision Models Reference](/docs/documentation/capabilities/decision-models): question types, errors and pricing
+- [Agent Completions Reference](/docs/documentation/capabilities/agent): every `agent_config` field

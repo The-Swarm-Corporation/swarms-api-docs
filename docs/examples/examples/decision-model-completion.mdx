@@ -1,0 +1,143 @@
+---
+title: "Decision Model Completion"
+description: "One request with a noul, a choice and a score question, and how to read each typed answer and its cost."
+---
+
+## What This Example Shows
+
+- One `POST /v1/decision/completions` request that asks three questions about the same state
+- A `noul` question (yes or no), a `choice` question (pick a team) and a `score` question (rate severity)
+- How to read each answer type, and `usage.total_cost`
+- The same request in cURL and Python `requests`
+
+## Why This Matters
+
+Triage is a decision, not an essay. An LLM agent asked "is this urgent, which team, how bad" returns prose you have to parse, and it can phrase the answer differently every time. A decision model returns a probability, a pick and a score you can branch on directly, all three in one request, for about \$0.00002.
+
+## Step 1: Setup
+
+Get an API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+```bash
+pip install requests
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## Step 2: Send the Request
+
+`model_name` is left out, so the request uses the default, `jev-latest`.
+
+<Tabs>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://api.swarms.world/v1/decision/completions" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "state": "Checkout has been failing for every customer for an hour.",
+        "questions": {
+          "is_urgent": {"type": "noul", "instructions": "Is this urgent?"},
+          "team": {"type": "choice", "instructions": "Which team should handle this?",
+                   "criteria": {"payments": "Checkout, billing, refunds", "infra": "Outages, latency, servers", "support": null}},
+          "severity": {"type": "score", "instructions": "How severe is the impact?",
+                       "criteria": ["No impact", "Minor", "Major", "Critical"]}
+        }
+      }'
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+
+    import requests
+
+    response = requests.post(
+        "https://api.swarms.world/v1/decision/completions",
+        headers={"x-api-key": os.environ["SWARMS_API_KEY"]},
+        json={
+            "state": "Checkout has been failing for every customer for an hour.",
+            "questions": {
+                "is_urgent": {"type": "noul", "instructions": "Is this urgent?"},
+                "team": {
+                    "type": "choice",
+                    "instructions": "Which team should handle this?",
+                    "criteria": {
+                        "payments": "Checkout, billing, refunds",
+                        "infra": "Outages, latency, servers",
+                        "support": None,
+                    },
+                },
+                "severity": {
+                    "type": "score",
+                    "instructions": "How severe is the impact?",
+                    "criteria": ["No impact", "Minor", "Major", "Critical"],
+                },
+            },
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+    result = response.json()
+    ```
+  </Tab>
+</Tabs>
+
+## Step 3: Read the Answers
+
+The live response from production:
+
+```json
+{
+  "job_id": "decision-model-3220301f6c373951e3e9734f79e6c98b",
+  "status": "success",
+  "model_name": "jev-latest",
+  "model": "jev-1.13.0",
+  "answers": {
+    "is_urgent": {"type": "noul", "noul": 0.97},
+    "team": {"type": "choice", "choice": "payments", "confidence": 0.75,
+             "probabilities": {"payments": 0.84, "infra": 0.15, "support": 0.01}},
+    "severity": {"type": "score", "score": 2.99, "confidence": 0.99,
+                 "legend": {"0": "No impact", "1": "Minor", "2": "Major", "3": "Critical"},
+                 "probabilities": {"0": 0.0, "1": 0.0, "2": 0.01, "3": 0.99}}
+  },
+  "usage": {"input_tokens": 387, "output_tokens": 71, "total_tokens": 458,
+            "input_cost": 1.86921e-05, "output_cost": 0.0, "total_cost": 1.86921e-05},
+  "timestamp": "2026-10-08T17:50:58.907402+00:00"
+}
+```
+
+- **`noul`** is the probability that the statement is true: 0.97 that this is urgent.
+- **`choice`** is the most likely option. `probabilities` holds every option, so you can see that `infra` was the runner-up at 0.15, and `confidence` tells you when to send the ticket to a person instead.
+- **`score`** is an expected value where the first level is 0. 2.99 sits next to level 3, and `legend` names it: Critical.
+- **`model`** is the version that answered: `jev-latest` resolved to `jev-1.13.0`.
+
+```python
+answers = result["answers"]
+severity = answers["severity"]
+
+print("Urgent:", answers["is_urgent"]["noul"] > 0.5)
+print("Team:", answers["team"]["choice"], answers["team"]["confidence"])
+print("Severity:", severity["legend"][str(round(severity["score"]))])
+print("Cost:", result["usage"]["total_cost"])
+```
+
+```text
+Urgent: True
+Team: payments 0.75
+Severity: Critical
+Cost: 1.86921e-05
+```
+
+## Cost
+
+The request used 387 input tokens at `jev-latest`'s \$0.0483 per 1M input tokens, with output free:
+
+387 × \$0.0483 / 1,000,000 = \$0.0000187, which is the `usage.total_cost` above. Three questions cost the same as one would have, because the state's tokens are billed once. At that rate, 10,000 tickets cost about \$0.19.
+
+Prices come from `GET /v1/decision/models`; see [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models).
+
+## Next Steps
+
+- [Decision Models Reference](/docs/documentation/capabilities/decision-models): question types, errors and the TypeSafe API format
+- [Gate and Judge an Agent](/docs/examples/examples/decision-models-with-agents): put a decision model on either side of an agent call
+- [Pick a Swarm and the Best Draft](/docs/examples/examples/decision-models-with-swarms): let a decision model choose the swarm type and the winning output
