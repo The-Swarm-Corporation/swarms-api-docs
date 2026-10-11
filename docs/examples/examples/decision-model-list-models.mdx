@@ -1,0 +1,103 @@
+---
+title: "List Decision Models and Estimate Costs"
+description: "Get the live decision model list and prices from GET /v1/decision/models, choose between jev-latest and a pinned version, and estimate a request's cost before you send it."
+---
+
+## What This Example Shows
+
+- Listing the available decision models and their prices with `GET /v1/decision/models`
+- Choosing between the `jev-latest` alias and a pinned version
+- Estimating a request's cost from its token count, and checking it against `usage.total_cost`
+
+## Why This Matters
+
+The model list changes as models are added and versions ship, so read prices from the endpoint instead of copying them into your code. The same prices let you budget a job before you run it: a decision model is billed per token, so a request's cost is its token count times the model's price.
+
+## Step 1: List the Models
+
+<Tabs>
+  <Tab title="cURL">
+    ```bash
+    curl "https://api.swarms.world/v1/decision/models" \
+      -H "x-api-key: $SWARMS_API_KEY"
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+
+    import requests
+
+    response = requests.get(
+        "https://api.swarms.world/v1/decision/models",
+        headers={"x-api-key": os.environ["SWARMS_API_KEY"]},
+        timeout=30,
+    )
+    response.raise_for_status()
+    prices = {model["name"]: model for model in response.json()["models"]}
+
+    for name, model in prices.items():
+        print(name, model["provider"], model["input_cost_per_1m"], model["output_cost_per_1m"])
+    ```
+  </Tab>
+</Tabs>
+
+The response from production on 2026-10-08:
+
+```json
+{
+  "status": "success",
+  "models": [
+    {"name": "jev-latest", "description": "TypeSafe decision model. $0.0483 per 1M input tokens, $0.0 per 1M output tokens.", "release_date": "", "provider": "typesafe", "input_cost_per_1m": 0.0483, "output_cost_per_1m": 0.0},
+    {"name": "jev-preview", "description": "TypeSafe decision model. $0.0483 per 1M input tokens, $0.0 per 1M output tokens.", "release_date": "", "provider": "typesafe", "input_cost_per_1m": 0.0483, "output_cost_per_1m": 0.0},
+    {"name": "jev-1.13.0", "description": "TypeSafe decision model. $0.0483 per 1M input tokens, $0.0 per 1M output tokens.", "release_date": "", "provider": "typesafe", "input_cost_per_1m": 0.0483, "output_cost_per_1m": 0.0}
+  ]
+}
+```
+
+Prices are in USD per 1M tokens. `release_date` is always an empty string; it is there for TypeSafe SDK compatibility.
+
+## Step 2: Choose `jev-latest` or a Pinned Version
+
+`jev-latest` is an alias, and it is the default when you leave out `model_name`. The version behind it can change, so every completion's `model` field shows which version actually answered:
+
+```json
+{"model_name": "jev-latest", "model": "jev-1.13.0"}
+```
+
+- Use **`jev-latest`** to get new versions without changing your code.
+- Pin a version such as **`jev-1.13.0`** when answers must stay comparable over time, for example when you tuned routing thresholds on its probabilities.
+
+## Step 3: Estimate a Request's Cost
+
+A request costs `input_tokens × input_cost_per_1m / 1,000,000`, plus the same for output tokens:
+
+```python
+def estimate_cost(model_name, input_tokens, output_tokens=0):
+    model = prices[model_name]
+    return (
+        input_tokens * model["input_cost_per_1m"]
+        + output_tokens * model["output_cost_per_1m"]
+    ) / 1_000_000
+
+
+print(estimate_cost("jev-latest", 387, 71))
+print(estimate_cost("jev-latest", 400) * 10_000)
+```
+
+```text
+1.86921e-05
+0.1932
+```
+
+The request in [Decision Model Completion](/docs/examples/examples/decision-model-completion) used 387 input and 71 output tokens: 387 × \$0.0483 / 1M = \$0.0000187, which matches its `usage.total_cost` of `1.86921e-05`. A job of 10,000 requests at about 400 input tokens each costs about \$0.19.
+
+<Note>
+The TypeSafe SDK's `client.models.list()` gets this same list from `GET /v1/models`, so code written against the TypeSafe SDK sees the Swarms prices without changes.
+</Note>
+
+## Next Steps
+
+- [Decision Models Reference](/docs/documentation/capabilities/decision-models): request fields, question types and errors
+- [Gate and Judge an Agent](/docs/examples/examples/decision-models-with-agents): what a decision call costs next to the agent call it gates
+- [Get Decision Models and Prices](/api-reference/decision-models/get-decision-models-and-prices): the endpoint's API reference

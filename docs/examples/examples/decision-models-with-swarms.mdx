@@ -1,0 +1,135 @@
+---
+title: "Pick a Swarm and the Best Draft with a Decision Model"
+description: "Let a decision model choose the swarm_type for a task, run the swarm with /v1/swarm/completions, then pick the best agent's output."
+---
+
+## What This Example Shows
+
+- A `choice` question that picks the `swarm_type` for a task
+- A `/v1/swarm/completions` run of three copywriter agents with that swarm type
+- A second `choice` question, whose options are the agent names, that picks the best draft from the swarm's `output`
+- What each step cost in a live run on production
+
+## Why This Matters
+
+A swarm gives you several outputs, and someone still has to choose the architecture before the run and the winner after it. Hard-coded rules get both wrong as tasks vary, and asking another LLM agent to choose costs as much as a swarm member and returns prose. A decision model makes each choice for about \$0.00002 and returns probabilities you can log, compare and threshold.
+
+## Step 1: Setup
+
+```bash
+pip install requests
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+`decide` sends one decision completion and returns its answers.
+
+```python
+import os
+
+import requests
+
+BASE_URL = "https://api.swarms.world"
+HEADERS = {"x-api-key": os.environ["SWARMS_API_KEY"]}
+
+
+def decide(state, questions):
+    response = requests.post(
+        f"{BASE_URL}/v1/decision/completions",
+        headers=HEADERS,
+        json={"model_name": "jev-latest", "state": state, "questions": questions},
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.json()["answers"]
+```
+
+## Step 2: Pick the Swarm Type
+
+Each option's description tells the model when that architecture fits.
+
+```python
+task = "Write a one-paragraph product announcement for a budgeting app's new shared-wallet feature."
+
+pick = decide(task, {
+    "swarm_type": {
+        "type": "choice",
+        "instructions": "Which multi-agent architecture fits this task best?",
+        "criteria": {
+            "SequentialWorkflow": "Each step builds on the previous one, like draft then edit.",
+            "ConcurrentWorkflow": "Several independent takes on the same task, compared afterwards.",
+        },
+    },
+})
+swarm_type = pick["swarm_type"]["choice"]
+```
+
+## Step 3: Run the Swarm
+
+Three copywriters with different styles each write a draft. The swarm's `output` holds one `{"role", "content"}` message per agent, so `drafts` maps each agent's name to its draft.
+
+```python
+writers = {
+    "Playful Copywriter": "Write warm, playful marketing copy. One paragraph.",
+    "Direct Copywriter": "Write plain, direct marketing copy with no hype. One paragraph.",
+    "Benefit-Led Copywriter": "Lead with the user benefit and a concrete example. One paragraph.",
+}
+swarm = requests.post(
+    f"{BASE_URL}/v1/swarm/completions",
+    headers=HEADERS,
+    json={
+        "name": "Announcement Swarm",
+        "swarm_type": swarm_type,
+        "task": task,
+        "max_loops": 1,
+        "agents": [
+            {"agent_name": name, "system_prompt": prompt, "model_name": "gpt-5-mini", "max_loops": 1, "max_tokens": 1500}
+            for name, prompt in writers.items()
+        ],
+    },
+    timeout=600,
+)
+swarm.raise_for_status()
+drafts = {m["role"]: m["content"] for m in swarm.json()["output"] if m["role"] in writers}
+```
+
+## Step 4: Pick the Best Draft
+
+The options are the agent names mapped to `None`, so the model compares the drafts in the state rather than option descriptions.
+
+```python
+best = decide({"brief": task, "drafts": drafts}, {
+    "best_draft": {
+        "type": "choice",
+        "instructions": "Which draft best fits the brief?",
+        "criteria": {name: None for name in drafts},
+    },
+})
+winner = best["best_draft"]["choice"]
+print(winner, drafts[winner])
+```
+
+## The Live Run
+
+The script above, run on production with `gpt-5-mini`:
+
+| Step | Result | Cost |
+| --- | --- | --- |
+| Pick swarm type | `SequentialWorkflow`, 0.87 (vs. `ConcurrentWorkflow` 0.13) | ~\$0.00002 |
+| Swarm: 3 agents | 3 drafts in `output`, one `{"role", "content"}` per agent | \$0.038837 |
+| Pick the best draft | `Benefit-Led Copywriter`, 0.78 | ~\$0.00004 |
+
+Both decisions together cost about \$0.00006, under 0.2% of the swarm run.
+
+## Other Decisions to Hand Off
+
+The same `choice` and `noul` questions fit other points in a multi-agent pipeline:
+
+- **Which specialist agent to call:** a `choice` whose options are your agents' names and descriptions, so only one agent runs instead of all of them.
+- **Which `model_name` to use:** a `choice` between a small and a large model, so hard tasks get the large model and easy ones stay cheap.
+- **Whether the output needs another loop:** a `noul` on the swarm's output, such as "Does this fully meet the brief?", before you run it again with feedback.
+
+## Next Steps
+
+- [Gate and Judge an Agent](/docs/examples/examples/decision-models-with-agents): the same pattern around a single agent
+- [Available Multi-Agent Architectures](/docs/documentation/multi-agent/available-architectures): every `swarm_type` you can offer as an option
+- [Decision Models Reference](/docs/documentation/capabilities/decision-models): question types, errors and pricing
