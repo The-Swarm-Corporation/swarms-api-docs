@@ -8,7 +8,7 @@ description: 'API reference for reporting on your Swarms API usage: current pric
 There is no dedicated endpoint that returns a historical, day-by-day breakdown of your spend. Instead, the Swarms API exposes three complementary pieces: the **current pricing model** (`/v1/usage/costs`), your **raw request logs** (`/v1/account/logs`), and an **at-a-glance metrics summary** (`/v1/account/metrics/summary`). Combine these client-side for a custom usage report — see each section below.
 </Info>
 
-The Usage endpoint returns the unified pricing model the API uses to calculate costs for every operation (token costs, agent costs, search/scrape costs, and the night-time discount). Use it to compute expected costs before you run a request, or to keep your own cost estimates in sync with the live pricing.
+The Usage endpoint returns the flat fees the API charges (per-agent, image and search), the fallback token rates for models with no price data, and the night-time discount. Tokens are billed at each model's own price plus a 15% service fee, so per-model token prices are not in this response: get them from `GET /v1/models/available` or `GET /v1/models/pricing?model_name=...`. Use both to compute expected costs before you run a request, or to keep your own cost estimates in sync with the live pricing. See [Pricing](/docs/documentation/resources/pricing) for how a charge is calculated.
 
 ## Endpoint Information
 
@@ -48,8 +48,9 @@ None. This endpoint always returns the current pricing model in effect.
     data = response.json()
 
     pricing = data["usage_pricing"]
-    print(f"Agent completions input cost: ${pricing['agent_completions_input_cost_per_1m']} / 1M tokens")
-    print(f"Agent completions output cost: ${pricing['agent_completions_output_cost_per_1m']} / 1M tokens")
+    print(f"Per-agent fee (swarms and workflows): ${pricing['swarm_completions_agent_cost']}")
+    print(f"Fallback input rate (unpriced models): ${pricing['fallback_input_cost_per_1m']} / 1M tokens")
+    print(f"Fallback output rate (unpriced models): ${pricing['fallback_output_cost_per_1m']} / 1M tokens")
     ```
   </Tab>
   <Tab title="TypeScript">
@@ -95,41 +96,37 @@ None. This endpoint always returns the current pricing model in effect.
 
 | Field | Type | Description |
 |---|---|---|
-| `usage_pricing` | `object` | All per-operation costs — token costs, agent costs, search/scrape costs, night-time discount |
+| `usage_pricing` | `object` | Flat fees, fallback token rates and the night-time discount. Per-model token prices come from `GET /v1/models/available` |
 | `timestamp` | `string` | ISO timestamp when the pricing information was retrieved |
 
 ### usage_pricing Object
 
 | Field | Type | Description |
 |---|---|---|
-| `swarm_completions_agent_cost` | `number` | Cost per agent in swarm completions (USD) |
-| `swarm_completions_input_cost_per_1m` | `number` | Cost per 1M input tokens for swarm completions (USD) |
-| `swarm_completions_output_cost_per_1m` | `number` | Cost per 1M output tokens for swarm completions (USD) |
-| `agent_completions_input_cost_per_1m` | `number` | Cost per 1M input tokens for agent completions (USD) |
-| `agent_completions_output_cost_per_1m` | `number` | Cost per 1M output tokens for agent completions (USD) |
+| `fallback_input_cost_per_1m` | `number` | Cost per 1M input tokens (USD) for a model with no price data, before the 15% service fee. Not the price of most models |
+| `fallback_output_cost_per_1m` | `number` | Cost per 1M output tokens (USD) for a model with no price data, before the 15% service fee. Not the price of most models |
+| `swarm_completions_agent_cost` | `number` | Cost per agent in the request for swarm completions, graph workflow and batched grid workflow (USD) |
 | `agent_completions_img_cost` | `number` | Cost per image for agent completions (USD) |
-| `agent_completions_mcp_cost` | `number` | Cost per MCP call for agent completions (USD) |
-| `search_cost` | `number` | Cost per search operation (USD) |
-| `scrape_cost` | `number` | Cost per scrape operation (USD) |
+| `search_cost` | `number` | Cost per agent completion request that enables `auto_search`, however many searches run (USD) |
 | `night_time_discount` | `number` | Discount multiplier applied to swarm completion token costs, 8 PM - 6 AM PT (0.5 = 50% off) |
+
+<Note>
+MCP servers and the `web_scraper` tool have no fee of their own; only the tokens are billed. The old `swarm_completions_*_cost_per_1m`, `agent_completions_*_cost_per_1m`, `agent_completions_mcp_cost` and `scrape_cost` fields are no longer returned.
+</Note>
 
 ### Example Response
 
 ```json
 {
   "usage_pricing": {
+    "fallback_input_cost_per_1m": 6.5,
+    "fallback_output_cost_per_1m": 18.5,
     "swarm_completions_agent_cost": 0.01,
-    "swarm_completions_input_cost_per_1m": 6.5,
-    "swarm_completions_output_cost_per_1m": 18.5,
-    "agent_completions_input_cost_per_1m": 6.5,
-    "agent_completions_output_cost_per_1m": 18.5,
     "agent_completions_img_cost": 0.25,
-    "agent_completions_mcp_cost": 0.1,
     "search_cost": 0.04,
-    "scrape_cost": 0.15,
     "night_time_discount": 0.5
   },
-  "timestamp": "2026-03-29T18:30:00+00:00"
+  "timestamp": "2026-10-12T19:01:46.180153+00:00"
 }
 ```
 

@@ -5,7 +5,9 @@ description: 'Fetch and inspect comprehensive pricing details for all Swarms API
 
 
 
-Retrieve unified pricing information for all Swarms API usage dimensions from the `/v1/usage/costs` endpoint. This includes token costs, agent costs, search/scrape operations, image pricing, MCP calls, and night-time discount multipliers.
+Retrieve the flat fees and discounts that apply across the Swarms API from the `/v1/usage/costs` endpoint: the per-agent fee, the image and search fees, the night-time discount, and the fallback token rates used only for models with no price data.
+
+Token prices are **per model**: each model's tokens are billed at its provider price plus a 15% service fee. Look a model up with `GET /v1/models/pricing` (see [Token Prices per Model](#token-prices-per-model) below). MCP servers and the `web_scraper` tool add no fee; only the tokens they use are billed.
 
 <Info>
 The pricing endpoint is **read-only** and safe to call in automation. Always treat returned values as dynamic and avoid hard-coding pricing in production systems.
@@ -56,10 +58,11 @@ The pricing endpoint is **read-only** and safe to call in automation. Always tre
 
             usage = data.get("usage_pricing", {})
             print("\n--- Key fields ---")
-            print("Swarm input /1M:", usage.get("swarm_completions_input_cost_per_1m"))
-            print("Swarm output /1M:", usage.get("swarm_completions_output_cost_per_1m"))
+            print("Per-agent fee:", usage.get("swarm_completions_agent_cost"))
             print("Agent image cost:", usage.get("agent_completions_img_cost"))
+            print("Search cost (per request):", usage.get("search_cost"))
             print("Night-time discount:", usage.get("night_time_discount"))
+            print("Fallback input /1M (unpriced models only):", usage.get("fallback_input_cost_per_1m"))
     ```
   </Tab>
   <Tab title="TypeScript">
@@ -88,15 +91,11 @@ The pricing endpoint is **read-only** and safe to call in automation. Always tre
       }
 
       type UsagePricingModel = {
+        fallback_input_cost_per_1m: number
+        fallback_output_cost_per_1m: number
         swarm_completions_agent_cost: number
-        swarm_completions_input_cost_per_1m: number
-        swarm_completions_output_cost_per_1m: number
-        agent_completions_input_cost_per_1m: number
-        agent_completions_output_cost_per_1m: number
         agent_completions_img_cost: number
-        agent_completions_mcp_cost: number
         search_cost: number
-        scrape_cost: number
         night_time_discount: number
       }
 
@@ -117,10 +116,10 @@ The pricing endpoint is **read-only** and safe to call in automation. Always tre
 
         const usage = data.usage_pricing
         console.log('\n--- Key fields ---')
-        console.log('Swarm completions (input /1M):', usage.swarm_completions_input_cost_per_1m)
-        console.log('Swarm completions (output /1M):', usage.swarm_completions_output_cost_per_1m)
-        console.log('Search cost:', usage.search_cost)
-        console.log('Scrape cost:', usage.scrape_cost)
+        console.log('Per-agent fee:', usage.swarm_completions_agent_cost)
+        console.log('Search cost (per request):', usage.search_cost)
+        console.log('Night-time discount:', usage.night_time_discount)
+        console.log('Fallback input /1M (unpriced models only):', usage.fallback_input_cost_per_1m)
       } catch (err) {
         console.error('Error fetching pricing details:', err)
       }
@@ -138,15 +137,11 @@ The pricing endpoint is **read-only** and safe to call in automation. Always tre
 
     #[derive(Debug, Deserialize)]
     struct UsagePricingModel {
+        fallback_input_cost_per_1m: f64,
+        fallback_output_cost_per_1m: f64,
         swarm_completions_agent_cost: f64,
-        swarm_completions_input_cost_per_1m: f64,
-        swarm_completions_output_cost_per_1m: f64,
-        agent_completions_input_cost_per_1m: f64,
-        agent_completions_output_cost_per_1m: f64,
         agent_completions_img_cost: f64,
-        agent_completions_mcp_cost: f64,
         search_cost: f64,
-        scrape_cost: f64,
         night_time_discount: f64,
     }
 
@@ -179,15 +174,18 @@ The pricing endpoint is **read-only** and safe to call in automation. Always tre
 
         println!("\n--- Key fields ---");
         println!(
-            "Swarm completions input /1M: {}",
-            data.usage_pricing.swarm_completions_input_cost_per_1m
+            "Per-agent fee: {}",
+            data.usage_pricing.swarm_completions_agent_cost
+        );
+        println!("Search cost (per request): {}", data.usage_pricing.search_cost);
+        println!(
+            "Night-time discount: {}",
+            data.usage_pricing.night_time_discount
         );
         println!(
-            "Swarm completions output /1M: {}",
-            data.usage_pricing.swarm_completions_output_cost_per_1m
+            "Fallback input /1M (unpriced models only): {}",
+            data.usage_pricing.fallback_input_cost_per_1m
         );
-        println!("Search cost: {}", data.usage_pricing.search_cost);
-        println!("Scrape cost: {}", data.usage_pricing.scrape_cost);
 
         Ok(())
     }
@@ -207,16 +205,12 @@ The pricing endpoint is **read-only** and safe to call in automation. Always tre
     )
 
     type UsagePricingModel struct {
-        SwarmCompletionsAgentCost        float64 `json:"swarm_completions_agent_cost"`
-        SwarmCompletionsInputCostPer1M   float64 `json:"swarm_completions_input_cost_per_1m"`
-        SwarmCompletionsOutputCostPer1M  float64 `json:"swarm_completions_output_cost_per_1m"`
-        AgentCompletionsInputCostPer1M   float64 `json:"agent_completions_input_cost_per_1m"`
-        AgentCompletionsOutputCostPer1M  float64 `json:"agent_completions_output_cost_per_1m"`
-        AgentCompletionsImgCost          float64 `json:"agent_completions_img_cost"`
-        AgentCompletionsMcpCost          float64 `json:"agent_completions_mcp_cost"`
-        SearchCost                       float64 `json:"search_cost"`
-        ScrapeCost                       float64 `json:"scrape_cost"`
-        NightTimeDiscount                float64 `json:"night_time_discount"`
+        FallbackInputCostPer1M    float64 `json:"fallback_input_cost_per_1m"`
+        FallbackOutputCostPer1M   float64 `json:"fallback_output_cost_per_1m"`
+        SwarmCompletionsAgentCost float64 `json:"swarm_completions_agent_cost"`
+        AgentCompletionsImgCost   float64 `json:"agent_completions_img_cost"`
+        SearchCost                float64 `json:"search_cost"`
+        NightTimeDiscount         float64 `json:"night_time_discount"`
     }
 
     type PricingDetailsOutput struct {
@@ -260,10 +254,10 @@ The pricing endpoint is **read-only** and safe to call in automation. Always tre
         fmt.Println(string(encoded))
 
         fmt.Println("\n--- Key fields ---")
-        fmt.Println("Swarm completions input /1M:", data.UsagePricing.SwarmCompletionsInputCostPer1M)
-        fmt.Println("Swarm completions output /1M:", data.UsagePricing.SwarmCompletionsOutputCostPer1M)
-        fmt.Println("Search cost:", data.UsagePricing.SearchCost)
-        fmt.Println("Scrape cost:", data.UsagePricing.ScrapeCost)
+        fmt.Println("Per-agent fee:", data.UsagePricing.SwarmCompletionsAgentCost)
+        fmt.Println("Search cost (per request):", data.UsagePricing.SearchCost)
+        fmt.Println("Night-time discount:", data.UsagePricing.NightTimeDiscount)
+        fmt.Println("Fallback input /1M (unpriced models only):", data.UsagePricing.FallbackInputCostPer1M)
     }
     ```
   </Tab>
@@ -276,22 +270,54 @@ The endpoint returns a `usage_pricing` object plus a `timestamp`:
 ```json
 {
   "usage_pricing": {
+    "fallback_input_cost_per_1m": 6.5,
+    "fallback_output_cost_per_1m": 18.5,
     "swarm_completions_agent_cost": 0.01,
-    "swarm_completions_input_cost_per_1m": 6.5,
-    "swarm_completions_output_cost_per_1m": 18.5,
-    "agent_completions_input_cost_per_1m": 6.5,
-    "agent_completions_output_cost_per_1m": 18.5,
     "agent_completions_img_cost": 0.25,
-    "agent_completions_mcp_cost": 0.1,
     "search_cost": 0.04,
-    "scrape_cost": 0.15,
     "night_time_discount": 0.5
   },
-  "timestamp": "2026-09-14T12:00:00Z"
+  "timestamp": "2026-10-12T19:01:46.180153+00:00"
 }
 ```
+
+| Field | Meaning |
+|---|---|
+| `fallback_input_cost_per_1m` | Input price per 1M tokens for a model with **no price data**, before the 15% service fee (\$7.475 after it). Priced models are billed at their own rate, not this one. |
+| `fallback_output_cost_per_1m` | Output price per 1M tokens for a model with no price data, before the service fee (\$21.275 after it). |
+| `swarm_completions_agent_cost` | Fee per agent in the request, for swarm completions, graph workflows and batched grid workflows. |
+| `agent_completions_img_cost` | Fee per image on agent completions, counted across `img` and `imgs`. |
+| `search_cost` | Charged once per agent completion request that enables `auto_search` in `tools_enabled`, however many searches the agent runs, including none. |
+| `night_time_discount` | Multiplier on the token cost of swarm completions (including streaming and batch) from 8 PM to 6 AM Pacific. The per-agent fee is not discounted. |
+
+<Warning>
+The flat token-rate fields (`swarm_completions_input_cost_per_1m`, `swarm_completions_output_cost_per_1m`, `agent_completions_input_cost_per_1m`, `agent_completions_output_cost_per_1m`) and the MCP and scrape fees (`agent_completions_mcp_cost`, `scrape_cost`) have been removed from this response. Code that reads them needs updating: get token prices per model, as shown below.
+</Warning>
 
 <Note>
 `GET /v1/usage/costs` is not yet exposed as a dedicated method on the `swarms-client` SDK (0.8.0) — use `requests` or `fetch` directly, as above.
 </Note>
+
+## Token Prices per Model
+
+`GET /v1/models/pricing` returns one model's price per 1M tokens, with the 15% service fee already included:
+
+```bash
+curl -G "https://api.swarms.world/v1/models/pricing" \
+  --data-urlencode "model_name=gpt-5.4" \
+  -H "x-api-key: $SWARMS_API_KEY"
+```
+
+```json
+{
+  "status": "success",
+  "model_name": "gpt-5.4",
+  "input_cost_per_1m": 2.875,
+  "output_cost_per_1m": 17.25,
+  "price_source": "litellm",
+  "timestamp": "2026-10-12T19:01:46.491705+00:00"
+}
+```
+
+These are example prices at the time of writing; provider prices change, so look them up rather than hard-coding them. Any model name gets a price: `openrouter/...` models are priced from OpenRouter, other models from LiteLLM's price data, and a model with no price data comes back with `"price_source": "fallback"` and the fallback rates plus the fee. `GET /v1/models/available` lists every model with the same `input_cost_per_1m`, `output_cost_per_1m` and `price_source` fields.
 

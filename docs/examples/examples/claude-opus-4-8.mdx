@@ -174,7 +174,7 @@ Every other swarm architecture takes the same `model_name`. Drop `"model_name": 
     You called `claude-opus-4-8` from a free-tier API key. The response is a 403 with `"error": "Premium model access required"` and a `suggested_alternatives` list. Either upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account) or switch `model_name` to a free-tier model such as `claude-sonnet-5`.
   </Accordion>
   <Accordion title="Where do I find pricing?">
-    The Swarms API bills token usage at the same flat rate for every model — $6.50 per million input tokens and $18.50 per million output tokens. See the [pricing page](/docs/documentation/resources/pricing) for current rates.
+    The Swarms API bills each model's tokens at that model's price plus a 15% service fee. At the time of writing, `claude-opus-4-8` costs $5.75 per million input tokens and $28.75 per million output tokens, fee included. Look up the current price with `GET /v1/models/pricing?model_name=claude-opus-4-8`, and see the [pricing page](/docs/documentation/resources/pricing) for how billing works.
   </Accordion>
 </AccordionGroup>
 

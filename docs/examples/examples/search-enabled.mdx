@@ -245,8 +245,8 @@ payload = {
 
 ## Cost Considerations
 
-- **Search Operations**: Additional costs for web search access
-- **Token Usage**: Increased token consumption for search results processing
+- **Search Operations**: $0.04 once per request that enables `auto_search`, however many searches the agent runs (including none)
+- **Token Usage**: Increased token consumption for search results processing, billed at the agent's model price
 - **Quality Trade-off**: Balance search quality with cost efficiency
 
 ## Error Handling
@@ -279,7 +279,7 @@ except Exception as e:
 
 ## Search Result Format
 
-Search-enabled agents return the standard `/v1/agent/completions` response shape. The agent's answer (with any web-sourced facts woven into the text) appears in `outputs`. The search tool's $0.04 fee is deducted from your credits as a separate charge — it is not included in the `usage.total_cost` field, which covers token and image costs only:
+Search-enabled agents return the standard `/v1/agent/completions` response shape. The agent's answer (with any web-sourced facts woven into the text) appears in `outputs`. The search tool's $0.04 fee is charged once per request and deducted from your credits as a separate charge — it is not included in the `usage.total_cost` field, which covers token and image costs only:
 
 ```json
 {
@@ -298,8 +298,9 @@ Search-enabled agents return the standard `/v1/agent/completions` response shape
     "input_tokens": 150,
     "output_tokens": 300,
     "total_tokens": 450,
+    "image_count": 0,
     "img_cost": 0.0,
-    "total_cost": 0.006525
+    "total_cost": 0.003105
   },
   "timestamp": "2026-02-05T00:58:15.252392+00:00"
 }

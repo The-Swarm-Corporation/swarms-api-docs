@@ -10,7 +10,7 @@ description: "Stop paying per-task fees and patching brittle if/then graphs — 
 - Three universal migrations: Slack triage, inbound-email extraction to CRM, and lead enrichment for outreach
 - The exact `/v1/agent/completions` request shape: `agent_config`, `tools_list_dictionary`, and `mcp_url`
 - Side-by-side Zap-graph "before" descriptions vs. ~50 lines of "after" Python
-- A concrete cost comparison: Zapier Professional at \$73/mo for 2K tasks vs. ~\$50 for 10K agent calls
+- A concrete cost comparison: Zapier Professional at \$73/mo for 2K tasks vs. ~\$21 for 10K agent calls
 - When you should *not* migrate — the linear flows Zapier still wins on
 
 ## Why This Matters
@@ -300,24 +300,24 @@ The numbers Zapier charges for the *moment your CEO starts asking questions*:
 
 A "task" is **one node firing**, not one workflow run. A 7-step Zap costs 7 tasks per execution — so the 2K-task Professional plan is really ~285 runs/month of the Slack-triage Zap above.
 
-Compare to Swarms on `/v1/agent/completions`. A representative agent call from the migrations above:
+Compare to Swarms on `/v1/agent/completions`. A representative agent call from the migrations above — the Slack-triage agent from Migration 1, on `claude-haiku-4-5` at \$1.15 / 1M input and \$5.75 / 1M output tokens (15% service fee included, at the time of writing):
 
 - Input tokens: ~600 (system prompt + task + tools schema)
 - Output tokens: ~250 (tool call + drafted reply)
 
 ```
-input_cost  = (600 / 1_000_000) * 6.50  = $0.0039
-output_cost = (250 / 1_000_000) * 18.50 = $0.0046
-per_call    ≈ $0.0085  (varies with model, prompt length, and tool-schema size)
+input_cost  = (600 / 1_000_000) * 1.15 = $0.00069
+output_cost = (250 / 1_000_000) * 5.75 = $0.00144
+per_call    ≈ $0.0021  (varies with model, prompt length, and tool-schema size)
 ```
 
-At ~\$0.0085 per call, **10,000 agent calls cost about \$85** — and each one is a full multi-step reasoning flow, not one Zap node. (Note: `/v1/agent/completions` charges the agent-completions token rates only — there's no separate per-agent flat fee on single-agent completions; that `$0.01`/agent fee is specific to `/v1/swarm/completions`.)
+At ~\$0.0021 per call, **10,000 agent calls cost about \$21** — and each one is a full multi-step reasoning flow, not one Zap node. (Note: `/v1/agent/completions` bills tokens at the model's price only — there's no separate per-agent flat fee on single-agent completions; that `$0.01`/agent fee is specific to `/v1/swarm/completions`. Attaching an MCP server, as in Migration 3, adds no fee either. Each model has its own price, so look yours up with `GET /v1/models/pricing` — see [Pricing](/docs/documentation/resources/pricing).)
 
-| Volume | Zapier (7-step Zap) | Swarms agent call (~\$0.0085/call) | Savings |
+| Volume | Zapier (7-step Zap) | Swarms agent call (~\$0.0021/call) | Savings |
 | --- | --- | --- | --- |
-| 1,000 runs/mo | 7,000 tasks → Professional + overage | ~\$8.50 | ~89% |
-| 5,000 runs/mo | Team / Company tier | ~\$42.50 | ~75% |
-| 10,000 runs/mo | Enterprise quote (4-figure) | ~\$85 | ~90% |
+| 1,000 runs/mo | 7,000 tasks → Professional + overage | ~\$2.13 | ~97% |
+| 5,000 runs/mo | Team / Company tier | ~\$10.64 | ~94% |
+| 10,000 runs/mo | Enterprise quote (4-figure) | ~\$21.28 | ~97% |
 
 And the Swarms call replaces *the entire 7-step graph* — including the ChatGPT step you were already paying for.
 

@@ -18,7 +18,7 @@ The single highest-ROI cost lever the Swarms API offers is its overnight discoun
 
 ## How the Discount Works
 
-The discount is applied server-side, in `api/deductions_utils.py`. `is_night_time()` reads the wall-clock hour in the `PRICING_TIMEZONE` constant — `America/Los_Angeles` — and `charge_swarm_usage()` (called by the swarm-completions billing path) multiplies the token components by `pricing.night_time_discount` only when that check is true:
+The discount is applied server-side, in `api/deductions_utils.py`. `is_night_time()` reads the wall-clock hour in the `PRICING_TIMEZONE` constant — `America/Los_Angeles` — and `charge_swarm_usage()` (called by the swarm-completions billing path) applies `pricing.night_time_discount` to the per-model token cost only when that check is true:
 
 ```python
 # Excerpt from api/deductions_utils.py — the off-peak check
@@ -27,21 +27,28 @@ NIGHT_START_HOUR = 20
 NIGHT_END_HOUR = 6
 
 def is_night_time(now: Optional[datetime] = None) -> bool:
+    tz = pytz.timezone(PRICING_TIMEZONE)
     if now is None:
-        now = datetime.now(pytz.timezone(PRICING_TIMEZONE))
+        now = datetime.now(tz)
+    elif now.tzinfo is not None:
+        now = now.astimezone(tz)
     return now.hour >= NIGHT_START_HOUR or now.hour < NIGHT_END_HOUR
 
-# In charge_swarm_usage(), once night_time is resolved:
-if night_time:
-    input_cost *= pricing.night_time_discount   # 0.50 = 50% off
-    output_cost *= pricing.night_time_discount  # 0.50 = 50% off
-# agent_cost is added to total_cost after this block, so it is never discounted.
+# In charge_swarm_usage(), once night_time is resolved. Each agent's tokens
+# are priced at its own model's price, times the discount at night.
+agent_cost = number_of_agents * pricing.swarm_completions_agent_cost
+billing = price_token_usage(
+    token_usage,
+    discount=pricing.night_time_discount if night_time else 1.0,  # 0.50 = 50% off
+)
+total_cost = agent_cost + billing["input_cost"] + billing["output_cost"]
+# agent_cost is outside the discount, so it is never discounted.
 ```
 
 **What's discounted:**
 
-- `swarm_completions_input_cost_per_1m` — full 50% off
-- `swarm_completions_output_cost_per_1m` — full 50% off
+- Input token cost — each agent's input tokens at its model's price (15% service fee included), full 50% off
+- Output token cost — each agent's output tokens at its model's price (15% service fee included), full 50% off
 
 **What's NOT discounted:**
 
@@ -57,7 +64,7 @@ The check is on **the time the run finishes**, in Pacific. A job that starts at 
 
 Take a realistic mid-sized team: 1,000 swarm jobs per day, each averaging:
 
-- 5 agents
+- 5 agents, all on `gpt-4.1` (\$2.30 / 1M input, \$9.20 / 1M output, service fee included, at the time of writing; look up current prices with `GET /v1/models/pricing` — see [Pricing](/docs/documentation/resources/pricing))
 - 6,000 input tokens
 - 3,000 output tokens
 
@@ -66,34 +73,34 @@ Take a realistic mid-sized team: 1,000 swarm jobs per day, each averaging:
 Per-job cost:
 
 ```
-input_cost  = (6_000  / 1_000_000) * 6.50  = $0.0390
-output_cost = (3_000  / 1_000_000) * 18.50 = $0.0555
+input_cost  = (6_000  / 1_000_000) * 2.30  = $0.0138
+output_cost = (3_000  / 1_000_000) * 9.20  = $0.0276
 agent_cost  = 5 * 0.01                       = $0.0500
-total/run                                   = $0.1445
+total/run                                   = $0.0914
 ```
 
-Per day: `$0.1445 * 1,000 = $144.50`
-Per 30-day month: **\$4,335.00**
+Per day: `$0.0914 * 1,000 = $91.40`
+Per 30-day month: **\$2,742.00**
 
 ### Overnight: same workload, scheduled 8 PM – 6 AM PT
 
 Per-job cost:
 
 ```
-input_cost  = $0.0390 * 0.50 = $0.0195
-output_cost = $0.0555 * 0.50 = $0.02775
+input_cost  = $0.0138 * 0.50 = $0.0069
+output_cost = $0.0276 * 0.50 = $0.0138
 agent_cost  = $0.0500         (NOT discounted)
-total/run                    = $0.09725
+total/run                    = $0.0707
 ```
 
-Per day: `$0.09725 * 1,000 = $97.25`
-Per 30-day month: **\$2,917.50**
+Per day: `$0.0707 * 1,000 = $70.70`
+Per 30-day month: **\$2,121.00**
 
 ### Savings
 
-**\$4,335 – \$2,917.50 = \$1,417.50/month** saved by shifting the same workload into the overnight window. Annualized: **\$17,010**. Zero code changes to the agents themselves — just *when* they run.
+**\$2,742 – \$2,121 = \$621/month** saved by shifting the same workload into the overnight window. Annualized: **\$7,452**. Zero code changes to the agents themselves — just *when* they run.
 
-For larger workloads the savings scale linearly until the agent-fee floor dominates. At 10,000 jobs/day this same calculation yields **\$14,175/month** in savings.
+For larger workloads the savings scale linearly until the agent-fee floor dominates. At 10,000 jobs/day this same calculation yields **\$6,210/month** in savings.
 
 ## Verifying the Discount in Your Response
 
@@ -160,7 +167,7 @@ CRON_TZ=America/Los_Angeles
 
 `CRON_TZ` is supported by Vixie cron and systemd timers — it makes your schedule survive DST shifts without manual adjustment.
 
-The batch script itself is the same swarm call you'd write at any other time. The discount is applied server-side based on when the request hits the API, not on any flag you set.
+The batch script itself is the same swarm call you'd write at any other time. The discount is applied server-side when billing runs, after the swarm finishes — not when the request hits the API, and not on any flag you set.
 
 ```python
 # /opt/jobs/run_nightly_batch.py
@@ -305,7 +312,7 @@ The `audit_discount` task is the bit most teams forget. Without it, a daylight-s
 The discount window is `hour >= 20 or hour < 6` in Pacific. Two practical implications:
 
 1. **5:59 AM PT is still discounted; 6:00 AM PT is not.** If your job is long-running, start it earlier so it finishes inside the window.
-2. **8:00 PM PT is the earliest discounted moment.** A job that starts at 7:55 PM lands at the full-price rate.
+2. **8:00 PM PT is the earliest discounted moment.** A job that finishes at 7:59 PM lands at the full-price rate.
 
 Give yourself a buffer. Schedule starts at **9 PM PT** (one hour past the boundary) and target completion **by 5 AM PT** (one hour before the boundary closes). That gives you eight clean hours of discount and protects against DST-driven hour shifts.
 

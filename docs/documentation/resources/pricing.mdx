@@ -98,66 +98,186 @@ Critical support, compliance, and control for large-scale enterprises.
 
 ## Usage-based pricing
 
-Pay only for what you use with transparent, per-operation pricing. All API endpoints use a unified pricing structure for token costs.
+Pay only for what you use. Each model's tokens are billed at that model's own price, plus a 15% service fee. Some features add a flat fee on top.
 
-### Pricing Table
+### Token pricing
 
-| Item | Price | Unit | Notes |
-|------|-------|------|-------|
-| **Input Tokens** | \$6.50 | per 1M tokens | Unified pricing across all endpoints |
-| **Output Tokens** | \$18.50 | per 1M tokens | Unified pricing across all endpoints |
-| **Agent Cost** | \$0.01 | per agent | For swarms and workflows |
-| **Image Processing** | \$0.25 | per image | Charged when image provided |
-| **MCP Call** | \$0.10 | per call | Charged when MCP URL provided |
-| **Exa Search Tool** | \$0.04 | per search | Charged per search execution |
-| **Web Scraper Tool** | \$0.15 | per scrape | Charged per scrape execution |
-| **Night-time Discount** | 50% off tokens | 8 PM - 6 AM PT | Swarm Completions only |
+```
+token cost = (input tokens × model input price + output tokens × model output price) × 1.15
+```
 
-### Unified Pricing
+The model price comes from:
 
-All API endpoints use the same token pricing:
-- **Input Tokens**: \$6.50 per 1 million tokens
-- **Output Tokens**: \$18.50 per 1 million tokens
+| Model | Price source |
+|-------|--------------|
+| `openrouter/...` models, e.g. `openrouter/moonshotai/kimi-k3` | OpenRouter's published price, refreshed about hourly |
+| Every other model, e.g. `gpt-5.4` or `claude-sonnet-5` | LiteLLM's price data for that model |
+| A model with no price data | Fallback rates: \$6.50 per 1M input tokens and \$18.50 per 1M output tokens before the fee (\$7.475 / \$21.275 with it) |
 
-This applies to:
-| Endpoint                        | Notes                       |
-|----------------------------------|-----------------------------|
-| Swarm Completions                | Agent cost applies (\$0.01/agent); night-time discount applies to tokens |
-| Agent Completions                | No per-agent fee            |
-| Graph Workflow                   | Agent cost applies (\$0.01/agent), billed at agent-completion token rates; no night-time discount |
-| Batched Grid Workflow            | Agent cost applies (\$0.01/agent), billed at agent-completion token rates; no night-time discount |
-| Auto Agent Builder               | Agent cost applies (\$0.01/agent), billed at agent-completion token rates; no night-time discount |
+Example prices per 1M tokens at the time of writing, service fee included:
+
+| Model | Input | Output |
+|-------|------:|-------:|
+| `gpt-5.4-mini` | \$0.8625 | \$5.175 |
+| `gpt-5.4` | \$2.875 | \$17.25 |
+| `claude-sonnet-5` | \$2.30 | \$11.50 |
+| `claude-opus-4-8` | \$5.75 | \$28.75 |
+| `claude-fable-5` | \$11.50 | \$57.50 |
+
+Provider prices change, so look up current prices with the endpoints in [Looking up model prices](#looking-up-model-prices) instead of hardcoding them.
+
+How tokens are counted:
+
+- **Provider-reported tokens.** Agent, chat, swarm, graph workflow and batched grid workflow completions bill the tokens the model provider reports for each agent, summed over every LLM call the agent made. That includes every loop, re-sent conversation history and reasoning tokens.
+- **Per agent, per model.** A swarm or workflow that mixes models bills each agent's tokens at its own model's price, then sums them.
+- **Fallback models.** If an agent falls back to another model (`fallback_models`), its tokens are priced at the model that actually answered.
+- **Cached and reasoning tokens.** Cached input tokens are billed at the model's normal input price, and reasoning tokens at its output price.
+
+### Flat fees
+
+| Fee | Price | Applies to |
+|-----|-------|------------|
+| **Agent cost** | \$0.01 per agent in the request | Swarm completions (including streaming and batch), graph workflow, batched grid workflow |
+| **Auto Agent Builder** | \$0.01 per request, however many agents it generates | Auto Agent Builder |
+| **Image** | \$0.25 per image, counted across `img` and `imgs` | Agent completions |
+| **Exa Search tool** | \$0.04 per request that enables `auto_search`, however many searches the agent runs | Agent completions |
+
+MCP servers and the `web_scraper` tool have no fee: only the tokens the agent uses are billed.
+
+### By endpoint
+
+| Endpoint | What is billed |
+|----------|----------------|
+| Swarm Completions | \$0.01 per agent plus each agent's tokens at its own model. Night-time discount applies to the token cost. |
+| Agent Completions, Chat Completions | Tokens at the agent's model, plus image and search fees. No per-agent fee. |
+| Graph Workflow | \$0.01 per agent plus each agent's tokens at its own model. No night-time discount. |
+| Batched Grid Workflow | \$0.01 per agent plus each agent's tokens at its own model. No night-time discount. |
+| Reasoning Agents | Tokens at the request's `model_name`. No per-agent fee. |
+| Auto Agent Builder | \$0.01 per request plus tokens at the builder's model. |
+| Decision Models | Tokens at each decision model's own price, listed by `GET /v1/decision/models`. See [Decision Models](/docs/documentation/capabilities/decision-models). |
+
+Some swarm types build agents of their own: the HierarchicalSwarm director, the MajorityVoting consensus agent, the CouncilAsAJudge aggregator and the LLMCouncil chairman. Their tokens are billed too, each at its own model, but the \$0.01 agent cost counts only the agents in your request. HeavySwarm builds all of its agents itself, so its tokens are priced at `heavy_swarm_worker_model_name`.
 
 ### Discounts
 
-**Night Time Discount**: Swarm completions receive a 50% discount on token costs during 8 PM - 6 AM Pacific Time. Agent costs remain the same.
+**Night-time discount**: swarm completions get 50% off the token cost from 8 PM to 6 AM Pacific Time, judged when the run is billed, after it finishes. The \$0.01 agent cost is not discounted, and no other endpoint gets the discount.
 
-### Retrieving Current Costs
+### Worked examples
 
-You can retrieve the current pricing using the `/v1/usage/costs` endpoint:
+Prices below are illustrative provider prices before the fee: `gpt-5.4` at \$2.50 / \$15.00 and `claude-sonnet-5` at \$2.00 / \$10.00 per 1M input / output tokens.
+
+**Mixed-model swarm, daytime.** A `gpt-5.4` agent with 500,000 input and 100,000 output tokens, and a `claude-sonnet-5` agent with 200,000 input and 300,000 output tokens:
+
+```
+Agent cost        = 2 × $0.01                                 = $0.02
+gpt-5.4 tokens    = (0.5 × $2.50 + 0.1 × $15.00) × 1.15       = $3.1625
+claude-sonnet-5   = (0.2 × $2.00 + 0.3 × $10.00) × 1.15       = $3.91
+Total                                                         = $7.0925
+```
+
+At night the two token costs are halved: \$0.02 + \$1.58125 + \$1.955 = \$3.55625.
+
+**Agent completion with an image.** A `claude-sonnet-5` agent with 250,000 input and 100,000 output tokens and one image:
+
+```
+Tokens = (0.25 × $2.00 + 0.1 × $10.00) × 1.15 = $1.725
+Image  = $0.25
+Total  = $1.975
+```
+
+**Unpriced model.** 1,000,000 input and 500,000 output tokens on a model with no price data:
+
+```
+Tokens = (1.0 × $6.50 + 0.5 × $18.50) × 1.15 = $18.1125
+```
+
+### Looking up model prices
+
+`GET /v1/models/available` lists every model available to your tier with its price per 1M tokens, service fee included:
 
 ```bash
-GET /v1/usage/costs
+curl -H "x-api-key: $SWARMS_API_KEY" \
+     https://api.swarms.world/v1/models/available
+```
+
+```json
+{
+  "success": true,
+  "count": 1894,
+  "models": [
+    {
+      "model_name": "gpt-5.4",
+      "input_cost_per_1m": 2.875,
+      "output_cost_per_1m": 17.25,
+      "price_source": "litellm"
+    }
+  ]
+}
+```
+
+`GET /v1/models/pricing` prices one model. Any model name gets a price; a name with no price data comes back with `"price_source": "fallback"` and the fallback rates, which is what a run on it is billed at.
+
+```bash
+curl -G https://api.swarms.world/v1/models/pricing \
+     --data-urlencode "model_name=gpt-5.4" \
+     -H "x-api-key: $SWARMS_API_KEY"
+```
+
+```json
+{
+  "status": "success",
+  "model_name": "gpt-5.4",
+  "input_cost_per_1m": 2.875,
+  "output_cost_per_1m": 17.25,
+  "price_source": "litellm",
+  "timestamp": "2026-10-12T19:01:46.491705+00:00"
+}
+```
+
+These prices already include the service fee, so a run's token cost is `tokens / 1,000,000 × price`. The OpenAI-compatible `GET /v1/models` carries the same numbers in a `pricing` object on each model. See [Available Models](/docs/examples/examples/models-available).
+
+### Retrieving the pricing configuration
+
+`GET /v1/usage/costs` returns the flat fees, the night-time discount and the fallback rates:
+
+```bash
+curl -H "x-api-key: $SWARMS_API_KEY" \
+     https://api.swarms.world/v1/usage/costs
 ```
 
 **Example Response:**
 ```json
 {
   "usage_pricing": {
+    "fallback_input_cost_per_1m": 6.5,
+    "fallback_output_cost_per_1m": 18.5,
     "swarm_completions_agent_cost": 0.01,
-    "swarm_completions_input_cost_per_1m": 6.5,
-    "swarm_completions_output_cost_per_1m": 18.5,
-    "agent_completions_input_cost_per_1m": 6.5,
-    "agent_completions_output_cost_per_1m": 18.5,
     "agent_completions_img_cost": 0.25,
-    "agent_completions_mcp_cost": 0.1,
     "search_cost": 0.04,
-    "scrape_cost": 0.15,
     "night_time_discount": 0.5
   },
-  "timestamp": "2026-03-29T18:30:00+00:00"
+  "timestamp": "2026-10-12T19:01:46.180153+00:00"
 }
 ```
+
+The fallback rates apply only to models with no price data, and are before the service fee. For a specific model's price, use `GET /v1/models/pricing`.
+
+### What the response reports
+
+Every billed response reports the tokens and the amount charged in its `usage` block, or in `usage.billing_info` for swarm completions. A `gpt-5.4` agent completion with 12,000 input and 4,000 output tokens:
+
+```json
+{
+  "input_tokens": 12000,
+  "output_tokens": 4000,
+  "total_tokens": 16000,
+  "image_count": 0,
+  "img_cost": 0.0,
+  "total_cost": 0.1035
+}
+```
+
+The \$0.04 `auto_search` fee is deducted as a separate charge and is not included in `total_cost`.
 
 ### Checking Your Credit Balance
 
@@ -186,5 +306,5 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
 | Minimum Balance                                                     | Billable completion endpoints require a total credit balance above \$1.00, checked before the request runs. Requests below this are rejected with a **402 Payment Required** error before any work is done. |
 | Credits Deduction                                                   | Credits are deducted automatically after each request completes.                              |
 | Credits Usage Order                                                 | Deducted in this order: `free_credit` first, then `referral_credits`, then regular `credit`. |
-| Token Counting                                                      | Token counts are calculated using model-specific tokenizers.                                  |
-| Pricing Updates                                                     | Pricing may be updated periodically. Check `/v1/usage/costs` for current pricing.            |
+| Token Counting                                                      | Most endpoints bill the tokens the model provider reports. Reasoning agents and the Auto Agent Builder bill the tokens the API counts on the request and the output. |
+| Pricing Updates                                                     | Provider prices change. Check `/v1/models/available` or `/v1/models/pricing` for current model prices, and `/v1/usage/costs` for the flat fees. |

@@ -566,7 +566,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 ```
 
 <Note>
-Because the request's `agents` array stays empty, `number_of_agents` in the response — and the flat per-agent billing fee that scales with it — is `0` for HeavySwarm, regardless of how many workers the chosen `heavy_swarm_variant` actually runs internally. You are still billed for the input and output tokens all of those internal agents consume.
+Because the request's `agents` array stays empty, `number_of_agents` in the response — and the flat per-agent billing fee that scales with it — is `0` for HeavySwarm, regardless of how many workers the chosen `heavy_swarm_variant` actually runs internally. You are still billed for the input and output tokens all of those internal agents consume, priced at `heavy_swarm_worker_model_name` plus the 15% service fee.
 </Note>
 
 ## Best Practices

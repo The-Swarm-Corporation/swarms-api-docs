@@ -15,9 +15,9 @@ Model Context Protocol (MCP) is a standardized way for AI agents to interact wit
 
 The MCP server's tools are discovered automatically at run time and made available to the agent alongside any `tools_list_dictionary` function tools.
 
-<Warning>
-Configuring MCP access on an agent adds a flat **$0.10** charge per agent completion (see [Billing](#billing) below).
-</Warning>
+<Note>
+MCP servers are free to attach: there is no MCP fee, only the agent's tokens are billed (see [Billing](#billing) below).
+</Note>
 
 ## Ways to connect
 
@@ -197,7 +197,7 @@ This applies to:
 
 ## Billing
 
-Agent completions bill a flat **$0.10 MCP fee** (`agent_completions_mcp_cost`) once per request when `agent_config.mcp_url` is set on the request. This is in addition to the usual token costs. Fetch current pricing from [`GET /v1/usage/costs`](/docs/documentation/resources/pricing) rather than hardcoding it, since it can change.
+MCP servers add no fee. Attaching servers through `mcp_url`, `mcp_urls`, `mcp_config`, or `mcp_configs` costs nothing extra, however many MCP tools the agent calls. The request is billed only for the agent's tokens, priced at the agent's own model plus the 15% service fee; MCP tool calls and their results add tokens like any other part of the run. See the [Pricing](/docs/documentation/resources/pricing) page to look up a model's current price rather than hardcoding it, since provider prices change.
 
 ## Complete example: quantitative agent with MCP
 

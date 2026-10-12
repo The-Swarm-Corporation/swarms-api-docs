@@ -23,7 +23,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `history` | `Union[Dict, List[Dict]]` | No | The history of the agent's previous tasks and responses. Can be either a dictionary or a list of message objects |
 | `img` | `string` | No | A base64 encoded image for the agent to process. Encode your image file to base64 and pass it here |
 | `imgs` | `List[string]` | No | A list of base64 encoded images for the agent to process. Encode your image files to base64 and pass them here |
-| `tools_enabled` | `List[string]` | No | Built-in tools for the agent. Supported values: `auto_search` (web search) and `web_scraper` (web scraping). Both may be listed together, in which case the agent receives both tools. Enabling a tool is billed once per request (a flat search or scrape fee), regardless of how many times the agent uses it |
+| `tools_enabled` | `List[string]` | No | Built-in tools for the agent. Supported values: `auto_search` (web search) and `web_scraper` (web scraping). Both may be listed together, in which case the agent receives both tools. `auto_search` is billed a flat search fee once per request, regardless of how many times the agent searches; `web_scraper` is free (only tokens are billed) |
 
 ### AgentSpec Object
 
@@ -43,7 +43,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `max_loops` | `int \| "auto"` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer from 1 to 50 for a fixed count, or `"auto"` to let the agent decide when it's done. Integer values below 1 are rejected with a 422 validation error |
 | `tools_list_dictionary` | `List[Dict]` | No | - | A list of OpenAI function-calling-style JSON schemas the agent can call |
 | `selected_tools` | `string \| List[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Pass a list of tool names to restrict which tools the agent can use (e.g. `["think", "create_plan"]`). Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. `run_bash` is never permitted, even if you pass it explicitly |
-| `mcp_url` | `string \| MCPConnection` | No | - | A single MCP server the agent can use: a bare URL string for an unauthenticated server, or an [`MCPConnection`](#mcp-connections) object for auth/transport control. This is the only MCP field that adds the MCP fee to `usage.total_cost` — see [MCP Connections](#mcp-connections) |
+| `mcp_url` | `string \| MCPConnection` | No | - | A single MCP server the agent can use: a bare URL string for an unauthenticated server, or an [`MCPConnection`](#mcp-connections) object for auth/transport control. See [MCP Connections](#mcp-connections) |
 | `streaming_on` | `boolean` | No | `false` | A flag indicating whether the agent should stream its output over SSE. See [Streaming](#streaming) |
 | `llm_args` | `Dict` | No | - | Additional arguments to pass to the LLM such as `top_p`, `frequency_penalty`, `presence_penalty`, etc. |
 | `top_p` | `float` | No | - | Nucleus sampling parameter passed to the LLM. Equivalent to putting `top_p` inside `llm_args` |
@@ -155,7 +155,7 @@ Client-credentials OAuth example:
 ```
 
 <Note>
-Every `AgentCompletion` request that sets `agent_config.mcp_url` is charged the MCP call fee (see the [Pricing](/docs/documentation/resources/pricing) page) in addition to token costs, whether or not the agent ends up calling an MCP tool. Attaching servers only through `mcp_config`, `mcp_configs`, or `mcp_urls` does not add this fee.
+MCP servers add no fee. Attaching servers through `mcp_url`, `mcp_urls`, `mcp_config`, or `mcp_configs` is free; the request is billed only for the agent's tokens at its model's price (see the [Pricing](/docs/documentation/resources/pricing) page).
 </Note>
 
 ## Response Schema
@@ -175,7 +175,7 @@ Every `AgentCompletion` request that sets `agent_config.mcp_url` is charged the 
 
 ### Usage Information
 
-The response includes detailed usage metrics:
+The response includes detailed usage metrics. For example, a `claude-sonnet-5` agent sent one image:
 
 ```json
 {
@@ -183,13 +183,14 @@ The response includes detailed usage metrics:
     "input_tokens": 150,
     "output_tokens": 300,
     "total_tokens": 450,
+    "image_count": 1,
     "img_cost": 0.25,
-    "total_cost": 0.256525
+    "total_cost": 0.253795
   }
 }
 ```
 
-`img_cost` is only non-zero when the request set `img`; it does not account for `imgs`. `total_cost` is input-token cost plus output-token cost plus `img_cost`, plus the MCP fee when `agent_config.mcp_url` is set (see [MCP Connections](#mcp-connections)). See the [Pricing](/docs/documentation/resources/pricing) page for the underlying per-token and per-call rates.
+`image_count` is the number of images in the request, counted across `img` and `imgs`, and `img_cost` is $0.25 per image. `total_cost` is the token cost, priced at the agent's own model plus the 15% service fee, plus `img_cost`. The `auto_search` fee is charged separately and is not included in `total_cost`. See the [Pricing](/docs/documentation/resources/pricing) page for per-model prices and flat fees.
 
 ## Streaming
 
@@ -304,7 +305,7 @@ while (true) {
 ### 2. Vision Capabilities
 - Single image analysis via `img` parameter
 - Multiple image analysis via `imgs` parameter
-- Automatic image token counting and cost calculation
+- Flat per-image fee across `img` and `imgs`; image input tokens are billed at the model's price
 
 ### 3. Conversation History
 - Maintain context across multiple interactions
@@ -509,7 +510,7 @@ let payload = json!({
 
 ### Agent with Search Capabilities
 
-Enable web search functionality for your agent by including `auto_search` in the `tools_enabled` parameter. This allows the agent to search the web for real-time information to complete tasks. Alternatively, pass `web_scraper` to let the agent scrape and format web pages. Both tools can be listed together, in which case the agent receives both and each is billed its own flat fee.
+Enable web search functionality for your agent by including `auto_search` in the `tools_enabled` parameter. This allows the agent to search the web for real-time information to complete tasks. Alternatively, pass `web_scraper` to let the agent scrape and format web pages. Both tools can be listed together, in which case the agent receives both. Only `auto_search` adds a flat fee (once per request); `web_scraper` is free apart from the tokens the agent uses.
 
 <Tabs>
 <Tab title="Python">
@@ -1156,7 +1157,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `gpt-4.1-mini`: Cost-effective for basic vision tasks
 - `claude-sonnet-4-20250514`: High-quality vision understanding
 
-**Image Processing**: The API automatically calculates image token costs based on resolution. Larger images consume more tokens. See the [Vision Capabilities](/docs/examples/examples/vision-capabilities) guide for detailed information on image encoding and best practices.
+**Image Billing**: Each image in `img` or `imgs` is billed a flat $0.25, and the input tokens the model provider reports for the request, images included, are billed at the model's own price. See the [Vision Capabilities](/docs/examples/examples/vision-capabilities) guide for detailed information on image encoding and best practices.
 
 ## Batch Processing
 

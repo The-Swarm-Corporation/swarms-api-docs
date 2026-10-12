@@ -569,7 +569,7 @@ To refine several *different* topics in parallel, issue one request per topic (l
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `input_tokens` | integer | Total input tokens consumed building the agents |
+| `input_tokens` | integer | Total input tokens across all loops and agents, as reported by the model providers |
 | `output_tokens` | integer | Total output tokens across all loops and agents |
 | `total_tokens` | integer | Sum of input and output tokens |
 | `total_cost` | float | Total credits charged for the run: token costs plus `cost_per_agent` |
@@ -577,7 +577,7 @@ To refine several *different* topics in parallel, issue one request per topic (l
 
 ## Pricing
 
-BatchedGridWorkflow uses unified pricing with agent costs. For detailed pricing information, see the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
+BatchedGridWorkflow bills $0.01 per agent plus each agent's provider-reported tokens, priced at that agent's own model plus a 15% service fee. No night-time discount applies. For detailed pricing information, see the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
 
 ## Partial Failures
 

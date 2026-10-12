@@ -380,7 +380,7 @@ Every other swarm architecture takes the same `model_name`. Drop `"model_name": 
     Reasoning-heavy models generally take longer on hard tasks than smaller, non-reasoning models. Raise your client `timeout`, and prefer swarm architectures that parallelize independent work (`ConcurrentWorkflow`, `MixtureOfAgents`) over long sequential chains when latency matters.
   </Accordion>
   <Accordion title="Where do I find pricing?">
-    The Swarms API bills token usage at the same flat rate for every model — $6.50 per million input tokens and $18.50 per million output tokens — so Fable 5 costs the same per token as any other model here. See the [pricing page](/docs/documentation/resources/pricing) for current rates.
+    The Swarms API bills each model's tokens at that model's price plus a 15% service fee. At the time of writing, `claude-fable-5` costs $11.50 per million input tokens and $57.50 per million output tokens, fee included, which is more per token than lighter models — one more reason to keep it on the synthesis step as in the mixed-model pattern above. Look up the current price with `GET /v1/models/pricing?model_name=claude-fable-5`, and see the [pricing page](/docs/documentation/resources/pricing) for how billing works.
   </Accordion>
 </AccordionGroup>
 

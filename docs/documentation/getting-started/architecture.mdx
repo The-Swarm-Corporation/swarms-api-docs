@@ -279,7 +279,7 @@ Exact latency and throughput depend on the model, prompt size, and `max_loops` y
 * **Reasoning Agents**: 1-2 internal model calls per loop, so latency and cost are typically higher than a single agent call.
 * **Multi-Agent Swarms**: Latency and cost scale with `number_of_agents` and `max_loops` (up to 2,000 agents and 50 loops).
 
-Every completion charges a token cost plus, for swarms and workflows, a flat \$0.01 per agent (`swarm_completions_agent_cost`). Token rates are unified across agent and swarm completions: \$6.50 per 1M input tokens, \$18.50 per 1M output tokens, with a 50% night-time discount (8 PM - 6 AM Pacific) on the token component for swarm completions. See <a href="/docs/documentation/resources/pricing">Pricing</a> or call `GET /v1/usage/costs` for the full breakdown, and rate-limit tier (free tokens_per_agent=200,000 vs premium 2,000,000) at `GET /v1/rate/limits`.
+Every completion charges a token cost plus, for swarms and workflows, a flat \$0.01 per agent (`swarm_completions_agent_cost`). Tokens are billed at each model's own price per 1M input and output tokens plus a 15% service fee, with a 50% night-time discount (8 PM - 6 AM Pacific) on the token component for swarm completions. See <a href="/docs/documentation/resources/pricing">Pricing</a>, call `GET /v1/models/available` or `GET /v1/models/pricing` for per-model prices and `GET /v1/usage/costs` for the flat fees, and rate-limit tier (free tokens_per_agent=200,000 vs premium 2,000,000) at `GET /v1/rate/limits`.
 
 ### Best Practices
 

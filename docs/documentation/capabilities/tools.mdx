@@ -145,13 +145,13 @@ curl -X POST "https://api.swarms.world/v1/agent/completions" \
 | Tool | Cost |
 |------|------|
 | `auto_search` | $0.04 per request |
-| `web_scraper` | $0.15 per request |
+| `web_scraper` | Free (only tokens are billed) |
 
 <Warning>
-Each built-in tool listed in `tools_enabled` is charged **once per agent completion request**, at the moment the request is set up — not per individual search or scrape the agent performs during its run, and regardless of whether the agent ends up calling the tool at all while completing the task. Only enable a tool for requests that actually need it.
+`auto_search` is charged **once per agent completion request** that lists it in `tools_enabled`, at the moment the request is set up — not per individual search the agent performs during its run, and regardless of whether the agent ends up searching at all while completing the task. Only enable it for requests that actually need it. `web_scraper` has no fee; the content it fetches is billed as ordinary tokens at the agent's model price.
 </Warning>
 
-Current per-unit prices are also available from [`GET /v1/usage/costs`](/docs/documentation/resources/pricing) (`usage_pricing.search_cost`, `usage_pricing.scrape_cost`) rather than hardcoding them, since they can change.
+The current search price is also available from [`GET /v1/usage/costs`](/docs/documentation/resources/pricing) (`usage_pricing.search_cost`) rather than hardcoding it, since it can change.
 
 ## Autonomous looper tools (`selected_tools`)
 

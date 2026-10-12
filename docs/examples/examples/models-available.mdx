@@ -8,7 +8,7 @@ description: 'Discover and explore all available AI models supported by the Swar
 Get a comprehensive list of all AI models available through the Swarms API. This endpoint provides information about supported models from various providers including OpenAI, Anthropic, Groq, and others.
 
 <Info>
-The `/v1/models/available` endpoint returns all models currently supported by the Swarms API, including their capabilities and limitations.
+The `/v1/models/available` endpoint returns all models currently supported by the Swarms API, each with its price per 1M input and output tokens (15% service fee included).
 </Info>
 
 ## Quick Start
@@ -48,8 +48,12 @@ The `/v1/models/available` endpoint returns all models currently supported by th
     models_data = get_available_models()
     if models_data:
         print("✅ Available models retrieved successfully!")
-        print(models_data)
         print(f"Model count: {models_data['count']}")
+        for model in models_data["models"][:5]:
+            print(
+                f"{model['model_name']}: ${model['input_cost_per_1m']} input, "
+                f"${model['output_cost_per_1m']} output per 1M tokens"
+            )
     ```
   </Tab>
   <Tab title="JavaScript">
@@ -94,18 +98,14 @@ The `/v1/models/available` endpoint returns all models currently supported by th
       -H "x-api-key: your-api-key" \
       -H "Content-Type: application/json"
 
-    # Example response:
+    # Example response (truncated):
     # {
     #   "success": true,
-    #   "count": 42,
+    #   "count": 1894,
     #   "models": [
-    #     "gpt-4.1",
-    #     "gpt-4.1-mini",
-    #     "gpt-4-turbo",
-    #     "claude-sonnet-4-20250514",
-    #     "claude-haiku-4-5",
-    #     "groq/llama-3.3-70b-versatile",
-    #     "openrouter/aion-labs/aion-3.0"
+    #     {"model_name": "gpt-5.4", "input_cost_per_1m": 2.875, "output_cost_per_1m": 17.25, "price_source": "litellm"},
+    #     {"model_name": "claude-sonnet-5", "input_cost_per_1m": 2.3, "output_cost_per_1m": 11.5, "price_source": "litellm"},
+    #     {"model_name": "openrouter/moonshotai/kimi-k3", "input_cost_per_1m": 0.8395, "output_cost_per_1m": 11.5, "price_source": "openrouter"}
     #   ]
     # }
     ```
@@ -114,22 +114,43 @@ The `/v1/models/available` endpoint returns all models currently supported by th
 
 ## Understanding the Response
 
-The models endpoint returns a flat list of all available model identifiers, filtered by your subscription tier:
+The models endpoint returns every model available to your subscription tier, each with its price per 1M tokens. Prices below are examples at the time of writing (truncated to a few models); call the endpoint for current prices:
 
 ```json
 {
   "success": true,
-  "count": 42,
+  "count": 1894,
   "models": [
-    "gpt-4.1",
-    "gpt-4.1-mini",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
-    "claude-sonnet-4-20250514",
-    "claude-haiku-4-5",
-    "groq/llama-3.3-70b-versatile",
-    "groq/llama-3.1-8b-instant"
+    {
+      "model_name": "gpt-5.4",
+      "input_cost_per_1m": 2.875,
+      "output_cost_per_1m": 17.25,
+      "price_source": "litellm"
+    },
+    {
+      "model_name": "gpt-4.1",
+      "input_cost_per_1m": 2.3,
+      "output_cost_per_1m": 9.2,
+      "price_source": "litellm"
+    },
+    {
+      "model_name": "claude-sonnet-5",
+      "input_cost_per_1m": 2.3,
+      "output_cost_per_1m": 11.5,
+      "price_source": "litellm"
+    },
+    {
+      "model_name": "claude-haiku-4-5",
+      "input_cost_per_1m": 1.15,
+      "output_cost_per_1m": 5.75,
+      "price_source": "litellm"
+    },
+    {
+      "model_name": "openrouter/moonshotai/kimi-k3",
+      "input_cost_per_1m": 0.8395,
+      "output_cost_per_1m": 11.5,
+      "price_source": "openrouter"
+    }
   ]
 }
 ```
@@ -138,9 +159,65 @@ The models endpoint returns a flat list of all available model identifiers, filt
 |-------|------|--------------|
 | `success` | boolean | Whether the request succeeded |
 | `count` | integer | Number of models in the `models` list |
-| `models` | array of strings | Flat list of available model identifiers, filtered by your subscription tier (free tier accounts won't see premium or Groq models) |
+| `models` | array of objects | Every available model with its price, filtered by your subscription tier (free tier accounts won't see premium or Groq models) |
+
+Each entry in `models` has these fields:
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `model_name` | string | The model identifier to pass as `model_name` |
+| `input_cost_per_1m` | number | Price per 1M input tokens (USD), including the 15% service fee |
+| `output_cost_per_1m` | number | Price per 1M output tokens (USD), including the 15% service fee |
+| `price_source` | string | Where the price came from: `openrouter` for `openrouter/...` models, `litellm` for the rest, or `fallback` when there is no price data for the model |
+
+<Warning>
+`models` used to be a list of strings. It is now a list of objects, so read each name from `model_name`: use `[m["model_name"] for m in data["models"]]` instead of `data["models"]`, and `"gpt-5.4" in {m["model_name"] for m in data["models"]}` for membership checks.
+</Warning>
 
 By default, this list also includes models fetched live from OpenRouter (cached for 5 minutes) and prefixed with `openrouter/` (e.g. `openrouter/aion-labs/aion-3.0`). The base catalog is precomputed and cached server-side, so this endpoint is cheap to call.
+
+## Pricing for One Model
+
+To look up a single model's price, call `GET /v1/models/pricing` with the model name as the `model_name` query parameter. Any model name gets a price, listed or not:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    response = requests.get(
+        f"{BASE_URL}/v1/models/pricing",
+        headers=headers,
+        params={"model_name": "gpt-5.4"},
+    )
+    price = response.json()
+    print(
+        f"{price['model_name']}: ${price['input_cost_per_1m']} input, "
+        f"${price['output_cost_per_1m']} output per 1M tokens ({price['price_source']})"
+    )
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -G "https://api.swarms.world/v1/models/pricing" \
+      --data-urlencode "model_name=gpt-5.4" \
+      -H "x-api-key: $SWARMS_API_KEY"
+    ```
+  </Tab>
+</Tabs>
+
+Example response (prices at the time of writing, 15% service fee included):
+
+```json
+{
+  "status": "success",
+  "model_name": "gpt-5.4",
+  "input_cost_per_1m": 2.875,
+  "output_cost_per_1m": 17.25,
+  "price_source": "litellm",
+  "timestamp": "2026-10-12T19:01:46.491705+00:00"
+}
+```
+
+`price_source: "fallback"` means there is no price data for that model name. A run on it is billed at the fallback rates of \$6.50 per 1M input and \$18.50 per 1M output tokens before the fee, so the endpoint returns \$7.475 and \$21.275 for it. See [Pricing](/docs/documentation/resources/pricing) for how token costs and flat fees add up.
 
 ## OpenAI-Compatible Model List
 
@@ -171,15 +248,15 @@ If you use the OpenAI SDK (or any client that discovers models via `GET /v1/mode
     # {
     #   "object": "list",
     #   "data": [
-    #     {"id": "gpt-4.1", "object": "model", "created": 0, "owned_by": "openai"},
-    #     {"id": "claude-sonnet-4-20250514", "object": "model", "created": 0, "owned_by": "anthropic"}
+    #     {"id": "gpt-5.4", "object": "model", "created": 0, "owned_by": "openai",
+    #      "pricing": {"input_cost_per_1m": 2.875, "output_cost_per_1m": 17.25, "price_source": "litellm"}}
     #   ]
     # }
     ```
   </Tab>
 </Tabs>
 
-Each entry has `id` (the model identifier you pass as `model_name` or `model`), `object` (always `"model"`), `created`, and `owned_by` (the resolved provider, e.g. `openai`, `anthropic`). See the [OpenAI-Compatible Endpoint](/docs/documentation/capabilities/openai-compatible) reference for using these models with the OpenAI SDK.
+Each entry has `id` (the model identifier you pass as `model_name` or `model`), `object` (always `"model"`), `created`, `owned_by` (the resolved provider, e.g. `openai`, `anthropic`), and `pricing` (`input_cost_per_1m`, `output_cost_per_1m` and `price_source`, the same values `/v1/models/available` returns). See the [OpenAI-Compatible Endpoint](/docs/documentation/capabilities/openai-compatible) reference for using these models with the OpenAI SDK.
 
 ## Model Selection Guide
 
@@ -303,7 +380,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
         if not models_data or not models_data.get("success"):
             return "gpt-4.1-mini"  # Fallback
 
-        available_models = models_data.get("models", [])
+        available_models = {m["model_name"] for m in models_data.get("models", [])}
 
         # Model selection logic
         if task_type == "creative":
@@ -384,6 +461,8 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
 | `groq/llama-3.1-8b-instant` | 128k | Simple tasks | Fast | Low |
 
 ## Cost Optimization
+
+Each model has its own price. To compare real costs, read `input_cost_per_1m` and `output_cost_per_1m` from `/v1/models/available` (or `/v1/models/pricing`) rather than relying on the rough tiers below.
 
 <Tabs>
   <Tab title="Python">
@@ -542,7 +621,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
 2. **Handle Changes**: Models may be added or removed over time
 3. **Fallback Logic**: Always have fallback models for reliability
 4. **Version Awareness**: Be aware of model versioning and deprecation
-5. **Cost Monitoring**: Track usage costs for different models
+5. **Cost Monitoring**: Track usage costs for different models; each model has its own price per 1M tokens
 6. **Performance Testing**: Test model performance for your specific use cases
 7. **Documentation Review**: Check model-specific limitations and capabilities
 

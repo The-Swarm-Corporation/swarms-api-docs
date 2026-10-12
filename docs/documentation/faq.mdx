@@ -77,32 +77,36 @@ The Swarms API accepts model ids from multiple providers (OpenAI, Anthropic, Goo
 
 Free-tier alternatives the API suggests in place of these: `claude-sonnet-5`, `gpt-5.5`, `gemini-3.5-flash` (and `claude-haiku-4-5`, `gpt-5.4-mini`, `gemini-3.5-flash-lite` for the `luna` tier). Every other model id, including `gpt-4.1`, is available on the free tier.
 
-For the complete, up-to-date list of supported models, call `GET /v1/models` (or `GET /v1/models/available` for model metadata).
+For the complete, up-to-date list of supported models, call `GET /v1/models` (or `GET /v1/models/available` for each model's name and price per 1M tokens).
 </Accordion>
 
 <Accordion title="How much does it cost?">
-The Swarms API uses a transparent, usage-based pricing model with unified pricing across all endpoints:
+The Swarms API uses a transparent, usage-based pricing model with per-model token pricing:
 
-**Unified Token Pricing:**
-- **Input Tokens**: \$6.50 per 1 million tokens (all endpoints)
-- **Output Tokens**: \$18.50 per 1 million tokens (all endpoints)
+**Per-Model Token Pricing:**
+- **Input and output tokens** are billed at each model's own price per 1M tokens, plus a 15% service fee.
+- Prices come from OpenRouter for `openrouter/...` models and from LiteLLM's price data for every other model. A model with no price data is billed at fallback rates of \$6.50 per 1M input and \$18.50 per 1M output tokens before the fee.
+- Call `GET /v1/models/available` or `GET /v1/models/pricing?model_name=...` for current prices, service fee included. For example, at the time of writing `gpt-5.4` costs \$2.875 per 1M input and \$17.25 per 1M output tokens.
 
 | Item | Cost | Notes |
 |------|------|-------|
 | **Base cost per agent** | \$0.01 per agent | Charged for each agent in swarms and workflows |
-| **Input tokens** | \$6.50 per 1M tokens | Unified pricing for all endpoints |
-| **Output tokens** | \$18.50 per 1M tokens | Unified pricing for all endpoints |
-| **MCP cost** | \$0.10 per call | Charged if an agent uses an MCP URL |
+| **Input tokens** | Model's price per 1M tokens + 15% | Each model has its own price |
+| **Output tokens** | Model's price per 1M tokens + 15% | Each model has its own price |
 | **Image cost** | \$0.25 per image | Charged for each image processed |
-| **Exa Search tool** | \$0.04 per search | Charged per search execution |
-| **Web Scraper tool** | \$0.15 per scrape | Charged per scrape execution |
+| **Exa Search tool** | \$0.04 per request | Charged once per agent completion request that enables `auto_search`, however many searches run |
 | **Night-time discount** | 50% off token costs | 8 PM - 6 AM PT (Swarm Completions only) |
+
+MCP servers and the `web_scraper` tool have no fee of their own; only the tokens are billed.
 
 **Pricing applies to:**
 - Swarm Completions (with agent cost)
-- Agent Completions
+- Agent Completions and Chat Completions
 - Graph Workflow (with agent cost)
 - Batched Grid Workflow (with agent cost)
+- Reasoning Agents
+- Auto Agent Builder (\$0.01 per request)
+- Decision Models (each decision model's own price, from `GET /v1/decision/models`)
 
 **Special Features:**
 - **Night Time Discount**: 50% off token costs for Swarm Completions during 8 PM - 6 AM Pacific Time

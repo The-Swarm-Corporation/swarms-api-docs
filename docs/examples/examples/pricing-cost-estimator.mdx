@@ -5,7 +5,7 @@ description: 'Use comprehensive pricing details to estimate end-to-end workload 
 
 
 
-Leverage the `/v1/usage/costs` endpoint to **estimate end-to-end workload costs** before running large jobs. This example shows how to turn the unified pricing model into a simple cost calculator.
+Combine the `/v1/usage/costs` endpoint with per-model token prices to **estimate end-to-end workload costs** before running large jobs. This example shows how to turn them into a simple cost calculator.
 
 <Info>
 All cost values are returned in **USD**. Always re-fetch pricing in long‑lived services to reflect updates in real time.
@@ -15,15 +15,17 @@ All cost values are returned in **USD**. Always re-fetch pricing in long‑lived
 
 The following examples:
 
-- **Fetch** pricing details from `/v1/usage/costs`
+- **Fetch** the flat fees and night-time discount from `/v1/usage/costs`, and each model's token price from `/v1/models/pricing`
 - **Estimate** costs for:
-  - Swarm completions (input/output tokens + per‑agent fee)
-  - Agent completions (input/output tokens)
-  - Images, MCP calls, search, and scrape operations
+  - Swarm completions (each agent's tokens at its own model's price + per‑agent fee)
+  - Agent completions (input/output tokens at the agent's model price)
+  - Images, and `auto_search`, which is charged once per request however many searches the agent runs
   - **Night-time discount** multiplier, auto-detected the same way the API applies it
 
+Token cost is `tokens / 1,000,000 × listed price`. The prices from `/v1/models/pricing` already include the 15% service fee, so don't multiply by 1.15 again. Graph workflows and batched grid workflows are priced like a swarm (each agent at its own model, plus \$0.01 per agent) but get no night-time discount. MCP servers and the `web_scraper` tool add no fee.
+
 <Note>
-The night-time discount is not a client-side guess — it mirrors `api/deductions_utils.py` exactly: off-peak is **8:00 PM through 5:59 AM in `America/Los_Angeles`** (`now.hour >= 20 or now.hour < 6`), and the discount multiplies the swarm completion **token cost only** — the per-agent fee is always charged in full, at any hour.
+The night-time discount is not a client-side guess — it mirrors `is_night_time` in `api/deductions_utils.py`: off-peak is **8:00 PM through 5:59 AM in `America/Los_Angeles`** (`now.hour >= 20 or now.hour < 6`, after converting a timezone-aware time to Pacific), and the discount multiplies the swarm completion **token cost only** — the per-agent fee is always charged in full, at any hour. The API checks the time when it bills, after the run finishes.
 </Note>
 
 <Tabs>
@@ -31,7 +33,8 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
     ```python
     import os
     from datetime import datetime
-    from typing import Optional
+    from functools import lru_cache
+    from typing import Optional, Sequence
 
     import pytz
     import requests
@@ -47,29 +50,58 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
         "Content-Type": "application/json",
     }
 
-    # Mirrors api/deductions_utils.py exactly: off-peak is 8 PM through
-    # 5:59 AM in the pricing timezone (America/Los_Angeles).
+    # Mirrors is_night_time in api/deductions_utils.py: off-peak is 8 PM
+    # through 5:59 AM in the pricing timezone (America/Los_Angeles).
     PRICING_TIMEZONE = "America/Los_Angeles"
     NIGHT_START_HOUR = 20
     NIGHT_END_HOUR = 6
 
     def is_night_time(now: Optional[datetime] = None) -> bool:
-        """Whether the off-peak discount applies right now (server-side rule)."""
+        """Whether the off-peak discount applies (server-side rule).
+
+        A timezone-aware ``now`` is converted to Pacific time first.
+        """
+        tz = pytz.timezone(PRICING_TIMEZONE)
         if now is None:
-            now = datetime.now(pytz.timezone(PRICING_TIMEZONE))
+            now = datetime.now(tz)
+        elif now.tzinfo is not None:
+            now = now.astimezone(tz)
         return now.hour >= NIGHT_START_HOUR or now.hour < NIGHT_END_HOUR
 
-    def get_pricing():
+    def get_pricing() -> dict:
+        """Flat fees and the night-time discount."""
         resp = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers)
         resp.raise_for_status()
         return resp.json()["usage_pricing"]
 
-    def estimate_cost(usage_pricing: dict, *, swarm_input_tokens: int = 0,
-                      swarm_output_tokens: int = 0, swarm_agents: int = 0,
+    @lru_cache(maxsize=None)
+    def get_model_price(model_name: str) -> tuple[float, float]:
+        """Input and output price per 1M tokens, service fee included."""
+        resp = requests.get(
+            f"{BASE_URL}/v1/models/pricing",
+            params={"model_name": model_name},
+            headers=headers,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["input_cost_per_1m"], data["output_cost_per_1m"]
+
+    def token_cost(model_name: str, input_tokens: int, output_tokens: int) -> float:
+        # Listed prices already include the 15% service fee
+        input_price, output_price = get_model_price(model_name)
+        return (input_tokens * input_price + output_tokens * output_price) / 1_000_000
+
+    def estimate_cost(usage_pricing: dict, *,
+                      swarm_agents: Sequence[tuple[str, int, int]] = (),
+                      agent_model: Optional[str] = None,
                       agent_input_tokens: int = 0, agent_output_tokens: int = 0,
-                      images: int = 0, mcp_calls: int = 0,
-                      searches: int = 0, scrapes: int = 0,
+                      images: int = 0, auto_search: bool = False,
                       night_time: Optional[bool] = None) -> float:
+        """Estimate one swarm completion plus one agent completion.
+
+        ``swarm_agents`` has one ``(model_name, input_tokens, output_tokens)``
+        entry per agent in the swarm request.
+        """
         up = usage_pricing
 
         # Auto-detect off-peak the same way the server does, unless the
@@ -77,32 +109,23 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
         if night_time is None:
             night_time = is_night_time()
 
-        def tokens_to_m(tokens: int) -> float:
-            return tokens / 1_000_000.0
-
         cost = 0.0
 
-        # Swarm completions (the night-time discount applies only to
-        # swarm input/output token costs, not the per-agent fee — see
-        # charge_swarm_usage in api/deductions_utils.py)
-        swarm_token_cost = (
-            tokens_to_m(swarm_input_tokens) * up["swarm_completions_input_cost_per_1m"]
-            + tokens_to_m(swarm_output_tokens) * up["swarm_completions_output_cost_per_1m"]
-        )
+        # Swarm completions: each agent at its own model's price. The
+        # night-time discount applies only to the token cost, not the
+        # per-agent fee — see charge_swarm_usage in api/deductions_utils.py
+        swarm_token_cost = sum(token_cost(*agent) for agent in swarm_agents)
         if night_time:
             swarm_token_cost *= up["night_time_discount"]
         cost += swarm_token_cost
-        cost += swarm_agents * up["swarm_completions_agent_cost"]
+        cost += len(swarm_agents) * up["swarm_completions_agent_cost"]
 
-        # Agent completions
-        cost += tokens_to_m(agent_input_tokens) * up["agent_completions_input_cost_per_1m"]
-        cost += tokens_to_m(agent_output_tokens) * up["agent_completions_output_cost_per_1m"]
-
-        # Images, MCP, search, scrape
+        # Agent completion: tokens, images, and auto_search once per request
+        if agent_model:
+            cost += token_cost(agent_model, agent_input_tokens, agent_output_tokens)
         cost += images * up["agent_completions_img_cost"]
-        cost += mcp_calls * up["agent_completions_mcp_cost"]
-        cost += searches * up["search_cost"]
-        cost += scrapes * up["scrape_cost"]
+        if auto_search:
+            cost += up["search_cost"]
 
         return round(cost, 6)
 
@@ -111,15 +134,15 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
 
         est = estimate_cost(
             pricing,
-            swarm_input_tokens=800_000,
-            swarm_output_tokens=400_000,
-            swarm_agents=3,
-            agent_input_tokens=500_000,
-            agent_output_tokens=250_000,
-            images=4,
-            mcp_calls=10,
-            searches=20,
-            scrapes=5,
+            swarm_agents=[
+                ("gpt-5.4", 500_000, 100_000),
+                ("claude-sonnet-5", 200_000, 300_000),
+            ],
+            agent_model="claude-sonnet-5",
+            agent_input_tokens=250_000,
+            agent_output_tokens=100_000,
+            images=1,
+            auto_search=True,
             # night_time=None (default) auto-detects via is_night_time();
             # pass True/False explicitly to price a different time window.
         )
@@ -135,22 +158,32 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
     const BASE_URL = 'https://api.swarms.world'
 
     type UsagePricingModel = {
+      fallback_input_cost_per_1m: number
+      fallback_output_cost_per_1m: number
       swarm_completions_agent_cost: number
-      swarm_completions_input_cost_per_1m: number
-      swarm_completions_output_cost_per_1m: number
-      agent_completions_input_cost_per_1m: number
-      agent_completions_output_cost_per_1m: number
       agent_completions_img_cost: number
-      agent_completions_mcp_cost: number
       search_cost: number
-      scrape_cost: number
       night_time_discount: number
     }
 
-    async function getPricing(): Promise<UsagePricingModel> {
+    // Price per 1M tokens, service fee included
+    type ModelPrice = {
+      model_name: string
+      input_cost_per_1m: number
+      output_cost_per_1m: number
+      price_source: string
+    }
+
+    type AgentUsage = {
+      modelName: string
+      inputTokens: number
+      outputTokens: number
+    }
+
+    async function apiGet<T>(path: string): Promise<T> {
       if (!API_KEY) throw new Error('SWARMS_API_KEY is not set')
 
-      const res = await fetch(`${BASE_URL}/v1/usage/costs`, {
+      const res = await fetch(`${BASE_URL}${path}`, {
         method: 'GET',
         headers: {
           'x-api-key': API_KEY,
@@ -163,77 +196,89 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
         throw new Error(`HTTP ${res.status}: ${body}`)
       }
 
-      const json = (await res.json()) as { usage_pricing: UsagePricingModel }
+      return (await res.json()) as T
+    }
+
+    async function getPricing(): Promise<UsagePricingModel> {
+      const json = await apiGet<{ usage_pricing: UsagePricingModel }>('/v1/usage/costs')
       return json.usage_pricing
     }
 
-    function tokensToM(tokens: number): number {
-      return tokens / 1_000_000
+    async function getModelPrices(models: string[]): Promise<Map<string, ModelPrice>> {
+      const prices = new Map<string, ModelPrice>()
+      for (const name of new Set(models)) {
+        const query = new URLSearchParams({ model_name: name })
+        prices.set(name, await apiGet<ModelPrice>(`/v1/models/pricing?${query}`))
+      }
+      return prices
+    }
+
+    function tokenCost(prices: Map<string, ModelPrice>, usage: AgentUsage): number {
+      const price = prices.get(usage.modelName)
+      if (!price) throw new Error(`No price for ${usage.modelName}`)
+      return (
+        (usage.inputTokens * price.input_cost_per_1m +
+          usage.outputTokens * price.output_cost_per_1m) /
+        1_000_000
+      )
     }
 
     function estimateCost(
       up: UsagePricingModel,
+      prices: Map<string, ModelPrice>,
       opts: {
-        swarmInputTokens?: number
-        swarmOutputTokens?: number
-        swarmAgents?: number
-        agentInputTokens?: number
-        agentOutputTokens?: number
+        swarmAgents?: AgentUsage[]
+        agentRun?: AgentUsage
         images?: number
-        mcpCalls?: number
-        searches?: number
-        scrapes?: number
+        autoSearch?: boolean
         nightTime?: boolean
       },
     ): number {
       const {
-        swarmInputTokens = 0,
-        swarmOutputTokens = 0,
-        swarmAgents = 0,
-        agentInputTokens = 0,
-        agentOutputTokens = 0,
+        swarmAgents = [],
+        agentRun,
         images = 0,
-        mcpCalls = 0,
-        searches = 0,
-        scrapes = 0,
+        autoSearch = false,
         nightTime = false,
       } = opts
 
       let cost = 0
 
-      // Swarm completions (the night-time discount applies only to
-      // swarm input/output token costs, not the per-agent fee)
-      let swarmTokenCost =
-        tokensToM(swarmInputTokens) * up.swarm_completions_input_cost_per_1m +
-        tokensToM(swarmOutputTokens) * up.swarm_completions_output_cost_per_1m
+      // Swarm completions: each agent at its own model's price (the night-time
+      // discount applies only to the token cost, not the per-agent fee)
+      let swarmTokenCost = 0
+      for (const agent of swarmAgents) swarmTokenCost += tokenCost(prices, agent)
       if (nightTime) swarmTokenCost *= up.night_time_discount
       cost += swarmTokenCost
-      cost += swarmAgents * up.swarm_completions_agent_cost
+      cost += swarmAgents.length * up.swarm_completions_agent_cost
 
-      cost += tokensToM(agentInputTokens) * up.agent_completions_input_cost_per_1m
-      cost += tokensToM(agentOutputTokens) * up.agent_completions_output_cost_per_1m
-
+      // Agent completion: tokens, images, and auto_search once per request
+      if (agentRun) cost += tokenCost(prices, agentRun)
       cost += images * up.agent_completions_img_cost
-      cost += mcpCalls * up.agent_completions_mcp_cost
-      cost += searches * up.search_cost
-      cost += scrapes * up.scrape_cost
+      if (autoSearch) cost += up.search_cost
 
       return Number(cost.toFixed(6))
     }
 
     async function main() {
-      const pricing = await getPricing()
+      const swarmAgents: AgentUsage[] = [
+        { modelName: 'gpt-5.4', inputTokens: 500_000, outputTokens: 100_000 },
+        { modelName: 'claude-sonnet-5', inputTokens: 200_000, outputTokens: 300_000 },
+      ]
+      const agentRun: AgentUsage = {
+        modelName: 'claude-sonnet-5',
+        inputTokens: 250_000,
+        outputTokens: 100_000,
+      }
 
-      const estimate = estimateCost(pricing, {
-        swarmInputTokens: 1_000_000,
-        swarmOutputTokens: 500_000,
-        swarmAgents: 5,
-        agentInputTokens: 300_000,
-        agentOutputTokens: 150_000,
-        images: 2,
-        mcpCalls: 5,
-        searches: 10,
-        scrapes: 3,
+      const pricing = await getPricing()
+      const prices = await getModelPrices([...swarmAgents, agentRun].map((a) => a.modelName))
+
+      const estimate = estimateCost(pricing, prices, {
+        swarmAgents,
+        agentRun,
+        images: 1,
+        autoSearch: true,
         nightTime: false,
       })
 
@@ -245,64 +290,66 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
   </Tab>
   <Tab title="Rust">
     ```rust
+    use std::collections::HashMap;
     use std::env;
 
     use reqwest::blocking::Client;
     use serde::Deserialize;
 
+    const BASE_URL: &str = "https://api.swarms.world";
+
+    // Example workload: (model_name, input_tokens, output_tokens) per agent.
+    // In a real app, pass these as parameters.
+    const SWARM_AGENTS: [(&str, u64, u64); 2] = [
+        ("gpt-5.4", 500_000, 100_000),
+        ("claude-sonnet-5", 200_000, 300_000),
+    ];
+    const AGENT_RUN: (&str, u64, u64) = ("claude-sonnet-5", 250_000, 100_000);
+    const IMAGES: u64 = 1;
+    const AUTO_SEARCH: bool = true;
+    const NIGHT_TIME: bool = true;
+
+    // Only the fields used here; serde skips the fallback rates
     #[derive(Debug, Deserialize)]
     struct UsagePricingModel {
         swarm_completions_agent_cost: f64,
-        swarm_completions_input_cost_per_1m: f64,
-        swarm_completions_output_cost_per_1m: f64,
-        agent_completions_input_cost_per_1m: f64,
-        agent_completions_output_cost_per_1m: f64,
         agent_completions_img_cost: f64,
-        agent_completions_mcp_cost: f64,
         search_cost: f64,
-        scrape_cost: f64,
         night_time_discount: f64,
     }
 
-    fn tokens_to_m(tokens: u64) -> f64 {
-        tokens as f64 / 1_000_000.0
+    // Price per 1M tokens, service fee included
+    #[derive(Debug, Deserialize)]
+    struct ModelPrice {
+        input_cost_per_1m: f64,
+        output_cost_per_1m: f64,
     }
 
-    fn estimate_cost(up: &UsagePricingModel) -> f64 {
-        // Example workload; in a real app, pass these as parameters
-        let swarm_input_tokens = 900_000u64;
-        let swarm_output_tokens = 450_000u64;
-        let swarm_agents = 4u64;
-        let agent_input_tokens = 250_000u64;
-        let agent_output_tokens = 125_000u64;
-        let images = 3u64;
-        let mcp_calls = 8u64;
-        let searches = 12u64;
-        let scrapes = 4u64;
-        let night_time = true;
+    fn estimate_cost(up: &UsagePricingModel, prices: &HashMap<String, ModelPrice>) -> f64 {
+        let token_cost = |(model, input_tokens, output_tokens): (&str, u64, u64)| {
+            let price = &prices[model];
+            (input_tokens as f64 * price.input_cost_per_1m
+                + output_tokens as f64 * price.output_cost_per_1m)
+                / 1_000_000.0
+        };
 
         let mut cost = 0.0;
 
-        // Swarm completions (the night-time discount applies only to
-        // swarm input/output token costs, not the per-agent fee)
-        let mut swarm_token_cost = tokens_to_m(swarm_input_tokens)
-            * up.swarm_completions_input_cost_per_1m
-            + tokens_to_m(swarm_output_tokens) * up.swarm_completions_output_cost_per_1m;
-        if night_time {
+        // Swarm completions: each agent at its own model's price (the night-time
+        // discount applies only to the token cost, not the per-agent fee)
+        let mut swarm_token_cost: f64 = SWARM_AGENTS.iter().map(|&agent| token_cost(agent)).sum();
+        if NIGHT_TIME {
             swarm_token_cost *= up.night_time_discount;
         }
         cost += swarm_token_cost;
-        cost += swarm_agents as f64 * up.swarm_completions_agent_cost;
+        cost += SWARM_AGENTS.len() as f64 * up.swarm_completions_agent_cost;
 
-        // Agent completions
-        cost += tokens_to_m(agent_input_tokens) * up.agent_completions_input_cost_per_1m;
-        cost += tokens_to_m(agent_output_tokens) * up.agent_completions_output_cost_per_1m;
-
-        // Images, MCP, search, scrape
-        cost += images as f64 * up.agent_completions_img_cost;
-        cost += mcp_calls as f64 * up.agent_completions_mcp_cost;
-        cost += searches as f64 * up.search_cost;
-        cost += scrapes as f64 * up.scrape_cost;
+        // Agent completion: tokens, images, and auto_search once per request
+        cost += token_cost(AGENT_RUN);
+        cost += IMAGES as f64 * up.agent_completions_img_cost;
+        if AUTO_SEARCH {
+            cost += up.search_cost;
+        }
 
         (cost * 1_000_000.0).round() / 1_000_000.0
     }
@@ -313,8 +360,8 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
 
         let client = Client::new();
         let res = client
-            .get("https://api.swarms.world/v1/usage/costs")
-            .header("x-api-key", api_key)
+            .get(format!("{BASE_URL}/v1/usage/costs"))
+            .header("x-api-key", &api_key)
             .header("Content-Type", "application/json")
             .send()?;
 
@@ -323,7 +370,23 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
         let json: serde_json::Value = res.json()?;
         let up: UsagePricingModel = serde_json::from_value(json["usage_pricing"].clone())?;
 
-        let estimate = estimate_cost(&up);
+        // Fetch each distinct model's price once
+        let mut prices: HashMap<String, ModelPrice> = HashMap::new();
+        for (model, _, _) in SWARM_AGENTS.iter().chain(std::iter::once(&AGENT_RUN)) {
+            if prices.contains_key(*model) {
+                continue;
+            }
+            let price: ModelPrice = client
+                .get(format!("{BASE_URL}/v1/models/pricing"))
+                .query(&[("model_name", *model)])
+                .header("x-api-key", &api_key)
+                .send()?
+                .error_for_status()?
+                .json()?;
+            prices.insert(model.to_string(), price);
+        }
+
+        let estimate = estimate_cost(&up, &prices);
         println!("💰 Estimated workload cost: ${:.6}", estimate);
 
         Ok(())
@@ -338,61 +401,96 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
         "encoding/json"
         "fmt"
         "log"
+        "math"
         "net/http"
+        "net/url"
         "os"
     )
 
+    const baseURL = "https://api.swarms.world"
+
     type UsagePricingModel struct {
-        SwarmCompletionsAgentCost       float64 `json:"swarm_completions_agent_cost"`
-        SwarmCompletionsInputCostPer1M  float64 `json:"swarm_completions_input_cost_per_1m"`
-        SwarmCompletionsOutputCostPer1M float64 `json:"swarm_completions_output_cost_per_1m"`
-        AgentCompletionsInputCostPer1M  float64 `json:"agent_completions_input_cost_per_1m"`
-        AgentCompletionsOutputCostPer1M float64 `json:"agent_completions_output_cost_per_1m"`
-        AgentCompletionsImgCost         float64 `json:"agent_completions_img_cost"`
-        AgentCompletionsMcpCost         float64 `json:"agent_completions_mcp_cost"`
-        SearchCost                      float64 `json:"search_cost"`
-        ScrapeCost                      float64 `json:"scrape_cost"`
-        NightTimeDiscount               float64 `json:"night_time_discount"`
+        FallbackInputCostPer1M    float64 `json:"fallback_input_cost_per_1m"`
+        FallbackOutputCostPer1M   float64 `json:"fallback_output_cost_per_1m"`
+        SwarmCompletionsAgentCost float64 `json:"swarm_completions_agent_cost"`
+        AgentCompletionsImgCost   float64 `json:"agent_completions_img_cost"`
+        SearchCost                float64 `json:"search_cost"`
+        NightTimeDiscount         float64 `json:"night_time_discount"`
     }
 
-    func tokensToM(tokens int64) float64 {
-        return float64(tokens) / 1_000_000.0
+    // Price per 1M tokens, service fee included
+    type ModelPrice struct {
+        InputCostPer1M  float64 `json:"input_cost_per_1m"`
+        OutputCostPer1M float64 `json:"output_cost_per_1m"`
+        PriceSource     string  `json:"price_source"`
     }
 
-    func estimateCost(up UsagePricingModel) float64 {
-        // Example workload; pass inputs in your own code
-        swarmInputTokens := int64(750000)
-        swarmOutputTokens := int64(350000)
-        swarmAgents := int64(3)
-        agentInputTokens := int64(200000)
-        agentOutputTokens := int64(100000)
-        images := int64(2)
-        mcpCalls := int64(6)
-        searches := int64(8)
-        scrapes := int64(2)
-        nightTime := false
+    type AgentUsage struct {
+        ModelName    string
+        InputTokens  int64
+        OutputTokens int64
+    }
 
+    // Example workload; pass inputs in your own code
+    var (
+        swarmAgents = []AgentUsage{
+            {"gpt-5.4", 500_000, 100_000},
+            {"claude-sonnet-5", 200_000, 300_000},
+        }
+        agentRun   = AgentUsage{"claude-sonnet-5", 250_000, 100_000}
+        images     = int64(1)
+        autoSearch = true
+        nightTime  = false
+    )
+
+    func getJSON(apiKey, path string, out any) error {
+        req, err := http.NewRequest("GET", baseURL+path, nil)
+        if err != nil {
+            return err
+        }
+
+        req.Header.Set("x-api-key", apiKey)
+        req.Header.Set("Content-Type", "application/json")
+
+        resp, err := http.DefaultClient.Do(req)
+        if err != nil {
+            return err
+        }
+        defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK {
+            return fmt.Errorf("unexpected status %d for %s", resp.StatusCode, path)
+        }
+        return json.NewDecoder(resp.Body).Decode(out)
+    }
+
+    func tokenCost(p ModelPrice, u AgentUsage) float64 {
+        return (float64(u.InputTokens)*p.InputCostPer1M + float64(u.OutputTokens)*p.OutputCostPer1M) / 1_000_000.0
+    }
+
+    func estimateCost(up UsagePricingModel, prices map[string]ModelPrice) float64 {
         cost := 0.0
 
-        // Swarm completions (the night-time discount applies only to
-        // swarm input/output token costs, not the per-agent fee)
-        swarmTokenCost := tokensToM(swarmInputTokens)*up.SwarmCompletionsInputCostPer1M +
-            tokensToM(swarmOutputTokens)*up.SwarmCompletionsOutputCostPer1M
+        // Swarm completions: each agent at its own model's price (the night-time
+        // discount applies only to the token cost, not the per-agent fee)
+        swarmTokenCost := 0.0
+        for _, a := range swarmAgents {
+            swarmTokenCost += tokenCost(prices[a.ModelName], a)
+        }
         if nightTime {
             swarmTokenCost *= up.NightTimeDiscount
         }
         cost += swarmTokenCost
-        cost += float64(swarmAgents) * up.SwarmCompletionsAgentCost
+        cost += float64(len(swarmAgents)) * up.SwarmCompletionsAgentCost
 
-        cost += tokensToM(agentInputTokens) * up.AgentCompletionsInputCostPer1M
-        cost += tokensToM(agentOutputTokens) * up.AgentCompletionsOutputCostPer1M
-
+        // Agent completion: tokens, images, and auto_search once per request
+        cost += tokenCost(prices[agentRun.ModelName], agentRun)
         cost += float64(images) * up.AgentCompletionsImgCost
-        cost += float64(mcpCalls) * up.AgentCompletionsMcpCost
-        cost += float64(searches) * up.SearchCost
-        cost += float64(scrapes) * up.ScrapeCost
+        if autoSearch {
+            cost += up.SearchCost
+        }
 
-        return float64(int64(cost*1_000_000)) / 1_000_000.0
+        return math.Round(cost*1_000_000) / 1_000_000.0
     }
 
     func main() {
@@ -401,41 +499,55 @@ The night-time discount is not a client-side guess — it mirrors `api/deduction
             log.Fatal("SWARMS_API_KEY environment variable is required")
         }
 
-        req, err := http.NewRequest("GET", "https://api.swarms.world/v1/usage/costs", nil)
-        if err != nil {
-            log.Fatal(err)
-        }
-
-        req.Header.Set("x-api-key", apiKey)
-        req.Header.Set("Content-Type", "application/json")
-
-        resp, err := http.DefaultClient.Do(req)
-        if err != nil {
-            log.Fatal(err)
-        }
-        defer resp.Body.Close()
-
-        if resp.StatusCode != http.StatusOK {
-            log.Fatalf("unexpected status: %d", resp.StatusCode)
-        }
-
         var wrapper struct {
             UsagePricing UsagePricingModel `json:"usage_pricing"`
         }
-        if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+        if err := getJSON(apiKey, "/v1/usage/costs", &wrapper); err != nil {
             log.Fatal(err)
         }
 
-        estimate := estimateCost(wrapper.UsagePricing)
+        // Fetch each distinct model's price once
+        prices := map[string]ModelPrice{}
+        for _, a := range append([]AgentUsage{agentRun}, swarmAgents...) {
+            if _, ok := prices[a.ModelName]; ok {
+                continue
+            }
+            var p ModelPrice
+            query := url.Values{"model_name": {a.ModelName}}.Encode()
+            if err := getJSON(apiKey, "/v1/models/pricing?"+query, &p); err != nil {
+                log.Fatal(err)
+            }
+            prices[a.ModelName] = p
+        }
+
+        estimate := estimateCost(wrapper.UsagePricing, prices)
         fmt.Printf("💰 Estimated workload cost: $%.6f\n", estimate)
     }
     ```
   </Tab>
 </Tabs>
 
+## Worked Example
+
+Every tab prices the same workload; the Python tab picks day or night from the current Pacific time. At the time of writing, `gpt-5.4` costs \$2.875 per 1M input tokens and \$17.25 per 1M output tokens, and `claude-sonnet-5` costs \$2.30 and \$11.50, service fee included. Look prices up rather than hard-coding them; they change with the providers'.
+
+| Item | Calculation | Cost |
+|---|---|---|
+| Swarm agent on `gpt-5.4`, 500K in / 100K out | 0.5 × \$2.875 + 0.1 × \$17.25 | \$3.1625 |
+| Swarm agent on `claude-sonnet-5`, 200K in / 300K out | 0.2 × \$2.30 + 0.3 × \$11.50 | \$3.91 |
+| Per-agent fee | 2 × \$0.01 | \$0.02 |
+| Agent completion on `claude-sonnet-5`, 250K in / 100K out | 0.25 × \$2.30 + 0.1 × \$11.50 | \$1.725 |
+| Image | 1 × \$0.25 | \$0.25 |
+| `auto_search` | once per request | \$0.04 |
+| **Total, daytime** (TypeScript and Go tabs) | | **\$9.1075** |
+| **Total, 8 PM to 6 AM Pacific** (Rust tab) | swarm tokens \$7.0725 × 0.5 = \$3.53625 | **\$5.57125** |
+
+<Note>
+These are estimates. The bill uses the token counts the model provider reports for the real run, summed over every LLM call each agent makes (loops, re-sent history, reasoning tokens), so the amount charged can differ. Swarm types that add agents of their own, such as the HierarchicalSwarm director, also bill those agents' tokens; the per-agent fee counts only the agents in your request.
+</Note>
+
 ## When to Use This Pattern
 
 - **Pre-flight cost estimation** before running large batch jobs or swarms
 - **Dashboards and billing UIs** that surface live pricing alongside your own usage metrics
 - **Guardrails** that block workloads projected to exceed a configured budget
-

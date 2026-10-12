@@ -230,8 +230,9 @@ Now that you have your API key and base64-encoded image, you can send it to the 
     "input_tokens": 57,
     "output_tokens": 101,
     "total_tokens": 158,
+    "image_count": 1,
     "img_cost": 0.25,
-    "total_cost": 0.252239
+    "total_cost": 0.25106
   },
   "timestamp": "2026-02-05T00:58:15.252392+00:00"
 }
@@ -328,7 +329,7 @@ Not all models support vision. Use these models for image analysis:
 
 ## Cost Considerations
 
-Vision tasks consume additional tokens based on image resolution:
+Each image you send in `img` or `imgs` is billed a flat $0.25 (reported as `usage.img_cost`). The model provider also counts each image as input tokens, roughly in line with its resolution, and the input tokens it reports are billed at the model's own price (see [Pricing](/docs/documentation/resources/pricing)):
 
 | Image Size | Approximate Tokens |
 |------------|-------------------|

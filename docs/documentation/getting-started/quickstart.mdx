@@ -619,14 +619,15 @@ If `model_name` is omitted, the agent uses the default model, **claude-sonnet-5*
 | `POST` | `/v1/auto-agent-builder/completions` | Generate agent configurations from a task |
 | `GET` | `/v1/swarms/available` | List available swarm types |
 | `GET` | `/v1/models` | List supported models |
-| `GET` | `/v1/models/available` | List available models with metadata |
+| `GET` | `/v1/models/available` | List available models with their price per 1M tokens |
+| `GET` | `/v1/models/pricing` | Get one model's price per 1M tokens |
 | `GET` | `/v1/tools/available` | List available tools |
 | `GET` | `/v1/agents/list` | List your agents |
 | `GET` | `/v1/account/logs` | Retrieve your API request logs |
 | `GET` | `/v1/rate/limits` | View your rate limits and usage |
 | `GET` | `/v1/account/metrics/summary` | Usage metrics summary |
 | `GET` | `/v1/account/premium-endpoints` | List endpoints that require Premium |
-| `GET` | `/v1/usage/costs` | Usage cost breakdown |
+| `GET` | `/v1/usage/costs` | Flat fees and fallback token rates |
 | `GET` | `/v1/account/credits` | Check your credit balance |
 
 ### Best Practices

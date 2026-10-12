@@ -983,7 +983,7 @@ The `model` field accepts any model supported by the Swarms API. Common options:
 | Anthropic | `claude-sonnet-4-20250514`, `claude-3-7-sonnet-20250219` |
 | Groq | `groq/llama-3.3-70b-versatile`, `groq/openai/gpt-oss-120b` |
 
-For the full list, call `GET /v1/models` (standard OpenAI list format — works with `client.models.list()` in the OpenAI SDK) or `GET /v1/models/available` (Swarms format with a `count` field) with your API key. Both return the same catalog, filtered by your subscription tier:
+For the full list, call `GET /v1/models` (standard OpenAI list format — works with `client.models.list()` in the OpenAI SDK) or `GET /v1/models/available` (Swarms format with a `count` field, one object per model with its `model_name` and price) with your API key. Both return the same catalog, filtered by your subscription tier:
 
 ```python
 from openai import OpenAI
@@ -998,6 +998,24 @@ print(f"{len(models.data)} models available")
 for model in models.data[:10]:
     print(f"{model.id} (owned_by: {model.owned_by})")
 ```
+
+Each entry in `data` has the standard `id`, `object`, `created` and `owned_by` fields plus a `pricing` object with the model's price per 1M input and output tokens (USD, 15% service fee included) and its `price_source` (`openrouter`, `litellm`, or `fallback` when there is no price data for the model). Prices change; this one is from the time of writing:
+
+```json
+{
+  "id": "gpt-5.4",
+  "object": "model",
+  "created": 0,
+  "owned_by": "openai",
+  "pricing": {
+    "input_cost_per_1m": 2.875,
+    "output_cost_per_1m": 17.25,
+    "price_source": "litellm"
+  }
+}
+```
+
+To price a single model, call `GET /v1/models/pricing?model_name=<model>`. See [Available Models](/docs/examples/examples/models-available) for both endpoints.
 
 ---
 
@@ -1018,8 +1036,8 @@ for model in models.data[:10]:
 
 Usage is metered and billed identically to the native `/v1/agent/completions` endpoint:
 
-- **Input tokens** are counted from the combined system prompt, conversation history, and task
-- **Output tokens** are counted from the agent's response
+- **Tokens** are the input and output tokens the model provider reports, summed over every model call the agent makes (every loop, re-sent conversation history, and reasoning tokens)
+- **Price** is the requested model's own price per 1M input and output tokens plus a 15% service fee. Look it up with `GET /v1/models/pricing?model_name=<model>` or in the `pricing` object on `GET /v1/models`; see [Pricing](/docs/documentation/resources/pricing)
 - **Credits are deducted** automatically after each completion
 - The `usage` field in the response shows the exact token counts
 - `/v1/chat/completions` is billable: it requires a total credit balance greater than $1.00, or the request is rejected before the agent runs

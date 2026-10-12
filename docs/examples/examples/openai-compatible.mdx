@@ -915,7 +915,7 @@ Use `max_loops` to let the agent iterate on its own output — useful for comple
 
 ## 6. Model Discovery
 
-The SDK's built-in model listing works too — `GET /v1/models` returns every model available to your account (filtered by subscription tier) in the standard OpenAI list format.
+The SDK's built-in model listing works too — `GET /v1/models` returns every model available to your account (filtered by subscription tier) in the standard OpenAI list format. Each entry also carries a `pricing` object with the model's price per 1M input and output tokens (USD, 15% service fee included) and its `price_source`.
 
 <Tabs>
   <Tab title="Python">
@@ -965,8 +965,8 @@ The SDK's built-in model listing works too — `GET /v1/models` returns every mo
     # {
     #   "object": "list",
     #   "data": [
-    #     {"id": "gpt-4.1", "object": "model", "created": 0, "owned_by": "openai"},
-    #     {"id": "claude-sonnet-4-20250514", "object": "model", "created": 0, "owned_by": "anthropic"}
+    #     {"id": "gpt-5.4", "object": "model", "created": 0, "owned_by": "openai",
+    #      "pricing": {"input_cost_per_1m": 2.875, "output_cost_per_1m": 17.25, "price_source": "litellm"}}
     #   ]
     # }
     ```
@@ -974,7 +974,7 @@ The SDK's built-in model listing works too — `GET /v1/models` returns every mo
 </Tabs>
 
 <Info>
-Prefer a plain list of model names with a count? Use the native Swarms endpoint `GET /v1/models/available` instead — see [Available Models](/docs/examples/examples/models-available). Both endpoints return the same tier-filtered catalog.
+Prefer the native Swarms shape with a count? Use `GET /v1/models/available`, which returns one object per model with its `model_name` and price, or `GET /v1/models/pricing?model_name=<model>` for a single model — see [Available Models](/docs/examples/examples/models-available). Both list endpoints return the same tier-filtered catalog.
 </Info>
 
 ---

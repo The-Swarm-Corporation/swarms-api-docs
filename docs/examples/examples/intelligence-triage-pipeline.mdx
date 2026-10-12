@@ -279,7 +279,7 @@ Procurement and IG reviews almost always ask the same two questions: who ran wha
 # Full request history with timestamps, endpoints, and execution metadata
 logs = requests.get(f"{BASE_URL}/v1/account/logs", headers=headers, timeout=60).json()
 
-# Aggregated usage and cost for billing reconciliation
+# Current rate card (per-agent and search fees, fallback token rates); spend itself is in the logs
 usage = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers, timeout=60).json()
 ```
 

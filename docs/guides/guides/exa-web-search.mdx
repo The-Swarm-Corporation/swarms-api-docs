@@ -415,21 +415,21 @@ Search-enabled agents return the standard `/v1/agent/completions` response shape
     "output_tokens": 1200,
     "total_tokens": 1700,
     "img_cost": 0.0,
-    "total_cost": 0.025
+    "total_cost": 0.01219
   },
   "timestamp": "2024-01-15T00:00:00Z"
 }
 ```
 
-Note: the `total_cost` in `usage` reflects token costs only. The flat $0.04 `auto_search` tool fee is deducted from your account credits separately and does not appear in this `usage` object.
+Note: the `total_cost` in `usage` is the token cost at the agent's model price (15% service fee included; the sample above assumes `gpt-4.1`) plus any image fees. The flat $0.04 `auto_search` fee is deducted from your account credits separately and does not appear in this `usage` object.
 
 ## Cost Optimization
 
-Each `auto_search` tool call costs a flat $0.04 (`search_cost`), deducted from your account credits, on top of normal token costs. Optimize usage with these strategies:
+Enabling `auto_search` costs a flat $0.04 (`search_cost`) once per request, however many searches the agent runs (including none), deducted from your account credits on top of normal token costs. Optimize usage with these strategies:
 
 1. **Only enable search when needed**: Omit `tools_enabled` (or leave `auto_search` out of it) for tasks that don't require live web data — you'll skip the $0.04 fee entirely.
 2. **Cache research results**: Store responses for repeated similar queries instead of re-running search.
-3. **Use appropriate models**: Use `gpt-4.1-mini` for simpler research tasks to reduce token costs.
+3. **Use appropriate models**: Each model bills at its own price; `gpt-4.1-mini` costs a fifth of `gpt-4.1` per token at the time of writing, so use it for simpler research tasks. Check prices with `GET /v1/models/pricing` (see [Pricing](/docs/documentation/resources/pricing)).
 4. **Limit output length**: Set a smaller `max_tokens` on `agent_config` to control response length and cost.
 
 ```python

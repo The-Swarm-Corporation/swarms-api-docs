@@ -142,11 +142,11 @@ Enable a tool on an agent by adding its name to the top-level `tools_enabled` fi
 
 | Tool | Description | Billed As |
 |------|-------------|-----------|
-| `auto_search` | Web search powered by Exa, used to ground agent responses in current information | `agent-completions-tool-usage-exa-search` (per search) |
-| `web_scraper` | Fetches and formats the content of a URL for the agent to read | `agent-completions-tool-usage-web-scraper` (per scrape) |
+| `auto_search` | Web search powered by Exa, used to ground agent responses in current information | `agent-completions-tool-usage-exa-search` (once per request) |
+| `web_scraper` | Fetches and formats the content of a URL for the agent to read | Free (only tokens are billed) |
 
 <Note>
-Search and scrape costs are billed per use — see [Pricing Details](/docs/examples/examples/pricing-details-basic) for current `search_cost` and `scrape_cost` rates.
+Only `auto_search` carries a fee: $0.04 once per request that enables it, however many searches the agent runs (including none). `web_scraper` is free; the content it fetches is billed as ordinary tokens at the agent's model price. See [Pricing](/docs/documentation/resources/pricing) for the current `search_cost`.
 </Note>
 
 ## Best Practices

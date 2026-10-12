@@ -93,11 +93,10 @@ Each entry in `agents` is an `AgentSpec`, but the builder populates only these f
 
 The endpoint bills one builder-agent call:
 
-- Input tokens: $6.50 per 1M tokens
-- Output tokens: $18.50 per 1M tokens
-- Flat builder-agent fee: $0.01
+- Input and output tokens: priced at the builder's model (`model_name`, or the builder default) plus a 15% service fee
+- Flat builder-agent fee: $0.01 per request, however many agents it generates
 
-`total_cost = input_cost + output_cost + cost_per_agent`. The generated agents cost nothing until you run them. See [Pricing](/docs/documentation/resources/pricing) for current rates.
+`total_cost = input_cost + output_cost + cost_per_agent`. No night-time discount applies. The generated agents cost nothing until you run them. See [Pricing](/docs/documentation/resources/pricing) to look up a model's current price.
 
 ## Error Responses
 
