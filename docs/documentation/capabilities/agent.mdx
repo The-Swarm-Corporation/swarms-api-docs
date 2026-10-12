@@ -23,7 +23,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `history` | `Union[Dict, List[Dict]]` | No | The history of the agent's previous tasks and responses. Can be either a dictionary or a list of message objects |
 | `img` | `string` | No | A base64 encoded image for the agent to process. Encode your image file to base64 and pass it here |
 | `imgs` | `List[string]` | No | A list of base64 encoded images for the agent to process. Encode your image files to base64 and pass them here |
-| `tools_enabled` | `List[string]` | No | Built-in tools for the agent. Supported values: `auto_search` (web search) and `web_scraper` (web scraping). Both may be listed together, in which case the agent receives both tools. Enabling a tool is billed once per request (a flat search or scrape fee), regardless of how many times the agent uses it |
+| `tools_enabled` | `List[string]` | No | Built-in tools for the agent. Supported values: `auto_search` (web search) and `web_scraper` (web scraping). Both may be listed together, in which case the agent receives both tools. Enabling a tool is billed once per request that completes successfully (a flat search or scrape fee), regardless of how many times the agent uses it. A failed request is not charged the fee |
 
 ### AgentSpec Object
 
