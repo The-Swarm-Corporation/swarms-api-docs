@@ -632,6 +632,7 @@ The API returns standard HTTP status codes:
 - **403**: Forbidden (account is not on a premium tier)
 - **422**: Validation error — `agent_completions` or `tasks` has more than 50 entries, or `max_loops` is outside 1-50
 - **500**: Server error
+- **503**: Temporarily unable to verify your API key because the key store could not be reached. The key was not rejected and nothing ran; retry in a few seconds
 
 Example error response for a length mismatch:
 ```json

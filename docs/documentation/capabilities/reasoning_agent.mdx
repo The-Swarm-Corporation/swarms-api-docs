@@ -254,6 +254,7 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 | `403` | Free tier — premium subscription required |
 | `422` | Malformed request body (e.g. invalid `swarm_type`, or `max_loops` outside 1–50) |
 | `429` | Rate limit exceeded |
+| `503` | Temporarily unable to verify your API key because the key store could not be reached. The key was not rejected and nothing ran; retry in a few seconds |
 
 <Note>
 This endpoint is both premium-only and billable, so a request is checked, in order, for: API key presence (401), API key validity (400), credit balance (402), and premium tier (403) — all before the reasoning agent runs. Every error from this pre-flight check is returned in the shape `{"error": {"type": ..., "message": ..., "detail": ..., "status_code": ...}}`.
