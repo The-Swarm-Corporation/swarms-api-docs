@@ -95,11 +95,25 @@ Free tier users attempting to access these endpoints will receive a **403 Forbid
 
 The `detail` message is tailored per endpoint (naming the specific feature you tried to access).
 
+A `403` always means the account is on the free tier. If the API can't verify your subscription (for example, its database is briefly unreachable), these endpoints return **503 Service Unavailable** instead. A `503` is not an answer about your tier, so retry the request after a few seconds:
+
+```json
+{
+  "error": {
+    "type": "subscription_check_failed",
+    "message": "Unable to verify subscription status",
+    "detail": "We could not verify your subscription. Please try again shortly or contact support if the issue persists.",
+    "status_code": 503
+  }
+}
+```
+
 ### Notes
 - These endpoints may have different rate limits aligned with premium tiers.
 - Ensure your API key is associated with a Pro, Ultra, or Premium subscription.
 - Premium endpoints are also billable: your account's total credit balance must be above \$1.00, or the request is rejected with a **402 Payment Required** error before any work runs. Check your balance with `GET /v1/account/credits`.
 - Beyond these five endpoints, certain models (e.g. GPT-5.6, Claude Opus 5, Gemini 3.1 Pro) are also gated to premium subscribers on regular endpoints like `/v1/agent/completions` and `/v1/swarm/completions` — see [Pricing](/docs/documentation/resources/pricing) for the current list.
+- If the subscription can't be verified, a premium model on those endpoints returns `503` with `{"detail": "Unable to verify your subscription status. Retry in a few seconds."}` instead of the free-tier `403`. Retry it.
 - For endpoint schemas and examples, see related documentation pages.
 
 

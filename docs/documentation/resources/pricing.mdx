@@ -83,7 +83,7 @@ Free tier accounts are blocked from requesting the following models on any endpo
 - `xai/grok-4.5-latest`
 - Any `groq/*` model
 
-Requesting one of these models on the free tier returns a 403 error with suggested free-tier alternatives.
+Requesting one of these models on the free tier returns a 403 error with suggested free-tier alternatives. If the API can't verify your subscription, the request returns a 503 instead; retry it after a few seconds.
 
 ### Enterprise
 Critical support, compliance, and control for large-scale enterprises.
