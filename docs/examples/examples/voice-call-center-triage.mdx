@@ -230,7 +230,7 @@ def run_voice_swarm(transcript: str, caller_phone: str, call_id: str) -> str:
 
     output = data.get("output", [{}])
     if isinstance(output, list) and output:
-        return output[0].get("content", "I'm sorry, could you repeat that?")
+        return output[-1].get("content", "I'm sorry, could you repeat that?")
     return "I'm sorry, could you repeat that?"
 
 
