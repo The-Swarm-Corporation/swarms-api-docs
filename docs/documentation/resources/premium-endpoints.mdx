@@ -15,7 +15,7 @@ Access to these endpoints is restricted to Pro and Ultra plans. To upgrade, see 
 | `/v1/agent/batch/completions` | POST | Process multiple agent tasks in parallel batches with high-throughput batch processing capabilities. Ideal for large-scale document analysis, data processing, and enterprise-scale operations. |
 | `/v1/swarm/batch/completions` | POST | Execute batch swarm completions with concurrent multi-agent execution for complex collaborative workflows at scale. |
 | `/v1/reasoning-agent/completions` | POST | Execute advanced reasoning agent tasks using specialized reasoning architectures such as `self-consistency`, `ire` (iterative refinement), and `ReflexionAgent` for improved answer quality and reliability. See `GET /v1/reasoning-agent/types` for the full, authoritative list of supported types. |
-| `/v1/batched-grid-workflow/completions` | POST | Run a list of agents against a list of tasks of the same length, in parallel: agent *i* runs task *i*, so two agents and two tasks make two runs, not four. |
+| `/v1/batched-grid-workflow/completions` | POST | Run a list of agents against a list of tasks of the same length, in parallel: agent _i_ runs task _i_, so two agents and two tasks make two runs, not four. |
 
 ### Discovering Premium Endpoints via the API
 
