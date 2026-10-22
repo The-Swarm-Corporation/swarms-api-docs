@@ -357,6 +357,9 @@ A common production convention: use the plain dict form everywhere, and add a `m
   <Accordion title="422 error: edge fails request validation">
     The API expects each edge to be an object — an `EdgeSpec` or a dict with `source` and `target` keys. List/tuple shorthands like `["Agent1", "Agent2"]` and strings like `"Agent1 -> Agent2"` are rejected with a 422 before the workflow runs. Convert them to the dict form.
   </Accordion>
+  <Accordion title="400 error: `An edge requires both a 'source' and a 'target'`">
+    An edge object with other key names, such as `{"from": "Agent1", "to": "Agent2"}`, passes request validation as a plain dict but has no `source` or `target`, so the API rejects it with a 400 before the workflow runs. Rename the keys to `source` and `target`.
+  </Accordion>
   <Accordion title="400 error: `source node '...' does not exist`">
     Every edge's `source` and `target` must match an `agent_name` in the `agents` array exactly. Watch for whitespace, casing, and trailing punctuation — the comparison is exact.
   </Accordion>
