@@ -446,7 +446,8 @@ reasoning = requests.post(
     json={
         "agent_name": "reasoning-agent",
         "model_name": "claude-sonnet-5",
-        "swarm_type": "reasoning-duo",
+        "swarm_type": "self-consistency",
+        "num_samples": 3,
         "task": "Should we launch the product in Q2 or Q3?",
     },
 )

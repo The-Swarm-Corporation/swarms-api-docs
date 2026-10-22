@@ -243,19 +243,15 @@ The right read on convergence: if all 5 samples produce the same final JSON, shi
 
 | `swarm_type` | What it does | Best for this kind of work |
 | --- | --- | --- |
-| `reasoning-agent` | Single chain with structured thinking | Quick checks, drafts |
 | `self-consistency` | N independent chains, vote on convergence | **This example, calibrated answers** |
-| `ire` | Iterative refinement — each loop critiques the prior | Algorithmic / proof-style problems |
-| `reasoning-duo` | Two agents debate two approaches | Contrarian framing, strategy reviews |
-| `consistency-agent` | Logical-consistency focused | Pure math and logic puzzles |
+| `consistency-agent` | Alias for `self-consistency` | Same as `self-consistency` |
 | `ReflexionAgent` | Self-critiques and revises its own output | Drafts that improve with self-correction |
-| `GKPAgent` | Generates supporting knowledge before answering | Knowledge-intensive questions |
 | `AgentJudge` | Evaluates and scores candidate outputs | Grading another agent's answer |
 
 For accrual accounting, legal interpretation, and financial calculation work, `self-consistency` is the right default — the failure mode is "confidently wrong on one chain," and voting across chains is the specific antidote.
 
 <Note>
-The full list of supported values is returned by `GET /v1/reasoning-agent/types`: `reasoning-duo`, `self-consistency`, `ire`, `reasoning-agent`, `consistency-agent`, `ire-agent`, `ReflexionAgent`, `GKPAgent`, `AgentJudge`. For the `ire` / `ire-agent` types, the iteration count is controlled by `num_samples` rather than `max_loops`.
+The full list of supported values is returned by `GET /v1/reasoning-agent/types`: `AgentJudge`, `ReflexionAgent`, `self-consistency` and `consistency-agent`. Any other value, including the removed `reasoning-duo`, `reasoning-agent`, `ire`, `ire-agent` and `GKPAgent`, returns 422 before any model call or charge.
 </Note>
 
 ## Cost vs. Hiring a Senior Associate
