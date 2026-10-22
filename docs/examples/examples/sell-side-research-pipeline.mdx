@@ -285,7 +285,7 @@ def build_swarm_for_note(pdf_ref: str, ticker: str) -> dict:
         "max_loops": 1,
         "task": (
             f"A sell-side research note on {ticker} just landed at {pdf_ref}. "
-            f"Call parse_pdf_note first. The three workers extract the rating, target, "
+            f"The three workers extract the rating, target, "
             f"and drivers in parallel, and the Research Director synthesizes their "
             f"output into the structured signal payload. Cross-check "
             f"the new target against street consensus before emitting the signal."
