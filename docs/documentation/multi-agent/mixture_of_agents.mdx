@@ -418,6 +418,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     "swarm_type": "MixtureOfAgents",
     "output": [
         {
+            "role": "System",
+            "content": "Team Name: Comprehensive Market Analysis\nTeam Description: Multi-perspective market analysis combining various expert viewpoints\nThese are the agents in your team..."
+        },
+        {
             "role": "Technology Analyst",
             "content": "From a technological perspective, the EV market is experiencing rapid innovation in battery technology, with solid-state batteries and improved energy density..."
         },
@@ -468,7 +472,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Output Shape
 
-Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `MixtureOfAgents` uses the last agent in `agents` as its aggregator. Every agent, the last one included, answers the task in parallel, then the last agent runs again to synthesize all the answers. So `output` has one turn per agent, then a second turn under the last agent's name with the synthesis, as in the example above, where `Policy Expert` appears twice. The swarm-level `max_loops` sets the number of worker layers: with `max_loops` above 1, each layer's workers see the previous layer's answers and their turns are named `<agent_name> (layer i/N)`. `number_of_agents` counts the agents you sent, aggregator included. Put a dedicated synthesis agent last if you don't want a specialist's prompt reused for aggregation.
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `MixtureOfAgents` uses the last agent in `agents` as its aggregator. Every agent, the last one included, answers the task in parallel, then the last agent runs again to synthesize all the answers. So `output` starts with a `System` turn listing the team, then has one turn per agent, then a second turn under the last agent's name with the synthesis, as in the example above, where `Policy Expert` appears twice. The swarm-level `max_loops` sets the number of worker layers: with `max_loops` above 1, each layer's workers see the previous layer's answers and their turns are named `<agent_name> (layer i/N)`. `number_of_agents` counts the agents you sent, aggregator included. Put a dedicated synthesis agent last if you don't want a specialist's prompt reused for aggregation.
 
 ## Best Practices
 

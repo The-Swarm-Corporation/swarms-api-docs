@@ -39,8 +39,7 @@ The "Supervisor" in the diagram is a director agent that `HierarchicalSwarm` cre
 
 - Complex project management and coordination
 - Multi-stage research and analysis workflows
-- Content creation with editorial oversight
-- Quality assurance and validation processes
+- Research split across specialists who work in parallel
 
 ## API Usage
 
@@ -60,8 +59,8 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
     "agents": [
       {
         "agent_name": "Research Coordinator",
-        "description": "Worker agent that synthesizes the team's findings into a final report",
-        "system_prompt": "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+        "description": "Worker agent that outlines the final report",
+        "system_prompt": "You are the lead researcher on the team. Outline a comprehensive, well-organized report on the task, with the key question each section must answer.",
         "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.3
@@ -125,8 +124,8 @@ swarm_config = {
     "agents": [
         {
             "agent_name": "Research Coordinator",
-            "description": "Worker agent that synthesizes the team's findings into a final report",
-            "system_prompt": "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+            "description": "Worker agent that outlines the final report",
+            "system_prompt": "You are the lead researcher on the team. Outline a comprehensive, well-organized report on the task, with the key question each section must answer.",
             "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.3
@@ -202,8 +201,8 @@ const swarmConfig = {
     agents: [
         {
             agent_name: "Research Coordinator",
-            description: "Worker agent that synthesizes the team's findings into a final report",
-            system_prompt: "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+            description: "Worker agent that outlines the final report",
+            system_prompt: "You are the lead researcher on the team. Outline a comprehensive, well-organized report on the task, with the key question each section must answer.",
             model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.3
@@ -304,8 +303,8 @@ func main() {
         Agents: []Agent{
             {
                 AgentName:    "Research Coordinator",
-                Description:  "Worker agent that synthesizes the team's findings into a final report",
-                SystemPrompt: "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+                Description:  "Worker agent that outlines the final report",
+                SystemPrompt: "You are the lead researcher on the team. Outline a comprehensive, well-organized report on the task, with the key question each section must answer.",
                 ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.3,
@@ -385,8 +384,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "agents": [
             {
                 "agent_name": "Research Coordinator",
-                "description": "Worker agent that synthesizes the team's findings into a final report",
-                "system_prompt": "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+                "description": "Worker agent that outlines the final report",
+                "system_prompt": "You are the lead researcher on the team. Outline a comprehensive, well-organized report on the task, with the key question each section must answer.",
                 "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3
@@ -591,7 +590,7 @@ A lower `temperature` on the director produces more consistent task decompositio
 </Tip>
 
 <Warning>
-If the director never returns valid orders (its reply isn't JSON, or has no `orders`), no worker runs and the request returns `502` with `The director of swarm '<name>' did not return valid orders, so no agent ran. Nothing was charged.` Check `director_model_name` and `director_settings`, then retry.
+If the director never returns valid orders (its reply can't be parsed, or has no `orders` field), no worker runs and the request returns `502` with `The director of swarm '<name>' did not return valid orders, so no agent ran. Nothing was charged.` Check `director_model_name` and `director_settings`, then retry.
 </Warning>
 
 ## Best Practices
