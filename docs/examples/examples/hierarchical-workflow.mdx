@@ -43,13 +43,13 @@ def design_auth_system(requirements: str) -> dict:
 
     swarm_config = {
         "name": "Software Development Team",
-        "description": "Hierarchical team with tech lead coordinating specialists",
+        "description": "Hierarchical team: a built-in director coordinating a tech lead and specialists",
         "swarm_type": "HierarchicalSwarm",
         "task": requirements,
         "agents": [
             {
                 "agent_name": "Tech Lead",
-                "description": "Senior engineer coordinating the team",
+                "description": "Senior engineer making the architecture decisions",
                 "system_prompt": "You are a tech lead. Make the architectural decisions for the whole system, identify gaps and risks, and give final recommendations.",
                 "model_name": "gpt-4.1",
                 "max_loops": 1,
