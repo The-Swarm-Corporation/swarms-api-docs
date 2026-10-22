@@ -12,6 +12,7 @@ There is no separate step that saves an agent. The list is built from the `agent
 - **One entry per name**: reusing a name with different settings keeps only the most recently used config
 - **Every key on your account**: requests made with any of your API keys count, including keys you have since revoked
 - **Agent endpoints only**: agents you send inside `/v1/swarm/completions`, graph workflows, or other multi-agent requests are not listed
+- **One entry for the compatible endpoints**: requests to `/v1/chat/completions`, `/v1/responses`, and `/v1/messages` are recorded too, as a single entry named `openai-compat-agent` that holds the settings of the latest such request
 - **Validated requests only**: a request rejected before it runs, for example for an unknown model or a missing `task`, is not recorded
 
 ## Endpoint Information
