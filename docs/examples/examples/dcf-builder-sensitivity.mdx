@@ -281,7 +281,7 @@ MODEL_TOOLS = [BUILD_DCF, SENSITIVITY_TABLE]
 ```
 
 <Note>
-The tool schemas are the contract, and your code is what runs them: nothing delivers a tool result back into the conversation. Pull the statements and consensus from your data vendor and put them in the Assumption Reasoner's `task`, and run `build_dcf` and `sensitivity_table` yourself from the calls that come back. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls). The math tools (`build_dcf`, `sensitivity_table`) are mechanical — wire them to a pure-Python DCF library, not an LLM.
+The tool schemas are the contract, and your code is what runs them: nothing delivers a tool result back into the conversation. Pull the statements and consensus from your data vendor and put them in the Assumption Reasoner's `task`, then run `build_dcf` yourself from the DCF Model's returned call and run `sensitivity_table` on that real `build_dcf` result, not on the `model_json` of a returned `sensitivity_table` call. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls). The math tools (`build_dcf`, `sensitivity_table`) are mechanical — wire them to a pure-Python DCF library, not an LLM.
 </Note>
 
 ## Step 3: The Reasoning Assumption Agent
@@ -337,7 +337,7 @@ def reasoning_assumptions_agent_config(ticker: str) -> dict:
 
 ## Step 4: The SequentialWorkflow Pipeline
 
-Four workers, each cheap, each doing one well-defined job. The Assumptions Builder ingests the reasoned output and emits a strict JSON spec the math layer can consume. The DCF Model and Sensitivity Tables are mechanical — they call `build_dcf` and `sensitivity_table` and report results. The Memo Writer is the only stage that needs prose quality, and Sonnet handles that cheaply.
+Four workers, each cheap, each doing one well-defined job. The Assumptions Builder ingests the reasoned output and emits a strict JSON spec the math layer can consume. The DCF Model and Sensitivity Tables are mechanical: they return `build_dcf` and `sensitivity_table` calls that your code runs. The Memo Writer is the only stage that needs prose quality, and Sonnet handles that cheaply.
 
 ```python
 def build_dcf_swarm(ticker: str, reasoning_output: str) -> dict:

@@ -82,7 +82,7 @@ The economic calendar (release_id, scheduled time ET, release window) can be sou
 
 ## Step 2: Define the Function Tools
 
-Seven tools cover the entire pipeline: four data fetchers, two lookups, one notifier, all in OpenAI function format. The API sends them to the model but never executes them, so each call comes back in that node's output with its arguments, and a later node sees the call, never its result. Fetch the print, consensus, and reaction history in your own code at the release minute and put them in the `task`, then post the brief from the returned `post_slack_alert` call after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
+Seven tools cover the entire pipeline: four data fetchers, two lookups, one notifier, all in OpenAI function format. The API sends them to the model but never executes them, so each call comes back in that node's output with its arguments, and a later node sees the call, never its result. Fetch the print, consensus, reaction history, and market snapshots in your own code at the release minute and put them in the `task`, then post the brief from the returned `post_slack_alert` call after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 FETCH_BLS_CPI = {
