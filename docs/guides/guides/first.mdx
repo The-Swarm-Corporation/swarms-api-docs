@@ -127,15 +127,13 @@ client = SwarmsClient(api_key=os.getenv("SWARMS_API_KEY"))
 # Check API health status
 health_status = client.health.check()
 print("API Health Status:")
-print(health_status.model_dump_json(indent=4))
+print(json.dumps(health_status, indent=4))
 
 # List available models
 available_models = client.models.list_available()
 print("\nAvailable Models:")
-print(available_models.model_dump_json(indent=4))
+print(json.dumps(available_models, indent=4))
 
-# Check current rate limits — this call returns a plain dict, not a model,
-# so json.dumps works directly here.
 rate_limits = client.client.rate.get_limits()
 print("\nRate Limits:")
 print(json.dumps(rate_limits, indent=4))
@@ -143,13 +141,13 @@ print(json.dumps(rate_limits, indent=4))
 # Get swarm availability status
 swarm_availability = client.swarms.check_available()
 print("\nSwarm Availability:")
-print(swarm_availability.model_dump_json(indent=4))
+print(json.dumps(swarm_availability, indent=4))
 ```
 
 This verification script provides valuable information about your API access, including the health status of the service, available AI models, your current rate limit usage, and the availability of swarm services.
 
 <Note>
-`client.health.check()`, `client.models.list_available()`, and `client.swarms.check_available()` return typed Pydantic response objects — use `.model_dump()` / `.model_dump_json()` or attribute access (`health_status.status`), not dict subscripting or `json.dumps()` directly on the object. `client.client.rate.get_limits()` is the one exception: it returns a plain `dict`.
+In `swarms-client` 0.8.0, `client.health.check()`, `client.models.list_available()`, `client.swarms.check_available()`, `client.swarms.get_logs()` and `client.client.rate.get_limits()` all return plain `dict`s, not Pydantic objects. Print them with `json.dumps()` and read fields by key (`health_status["status"]`); `.model_dump_json()` or attribute access raises `AttributeError`.
 </Note>
 
 ## Running Your First Single Agent
@@ -457,8 +455,8 @@ Effective monitoring and management of your multi-agent systems is crucial for p
 def monitor_system_status(client):
     # Check API health — HealthCheckResponse.status defaults to "ok"
     health_status = client.health.check()
-    if health_status.status != "ok":
-        print(f"API health issue detected: {health_status.status}")
+    if health_status["status"] != "ok":
+        print(f"API health issue detected: {health_status['status']}")
 
     # Monitor rate limits — get_limits() returns a plain dict shaped like
     # RateLimitsOutput: {"rate_limits": {"minute": {...}, ...}, "limits": {...}, "tier": ..., ...}
@@ -472,7 +470,7 @@ def monitor_system_status(client):
 
     # Check swarm-type listing is reachable
     availability = client.swarms.check_available()
-    if not availability.success:
+    if not availability["status"]:
         print("Swarm type listing is currently unavailable")
 
     # client.swarms.get_logs() calls the deprecated /v1/swarm/logs alias for
@@ -481,7 +479,7 @@ def monitor_system_status(client):
     # detect errors. Use it for a completion count / cost audit instead; see
     # the Production Observability guide for the full pattern.
     logs_response = client.swarms.get_logs()
-    print(f"Logged completions on record: {logs_response.count}")
+    print(f"Logged completions on record: {logs_response['count']}")
 
 # Run monitoring
 monitor_system_status(client)
