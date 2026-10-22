@@ -43,7 +43,7 @@ The request body is a single `ReasoningAgentSpec` object.
 | `task` | `string` | No* | `null` | The task to be completed by the reasoning agent. Not enforced by the schema, but the run has nothing to do without it — always send it |
 | `agent_name` | `string` | No | `"reasoning-agent"` | Unique name assigned to the reasoning agent |
 | `description` | `string` | No | `"A reasoning agent that can answer questions and help with tasks."` | Explanation of the agent's purpose and capabilities |
-| `model_name` | `string` | No | `"claude-sonnet-4-20250514"` | The AI model backing the reasoning agent |
+| `model_name` | `string` | No | `"claude-sonnet-5"` | The AI model backing the reasoning agent |
 | `system_prompt` | `string` | No | `null` | Initial instruction or context provided to the agent |
 | `max_loops` | `integer` | No | `1` | Maximum times the agent repeats its task. Between 1 and 50 |
 | `swarm_type` | `string` | No | `"reasoning_duo"` | The reasoning architecture to use — see [Reasoning Types](#reasoning-types) |
@@ -252,6 +252,7 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 | `401` | Missing `x-api-key` (and no `Authorization: Bearer` fallback) |
 | `402` | Credit balance at or below $1.00 |
 | `403` | Free tier — premium subscription required |
+| `404` | Unknown or retired `model_name`, rejected before the agent runs or anything is charged |
 | `422` | Malformed request body (e.g. invalid `swarm_type`, or `max_loops` outside 1–50) |
 | `429` | Rate limit exceeded |
 
