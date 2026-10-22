@@ -209,7 +209,7 @@ data: [DONE]
 
 ### Errors During a Stream
 
-The API key, credit and rate-limit checks, body validation and the 404 for an unknown `model` all run before the stream opens, so they return a normal HTTP error. Anything that fails after that, including a free-tier key asking for a premium model and an empty task, arrives on the HTTP 200 as one error frame followed by `[DONE]`:
+The API key, credit and rate-limit checks, body validation and the 404 for an unknown `model` all run before the stream opens, so they return a normal HTTP error. Anything that fails after that, including a free-tier key asking for a premium model and an empty last user message with no earlier turns, arrives on the HTTP 200 as one error frame followed by `[DONE]`:
 
 ```text
 data: {"error": {"message": "400: No task provided. Pass a non-empty `task`, or `history` to continue from.", "type": "server_error", "code": "internal_error"}}
@@ -248,7 +248,7 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 | `error.code` | `string` or `null` | Machine-readable error code |
 | `error.param` | `string` or `null` | The parameter that caused the error |
 
-The 401 and 402 from the API key and credit checks are sent before the request reaches this endpoint, so their body differs: `error` has `type`, `message`, `detail` and `status_code`, and no `code` or `param`. The 402 also carries `current_balance`, `minimum_required` and `upgrade_url`.
+The 401 and 402 from the API key and credit checks are sent before the request reaches this endpoint, so their body differs: `error` has `type`, `message`, `detail` and `status_code`, and no `code` or `param`. The 402 for an insufficient balance (`type` `insufficient_credits`) also carries `current_balance`, `minimum_required` and `upgrade_url`. A 402 with `type` `credit_check_failed` means the balance lookup itself failed.
 
 ### Error Types
 
@@ -257,7 +257,7 @@ The 401 and 402 from the API key and credit checks are sent before the request r
 | 400 | `invalid_request_error` | Malformed request, validation failure, missing required fields |
 | 400 | `invalid_request_error` | The model returned no output and the provider reported no error: `Model 'X' produced no output for this request. Nothing was charged.` |
 | 401 | `authentication_error` | Missing or invalid API key |
-| 402 | `insufficient_credits` | Your purchased credit balance is \$1.00 or less |
+| 402 | `insufficient_credits` | Your purchased credit balance is \$1.00 or less, or `credit_check_failed` if the balance lookup itself failed |
 | 403 | `invalid_request_error` | A free-tier key asked for a premium model. `code` is `null` |
 | 429 | `rate_limit_error` | Rate limit exceeded |
 | 500 | `server_error` | Internal error during agent execution |
