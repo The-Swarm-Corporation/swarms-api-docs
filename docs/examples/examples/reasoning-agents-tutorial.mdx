@@ -167,7 +167,7 @@ The response (`result` above) is a `ReasoningAgentCompletionOutput` object with 
 | --- | --- | --- |
 | `job_id` | `string` | Unique identifier for the reasoning agent run |
 | `status` | `string` | Run status, `"success"` on completion |
-| `outputs` | `any` | The reasoning output — shape varies by `swarm_type` and `output_type` (see below) |
+| `outputs` | `any` | The reasoning output. Its shape varies by `swarm_type` (see below). `output_type` has no effect |
 | `timestamp` | `string` | ISO-formatted timestamp of when the run was executed |
 | `agent_name` | `string` | Name of the agent (the `agent_name` you passed in the request) |
 | `agent_type` | `string` | The `swarm_type` used for this run, e.g. `"self-consistency"` |
