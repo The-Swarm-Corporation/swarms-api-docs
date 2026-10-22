@@ -19,7 +19,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `agent_config` | `AgentSpec` | Yes | The configuration of the agent to be completed |
-| `task` | `string` | No | The task to be completed by the agent. Required unless `history` is given: a request with neither gets a 400, `No task provided. Pass a non-empty task, or history to continue from.` |
+| `task` | `string` | No | The task to be completed by the agent. Required unless `history` is given: a request with neither gets a 400, ``No task provided. Pass a non-empty `task`, or `history` to continue from.`` |
 | `history` | `Union[Dict, List[Dict]]` | No | The history of the agent's previous tasks and responses. Can be either a dictionary or a list of message objects |
 | `img` | `string` | No | A base64 encoded image for the agent to process. Encode your image file to base64 and pass it here |
 | `imgs` | `List[string]` | No | A list of base64 encoded images for the agent to process. Encode your image files to base64 and pass them here |

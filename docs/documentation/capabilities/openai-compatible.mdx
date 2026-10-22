@@ -256,6 +256,8 @@ When the model's provider fails, the error carries the provider's reason and a m
 | 429 | `invalid_request_error` | `The provider is rate limiting model 'X'. Retry shortly. Nothing was charged.` |
 | 502 | `server_error` | `The provider for model 'X' failed (<ErrorType>). Retry, or use another model. Nothing was charged.` |
 
+These are the non-streaming responses. On a streamed request, the same message arrives in an error frame on the HTTP 200, with `type` `server_error` and `code` `internal_error`, prefixed with its status (for example `400: The provider rejected ...`).
+
 For example, a decommissioned Groq model:
 
 ```json
