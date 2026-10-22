@@ -100,68 +100,13 @@ insights for a startup considering entering this space.
 # Run the roundtable discussion
 result = run_roundtable(topic)
 
-# Display the collaborative discussion
-for output in result.get("output", []):
-    agent = output["role"]
-    content = output["content"]
-
-    print(f"\n{'='*60}")
-    print(f"{agent}")
-    print(f"{'='*60}")
-
-    # Handle content as string or list
-    if isinstance(content, list):
-        content = ' '.join(str(item) for item in content)
-
-    print(str(content)[:800] + "...")
+print(result["output"])
 ```
+
+For `RoundRobin`, `output` is a single string: the last agent's final turn. The earlier turns are not returned.
 
 **Expected Output:**
 ```
-============================================================
-Industry Researcher
-============================================================
-## Autonomous AI Agent Market Analysis
-
-### Market Overview
-The autonomous AI agent market reached an estimated $4.2B in 2024 and is
-projected to grow at 45% CAGR through 2028. Key segments include:
-- Developer tools & coding agents (35% of market)
-- Customer service automation (28%)
-- Enterprise workflow agents (22%)
-- Research & analysis agents (15%)
-
-### Major Players
-- **OpenAI** (GPT-based agents, Assistants API)
-- **Anthropic** (Claude, tool use framework)
-- **Google** (Gemini agents, Vertex AI)
-- **Startups**: Cognition (Devin), Adept, Induced AI, CrewAI, Swarms
-
-### Enterprise Adoption
-Current penetration: ~12% of Fortune 500 in production...
-
-============================================================
-Technology Analyst
-============================================================
-Building on the Industry Researcher's market data, let me assess the
-technical landscape:
-
-### Core Technology Stack
-The agent frameworks broadly fall into three categories:
-1. **Single-agent loops** (ReAct, function calling) — mature but limited
-2. **Multi-agent orchestration** (Swarms, CrewAI, AutoGen) — growing fast
-3. **Code-generation agents** (Devin, Cursor) — highest enterprise demand
-
-### Key Technical Differentiators
-Drawing from the market segments identified above:
-- Tool use reliability (currently 85-92% accuracy)
-- Context window management for long-running tasks
-- Multi-step planning and self-correction capabilities
-- Sandboxed execution environments for safety...
-
-============================================================
-Strategy Advisor
-============================================================
 Synthesizing the market data from our Industry Researcher and the technical
 assessment from our Technology Analyst, here are my strategic recommendations:
 
@@ -192,13 +137,7 @@ deep_result = run_roundtable(
     max_loops=2
 )
 
-# Show the final contributions after 2 rounds of refinement
-for output in deep_result.get("output", []):
-    print(f"\n{output['role']}:")
-    content = output["content"]
-    if isinstance(content, list):
-        content = ' '.join(str(item) for item in content)
-    print(str(content)[:600] + "...")
+print(deep_result["output"][:600] + "...")
 ```
 
 <Note>
