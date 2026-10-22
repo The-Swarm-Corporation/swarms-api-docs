@@ -1,17 +1,17 @@
 ---
 title: "Real Estate Investment Memo Swarm"
-description: "A HierarchicalSwarm that turns a property address and ask price into a one-page institutional investment memo — comps, market context, and financing — directed by an Investment Director."
+description: "An AgentRearrange swarm that turns a property address and ask price into a one-page institutional investment memo: three analysts cover comps, market context, and financing, then an Investment Director writes the memo from their briefs."
 ---
 
 ## What This Example Shows
 
-- A `HierarchicalSwarm` with an Investment Director coordinating three worker analysts: Comps, Macro, and Financing
+- An `AgentRearrange` flow that runs three analysts in parallel (Comps, Macro, and Financing), then an Investment Director who reads their briefs
 - How to feed a property address plus an ask price as the swarm task
 - How to extract the Director's final memo as the deliverable
 - A real cost comparison against a broker's analyst writing the same memo
 
 <Info>
-This tutorial uses `HierarchicalSwarm` — the same primitive used by institutional research desks. To run memos on dozens of properties per day or wire this into a Slack bot for your acquisitions team, upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings).
+This tutorial uses `AgentRearrange`: the three analysts run in parallel, then the Investment Director writes the memo from their briefs. To run memos on dozens of properties per day or wire this into a Slack bot for your acquisitions team, upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings).
 </Info>
 
 ## Why This Matters
@@ -88,8 +88,9 @@ FINANCING_ANALYST_PROMPT = (
 def build_memo_swarm(address: str, ask_price: int, property_type: str) -> dict:
     return {
         "name": "Real Estate Investment Memo",
-        "description": "Investment Director coordinating Comps, Macro, and Financing analysts.",
-        "swarm_type": "HierarchicalSwarm",
+        "description": "Comps, Macro, and Financing analysts feeding an Investment Director.",
+        "swarm_type": "AgentRearrange",
+        "rearrange_flow": "Comps Analyst, Macro Analyst, Financing Analyst -> Investment Director",
         "max_loops": 1,
         "task": (
             f"Produce an institutional investment memo for the following deal:\n\n"
@@ -143,6 +144,10 @@ def build_memo_swarm(address: str, ask_price: int, property_type: str) -> dict:
         ],
     }
 ```
+
+<Note>
+`rearrange_flow` is what lets the Investment Director weave the briefs together: the three analysts run in parallel, then the Director runs with their briefs in context. A `HierarchicalSwarm` would not do this. It builds its own Director and runs every listed agent, the Investment Director included, as a parallel worker that never sees the others' output.
+</Note>
 
 ## Step 3: Run the Memo for One Property
 
@@ -221,6 +226,6 @@ You are not replacing the deal team — you are letting them screen 10x more dea
 
 ## Next Steps
 
-- See the [AI Hedge Fund pipeline](/docs/examples/examples/ai-hedge-fund) for the same hierarchical pattern applied to equity research with an overnight batch step
-- Read the [Supply Chain Hierarchical Swarm](/docs/examples/examples/supply-chain-swarm) to see the same director-and-workers shape applied to ops
+- See the [AI Hedge Fund pipeline](/docs/examples/examples/ai-hedge-fund) for the same analysts-then-decision-maker flow applied to equity research with an overnight batch step
+- Read the [Supply Chain Hierarchical Swarm](/docs/examples/examples/supply-chain-swarm) to see the director-and-workers shape applied to ops
 - Browse [Hierarchical Workflow Example](/docs/examples/examples/hierarchical-workflow) for the canonical hierarchical pattern and prompt design tips
