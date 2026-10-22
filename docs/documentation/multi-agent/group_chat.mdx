@@ -489,7 +489,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Output Shape
 
-Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `GroupChat` specifically produces a multi-turn transcript. Each turn, every agent bids to speak and the single highest bidder above 0.5 posts its reply. The chat ends at the first turn where no agent clears 0.5, or once `max_loops` messages (counting the task) have been posted. Each speaker sees the conversation so far, so unlike `ConcurrentWorkflow`, later turns are expected to reference or build on earlier ones. GroupChat needs at least 2 agents.
+A `GroupChat` run goes through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `GroupChat` specifically produces a multi-turn transcript. Each turn, every agent bids to speak and the single highest bidder above 0.5, after a recency penalty for agents that spoke recently, posts its reply. The chat ends at the first turn where no agent clears 0.5, or once `max_loops` messages (counting the task) have been posted. Each speaker sees the conversation so far, so unlike `ConcurrentWorkflow`, later turns are expected to reference or build on earlier ones. GroupChat needs at least 2 agents.
 
 - Design agents with complementary but distinct expertise to maximize discussion breadth
 - Use descriptive system prompts that instruct agents to build on and react to other participants' input
