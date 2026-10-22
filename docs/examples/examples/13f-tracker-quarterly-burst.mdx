@@ -514,7 +514,7 @@ Reporting universe: 4,983 13F-HR filings, $6.4T in long US-equity AUM.
    simultaneously — the same week as the supplemental funding bill passed.
 ```
 
-The Slack post fires automatically via the `post_theme_brief_to_slack` tool. The structured per-manager output also writes to a Postgres table so the desk can query "every fund that added NVDA this quarter, ranked by dollar size."
+The Slack post is yours to send: the Theme Synthesizer's `post_theme_brief_to_slack` call comes back in its output, and the API never executes it. The structured per-manager output also writes to a Postgres table so the desk can query "every fund that added NVDA this quarter, ranked by dollar size."
 
 ## Real Cost vs. Newsroom 13F Team
 
