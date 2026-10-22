@@ -52,7 +52,7 @@ Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platfo
 | `n` | `integer` | No | `1` | Number of completions to generate. Only `1` is supported — requests with `n > 1` are rejected |
 | `user` | `string` | No | — | A unique identifier for the end-user, used for tracking |
 | `max_loops` | `integer` | No | `1` | *Swarms extension.* Maximum number of agent reasoning loops, 1 to 50. `1` = single pass (default). Higher values let the agent iterate on its own output. Pass via `extra_body` in the OpenAI SDK |
-| `tools` | `List[object]` | No | — | Function tools in the OpenAI schema: `{"type": "function", "function": {"name", "description", "parameters"}}`. See [Tool Calling](#tool-calling) |
+| `tools` | `List[object]` | No | `null` | Function tools in the OpenAI schema: `{"type": "function", "function": {"name", "description", "parameters"}}`. See [Tool Calling](#tool-calling) |
 | `tool_choice` | `string` or `object` | No | `"auto"` | `"auto"`, `"none"`, `"required"`, or `{"type": "function", "function": {"name": "..."}}` to force one function. Only valid with `tools` |
 
 ### ChatMessage Object
