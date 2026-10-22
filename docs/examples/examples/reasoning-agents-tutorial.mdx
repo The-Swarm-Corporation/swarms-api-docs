@@ -131,7 +131,7 @@ reasoning_payload = {
         "ASC 606 revenue recognition specialist with self-consistency "
         "deliberation across multiple independent reasoning chains."
     ),
-    "model_name": "claude-sonnet-4-20250514",
+    "model_name": "claude-sonnet-5",
     "system_prompt": (
         "You are a CPA specializing in ASC 606 revenue recognition. "
         "When solving a problem, derive the total transaction price first, "
@@ -266,7 +266,7 @@ Concrete numbers for a high-stakes analytical question (the accrual problem abov
 | --- | --- | --- | --- |
 | Senior accounting associate | 25-40 min | ~\$80-130 fully-loaded labor | Yes (but variable) |
 | Plain `gpt-4` call | ~6 sec | ~\$0.05 | **No** — single confident chain, fails ~40-60% |
-| **Reasoning agent (self-consistency, 5 samples, Claude Sonnet 4)** | **~30-60 sec** | **~\$0.20-0.50** | **Yes** — convergence is the signal |
+| **Reasoning agent (self-consistency, 5 samples, Claude Sonnet 5)** | **~30-60 sec** | **~\$0.20-0.50** | **Yes** — convergence is the signal |
 
 Use the reasoning agent for the questions where being wrong is expensive — accruals that hit a 10-K, tax allocations on a large deal, contract interpretations, complex underwriting. Use a plain agent for everything else. The reasoning agent is **~250x cheaper than the associate** *and* gives you a convergence signal the associate can't, because a single human only has one chain of thought.
 
