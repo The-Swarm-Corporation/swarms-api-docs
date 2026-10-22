@@ -542,7 +542,7 @@ To refine several *different* topics in parallel, issue one request per topic (l
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `agent_name` | string | Yes | Unique name for the agent. Omitting it returns a `400` |
+| `agent_name` | string | Yes | Unique name for the agent. Required unless `marketplace_prompt_id` is set; omitting both returns a `400` |
 | `description` | string | No | Description of the agent's role |
 | `system_prompt` | string | No | System prompt defining agent behavior |
 | `model_name` | string | No | Model to use (e.g., "gpt-4.1", "claude-sonnet-4-20250514"); defaults to `claude-sonnet-5` |
@@ -627,7 +627,7 @@ If you expect many items to fail independently and don't want to pay for the fai
 The API returns standard HTTP status codes:
 
 - **200**: Success
-- **400**: Bad request — missing `agent_completions` or `tasks`, `agent_completions`/`tasks` length mismatch, an agent without `agent_name`, invalid agent configuration, or a failure during workflow execution
+- **400**: Bad request — missing `agent_completions` or `tasks`, `agent_completions`/`tasks` length mismatch, an agent with neither `agent_name` nor `marketplace_prompt_id`, invalid agent configuration, or a failure during workflow execution
 - **401**: Unauthorized (invalid API key)
 - **402**: Payment required (insufficient credits)
 - **403**: Forbidden (account is not on a premium tier)
