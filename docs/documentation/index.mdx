@@ -137,7 +137,7 @@ Base URL: `https://api.swarms.world`. All endpoints except `/` and `/health` req
 | GET | `/v1/rate/limits` | No | Current rate limit status and usage |
 | GET | `/v1/tools/available` | No | List built-in tools (`auto_search`, `web_scraper`) |
 | GET | `/v1/usage/costs` | No | Flat fees, fallback token rates and night-time discount |
-| POST | `/v1/batched-grid-workflow/completions` | Yes | Batched grid workflow (agents x tasks) |
+| POST | `/v1/batched-grid-workflow/completions` | Yes | Batched grid workflow (agent *i* runs task *i*) |
 | POST | `/v1/graph-workflow/completions` | Yes | Directed-graph multi-agent workflow |
 | POST | `/v1/auto-agent-builder/completions` | No | Generate an agent roster for a task (does not execute it) |
 
