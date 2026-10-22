@@ -9,9 +9,9 @@ Two thousand articles cross the wire today. Eighty actually overlap your book. T
 
 - A `HierarchicalSwarm` with a News Director coordinating four per-sector workers — Tech, Energy, Healthcare, Financials — running in parallel on each article
 - A continuous webhook ingestion path that accepts Bloomberg, Reuters, and AP feeds straight into a FastAPI endpoint
-- Function tools that hit your portfolio database for entity-to-ticker resolution, position-size lookup, and the only-fire-when-relevant overlap gate
+- Function-tool schemas for ticker resolution, position-size lookup, sentiment scoring, and the Slack post, which come back as tool calls for your code to run
 - A cheap Python pre-filter that runs *before* the swarm so 96% of the firehose never costs a token
-- A Trade Idea Synthesizer that emits a structured thesis straight to Slack — ticker, position size, sentiment, suggested action, time horizon, confidence
+- A Trade Idea Synthesizer that emits a structured thesis for your code to post to Slack — ticker, position size, sentiment, suggested action, time horizon, confidence
 - Sustained high-volume throughput with the observability needed to track a missed-news SLA
 
 <Info>
@@ -104,7 +104,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-The workers and the synthesizer share a toolbox that resolves entities to tickers, checks your actual book, scores sentiment, and posts the final thesis. Every tool follows the OpenAI function-call schema.
+The workers and the synthesizer share a toolbox for resolving entities to tickers, checking your book, scoring sentiment, and posting the final thesis. Every tool follows the OpenAI function-call schema. The API sends the schemas to the model but never executes them, so each call comes back in that agent's output with its arguments, and a later stage sees the call, never its result. Look up the position sizes for the overlapping tickers in your own code and put them in the `task`, then post the theses yourself from the returned `post_trade_thesis_to_slack` calls after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 EXTRACT_ENTITIES_TOOL = {
@@ -514,7 +514,7 @@ def fire_swarm(article_text: str, article_url: str, overlap: list[str]) -> int:
 
 ## Step 6: The Trade Thesis Output Schema
 
-Every thesis the synthesizer posts to Slack is a structured object. This is what your PM sees and what gets persisted into the research database for audit.
+Every thesis the synthesizer emits is a structured object. This is what your PM sees and what gets persisted into the research database for audit.
 
 ```json
 {
@@ -532,7 +532,7 @@ Every thesis the synthesizer posts to Slack is a structured object. This is what
 | Field | Type | Notes |
 | --- | --- | --- |
 | `ticker` | string | Must be a ticker currently in the book |
-| `position_size_usd` | int | Pulled live via `lookup_position_size` |
+| `position_size_usd` | int | From the position sizes your code puts in the `task`; the API never runs `lookup_position_size` |
 | `article_url` | string | Source link, always preserved for audit |
 | `sentiment` | float | `[-1.0, 1.0]` toward this specific ticker |
 | `suggested_action` | enum | `HOLD` / `ADD` / `REDUCE` / `EXIT` |

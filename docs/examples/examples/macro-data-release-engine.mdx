@@ -8,7 +8,7 @@ description: "A scheduled, latency-critical reasoning swarm that parses the rele
 - A scheduled engine fired exactly at the release minute (CPI 8:30 AM ET, NFP 8:30 AM ET, FOMC 2:00 PM ET) that parses the print within 5 seconds
 - A single hypothesis reasoning agent on `claude-opus-4-8` with `reasoning_effort: "high"` to compute surprise vs. consensus and articulate the regime hypothesis
 - A `GraphWorkflow` that branches by regime into four asset-class workers — Rates, FX, Equities, Commodities — with diversified models per desk
-- Multiple data sources stitched in via function tools: BLS, FRED, consensus, historical reaction tables, live market snapshots
+- Function-tool schemas for BLS, FRED, consensus, historical reaction tables, live market snapshots, and the Slack post, which come back as tool calls for your code to run
 - A full sub-60-second end-to-end budget from release timestamp to a Slack-ready trade brief
 - Roughly eight dollars per event, ~50 high-stakes events per year — the kind of capability a macro desk pays a strategist \$400k for
 
@@ -82,7 +82,7 @@ The economic calendar (release_id, scheduled time ET, release window) can be sou
 
 ## Step 2: Define the Function Tools
 
-Seven tools cover the entire pipeline: four data fetchers, two lookups, one notifier. All in OpenAI function format so any agent in the swarm can call them.
+Seven tools cover the entire pipeline: four data fetchers, two lookups, one notifier, all in OpenAI function format. The API sends them to the model but never executes them, so each call comes back in that node's output with its arguments, and a later node sees the call, never its result. Fetch the print, consensus, and reaction history in your own code at the release minute and put them in the `task`, then post the brief from the returned `post_slack_alert` call after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 FETCH_BLS_CPI = {
@@ -474,7 +474,7 @@ Note the edge shape: one fan-out from the reasoner into four desks, one fan-in f
 
 ## Step 5: Schedule Around the Economic Calendar
 
-The scheduler reads a forward calendar of release timestamps and arms a fire-exactly-on-the-minute trigger. The release is parsed within five seconds of the print; the swarm runs and posts to Slack inside thirty.
+The scheduler reads a forward calendar of release timestamps and arms a fire-exactly-on-the-minute trigger. The release is parsed within five seconds of the print; the swarm runs inside thirty, and your code posts the brief to Slack.
 
 ```python
 RELEASE_CALENDAR = [
@@ -526,10 +526,10 @@ In production you would run this under a process supervisor (systemd, k8s, super
 
 | Stage | Target | What runs |
 | --- | --- | --- |
-| Data fetch (BLS/FRED/consensus) | ~3s | `HypothesisReasoner` tool calls in parallel |
+| Data fetch (BLS/FRED/consensus) | ~3s | Your code, before the request |
 | Hypothesis reasoning | ~12s | Opus 4.8 with `reasoning_effort: "high"` |
 | Asset desks (parallel) | ~10s | Slowest of Rates / FX / Equities / Commodities |
-| Synthesizer + Slack post | ~5s | Sonnet 4.5 + `post_slack_alert` |
+| Synthesizer + Slack post | ~5s | Sonnet 4.5, then your code runs the returned `post_slack_alert` call |
 | **End-to-end** | **~30-40s** | **Comfortably under the 60s target** |
 
 The hard ceiling is the reasoning step — that is where the deliberation budget goes, and the only knob to tighten it further is dropping `reasoning_effort` to `"medium"` (~6s) at the cost of regime hypothesis quality. For CPI and FOMC, do not drop it. For lower-stakes prints (Empire Manufacturing, consumer confidence) the medium setting is fine.

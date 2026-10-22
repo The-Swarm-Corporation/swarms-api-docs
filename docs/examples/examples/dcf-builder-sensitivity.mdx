@@ -7,7 +7,7 @@ description: "Reason the assumptions with Opus 4.8 at high effort, build the DCF
 
 - A reasoning agent on `claude-opus-4-8` with `reasoning_effort: "high"` setting the load-bearing inputs: revenue growth, margin trajectory, terminal growth, WACC
 - A four-stage `SequentialWorkflow` that turns the reasoned assumptions into an audited DCF, sensitivity grids, and an analyst-grade memo
-- Per-agent function tools that pull income statement, balance sheet, cash flow, consensus estimates, and run the actual DCF math
+- Per-agent function-tool schemas for the income statement, balance sheet, cash flow, consensus estimates, and the DCF math, which come back as tool calls for your code to run
 - A 50-name overnight refresh fired as one POST to `/v1/swarm/batch/completions`, scheduled in the night-mode window for a 50% discount
 - A structured one-pager memo per ticker — exec summary, fair value bands, sensitivity tables, key assumptions, risks — sitting in the database before 6am Pacific
 
@@ -31,7 +31,7 @@ One reasoning pass per ticker sets the assumptions. A four-stage Sequential pipe
          v
 +----------------------+
 |  Fetch Financials    |   fetch_income_statement, fetch_balance_sheet,
-|  (function tools)    |   fetch_cash_flow, fetch_consensus_estimates
+|  (your own code)     |   fetch_cash_flow, fetch_consensus_estimates
 +--------+-------------+
          |
          v
@@ -101,7 +101,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-These are OpenAI-format function schemas the agents call to pull data and run mechanical math. Define them once; attach via `tools_list_dictionary` to whichever agent needs them.
+These are OpenAI-format function schemas for pulling data and running the mechanical math. Define them once; attach via `tools_list_dictionary` to whichever agent needs them. The API sends them to the model but never executes them, so each call comes back in that agent's output with its arguments, and a later stage sees the call, never its result.
 
 ```python
 FETCH_INCOME_STATEMENT = {
@@ -281,7 +281,7 @@ MODEL_TOOLS = [BUILD_DCF, SENSITIVITY_TABLE]
 ```
 
 <Note>
-The tool schemas are the contract — your backend resolves them against whatever data vendor you use. For a self-contained walkthrough, the Reasoning agent and the DCF Model worker can both make the function calls; the orchestrator delivers the resolved tool outputs back into the conversation. The math tools (`build_dcf`, `sensitivity_table`) are mechanical — wire them to a pure-Python DCF library, not an LLM.
+The tool schemas are the contract, and your code is what runs them: nothing delivers a tool result back into the conversation. Pull the statements and consensus from your data vendor and put them in the Assumption Reasoner's `task`, and run `build_dcf` and `sensitivity_table` yourself from the calls that come back. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls). The math tools (`build_dcf`, `sensitivity_table`) are mechanical — wire them to a pure-Python DCF library, not an LLM.
 </Note>
 
 ## Step 3: The Reasoning Assumption Agent
