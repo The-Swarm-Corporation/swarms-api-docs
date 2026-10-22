@@ -46,14 +46,14 @@ Every field is optional at the schema level, but a request with no `task` (or `t
 | `name` | `string \| null` | — | max 100 chars | Identifier for the group of agents and their collective task |
 | `description` | `string \| null` | — | — | Description of the swarm's objectives, capabilities, and intended outcomes |
 | `agents` | `array[AgentSpec] \| null` | — | **max 2000 items** | The agents participating in the swarm. See [AgentSpec](#agentspec) |
-| `swarm_type` | `string \| null` | — | enum, see [Swarm Types](#swarm-types) | The architecture that coordinates the agents |
+| `swarm_type` | `string \| null` | — | **required**: omitting it returns a `400`. Enum, see [Swarm Types](#swarm-types) | The architecture that coordinates the agents |
 | `max_loops` | `integer \| null` | `1` | **max 50** | Maximum execution loops for the swarm |
 | `task` | `string \| null` | — | — | The specific task the swarm is designed to accomplish |
 | `tasks` | `array[string] \| null` | — | — | A batch of tasks. Each task runs through the whole swarm, one after another, so every agent handles every task. Can't be combined with `task` or `messages` (`400`) |
 | `messages` | `array[object] \| object \| null` | — | — | Message history for conversational workflows such as `GroupChat` |
 | `img` | `string \| null` | — | — | Optional image URL associated with the task, for vision-enabled agents |
 | `stream` | `boolean \| null` | `false` | — | Stream the swarm's output instead of buffering it |
-| `multi_agent_collab_prompt` | `boolean \| null` | `true` | — | Inject the multi-agent collaboration prompt so agents coordinate. Only `SequentialWorkflow` and `AgentRearrange` use it, and not when `stream` is `true`. Every other `swarm_type` ignores it |
+| `multi_agent_collab_prompt` | `boolean \| null` | `true` | — | Inject the multi-agent collaboration prompt so agents coordinate. Only `SequentialWorkflow` and `AgentRearrange` use it, and not when `stream` is `true` with a `task` or `messages`. Every other `swarm_type` ignores it |
 | `list_all_agents` | `boolean \| null` | `false` | — | Show every agent's name and description to the others, so each is aware of the roster. Same scope as `multi_agent_collab_prompt` |
 
 <Warning>

@@ -41,8 +41,8 @@ The request body uses the `SwarmSpec` schema. All parameters are organized in th
 | `messages` | `array[object] \| object` | No | - | A list of messages or a message object that the swarm should process. Used for conversational workflows like `GroupChat`. |
 | `img` | `string` | No | - | An optional image URL that may be associated with the swarm's task or representation. |
 | `stream` | `boolean` | No | `false` | A flag indicating whether the swarm should stream its output in real-time. |
-| `multi_agent_collab_prompt` | `boolean` | No | `true` | Inject the multi-agent collaboration prompt so agents coordinate with one another. Only `SequentialWorkflow` and `AgentRearrange` use it, and not when `stream` is `true`. Every other `swarm_type` ignores it. |
-| `list_all_agents` | `boolean` | No | `false` | Whether to list all agents and their descriptions to one another so each agent is aware of the others. Same scope as `multi_agent_collab_prompt`: `SequentialWorkflow` and `AgentRearrange` only, and not when streamed. |
+| `multi_agent_collab_prompt` | `boolean` | No | `true` | Inject the multi-agent collaboration prompt so agents coordinate with one another. Only `SequentialWorkflow` and `AgentRearrange` use it, and not when `stream` is `true` with a `task` or `messages`. Every other `swarm_type` ignores it. |
+| `list_all_agents` | `boolean` | No | `false` | Whether to list all agents and their descriptions to one another so each agent is aware of the others. Same scope as `multi_agent_collab_prompt`: `SequentialWorkflow` and `AgentRearrange` only, and not on a streamed `task` or `messages` run. |
 | `heavy_swarm_question_agent_model_name` | `string` | No | `"gpt-5.4"` | For `HeavySwarm`: the model name to use for the question agent. |
 | `heavy_swarm_worker_model_name` | `string` | No | `"claude-sonnet-4-20250514"` | For `HeavySwarm`: the model name to use for the worker agent. |
 | `heavy_swarm_max_loops` | `integer` | No | `1` | For `HeavySwarm`: how many times the whole HeavySwarm pipeline runs, each pass building on the previous one. Not a per-agent loop count. |
