@@ -60,6 +60,8 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
             if line.startswith('data: '):
                 try:
                     data = json.loads(line[6:])
+                    if 'error' in data:
+                        raise RuntimeError(data['error'])
                     if 'content' in data:
                         print(data['content'], end='', flush=True)
                 except json.JSONDecodeError:
@@ -111,6 +113,10 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
                     if (line.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(line.substring(6));
+                            if (data.error) {
+                                console.error(data.error);
+                                return;
+                            }
                             if (data.content) {
                                 process.stdout.write(data.content);
                             }
@@ -171,10 +177,10 @@ event: chunk
 data: {"content": ", in a workshop filled with", "timestamp": "2026-02-05T00:58:15.250000+00:00"}
 
 event: usage
-data: {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "img_cost": 0.0, "total_cost": 0.000241}
+data: {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "image_count": 0, "img_cost": 0.0, "total_cost": 0.000241}
 
 event: end
-data: {"job_id": "abc123", "usage": {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "img_cost": 0.0, "total_cost": 0.000241}, "timestamp": "2026-02-05T00:58:16.000000+00:00", "complete": true}
+data: {"job_id": "abc123", "usage": {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "image_count": 0, "img_cost": 0.0, "total_cost": 0.000241}, "timestamp": "2026-02-05T00:58:16.000000+00:00", "complete": true}
 
 event: done
 data: {"message": "Agent processing complete"}
@@ -183,6 +189,17 @@ data: {"message": "Agent processing complete"}
 <Note>
 The first frame (initial metadata) is sent without an `event:` line, so it arrives as a default `message` event. Only `content` chunks include the `content` key, which is what the example consumer code above checks for.
 </Note>
+
+### Errors
+
+The stream answers `200` before the request is validated. A request that `/v1/agent/completions` would reject without streaming, such as an unknown model, a premium-only model on a free-tier key, or a missing `task`, still gets `200`, followed by a single `event: error` frame with no metadata frame before it and no `done` after it. The status code the request would otherwise have returned starts the `error` text:
+
+```
+event: error
+data: {"error": "AgentCompletionError: 404: The model 'gpt-4.1-mini-legacy' does not exist or is no longer available. See https://api.swarms.world/v1/models/available for the models you can use.", "timestamp": "2026-10-22T18:04:11.512894+00:00"}
+```
+
+Check each frame for `error` instead of relying on the HTTP status, as the Quick Start code above does.
 
 ## Key Benefits
 
