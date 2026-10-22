@@ -64,7 +64,7 @@ headers = {
 | `agent_name` | `string` | Yes | - | Unique name identifying the agent (used as node ID) |
 | `description` | `string` | No | `null` | Description of the agent's purpose and capabilities |
 | `system_prompt` | `string` | No | `null` | Initial instruction or context provided to the agent |
-| `model_name` | `string` | No | `"claude-sonnet-5"` | AI model to use (e.g., "gpt-4.1", "gpt-4.1-mini", "claude-sonnet-4-20250514") |
+| `model_name` | `string` | No | `"claude-sonnet-5"` | AI model to use (e.g., "gpt-4.1", "gpt-4.1-mini", "claude-sonnet-5") |
 | `max_tokens` | `integer` | No | `16000` | Maximum number of tokens the agent can generate. Values below 1 are rejected with a 422 validation error |
 | `temperature` | `float` | No | `null` | Randomness control (lower = more deterministic). If omitted, the provider's own default applies |
 | `role` | `string` | No | `"worker"` | Agent's role within the swarm |
@@ -885,7 +885,7 @@ if __name__ == "__main__":
 
 7. **Model Selection:** Choose appropriate models based on task requirements:
    - For vision tasks: Use vision-capable models like `gpt-4.1`
-   - For complex reasoning: Use models like `claude-sonnet-4-20250514`
+   - For complex reasoning: Use models like `claude-sonnet-5`
    - For cost efficiency: Use `gpt-4.1-mini` for simpler tasks
 
 8. **Workflow Compilation:** Keep `auto_compile` enabled (default) for optimal performance, unless you need to debug workflow structure.
