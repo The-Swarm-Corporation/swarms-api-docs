@@ -574,7 +574,7 @@ When creating tools for your agents:
 Choose the appropriate model based on your use case requirements:
 
 <Note>
-If `model_name` is omitted, the agent uses the default model, **claude-sonnet-5**. A specific set of frontier models are premium-only: `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6`, `claude-fable-5`, `claude-opus-5`, `claude-opus-4-8`, `gemini-3.1-pro`, `gemini-3.1-deep-think`, `xai/grok-4.5`, `xai/grok-4.5-latest`, and any model id beginning with `groq/`. Every other model id, including `gpt-4.1`, is available on the free tier. Free-tier requests for a premium-only model are rejected with a 403 and a suggested alternative such as `claude-sonnet-5`.
+If `model_name` is omitted, the agent uses the default model, **claude-sonnet-5**. A specific set of frontier models are premium-only: `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6`, `claude-fable-5`, `claude-fable-5-1`, `claude-opus-5`, `claude-opus-5-5`, `claude-opus-4-8`, `gemini-3.1-pro-preview`, `gemini-3.1-pro-preview-customtools`, `xai/grok-4.5`, `xai/grok-4.5-latest`, their `openrouter/` ids, and any model id beginning with `groq/`. [Premium-Only Models](/docs/documentation/resources/pricing#premium-only-models) lists every id. Every other model id, including `gpt-4.1`, is available on the free tier. Free-tier requests for a premium-only model are rejected with a 403 and a suggested alternative such as `claude-sonnet-5`.
 </Note>
 
 #### OpenAI Models
@@ -718,7 +718,7 @@ def validate_payload(payload):
 
 * Check if your requested model is currently available
 * Have fallback models configured
-* Monitor model status through the health endpoint
+* Check that the model is listed by `GET /v1/models/available`. `GET /health` only reports that the API is up
 
 **Payload Validation:**
 

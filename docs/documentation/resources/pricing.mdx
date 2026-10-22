@@ -75,13 +75,17 @@ Free tier accounts are blocked from requesting the following models on any endpo
 - `gpt-5.6-luna`
 - `gpt-5.6`
 - `claude-fable-5`
+- `claude-fable-5-1`
 - `claude-opus-5`
+- `claude-opus-5-5`
 - `claude-opus-4-8`
-- `gemini-3.1-pro`
-- `gemini-3.1-deep-think`
+- `gemini-3.1-pro-preview`
+- `gemini-3.1-pro-preview-customtools`
 - `xai/grok-4.5`
 - `xai/grok-4.5-latest`
+- Their OpenRouter ids: `openrouter/openai/gpt-5.6-sol`, `openrouter/openai/gpt-5.6-terra`, `openrouter/openai/gpt-5.6-luna`, `openrouter/anthropic/claude-fable-5`, `openrouter/anthropic/claude-fable-5.1`, `openrouter/anthropic/claude-opus-5`, `openrouter/anthropic/claude-opus-5.5`, `openrouter/anthropic/claude-opus-4.8`, `openrouter/google/gemini-3.1-pro-preview`, `openrouter/google/gemini-3.1-pro-preview-customtools` and `openrouter/x-ai/grok-4.5`
 - Any `groq/*` model
+- Any of these ids with another provider prefix or a `:variant` suffix, such as `deepinfra/anthropic/claude-fable-5` or `openrouter/openai/gpt-5.6-sol:batch`
 
 Requesting one of these models on the free tier returns a 403 error with suggested free-tier alternatives.
 
