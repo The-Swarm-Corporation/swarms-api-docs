@@ -57,7 +57,7 @@ The request body is a single `ReasoningAgentSpec` object.
 
 | Value | Description |
 |-------|-------------|
-| `self-consistency` | Samples `num_samples` independent answers, then a majority-vote agent reconciles them. `outputs` lists the samples followed by a `Majority Voting Agent` entry |
+| `self-consistency` | Samples `num_samples` independent answers, then a majority-vote agent reconciles them. `outputs` has two entries: one named after `agent_name` whose `content` is the list of samples, then a `Majority Voting Agent` entry with the answer |
 | `consistency-agent` | Alias for `self-consistency` |
 | `ReflexionAgent` | Attempts the task, evaluates its own output, and revises using a short/long-term memory of prior attempts. `outputs` is the final answer as a string |
 | `AgentJudge` | Reviews and critiques a candidate output rather than generating a fresh answer from scratch. `outputs` is the judge's transcript as a string |
@@ -201,6 +201,14 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
   "outputs": [
     {
       "role": "Valuation Reasoner",
+      "content": [
+        "Implied valuation: $100.8M. Runway: 40 months.",
+        "Implied valuation: $100.8M. Runway: 40 months.",
+        "Implied valuation: $100.8M. Runway: 40 months."
+      ]
+    },
+    {
+      "role": "Majority Voting Agent",
       "content": "Implied valuation: $12M ARR x 1.40 = $16.8M forward revenue, x 6 = $100.8M. Runway: $20M / $0.5M per month = 40 months."
     }
   ],
@@ -231,7 +239,7 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 | `usage` | `object` | `input_tokens`, `output_tokens`, `total_tokens` (integers), plus `total_cost` (a float — the credits charged for this run) |
 
 <Warning>
-`outputs` is deliberately untyped in the schema: `AgentJudge` and `ReflexionAgent` return a string, while `self-consistency` and `consistency-agent` return a list of the samples followed by a `Majority Voting Agent` entry. Branch on `agent_type` rather than assuming one shape.
+`outputs` is deliberately untyped in the schema: `AgentJudge` and `ReflexionAgent` return a string, while `self-consistency` and `consistency-agent` return an entry holding the list of samples followed by a `Majority Voting Agent` entry. Branch on `agent_type` rather than assuming one shape.
 </Warning>
 
 ### Status Codes

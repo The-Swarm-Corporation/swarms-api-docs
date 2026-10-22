@@ -95,6 +95,17 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     curl -X GET "https://api.swarms.world/v1/reasoning-agent/types" \
       -H "x-api-key: your-api-key" \
       -H "Content-Type: application/json"
+
+    # Example response:
+    # {
+    #   "status": "success",
+    #   "agent_types": [
+    #     "self-consistency",
+    #     "consistency-agent",
+    #     "ReflexionAgent",
+    #     "AgentJudge"
+    #   ]
+    # }
     ```
   </Tab>
 </Tabs>
@@ -272,7 +283,7 @@ else:
 
         if time_constraint == "fast":
             return {
-                "swarm_type": "ReflexionAgent",
+                "swarm_type": "self-consistency",
                 "num_samples": 1,
                 "max_loops": 1,
                 "model_name": "gpt-4.1-mini"
@@ -300,7 +311,7 @@ else:
 
         if budget < 0.1:
             return {
-                "swarm_type": "ReflexionAgent",
+                "swarm_type": "self-consistency",
                 "model_name": "gpt-4.1-mini",
                 "num_samples": 1
             }
