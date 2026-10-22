@@ -291,7 +291,7 @@ Before you ship a swarm to production, walk this list:
 4. **Match the model to the job.** Each agent's tokens bill at its own model's price. Check `/v1/models/pricing` and put triage and extraction on a mini model.
 5. **Prune redundant agents.** Two analysts saying overlapping things is two `$0.01` fees plus their output tokens for no signal gain.
 6. **Run batch and back-office workloads overnight.** 50% off tokens for jobs that don't need a sub-second response — see the [night-mode guide](/docs/guides/guides/night-mode-pricing-strategy).
-7. **Measure, don't guess.** Read `response["usage"]["billing_info"]["cost_breakdown"]` after every run. The token counts tell you exactly which agent is bloated.
+7. **Measure, don't guess.** Read `response["usage"]["billing_info"]["cost_breakdown"]` after every run. Its token counts are totals for the whole swarm, with no per-agent figures, so find a bloated agent by trimming one agent at a time and comparing runs.
 
 ## Reading Your Usage Block
 
