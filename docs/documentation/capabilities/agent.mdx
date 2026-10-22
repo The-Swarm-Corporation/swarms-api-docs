@@ -1289,22 +1289,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 The API returns appropriate HTTP status codes and error messages:
 
-- **400 Bad Request**: Invalid input parameters or validation failures, a request with no `task` and no `history`, or a request the model's provider rejected
+- **400 Bad Request**: Invalid input parameters or validation failures, or a request with no `task` and no `history`
 - **401 Unauthorized**: Missing or invalid API key
 - **422 Unprocessable Entity**: Schema validation failures (e.g. a non-positive `max_loops` or `max_tokens`)
-- **429 Too Many Requests**: Rate limit exceeded, or the model's provider is rate limiting it
+- **429 Too Many Requests**: Rate limit exceeded
 - **500 Internal Server Error**: Server-side processing errors
 
-When the model's provider fails, the API returns the provider's reason with a matching status instead of a generic error. None of these is charged, and the 429 and 502 are safe to retry:
-
-| Provider error | Status | `detail` |
-|---|---|---|
-| The provider does not serve the model | 404 | `The provider does not serve model 'X': <provider reason>. Nothing was charged.` |
-| The provider rejected the request, such as a decommissioned model, an unsupported parameter or a context that is too long | 400 | `The provider rejected the request for model 'X': <provider reason>. Nothing was charged.` |
-| The provider is rate limiting the model | 429 | `The provider is rate limiting model 'X'. Retry shortly. Nothing was charged.` |
-| Any other provider failure, such as an outage or a timeout | 502 | `The provider for model 'X' failed (<ErrorType>). Retry, or use another model. Nothing was charged.` |
-
-If a run produces no output and the provider reported no error, the API returns **HTTP 400** with a detail message like `Agent '<name>' produced no output for this task. Nothing was charged...` instead of a success response. Nothing is billed for it either.
+If an agent run produces no output for the given task, the API returns **HTTP 400** with a detail message like `Agent '<name>' produced no output for this task. Nothing was charged...` instead of a success response. Callers should treat this as a retryable, client-visible error — nothing is billed for it.
 
 ## Rate Limits
 
