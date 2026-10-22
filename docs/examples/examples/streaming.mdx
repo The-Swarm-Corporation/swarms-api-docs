@@ -196,7 +196,7 @@ The first frame (initial metadata) is sent without an `event:` line, so it arriv
 
 Requests rejected before the stream opens still get their real HTTP status and a JSON body: `401` for a missing or invalid key, `402` `insufficient_credits`, `422` for schema validation, and `429` for rate limits. The model and task checks run inside the stream, so an unknown model (`404`), a premium-only model on a free-tier key (`403`), or a missing `task` (`400`) gets `200` followed by a single `event: error` frame with no metadata frame before it and no `done` after it. The status code starts the `error` text:
 
-```
+```text
 event: error
 data: {"error": "AgentCompletionError: 404: The model 'gpt-4.1-mini-legacy' does not exist or is no longer available. See https://api.swarms.world/v1/models/available for the models you can use.", "timestamp": "2026-10-22T18:04:11.512894+00:00"}
 ```
