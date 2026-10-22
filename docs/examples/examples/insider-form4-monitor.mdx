@@ -3,7 +3,7 @@ title: "Insider Trading Form 4 Monitor: Cluster Buys and Significance Scoring at
 description: "A SequentialWorkflow that parses every Form 4 filed with the SEC, scores significance against insider history, detects cluster buys, and ships a ranked end-of-day digest to Slack for the price of a takeout dinner."
 ---
 
-Every weekday at 5:30pm ET, a ranked digest of the day's most-significant insider buys lands in Slack. Total cost per year: less than what a junior analyst makes in a week.
+Every weekday at 5:30pm ET, a ranked digest of the day's most-significant insider buys lands in Slack. Total cost per year starts at about \$8,000 in per-agent fees, a third of one Bloomberg Terminal seat.
 
 ## What This Example Shows
 
@@ -348,7 +348,7 @@ def build_form4_pipeline(accession: str) -> dict:
 ```
 
 <Note>
-The Parser and Profile Lookup stages are pure extraction — they almost never need to think. Reserving `claude-sonnet-4-5` for the Signal Scorer is where the cost-per-Form-4 math stays under three cents.
+The Parser and Profile Lookup stages are pure extraction — they almost never need to think. Reserving `claude-sonnet-4-5` for the Signal Scorer keeps the token cost per Form 4 low; the flat \$0.01 fee for each of the four agents adds \$0.04 per filing on top.
 </Note>
 
 ## Step 4: Process One Form 4 End-to-End
@@ -493,13 +493,13 @@ Run `fetch_todays_form4_accessions` once at 5:30pm ET — that captures the full
 
 ## Real Cost vs. Quantitative Signal Provider
 
-Per-Form-4 cost is dominated by the Signal Scorer's `claude-sonnet-4-5` call; the three preceding mini/gpt-4.1 stages add only fractions of a cent.
+Per-Form-4 cost starts at \$0.04 in per-agent fees, \$0.01 for each of the four agents. The token cost on top of that is dominated by the Signal Scorer's `claude-sonnet-4-5` call; the three preceding mini/gpt-4.1 stages add only fractions of a cent.
 
 | Scope | Cost |
 | --- | --- |
-| Per Form 4 (4-stage SequentialWorkflow) | ~\$0.02 |
-| Per trading day (~800 filings) | ~\$16 |
-| Per year (~250 trading days) | ~\$4,000 |
+| Per Form 4 (4-stage SequentialWorkflow) | \$0.04 + tokens |
+| Per trading day (~800 filings) | \$32 + tokens |
+| Per year (~250 trading days) | \$8,000 + tokens |
 | Bloomberg Terminal — single seat | ~\$24,000/yr |
 | Quantitative insider-signal data vendor | \$50,000-\$200,000/yr |
 | Dedicated insider-trading analyst (fully loaded) | \$150,000-\$250,000/yr |
