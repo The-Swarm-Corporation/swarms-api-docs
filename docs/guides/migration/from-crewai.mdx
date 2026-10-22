@@ -15,7 +15,7 @@ CrewAI models multi-agent work as a **Crew** of role-playing Agents executing Ta
 | `crew.kickoff()` | `POST /v1/swarm/completions` |
 | `crew.kickoff_async()` | Same endpoint; async via `httpx.AsyncClient` |
 | `@tool` / `BaseTool` | `tools_list_dictionary` (OpenAI-style function schemas) on agent spec |
-| `manager_llm` | Director agent in `HierarchicalSwarm` |
+| `manager_llm` | `director_model_name` (default `gpt-5.4`) and `director_settings` on a `HierarchicalSwarm` request |
 | `memory=True` | Stateless per-request; add external memory for cross-session |
 | `verbose=True` | Full agent outputs returned in `output` response field |
 
@@ -213,6 +213,7 @@ result = requests.post(
         "name": "Financial Report Crew",
         "description": "Hierarchical crew for financial analysis and report writing",
         "swarm_type": "HierarchicalSwarm",
+        "director_model_name": "gpt-4.1",
         "task": "Analyze Q4 2024 earnings data, extract key KPIs, and write a 300-word executive summary.",
         "agents": [
             {

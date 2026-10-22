@@ -7,7 +7,7 @@ LangGraph lets you define multi-agent workflows as a compiled `StateGraph` where
 
 | LangGraph | Swarms API |
 |---|---|
-| `StateGraph` | `GraphWorkflow` via `/v1/graph-workflow/completions` |
+| `StateGraph` | `GraphWorkflow` via `/v1/graph-workflow/completions` (premium only) |
 | Node (callable / Runnable) | `agent` object in `agents` array |
 | `graph.add_edge(a, b)` | `{"source": "a", "target": "b"}` in `edges` |
 | `graph.add_conditional_edges` | Use `MultiAgentRouter` for routing logic |
@@ -15,7 +15,11 @@ LangGraph lets you define multi-agent workflows as a compiled `StateGraph` where
 | State dict (`TypedDict`) | Outputs from each agent automatically forwarded downstream |
 | `graph.compile()` | Not needed — configuration is declarative JSON |
 | `graph.invoke({"messages": [...]})` | `"task": "..."` top-level field in the request body |
-| `ToolNode` / `bind_tools` | `"tools_enabled": ["auto_search", "web_scraper"]` on the request, or `tools_list_dictionary` on the agent for custom function schemas |
+| `ToolNode` / `bind_tools` | `tools_list_dictionary` on the agent for custom function schemas. `"tools_enabled": ["auto_search", "web_scraper"]` works only on `/v1/agent/completions`; a graph workflow request ignores it |
+
+<Note>
+`/v1/graph-workflow/completions` is a premium endpoint: a free-tier key gets `403`. See [Premium Endpoints](/docs/documentation/resources/premium-endpoints).
+</Note>
 
 ---
 
@@ -391,7 +395,7 @@ def writer(state: State) -> State:
 |---|---|---|
 | Graph compilation | Required (`graph.compile()`) | Not needed — JSON is declarative |
 | State persistence | Explicit `TypedDict` with reducers | Outputs automatically forwarded via edges |
-| Streaming | `astream_events()` | Set `"streaming_on": true` on the agent config (SSE response from the same endpoint) |
+| Streaming | `astream_events()` | Not supported: `/v1/graph-workflow/completions` always returns one JSON response. SSE is available on `/v1/agent/completions` (`streaming_on` on the agent config) and `/v1/swarm/completions` (`stream`) |
 | Human-in-the-loop | `interrupt_before` / `interrupt_after` | Not currently supported |
 | Memory / checkpointing | `MemorySaver`, `SqliteSaver` | Stateless per-request; use external DB for cross-request memory |
 | Local dev | `langgraph dev` server | No local setup; call the REST API directly |
