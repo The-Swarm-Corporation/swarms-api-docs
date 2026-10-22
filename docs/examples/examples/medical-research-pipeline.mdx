@@ -349,14 +349,13 @@ batch_response = requests.post(
 batch_results = batch_response.json()
 
 for idx, swarm_result in enumerate(batch_results):
-    job_id = swarm_result.get("job_id", f"job-{idx}")
     cost = (
         swarm_result.get("usage", {})
         .get("billing_info", {})
         .get("total_cost", 0)
     )
-    print(f"[{idx}] job_id={job_id}  cost=${cost:.4f}")
-    with open(f"memo_{job_id}.json", "w") as f:
+    print(f"[{idx}] status={swarm_result['status']}  cost=${cost:.4f}")
+    with open(f"memo_{idx}.json", "w") as f:
         json.dump(swarm_result, f, indent=2)
 ```
 

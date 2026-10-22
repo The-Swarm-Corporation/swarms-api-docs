@@ -483,10 +483,10 @@ with open(f"triage_{datetime.utcnow():%Y%m%d}.jsonl", "w") as f:
         f.write(json.dumps({
             "accession": acc,
             "memo": memo,
-            "cost": result["usage"]["billing_info"]["total_cost"],
+            "cost": result.get("usage", {}).get("billing_info", {}).get("total_cost", 0),
         }) + "\n")
 
-total = sum(r["usage"]["billing_info"]["total_cost"] for r in results)
+total = sum(r.get("usage", {}).get("billing_info", {}).get("total_cost", 0) for r in results)
 print(f"Triaged {len(results)} filings for ${total:.2f}")
 ```
 
