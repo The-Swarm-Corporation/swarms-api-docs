@@ -1,13 +1,13 @@
 ---
 title: "News + Sentiment → Trade Idea Engine: Portfolio-Aware"
-description: "A HierarchicalSwarm that turns a continuous news firehose into actionable, portfolio-overlapped trade theses in Slack within 60 seconds of publish."
+description: "Four sector workers and a Trade Idea Synthesizer turn a continuous news firehose into actionable, portfolio-overlapped trade theses in Slack within 60 seconds of publish."
 ---
 
 Two thousand articles cross the wire today. Eighty actually overlap your book. The engine posts a thesis on each of those eighty in Slack — and ignores the rest.
 
 ## What This Example Shows
 
-- A `HierarchicalSwarm` with a News Director coordinating four per-sector workers — Tech, Energy, Healthcare, Financials — running in parallel on each article
+- An `AgentRearrange` flow that runs four per-sector workers (Tech, Energy, Healthcare, Financials) in parallel on each article, then hands their takes to the Trade Idea Synthesizer
 - A continuous webhook ingestion path that accepts Bloomberg, Reuters, and AP feeds straight into a FastAPI endpoint
 - Function tools that hit your portfolio database for entity-to-ticker resolution, position-size lookup, and the only-fire-when-relevant overlap gate
 - A cheap Python pre-filter that runs *before* the swarm so 96% of the firehose never costs a token
@@ -45,13 +45,9 @@ Most PMs are drowning in a news firehose where 99% of articles are irrelevant to
                        │              │
                        ▼              ▼
                   ┌────────┐   ┌────────────────────────────────────────────┐
-                  │ no-op  │   │            HierarchicalSwarm               │
-                  │ (drop) │   │  ┌─────────────────────────────────────┐   │
-                  └────────┘   │  │          News Director              │   │
-                               │  │   (claude-sonnet-5, coordinator)  │   │
-                               │  └────┬────────┬────────┬─────────┬────┘   │
-                               │       │        │        │         │        │
-                               │       ▼        ▼        ▼         ▼        │
+                  │ no-op  │   │               AgentRearrange               │
+                  │ (drop) │   │                                            │
+                  └────────┘   │                                            │
                                │   ┌──────┐ ┌──────┐ ┌──────┐ ┌──────────┐  │
                                │   │ Tech │ │Energy│ │ HC   │ │Financials│  │
                                │   └──┬───┘ └──┬───┘ └──┬───┘ └────┬─────┘  │
@@ -277,14 +273,14 @@ ALL_TOOLS = [
 ]
 ```
 
-## Step 3: Define the Hierarchical Swarm
+## Step 3: Define the Swarm
 
-`HierarchicalSwarm` supplies its own director agent — set via the SwarmSpec-level `director_model_name` field, not as an entry in `agents` — so every agent you list below is a worker the director can route to. The director runs on `claude-sonnet-5` because synthesizing multi-sector takes into a single coherent dispatch needs strong reasoning. The four sector workers run on `gpt-4.1-mini` — they are doing tight, scoped, per-sector reasoning over a single article, which is exactly the workload that cheap fast models eat for breakfast. The Trade Idea Synthesizer goes back to `claude-sonnet-5` because the final thesis is the artifact that lands in front of the PM.
+`rearrange_flow` runs the four sector workers in parallel, then runs the Trade Idea Synthesizer with their takes in context. A `HierarchicalSwarm` would not do this: it builds its own Director on `director_model_name`, and every agent you list, the synthesizer included, runs as a parallel worker that never sees the others' output. The four sector workers run on `gpt-4.1-mini` — they are doing tight, scoped, per-sector reasoning over a single article, which is exactly the workload that cheap fast models eat for breakfast. The Trade Idea Synthesizer runs on `claude-sonnet-5` because the final thesis is the artifact that lands in front of the PM.
 
 ```python
 SECTOR_WORKER_PROMPT_TEMPLATE = (
     "You are the {sector} sector specialist. You have one job: for every ticker in "
-    "your sector that the News Director hands you, use `extract_entities`, "
+    "your sector that overlaps the book, use `extract_entities`, "
     "`score_sentiment`, and `lookup_position_size` as needed to write a tight "
     "per-ticker take covering (1) what the article actually says, (2) sentiment "
     "toward this specific ticker, (3) signal strength on a 1-5 scale, and (4) the "
@@ -304,19 +300,20 @@ def build_news_swarm(article_text: str, article_url: str, overlap: list[str]) ->
     return {
         "name": "News-Driven Trade Idea Engine",
         "description": (
-            "The director routes the article across sector workers and a Trade Idea "
-            "Synthesizer to emit portfolio-overlapped trade theses to Slack."
+            "Four sector workers in parallel, then a Trade Idea Synthesizer that "
+            "writes portfolio-overlapped trade theses."
         ),
-        "swarm_type": "HierarchicalSwarm",
-        "director_model_name": "claude-sonnet-5",
-        "director_settings": {"temperature": 0.2, "max_tokens": 4096},
+        "swarm_type": "AgentRearrange",
+        "rearrange_flow": (
+            "Tech Sector Worker, Energy Sector Worker, Healthcare Sector Worker, "
+            "Financials Sector Worker -> Trade Idea Synthesizer"
+        ),
         "max_loops": 1,
         "task": (
-            "You are directing a multi-sector trading desk's response to a live news "
-            "article. Route the article to the relevant sector workers (Tech, Energy, "
-            "Healthcare, Financials), collect their per-ticker takes, and hand a clean, "
-            "deduplicated package to the Trade Idea Synthesizer, which posts one trade "
-            "thesis per overlapping ticker to Slack.\n\n"
+            "A multi-sector trading desk is responding to a live news article. Each "
+            "sector worker (Tech, Energy, Healthcare, Financials) writes per-ticker takes "
+            "for the overlapping tickers in its sector, and the Trade Idea Synthesizer "
+            "turns them into one trade thesis per overlapping ticker.\n\n"
             f"Article URL: {article_url}\n"
             f"Overlapping book tickers: {', '.join(overlap)}\n\n"
             f"Article body:\n{article_text}\n\n"
@@ -479,7 +476,7 @@ The overlap gate is the cost-control layer. At a full feed of ~2,000 articles/da
 
 ## Step 5: The Per-Article Swarm Call
 
-When the gate passes, POST the article into the swarm. The `swarm_type` is `HierarchicalSwarm` — the News Director fans out to the four sector workers, collects their takes, and the Trade Idea Synthesizer calls `post_trade_thesis_to_slack` once per overlapping ticker.
+When the gate passes, POST the article into the swarm. The `swarm_type` is `AgentRearrange`: the four sector workers write their takes in parallel, then the Trade Idea Synthesizer reads them and calls `post_trade_thesis_to_slack` once per overlapping ticker.
 
 ```python
 def fire_swarm(article_text: str, article_url: str, overlap: list[str]) -> int:
@@ -551,7 +548,7 @@ The engine doesn't replace humans — it captures the 90% of relevance their day
 | Line item | Volume | Cost |
 | --- | --- | --- |
 | Articles ingested (gate only, no LLM) | ~2,000/day | ~\$0/day |
-| Swarm runs (post-gate, full hierarchical) | ~80/day | ~\$80/day |
+| Swarm runs (post-gate, five agents) | ~80/day | ~\$80/day |
 | **Engine total** | | **~\$80/day (~\$20K/yr)** |
 | Bloomberg terminal × 5 PMs | \$24K/seat/yr | \$120K/yr |
 | Sector-rotation analyst (fully loaded) | 1 FTE | \$200K/yr |
@@ -561,5 +558,5 @@ The math isn't "fire the analyst." The math is: your sector-rotation analyst rea
 
 ## Next Steps
 
-- See the [AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) for the morning-meeting batch variant of the same hierarchical pattern
+- See the [AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) for the morning-meeting batch variant, run across a whole watchlist overnight
 - Read the [Production Observability Guide](/docs/guides/guides/production-observability) for the missed-news SLA dashboard and Premium-tier throughput configuration

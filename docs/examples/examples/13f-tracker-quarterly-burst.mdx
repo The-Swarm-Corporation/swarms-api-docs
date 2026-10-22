@@ -5,7 +5,7 @@ description: "Parse ~5,000 13F filings in a 48-hour quarterly burst with a fan-o
 
 ## What This Example Shows
 
-- A `GraphWorkflow` shaped as fan-out → fan-in: thousands of per-fund parser nodes run in parallel, then converge into a cross-fund aggregator and a Theme Synthesizer
+- A `GraphWorkflow` per filing shaped as fan-out → fan-in: per-fund parser nodes run in parallel, then converge into an aggregator and a Theme Synthesizer, with thousands of these calls running concurrently across the burst
 - How to parse raw SEC EDGAR 13F-HR filings (CIK + accession number) into structured holdings, then diff against the prior quarter
 - The batch volume math for the quarterly burst: ~5,000 filings dropping in 48 hours, dispatched concurrently against `/v1/graph-workflow/completions`
 - Model diversification across the DAG: `gpt-4.1-mini` for mechanical parsing, `gpt-4.1` for aggregation, `claude-sonnet-5` for the synthesis layer
@@ -46,7 +46,7 @@ EDGAR 13F feed (~5,000 CIKs)    │                                 │
                                     Postgres / Slack
 ```
 
-Per-fund parsing happens in parallel inside each filing's own GraphWorkflow. The batch dispatcher fans the workload out across the 5,000 filings. The synthesis is the cross-cutting layer that runs once across the batched outputs.
+Per-fund parsing happens in parallel inside each filing's own GraphWorkflow. The batch dispatcher fans the workload out across the 5,000 filings. Each of those calls is independent, so no node ever sees more than one filing. The cross-fund picture is a step you run after the burst: merge every filing's output in your own code, then send the merged flows to one final call for the theme brief.
 
 ## Step 1: Setup
 
@@ -377,7 +377,7 @@ print(f"Status: {result['status']}")
 ```
 
 <Note>
-The ThemeSynthesizer output for a single filing is just that one manager's contribution to the cross-fund picture. The real value emerges when you batch it across the full 5,000-fund universe in Step 5 — at that point the aggregator sees the entire flow and the themes pop.
+The ThemeSynthesizer output for a single filing is just that one manager's contribution to the cross-fund picture. Batching it across the 5,000-fund universe in Step 5 does not change that: every call is independent, and no aggregator sees more than its own filing. The themes come from the step after the burst, where your code merges every filing's output and sends the merged flows to one final call.
 </Note>
 
 ## Step 5: The Quarterly Burst — 5,000 Funds in One Night
@@ -457,7 +457,7 @@ A takeout dinner gets you the entire quarter's 13F coverage. Run four times a ye
 
 ## Step 6: The Theme Synthesizer Output
 
-A representative ThemeSynthesizer output for the cross-fund aggregate. This is the artifact your DB, Slack channel, and morning newsletter pull from.
+A representative cross-fund brief, from that final call over every filing's merged output. This is the artifact your DB, Slack channel, and morning newsletter pull from.
 
 ```markdown
 # 13F Tracker — Q3 2024 Cross-Fund Brief

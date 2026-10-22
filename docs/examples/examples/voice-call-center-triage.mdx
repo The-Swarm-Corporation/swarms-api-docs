@@ -372,12 +372,12 @@ A real-feeling voice call needs round-trip turn latency under ~1.5 seconds. Here
 | --- | --- | --- |
 | STT (Deepgram / Whisper) | ~150–250 ms | Vapi |
 | Webhook network round trip | ~50–100 ms | Your infra |
-| Swarms router decision | ~200–400 ms | Swarms (`gpt-4.1-mini`) |
+| Swarms router decision | ~200–400 ms | Swarms (`gpt-5.4`, fixed) |
 | Specialist agent reply | ~300–600 ms | Swarms (`gpt-4.1-mini`) |
 | TTS first audio chunk | ~150–250 ms | Vapi |
 | **Total to first audio out** | **~850 ms – 1.6 s** | |
 
-Keep the router on `gpt-4.1-mini` or `claude-haiku-4-5`. Only escalate to `gpt-4.1` or `claude-sonnet-4-5` on flagged calls (emergencies, high-value accounts). Cap `max_tokens` aggressively — voice replies are short anyway, and a 200-token cap shaves real milliseconds off the response.
+The router itself always runs on `gpt-5.4`, the `MultiAgentRouter` default, and no `SwarmSpec` field changes it, so the model choice you control is the specialists'. Keep them on `gpt-4.1-mini` or `claude-haiku-4-5`, and only escalate to `gpt-4.1` or `claude-sonnet-4-5` on flagged calls (emergencies, high-value accounts). Cap `max_tokens` aggressively — voice replies are short anyway, and a 200-token cap shaves real milliseconds off the response.
 
 ## Real Cost
 
@@ -386,7 +386,7 @@ A representative five-turn call (caller books an appointment):
 | Line item | Cost per call |
 | --- | --- |
 | Vapi infrastructure (STT + TTS + telephony) | ~\$0.10 |
-| Swarms turns × 5 (router + specialist, `gpt-4.1-mini`) | ~\$0.22 |
+| Swarms turns × 5 (router on `gpt-5.4`, specialist on `gpt-4.1-mini`) | ~\$0.22 |
 | End-of-call summary agent | ~\$0.01 |
 | **Total** | **~\$0.33** |
 
