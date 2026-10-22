@@ -1,13 +1,13 @@
 ---
 title: "Sell-Side Research Note → Trading Signal Pipeline"
-description: "A HierarchicalSwarm that ingests sell-side PDFs from Goldman, JPM, MS, and BAML — extracts rating + target + thesis deltas in parallel — and emits a structured signal ranked against consensus before the open."
+description: "An AgentRearrange flow that ingests sell-side PDFs from Goldman, JPM, MS, and BAML — extracts rating + target + thesis deltas in parallel — and has a Research Director emit a structured signal ranked against consensus before the open."
 ---
 
 ## What This Example Shows
 
-- A `HierarchicalSwarm` with a Research Director coordinating three specialist workers — Rating Tracker, Price Target Tracker, and Key Driver Extractor — running in parallel against a single PDF note
+- An `AgentRearrange` flow where three specialist workers (Rating Tracker, Price Target Tracker, and Key Driver Extractor) run in parallel against a single PDF note, then a Research Director synthesizes their output
 - OpenAI-format function tools for PDF parsing, ratings/target regex extraction, consensus lookup, and Slack delivery
-- A mixed-provider agent team: Claude Sonnet 4.5 directing, GPT-4.1 / GPT-4.1-mini for surgical extraction, Gemini 2.5 Pro for long-document grounding
+- A mixed-provider agent team: Claude Sonnet 4.5 synthesizing, GPT-4.1 / GPT-4.1-mini for surgical extraction, Gemini 2.5 Pro for long-document grounding
 - A consensus-check step that flags every new target as above, in line with, or below the street
 - End-of-day batch processing across 150+ notes via `/v1/swarm/batch/completions`, scheduled at 4:30pm ET, output is a ranked delta sheet
 - The structured signal payload your OMS, EMS, or research database actually wants — not free-form text
@@ -32,22 +32,22 @@ Every PM in the firm wakes up to a ranked sheet of rating + target deltas — al
                          |
                          v
    +-------------------------------------------------+
-   |              HierarchicalSwarm                  |
+   |                AgentRearrange                   |
    |                                                 |
-   |        +-----------------------------+          |
-   |        |   Research Director         |          |
-   |        |   (claude-sonnet-4-5)       |          |
-   |        +-------------+---------------+          |
-   |                      |                          |
-   |        +-------------+-------------+            |
-   |        |             |             |            |
-   |        v             v             v            |
    |  +-----------+ +-----------+ +-----------+      |
    |  | Rating    | | Price     | | Key       |      |
    |  | Tracker   | | Target    | | Driver    |      |
    |  | gpt-4.1   | | Tracker   | | Extractor |      |
    |  | -mini     | | gpt-4.1   | | gemini    |      |
    |  +-----------+ +-----------+ +-----------+      |
+   |        |             |             |            |
+   |        +-------------+-------------+            |
+   |                      |                          |
+   |                      v                          |
+   |        +-------------+---------------+          |
+   |        |   Research Director         |          |
+   |        |   (claude-sonnet-4-5)       |          |
+   |        +-----------------------------+          |
    +-------------------------------------------------+
                          |
                          v
@@ -240,7 +240,7 @@ POST_SIGNAL_TOOL = {
 
 ## Step 3: Define the Four Agents
 
-The Research Director is the only agent with the `coordinator` role — it owns synthesis, consensus reasoning, and the final signal payload. The three workers each get exactly the tools their job requires.
+The Research Director owns synthesis, consensus reasoning, and the final signal payload. Its `coordinator` role is not what gives it the workers' output: `rearrange_flow` runs the three workers in parallel, then runs the Research Director with their output in context. A `HierarchicalSwarm` would not do this. It builds its own Director on `director_model_name` and runs every listed agent, the Research Director included, as a parallel worker that never sees the others' output. The three workers each get exactly the tools their job requires.
 
 ```python
 RESEARCH_DIRECTOR_PROMPT = (
@@ -279,13 +279,15 @@ KEY_DRIVER_PROMPT = (
 def build_swarm_for_note(pdf_ref: str, ticker: str) -> dict:
     return {
         "name": f"Sell-Side Note Signal — {ticker}",
-        "description": "Research Director coordinating Rating, Target, and Driver workers.",
-        "swarm_type": "HierarchicalSwarm",
+        "description": "Rating, Target, and Driver workers feeding a Research Director.",
+        "swarm_type": "AgentRearrange",
+        "rearrange_flow": "Rating Tracker, Price Target Tracker, Key Driver Extractor -> Research Director",
         "max_loops": 1,
         "task": (
             f"A sell-side research note on {ticker} just landed at {pdf_ref}. "
-            f"Call parse_pdf_note first, then dispatch the three workers in parallel. "
-            f"Synthesize their output into the structured signal payload. Cross-check "
+            f"Call parse_pdf_note first. The three workers extract the rating, target, "
+            f"and drivers in parallel, and the Research Director synthesizes their "
+            f"output into the structured signal payload. Cross-check "
             f"the new target against street consensus before emitting the signal."
         ),
         "agents": [
@@ -512,7 +514,7 @@ The `audit_trail` block is what makes this defensible in a compliance review —
 
 | Scenario | Per note | Per trading day (150 notes) | Annualized (~250 days) |
 | --- | --- | --- | --- |
-| HierarchicalSwarm pipeline (mixed-provider, batched) | ~\$0.25 | ~\$38 | ~\$9,500 |
+| AgentRearrange pipeline (mixed-provider, batched) | ~\$0.25 | ~\$38 | ~\$9,500 |
 | Junior analyst (fully loaded \$150k) reading notes | — | Maxes out at ~20 notes/day | \$150,000 — and they skip dinner |
 | Two-analyst rotation just for note triage | — | ~40 notes/day | \$300,000 — and they still miss 110 |
 
