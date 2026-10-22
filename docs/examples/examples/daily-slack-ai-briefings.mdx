@@ -115,7 +115,7 @@ AGENTS = [
             "Output 3 bullets max, each one line, numbers first. "
             "No commentary, no disclaimers."
         ),
-        "model_name": "xai/grok-4",
+        "model_name": "xai/grok-4.3",
         "max_loops": 1,
         "temperature": 0.2,
     },
@@ -245,7 +245,7 @@ AGENTS = [
             "two notable single-stock moves, and BTC/ETH levels. "
             "Output 3 bullets max, one line each, numbers first. No disclaimers."
         ),
-        "model_name": "xai/grok-4", "max_loops": 1, "temperature": 0.2,
+        "model_name": "xai/grok-4.3", "max_loops": 1, "temperature": 0.2,
     },
     {
         "agent_name": "Calendar Briefer",
@@ -297,7 +297,7 @@ if __name__ == "__main__":
 
 ## Real Cost
 
-Three agents, one run per weekday, ~21 runs/month. Each run uses roughly 1,500 input tokens and 600 output tokens across the swarm, about 500 in / 200 out per agent. Each agent's tokens bill at its own model's price plus a 15% service fee, plus \$0.01 per agent. At the time of writing (per 1M input / output tokens, fee included) that's \$1.4375 / \$11.50 for `gemini-2.5-pro`, \$1.15 / \$5.75 for `claude-haiku-4-5`, and the fallback rate of \$7.475 / \$21.275 for `xai/grok-4`, which has no price data yet. That comes to about \$0.013 in tokens plus \$0.03 in agent fees: **~\$0.043 per briefing × 21 runs = ~\$0.90/month**. Under a dollar a month for a deployment your team will notice if it ever fails. Check current prices with `GET /v1/models/pricing` (see [Pricing](/docs/documentation/resources/pricing)). If you add live search per the note in Step 2, `auto_search` on `/v1/agent/completions` adds \$0.04 per request; an MCP server adds no fee.
+Three agents, one run per weekday, ~21 runs/month. Each run uses roughly 1,500 input tokens and 600 output tokens across the swarm, about 500 in / 200 out per agent. Each agent's tokens bill at its own model's price plus a 15% service fee, plus \$0.01 per agent. At the time of writing (per 1M input / output tokens, fee included) that's \$1.4375 / \$11.50 for `gemini-2.5-pro`, \$1.15 / \$5.75 for `claude-haiku-4-5`, and \$1.4375 / \$2.875 for `xai/grok-4.3`. That comes to about \$0.006 in tokens plus \$0.03 in agent fees: **~\$0.036 per briefing × 21 runs = ~\$0.76/month**. Under a dollar a month for a deployment your team will notice if it ever fails. Check current prices with `GET /v1/models/pricing` (see [Pricing](/docs/documentation/resources/pricing)). If you add live search per the note in Step 2, `auto_search` on `/v1/agent/completions` adds \$0.04 per request; an MCP server adds no fee.
 
 ## Next Steps
 

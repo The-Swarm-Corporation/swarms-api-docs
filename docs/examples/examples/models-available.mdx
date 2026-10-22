@@ -267,7 +267,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
     # Best for creative writing, brainstorming, content generation
     recommended_models = [
         "gpt-4.1",                    # Most capable, balanced performance
-        "claude-sonnet-4-20250514", # Excellent for creative tasks
+        "claude-sonnet-5", # Excellent for creative tasks
         "gpt-4.1-mini"               # Fast and cost-effective
     ]
     ```
@@ -277,7 +277,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
     # Best for analysis, reasoning, complex problem-solving
     recommended_models = [
         "gpt-4.1",                    # Superior reasoning capabilities
-        "claude-sonnet-4-20250514", # Strong analytical performance
+        "claude-sonnet-5", # Strong analytical performance
         "gpt-4-turbo"               # Good balance of speed and capability
     ]
     ```
@@ -287,7 +287,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
     # Best for quick responses, simple tasks, cost optimization
     recommended_models = [
         "gpt-4.1-mini",              # Fastest and most cost-effective
-        "groq/llama-3.1-8b-instant",     # Very fast inference
+        "groq/openai/gpt-oss-20b",     # Very fast inference
         "claude-haiku-4-5"         # Fast with good quality
     ]
     ```
@@ -324,7 +324,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
     streaming_models = [
         "gpt-4.1",
         "gpt-4.1-mini",
-        "claude-sonnet-4-20250514",
+        "claude-sonnet-5",
         "claude-haiku-4-5"
     ]
 
@@ -345,7 +345,7 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
     # Models with large context windows
     large_context_models = [
         "gpt-4.1",                    # 128k+ tokens
-        "claude-sonnet-4-20250514", # 200k+ tokens
+        "claude-sonnet-5", # 200k+ tokens
         "gpt-4-turbo",             # 128k tokens
     ]
 
@@ -385,17 +385,17 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
         # Model selection logic
         if task_type == "creative":
             if priority == "quality":
-                return "gpt-4.1" if "gpt-4.1" in available_models else "claude-sonnet-4-20250514"
+                return "gpt-4.1" if "gpt-4.1" in available_models else "claude-sonnet-5"
             elif priority == "speed":
                 return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models else "claude-haiku-4-5"
             else:  # balanced
                 return "gpt-4.1-mini"
 
         elif task_type == "analytical":
-            return "gpt-4.1" if "gpt-4.1" in available_models else "claude-sonnet-4-20250514"
+            return "gpt-4.1" if "gpt-4.1" in available_models else "claude-sonnet-5"
 
         elif task_type == "fast":
-            return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models else "groq/llama-3.1-8b-instant"
+            return "gpt-4.1-mini" if "gpt-4.1-mini" in available_models else "groq/openai/gpt-oss-20b"
 
         elif task_type == "vision":
             return "gpt-4.1" if "gpt-4.1" in available_models else "gpt-4-turbo"
@@ -413,22 +413,22 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
         // Model selection logic for JavaScript
         const modelPreferences = {
             creative: {
-                quality: ["gpt-4.1", "claude-sonnet-4-20250514"],
+                quality: ["gpt-4.1", "claude-sonnet-5"],
                 speed: ["gpt-4.1-mini", "claude-haiku-4-5"],
                 balanced: ["gpt-4.1-mini"],
-                cost: ["gpt-4.1-mini", "groq/llama-3.1-8b-instant"]
+                cost: ["gpt-4.1-mini", "groq/openai/gpt-oss-20b"]
             },
             analytical: {
-                quality: ["gpt-4.1", "claude-sonnet-4-20250514"],
+                quality: ["gpt-4.1", "claude-sonnet-5"],
                 speed: ["gpt-4-turbo"],
                 balanced: ["gpt-4.1"],
                 cost: ["gpt-4.1-mini"]
             },
             fast: {
                 quality: ["gpt-4.1-mini"],
-                speed: ["gpt-4.1-mini", "groq/llama-3.1-8b-instant"],
+                speed: ["gpt-4.1-mini", "groq/openai/gpt-oss-20b"],
                 balanced: ["gpt-4.1-mini"],
-                cost: ["gpt-4.1-mini", "groq/llama-3.1-8b-instant"]
+                cost: ["gpt-4.1-mini", "groq/openai/gpt-oss-20b"]
             },
             vision: {
                 quality: ["gpt-4.1"],
@@ -455,10 +455,10 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
 |-------|---------------|----------|-------|------|
 | `gpt-4.1` | 128k+ | Complex reasoning, vision | Medium | High |
 | `gpt-4.1-mini` | 128k+ | General purpose, fast tasks | Fast | Low |
-| `claude-sonnet-4-20250514` | 200k+ | Creative writing, analysis | Medium | High |
+| `claude-sonnet-5` | 200k+ | Creative writing, analysis | Medium | High |
 | `claude-haiku-4-5` | 200k+ | Fast responses | Fast | Low |
-| `groq/llama-3.3-70b-versatile` | 128k | Complex tasks | Medium | Medium |
-| `groq/llama-3.1-8b-instant` | 128k | Simple tasks | Fast | Low |
+| `groq/openai/gpt-oss-120b` | 128k | Complex tasks | Medium | Medium |
+| `groq/openai/gpt-oss-20b` | 128k | Simple tasks | Fast | Low |
 
 ## Cost Optimization
 
@@ -472,11 +472,11 @@ Each model has its own price. To compare real costs, read `input_cost_per_1m` an
         Select optimal model based on task complexity and budget
         """
         if task_complexity == "low":
-            return "gpt-4.1-mini" if budget_constraint == "strict" else "groq/llama-3.1-8b-instant"
+            return "gpt-4.1-mini" if budget_constraint == "strict" else "groq/openai/gpt-oss-20b"
         elif task_complexity == "medium":
             return "gpt-4.1-mini" if budget_constraint == "strict" else "gpt-4.1"
         else:  # high complexity
-            return "claude-sonnet-4-20250514" if budget_constraint == "flexible" else "gpt-4.1"
+            return "claude-sonnet-5" if budget_constraint == "flexible" else "gpt-4.1"
 
     # Example usage
     model = optimize_model_selection("high", "flexible")
@@ -489,7 +489,7 @@ Each model has its own price. To compare real costs, read `input_cost_per_1m` an
         const optimizationMatrix = {
             low: {
                 strict: "gpt-4.1-mini",
-                flexible: "groq/llama-3.1-8b-instant"
+                flexible: "groq/openai/gpt-oss-20b"
             },
             medium: {
                 strict: "gpt-4.1-mini",
@@ -497,7 +497,7 @@ Each model has its own price. To compare real costs, read `input_cost_per_1m` an
             },
             high: {
                 strict: "gpt-4.1",
-                flexible: "claude-sonnet-4-20250514"
+                flexible: "claude-sonnet-5"
             }
         };
 
