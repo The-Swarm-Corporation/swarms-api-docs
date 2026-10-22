@@ -261,7 +261,7 @@ async def vapi_webhook(request: Request):
 ```
 
 <Note>
-The `timeout=20` matters. If Swarms takes longer than the turn budget, Vapi will stall the caller — pick fast models (`gpt-4.1-mini`, `claude-haiku-4-5`) for routing and only escalate to a larger model on flagged calls.
+The `timeout=20` matters. If Swarms takes longer than the turn budget, Vapi will stall the caller — pick fast models (`gpt-4.1-mini`, `claude-haiku-4-5`) for the specialists and only escalate to a larger model on flagged calls.
 </Note>
 
 ## Step 5: End-of-Call Summary → CRM
