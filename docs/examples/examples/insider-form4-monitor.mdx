@@ -88,7 +88,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Each agent calls into one or more of these tools. The schemas are OpenAI function-call shape and are attached per-agent via `tools_list_dictionary`.
+The schemas are OpenAI function-call shape and are attached per-agent via `tools_list_dictionary`. The API sends them to the model but never executes them, so each call comes back in that agent's output with its arguments, and a later stage sees the call, never its result. Look up the filing and the insider's trading history in your own code and put them in the `task`, then run any returned calls after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 FETCH_FORM4 = {

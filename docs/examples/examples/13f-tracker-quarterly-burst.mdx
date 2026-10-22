@@ -75,7 +75,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Every tool the parser and aggregator nodes use is declared as an OpenAI-style function tool. The model calls them, the runtime resolves them on your side.
+Every tool the parser and aggregator nodes use is declared as an OpenAI-style function tool. The API sends the schemas to the model but never executes them, so a node gets no tool result during the run: each call comes back in that node's output with its arguments. Fetch the 13F filings in your own code and put them in the `task`, and run any returned calls after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 FETCH_13F_FILING = {
