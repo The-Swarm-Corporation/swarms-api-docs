@@ -145,7 +145,7 @@ print(f"Scored {len(all_results)} leads.")
 ```
 
 <Info>
-Each request is capped at 50 items, but the server processes those 50 concurrently, so a pool of 20-30 worker threads submitting 50-item chunks in parallel gets you back to job-like throughput. The rate limits count completions, not HTTP requests: a 50-item chunk counts up to 51 (one per lead, plus one for the batch), so 10,000 leads push the hourly count to 10,200, past Pro/Ultra/Premium's 10,000 per hour. The limit is checked when a request is admitted, so a run that starts with no usage in the hour normally gets every chunk in. Usage earlier in the hour, or a rerun within it, makes the last chunks get a `429`, so `run_chunk` waits out its `Retry-After` seconds (up to 3,600) instead of stopping the run.
+Each request is capped at 50 items, but the server processes those 50 concurrently, so a pool of 20-30 worker threads submitting 50-item chunks in parallel gets you back to job-like throughput. The rate limits count completions, not HTTP requests: a 50-item chunk counts up to 51 (one per lead, plus one for the batch), so 10,000 leads push the hourly count to 10,200, past Pro/Ultra/Premium's 10,000 per hour. The limit is checked when a request is admitted, so a run that starts with no usage in the hour normally gets every chunk in. Usage earlier in the hour makes the last chunks get a `429`, and a rerun within the hour makes every chunk get one, so `run_chunk` waits out its `Retry-After` seconds (up to 3,600) instead of stopping the run.
 </Info>
 
 ## Step 6: Aggregate and Route
