@@ -7,12 +7,12 @@ description: "Multi-level swarm architecture with supervisor agents coordinating
 
 ## Overview
 
-The HierarchicalSwarm implements a multi-level organizational structure where supervisor agents coordinate and manage specialized worker agents. This architecture mirrors real-world organizational hierarchies, allowing for complex task decomposition, quality control, and efficient resource allocation across multiple levels of responsibility.
+The HierarchicalSwarm implements a multi-level organizational structure where supervisor agents coordinate and manage specialized worker agents. This architecture mirrors real-world organizational hierarchies, allowing for complex task decomposition and efficient resource allocation across multiple levels of responsibility.
 
 Key features:
 - **Multi-Level Structure**: Supervisor and worker agent hierarchy
 - **Task Decomposition**: Complex tasks broken down into manageable subtasks
-- **Quality Control**: Supervisors oversee and validate worker outputs
+- **Parallel Workers**: The workers run the director's orders in parallel, and each answer is returned as its own turn
 - **Resource Coordination**: Efficient allocation and management of agent resources
 
 ## Architecture
@@ -23,14 +23,13 @@ flowchart TD
     S --> W1["Worker 1"]
     S --> W2["Worker 2"]
     S --> W3["Worker 3"]
-    W1 --> V["Supervisor reviews and synthesizes"]
-    W2 --> V
-    W3 --> V
-    V --> O["Result"]
+    W1 --> O["Result"]
+    W2 --> O
+    W3 --> O
 ```
 
-The supervisor splits the task, hands pieces to workers, then validates and merges what
-comes back.
+The supervisor splits the task and hands the pieces to workers. Nothing reviews or merges
+what comes back: `output` holds each worker's answer as its own turn.
 
 <Note>
 The "Supervisor" in the diagram is a director agent that `HierarchicalSwarm` creates for you automatically — it is not one of the entries in `agents`. Every agent you list in `agents` runs as a worker the director can delegate to, even if you name one of them "coordinator." Tune the director itself with the top-level `director_model_name` and `director_settings` fields (see [Configuring the Director](#configuring-the-director) below).
@@ -461,8 +460,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     "swarm_type": "HierarchicalSwarm",
     "output": [
         {
+            "role": "System",
+            "content": "These are the agents in your team. Each agent has a specific role and expertise to contribute to the team's objectives.\nTotal Agents: 5..."
+        },
+        {
+            "role": "Director",
+            "content": "{\"orders\": [{\"agent_name\": \"Technology Researcher\", \"task\": \"Research recent AI advances in diagnostics, drug discovery and personalized medicine\"}, ...]}"
+        },
+        {
             "role": "Research Coordinator",
-            "content": "As the lead researcher, I have synthesized the findings from our specialized research team into a comprehensive report on AI's impact on healthcare..."
+            "content": "Report structure for AI's impact on healthcare: technology, economics, ethics and future trends, with the key question each section must answer..."
         },
         {
             "role": "Technology Researcher",
@@ -479,6 +486,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         {
             "role": "Future Trends Analyst",
             "content": "Future trends indicate rapid adoption of AI in preventive care, remote monitoring, and personalized treatment plans, with full integration expected within 5-10 years..."
+        },
+        {
+            "role": "System",
+            "content": "--- Loop 1/1 completed ---"
         }
     ],
     "number_of_agents": 5,
@@ -579,10 +590,14 @@ print(response.json())
 A lower `temperature` on the director produces more consistent task decomposition and delegation, while worker agents can keep a higher temperature for creative output.
 </Tip>
 
+<Warning>
+If the director never returns valid orders (its reply isn't JSON, or has no `orders`), no worker runs and the request returns `502` with `The director of swarm '<name>' did not return valid orders, so no agent ran. Nothing was charged.` Check `director_model_name` and `director_settings`, then retry.
+</Warning>
+
 ## Best Practices
 
 - Design clear supervisor-worker relationships
-- Ensure supervisors can effectively coordinate and synthesize results
+- Expect one turn per worker rather than a merged answer, and make a follow-up call if you need a single summary
 - Use a capable `director_model_name` — the director's plan determines how well the workers perform
 - Lower the director's `temperature` for more deterministic task decomposition
 - Use for complex projects requiring oversight and coordination

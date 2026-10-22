@@ -464,7 +464,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Output Shape
 
-Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. For `ConcurrentWorkflow` specifically, each requested agent receives the same original `task` independently and runs on a thread pool — there is one turn per agent, but because the agents run in parallel rather than a fixed sequence, the order turns land in `output` reflects when each agent finished, not the order the agents appear in the request.
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. For `ConcurrentWorkflow` specifically, each requested agent receives the same original `task` independently and runs on a thread pool. There is one turn per agent, in the order the agents appear in the request, whatever order they finish in. If an agent fails, its turn is `{"role": "<agent_name> (failed)", "content": "Error: ..."}` and the request still returns `200` with the other agents' turns.
 
 ## Best Practices
 

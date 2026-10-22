@@ -1,19 +1,18 @@
 ---
 title: "MultiAgentRouter"
-description: "Intelligent task dispatcher that distributes work based on agent capabilities and workload optimization"
+description: "Intelligent task dispatcher that routes work to agents based on their capabilities"
 ---
 
 **Swarm Type**: `MultiAgentRouter`
 
 ## Overview
 
-The MultiAgentRouter acts as an intelligent task dispatcher, distributing work across agents based on their capabilities and current workload. This architecture analyzes incoming tasks and automatically routes them to the most suitable agents, optimizing both efficiency and quality of outcomes.
+The MultiAgentRouter acts as an intelligent task dispatcher, distributing work across agents based on their capabilities. This architecture analyzes incoming tasks and automatically routes them to the most suitable agents, optimizing both efficiency and quality of outcomes.
 
 Key features:
 - **Intelligent Routing**: Automatically assigns tasks to best-suited agents
 - **Capability Matching**: Matches task requirements with agent specializations
-- **Load Balancing**: Distributes workload efficiently across available agents
-- **Dynamic Assignment**: Adapts routing based on agent performance and availability
+- **Task Rewriting**: The router can rewrite the task for each agent it picks
 
 ## Architecture
 
@@ -418,20 +417,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     "swarm_type": "MultiAgentRouter",
     "output": [
         {
+            "role": "user",
+            "content": "Handle multiple customer inquiries: 1) Billing question about overcharge, 2) Technical issue with mobile app login, 3) Product recommendation for enterprise client, 4) Return policy question"
+        },
+        {
             "role": "Billing Specialist",
             "content": "I'll handle the billing question about the overcharge. Let me review your account and explain the charges..."
-        },
-        {
-            "role": "Technical Support",
-            "content": "I'll help you resolve the mobile app login issue. Let's troubleshoot this step by step..."
-        },
-        {
-            "role": "Sales Consultant",
-            "content": "I'll provide product recommendations for your enterprise client. Based on their needs..."
-        },
-        {
-            "role": "Policy Advisor",
-            "content": "I'll explain our return policy clearly. Here are the key points you need to know..."
         }
     ],
     "number_of_agents": 4,
@@ -464,7 +455,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Output Shape
 
-Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `MultiAgentRouter` runs an internal router step that inspects the task and hands it off via function calling — a task can be routed to a single specialist or split across several agents at once when the router decides more than one applies. `output` reflects the routing decision plus the response from each agent the router actually handed the task to; an agent in your `agents` array that the router does not select never runs and contributes no turn.
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `MultiAgentRouter` runs an internal router agent on `gpt-5.4` that reads the task and, through function calling, picks one or more agents and can rewrite the task for each. `output` has two turns: your task as a lowercase `user` turn (the API removes only the `User` role), then the answer of the first agent the router picked. When the router picks several agents they all run, but only the first one's answer is returned, and no turn records the routing decision. An agent the router does not pick never runs.
 
 ## Best Practices
 
