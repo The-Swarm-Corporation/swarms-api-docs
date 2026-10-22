@@ -106,7 +106,7 @@ A JSON array edge such as `["Agent1", "Agent2"]` is not accepted and returns a 4
 | `name` | `string` | Workflow name from input |
 | `description` | `string` | Workflow description from input |
 | `status` | `string` | Execution status ("success" if completed) |
-| `outputs` | `dict` | Results from all nodes in the workflow, keyed by agent name. When `max_loops` is above 1, it also has a `{agent_name}_loop_{n}` key for each loop `n` from 1, and the plain keys hold the last loop. A node that failed holds `"[ERROR] Agent <name> failed: ..."` |
+| `outputs` | `dict` | Results from all nodes in the workflow, keyed by agent name. When the workflow's `max_loops` is above 1, it also has a `{agent_name}_loop_{n}` key for each loop `n` from 1, and the plain keys hold the last loop. A node that failed holds `"[ERROR] Agent <name> failed: ..."` |
 | `usage` | `Usage` | Usage statistics including tokens and costs |
 | `timestamp` | `string` | ISO8601 UTC timestamp when job finished |
 
@@ -118,7 +118,7 @@ A JSON array edge such as `["Agent1", "Agent2"]` is not accepted and returns a 4
 | `output_tokens` | `integer` | Total number of output tokens generated |
 | `total_tokens` | `integer` | Sum of input and output tokens |
 | `total_cost` | `float` | Total credits charged for the run: input and output token costs plus `cost_per_agent` |
-| `cost_per_agent` | `float` | Agent fee: 0.01 per agent whose node answered. A failed node pays no fee |
+| `cost_per_agent` | `float` | Agent fee: 0.01 per agent on a paid model whose node answered. A failed node pays no fee |
 
 ## Cost Calculation
 
