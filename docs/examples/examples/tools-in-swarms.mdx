@@ -10,7 +10,7 @@ description: "Attach OpenAI-style function tools to agents inside a multi-agent 
 - A `ConcurrentWorkflow` of two financial analysts that both call a structured `search_topic` tool
 
 <Info>
-Every multi-agent architecture on Swarms accepts the same per-agent `tools_list_dictionary`. The pattern below works identically for `SequentialWorkflow`, `HierarchicalSwarm`, `AgentRearrange`, `GroupChat`, `MixtureOfAgents`, and the rest — only the `swarm_type` changes.
+Every multi-agent architecture on Swarms accepts the same per-agent `tools_list_dictionary`. The pattern below works the same way for `SequentialWorkflow`, `HierarchicalSwarm`, `AgentRearrange`, `GroupChat`, `MixtureOfAgents` and the other types that run the agents you send; only the `swarm_type` changes. `CouncilAsAJudge` and `HeavySwarm` build their own agents and never run yours, so tools attached to your agents are never called there.
 </Info>
 
 <Warning>

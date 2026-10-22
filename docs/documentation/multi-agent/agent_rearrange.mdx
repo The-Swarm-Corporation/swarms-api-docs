@@ -1,18 +1,17 @@
 ---
 title: "AgentRearrange"
-description: "Dynamic swarm architecture that can reorganize agent roles and responsibilities based on task requirements and performance"
+description: "Swarm architecture that runs agents in the fixed order you define with rearrange_flow, mixing sequential and parallel steps"
 ---
 
 **Swarm Type**: `AgentRearrange`
 
 ## Overview
 
-The AgentRearrange swarm type implements a dynamic architecture where agents can be reassigned to different roles and responsibilities based on task requirements, performance metrics, or changing circumstances. This flexibility allows the swarm to adapt to different scenarios and optimize performance through intelligent role reallocation.
+The AgentRearrange swarm type runs your agents in the order you define with `rearrange_flow`. The flow is fixed for the whole run: agents are not reassigned or reordered based on the task, their output, or their performance. To change the order, send a different `rearrange_flow`.
 
 Key features:
-- **Dynamic Role Assignment**: Agents can switch roles based on task needs
-- **Performance-Based Reorganization**: Roles adjusted based on agent performance
-- **Adaptive Architecture**: Swarm structure evolves with changing requirements
+- **Explicit Flow**: You define the execution order with `rearrange_flow`
+- **Sequential and Parallel Steps**: `->` hands work to the next step, and a comma runs agents in parallel within a step
 - **Flexible Resource Allocation**: Optimal use of agent capabilities
 
 ## Architecture
