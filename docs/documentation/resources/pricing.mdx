@@ -154,9 +154,23 @@ MCP servers and the `web_scraper` tool have no fee: only the tokens the agent us
 | Batched Grid Workflow | \$0.01 per agent plus each agent's tokens at its own model. No night-time discount. |
 | Reasoning Agents | Tokens at the request's `model_name`. No per-agent fee. |
 | Auto Agent Builder | \$0.01 per request plus tokens at the builder's model. |
-| Decision Models | Tokens at each decision model's own price, listed by `GET /v1/decision/models`. See [Decision Models](/docs/documentation/capabilities/decision-models). |
+| Decision Models | Tokens at each decision model's own price. No per-agent fee. See [Decision model prices](#decision-model-prices). |
 
 Some swarm types build agents of their own: the HierarchicalSwarm director, the MajorityVoting consensus agent, the CouncilAsAJudge aggregator and the LLMCouncil chairman. Their tokens are billed too, each at its own model, but the \$0.01 agent cost counts only the agents in your request. HeavySwarm builds all of its agents itself, so its tokens are priced at `heavy_swarm_worker_model_name`.
+
+### Decision model prices
+
+Decision model completions, `POST /v1/decision/completions` and `POST /v1/systemone`, bill the input and output tokens the decision model provider reports, at the model's provider price plus the 15% service fee. There is no per-agent fee and no night-time discount, and a failed request is not charged.
+
+Prices per 1M tokens at the time of writing, service fee included:
+
+| Model | Input | Output |
+|-------|------:|-------:|
+| `jev-latest`, `jev-preview`, `jev-1.13.0` | \$0.0483 | \$0 |
+| `clef` | \$0.276 | \$0 |
+| `clef-flash` | \$0.1035 | \$0 |
+
+`GET /v1/decision/models` lists the decision models available now with their `input_cost_per_1m` and `output_cost_per_1m`, fee included. A request with 420 input tokens on `jev-latest` costs 420 × \$0.0483 / 1M, about \$0.00002. See [Decision Models](/docs/documentation/capabilities/decision-models).
 
 ### Discounts
 
