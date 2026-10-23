@@ -75,21 +75,16 @@ Reasoning agents leverage sophisticated reasoning techniques to solve complex pr
 * **Reasoning-Focused**: Built for complex logical and analytical tasks
 * **Multi-Perspective**: Can approach problems from different angles
 * **Iterative**: Capable of refinement and improvement cycles
-* **Specialized Types**: 9 different reasoning agent types available
+* **Specialized Types**: 4 reasoning agent types available, one of them (`consistency-agent`) an alias of `self-consistency`
 * **Internal Coordination**: May use sub-agents for specialized reasoning
 
 **Available Reasoning Agent Types**
 
 | Agent Type            | Description                                     | Best For                                       |
 | --------------------- | ----------------------------------------------- | ---------------------------------------------- |
-| **reasoning-duo**     | Dual-agent system with perspective synthesis    | Mathematical problems, logical proofs          |
 | **self-consistency**  | Multiple reasoning paths with validation        | Complex logical problems, consistency checking |
-| **ire**               | Iterative refinement approach                   | Complex analysis, research problems            |
-| **ire-agent**         | Iterative refinement approach (agent variant)   | Complex analysis, research problems            |
-| **reasoning-agent**   | General-purpose systematic reasoning            | Step-by-step problem solving                   |
-| **consistency-agent** | Logical consistency and contradiction detection | Argument validation                            |
+| **consistency-agent** | Alias for `self-consistency`                    | Same as `self-consistency`                     |
 | **ReflexionAgent**    | Self-reflection and bias detection              | Meta-cognitive tasks                           |
-| **GKPAgent**          | Cross-domain knowledge synthesis                | Interdisciplinary problems                     |
 | **AgentJudge**        | Evaluates and judges agent outputs              | Quality assessment, evaluation tasks           |
 
 **Use Cases**
@@ -110,7 +105,8 @@ payload = {
     "model_name": "claude-sonnet-4-20250514",
     "system_prompt": "You are an expert mathematical reasoning agent...",
     "max_loops": 1,
-    "swarm_type": "reasoning-duo",
+    "swarm_type": "self-consistency",
+    "num_samples": 3,
     "task": "Prove that the sum of any three consecutive integers is divisible by 3"
 }
 
