@@ -275,7 +275,7 @@ A pragmatic week-one migration for a team currently on OpenAI:
 2. **Day 2.** Move your *least-critical* chat.completions endpoint to `swarms_client`. Confirm logs, retries, token counting, and streaming all behave. Diff the response on a few hundred prompts against the OpenAI baseline.
 3. **Day 3.** Identify the **one** endpoint in your product that does the most prompt engineering — the long, multi-section system prompt with "first do X, then Y, then Z". This is the one that wants to be a swarm. Cut it over to `/v1/swarm/completions` with 3–5 agents.
 4. **Day 4.** Add the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) patterns to that swarm — tier the workers, compress the handoffs.
-5. **Day 5.** Schedule the batch / overnight pieces of your pipeline against the [Night-Mode discount](/docs/guides/guides/night-mode-pricing-strategy). Audit `discount_active` to confirm.
+5. **Day 5.** On a paid plan, schedule the batch / overnight swarm pieces of your pipeline against the [Night-Mode discount](/docs/guides/guides/night-mode-pricing-strategy), which covers swarm completions only, not `/v1/chat/completions`. Audit `discount_active` to confirm; a free account reads `false` at every hour.
 
 After that, the rest is per-endpoint at your pace. You don't have to migrate everything to claim the wins.
 
