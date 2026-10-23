@@ -485,7 +485,7 @@ def persist_alerts(swarm_response: dict, path: str = "whale_alerts.jsonl") -> No
 | Arkham Intelligence Pro | \$1,000/mo | Strong labels, dashboard + alerts, no per-block classification |
 | Building this in-house with engineers | \$40,000+/mo | One mid backend + one ML engineer plus infra; what you would actually do without this |
 
-Night-mode tip: the API applies its off-peak token-cost discount automatically between 8pm and 6am Pacific (`America/Los_Angeles`) — no request changes needed. Separately, most chains are quieter in the early-UTC-morning hours; if you want to cut call volume too (not just get the automatic discount), drop the watcher to a 60-second cadence during that quiet window.
+Night-mode tip: on a paid plan, the API applies its off-peak token-cost discount automatically between 8pm and 6am Pacific (`America/Los_Angeles`), with no request changes needed. A free account pays the full token price at any hour. Separately, most chains are quieter in the early-UTC-morning hours; if you want to cut call volume too (not just get the automatic discount), drop the watcher to a 60-second cadence during that quiet window.
 
 The point is not that this is cheaper than a Twitter bot. The point is that a Twitter bot is read-only. This is a programmable layer with structured outputs that route into your own systems — execution, risk, research database — at whale-feed latency.
 
