@@ -401,7 +401,7 @@ The pipeline shape, billing, and response schema stay identical.
     Increase `max_tokens` on the Clinical Research Specialist and Evidence Synthesizer to 8192, and add domain anchors to the question ("for a 68-year-old with borderline-resectable stage III pancreatic adenocarcinoma, ECOG 1, CA 19-9 320..."). Sequential pipelines amplify upstream specificity — vague input compounds into vague output.
   </Accordion>
   <Accordion title="Where does this fit in our compliance program?">
-    Pair this pipeline with the [Swarm Logs](/docs/examples/examples/swarm-logs) endpoint to maintain a full audit trail of every prompt, every agent output, and every reviewer verdict tied to your API key. Most regulated medical-affairs programs require that trail; the API gives it to you for free.
+    Pair this pipeline with the [Swarm Logs](/docs/examples/examples/swarm-logs) endpoint to keep an audit trail of every agent output and reviewer verdict across every API key on your account. The logs endpoint returns response bodies, not prompts, and a swarm run's task is not in them, so store each question on your side. Most regulated medical-affairs programs require that trail; the API gives it to you for free.
   </Accordion>
 </AccordionGroup>
 

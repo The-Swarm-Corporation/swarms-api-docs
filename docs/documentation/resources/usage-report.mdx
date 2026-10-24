@@ -144,7 +144,7 @@ MCP servers and the `web_scraper` tool have no fee of their own; only the tokens
 
 ## Request Logs
 
-`GET /v1/account/logs` returns your account's full API request history — every logged request across all of your API keys (including revoked ones), excluding client IP information.
+`GET /v1/account/logs` returns your account's completion records, newest first, across all of your API keys (including revoked ones), excluding client IP information. GET requests and failed requests have no completion record, so they do not appear. `logs` holds at most the 1000 newest records.
 
 <Note>
 `GET /v1/swarm/logs` is a **deprecated alias** for the same endpoint, kept only for backwards compatibility. Use `/v1/account/logs` in new integrations.

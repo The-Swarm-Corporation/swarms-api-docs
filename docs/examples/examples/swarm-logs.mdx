@@ -5,10 +5,10 @@ description: 'Access and analyze your API request logs and swarm execution histo
 
 
 
-Access comprehensive logs of all your API requests and swarm executions. The `/v1/account/logs` endpoint provides detailed information about your API usage history, including request timestamps, status codes, and execution details. (The older `/v1/swarm/logs` path is a deprecated alias for the same endpoint.)
+Access the logs of your completed runs. The `/v1/account/logs` endpoint returns the completion records of your billable runs: when each ran and the response it returned. (The older `/v1/swarm/logs` path is a deprecated alias for the same endpoint.)
 
 <Info>
-Logs are filtered to exclude any entries containing client IP addresses for privacy protection. Access is limited to logs associated with your API key.
+Logs are filtered to exclude any entries containing client IP addresses for privacy protection. Logs cover every API key on your account, including revoked keys.
 </Info>
 
 ## Quick Start
@@ -617,7 +617,7 @@ The top-level `count` is the exact total number of matching log entries across e
             if not logs_data.get('logs'):
                 return
 
-            current_count = len(logs_data.get('logs', []))
+            current_count = logs_data.get('count', 0)
 
             if self.last_log_count > 0:
                 new_logs = current_count - self.last_log_count
@@ -723,7 +723,7 @@ The top-level `count` is the exact total number of matching log entries across e
         async analyzeRecentActivity(logsData) {
             if (!logsData.logs) return;
 
-            const currentCount = (logsData.logs || []).length;
+            const currentCount = logsData.count || 0;
 
             if (this.lastLogCount > 0) {
                 const newLogs = currentCount - this.lastLogCount;
@@ -841,14 +841,14 @@ The top-level `count` is the exact total number of matching log entries across e
 **Empty Logs Response**
 ```bash
 # Check if API key is correct
-curl -I "https://api.swarms.world/v1/account/logs" \
+curl -s -o /dev/null -w "%{http_code}\n" "https://api.swarms.world/v1/account/logs" \
   -H "x-api-key: your-api-key"
 ```
 
 **Missing Log Entries**
 - Logs are filtered for privacy (no IP addresses)
-- Some requests may not be logged due to high volume
-- Check your API key permissions
+- The endpoint returns completion records only; GET requests and failed runs have none
+- `logs` holds the 1000 newest records; `count` is the full total
 
 **Performance Issues**
 ```python
