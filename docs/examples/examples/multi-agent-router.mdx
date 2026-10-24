@@ -110,7 +110,7 @@ tickets = [
 for subject, description in tickets:
     result = route_support_ticket(subject, description)
 
-    output = result.get("output", [{}])[0]
+    output = result.get("output", [{}])[-1]
     routed_to = output.get("role", "Unknown")
     response_preview = output.get("content", "")[:200]
 

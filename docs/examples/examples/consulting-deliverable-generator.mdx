@@ -223,7 +223,6 @@ client_briefs = [
     "Mid-market regional bank evaluating SMB lending entry — see prior brief.",
     "$3B AUM PE firm evaluating a roll-up in U.S. veterinary clinics.",
     "European industrial OEM evaluating direct-to-consumer entry in North America.",
-    # ...add as many as you need
 ]
 
 batch_payload = [build_engagement(b) for b in client_briefs]
@@ -240,7 +239,7 @@ print(f"Decks produced: {len(decks)}")
 ```
 
 <Note>
-The batch endpoint is Pro/Ultra/Premium-only. See [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions) for the full reference.
+The batch endpoint is Pro/Ultra/Premium-only and takes at most 50 swarms per request; a longer list returns 422, so send a larger portfolio in chunks of 50. See [Batch Swarm Completions](/docs/examples/examples/batch-swarm-completions) for the full reference.
 </Note>
 
 ## Cost vs. a Real Engagement

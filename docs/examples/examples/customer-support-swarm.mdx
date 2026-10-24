@@ -482,7 +482,7 @@ def clear_backlog(tickets: list[str], chunk_size: int = 50) -> list[dict]:
         response.raise_for_status()
         results = response.json()
         for r in results:
-            all_reviews.append(extract_quality_review(r))
+            all_reviews.append(extract_quality_review({"output": r.get("result", [])}))
             total_cost += r.get("usage", {}).get("billing_info", {}).get("total_cost", 0)
     print(f"Cleared {len(all_reviews)} tickets for ${total_cost:.2f}")
     return all_reviews

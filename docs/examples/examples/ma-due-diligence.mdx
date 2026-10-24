@@ -280,6 +280,9 @@ batch_response = requests.post(
 
 for i, deal_result in enumerate(batch_response.json()):
     print(f"\n=== TARGET {i + 1} ===")
+    if deal_result["status"] == "error":
+        print(f"Failed: {deal_result['detail']}")
+        continue
     print(
         f"Cost: ${deal_result['usage']['billing_info']['total_cost']:.4f} | "
         f"Status: {deal_result['status']}"

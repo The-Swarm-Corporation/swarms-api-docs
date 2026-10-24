@@ -13,7 +13,7 @@ description: "Execute multiple multi-agent swarm workflows in parallel using the
 </Info>
 
 <Warning>
-**Batch size limit**: A single request to `/v1/swarm/batch/completions` accepts at most **50** `SwarmSpec` items. Requests with more than 50 items are rejected with an HTTP 422 validation error. To process larger volumes, split your work into chunks of 50 and submit multiple requests — see [Batch Swarm Completions for Overnight Reports](/docs/examples/examples/batch-swarm-scale-tutorial) for a worked example at exactly that limit.
+**Batch size limit**: A single request to `/v1/swarm/batch/completions` accepts at most **50** `SwarmSpec` items. Requests with more than 50 items are rejected with an HTTP 422 validation error, and an empty array is rejected with HTTP 400 (`Batch Swarm Error: No swarms provided`). To process larger volumes, split your work into chunks of 50 and submit multiple requests — see [Batch Swarm Completions for Overnight Reports](/docs/examples/examples/batch-swarm-scale-tutorial) for a worked example at exactly that limit.
 </Warning>
 
 Run many swarm jobs in a **single API call** using `/v1/swarm/batch/completions`.  
@@ -296,7 +296,9 @@ The endpoint returns an array of results, one per item in the batch, in the same
   {
     "status": "success",
     "swarm_name": "Market Analysis Swarm",
-    "result": { "summary": "..." },
+    "result": [
+      { "role": "Research-Analyst", "content": "..." }
+    ],
     "usage": {
       "input_tokens": 8500,
       "output_tokens": 3200,

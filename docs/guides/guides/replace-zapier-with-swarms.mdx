@@ -202,7 +202,7 @@ payload = {
 }
 
 resp = requests.post(f"{BASE_URL}/v1/agent/completions", headers=headers, json=payload)
-record = json.loads(resp.json()["outputs"])
+record = json.loads(resp.json()["outputs"][-1]["content"])
 
 # Post straight to the CRM — no Formatter, no regex, no fallback Path.
 crm_resp = requests.post(CRM_WEBHOOK, json=record, timeout=10)
@@ -275,7 +275,7 @@ payload = {
 }
 
 resp = requests.post(f"{BASE_URL}/v1/agent/completions", headers=headers, json=payload)
-drafts = json.loads(resp.json()["outputs"])
+drafts = json.loads(resp.json()["outputs"][-1]["content"])
 
 print("Research:",      drafts["research_summary"])
 print("Email:",         drafts["email"])

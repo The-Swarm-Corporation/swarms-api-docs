@@ -402,14 +402,20 @@ else:
 
 ## Response Format
 
-Search-enabled agents return the standard `/v1/agent/completions` response shape. The `outputs` field contains the agent's final synthesized answer (including any citations the agent chose to include in its text) — there is no separate structured `search_results` array; source handling happens inside the agent's tool call and reasoning, not as a distinct response field.
+Search-enabled agents return the standard `/v1/agent/completions` response shape. The `outputs` field is a list of `{"role", "content"}` messages, and the last message's `content` is the agent's final synthesized answer (including any citations the agent chose to include in its text) — there is no separate structured `search_results` array; source handling happens inside the agent's tool call and reasoning, not as a distinct response field.
 
 ```json
 {
   "job_id": "agent-...",
   "success": true,
   "name": "Research Agent",
-  "outputs": "Your comprehensive research response with synthesized information...",
+  "outputs": [
+    {
+      "role": "Research Agent",
+      "content": "Your comprehensive research response with synthesized information...",
+      "timestamp": "2024-01-15T00:00:00"
+    }
+  ],
   "usage": {
     "input_tokens": 500,
     "output_tokens": 1200,
