@@ -100,14 +100,9 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
     # {
     #   "status": "success",
     #   "agent_types": [
-    #     "reasoning-duo",
     #     "self-consistency",
-    #     "ire",
-    #     "reasoning-agent",
     #     "consistency-agent",
-    #     "ire-agent",
     #     "ReflexionAgent",
-    #     "GKPAgent",
     #     "AgentJudge"
     #   ]
     # }
@@ -117,17 +112,13 @@ Reasoning agents use advanced techniques like self-consistency, majority voting,
 
 ## Reasoning Agent Type Comparison
 
-The `/v1/reasoning-agent/types` endpoint currently returns 9 reasoning agent types:
+The `/v1/reasoning-agent/types` endpoint returns these 4 types. Any other `swarm_type` returns 422 before any model call or charge:
 
 | Type | Description | Best For | Samples | Quality Focus |
 |------|-------------|----------|---------|---------------|
-| **reasoning-agent** | Basic reasoning with structured thinking | Simple reasoning tasks | 1 | Balanced |
-| **reasoning-duo** | Two agents with different approaches | Comparative analysis | 2 | Diversity |
 | **self-consistency** | Multiple samples for consistency checking | High-stakes decisions | 3-5 | Consistency |
-| **ire** / **ire-agent** | Iterative refinement through multiple passes | Complex problem-solving | Variable | Accuracy |
-| **consistency-agent** | Focus on logical consistency | Mathematical/logical problems | 3 | Logical rigor |
+| **consistency-agent** | Alias for `self-consistency` | High-stakes decisions | 3-5 | Consistency |
 | **ReflexionAgent** | Self-critiques and revises its own output across iterations | Tasks that benefit from self-correction | Variable | Self-improvement |
-| **GKPAgent** | Generated Knowledge Prompting — generates supporting knowledge before answering | Knowledge-intensive tasks | Variable | Grounding |
 | **AgentJudge** | Evaluates and scores candidate outputs | Output evaluation / grading | Variable | Evaluation |
 
 ## Request Parameters
@@ -140,16 +131,15 @@ Send these fields in the JSON body of `POST /v1/reasoning-agent/completions` (th
 | `description` | `string` | `"A reasoning agent that can answer questions and help with tasks."` | A detailed explanation of the reasoning agent's purpose and capabilities |
 | `model_name` | `string` | `"claude-sonnet-4-20250514"` | The name of the AI model that the reasoning agent will utilize |
 | `system_prompt` | `string` | `None` | The initial instruction or context provided to the reasoning agent |
-| `max_loops` | `integer` | `1` | Maximum number of times the agent repeats its task (ignored for `ire` / `ire-agent`, which manage iteration internally) |
-| `swarm_type` | `string` | `"reasoning_duo"` | The reasoning agent type — pass one of the 9 values listed above |
+| `max_loops` | `integer` | `1` | Maximum number of times the agent repeats its task |
+| `swarm_type` | `string` | `"self-consistency"` | The reasoning agent type: one of the 4 values listed above |
 | `num_samples` | `integer` | `1` | The number of samples to generate for the reasoning agent |
 | `output_type` | `string` | `"dict-all-except-first"` | Accepted for schema compatibility but **ignored by the server** — responses are always returned in `dict-all-except-first` format |
-| `num_knowledge_items` | `integer` | `None` | The number of knowledge items to use for the reasoning agent |
 | `memory_capacity` | `integer` | `None` | The memory capacity for the reasoning agent |
 | `task` | `string` | `None` | The task to be completed by the reasoning agent |
 
 <Note>
-The schema default for `swarm_type` is the underscore spelling `"reasoning_duo"`, which is not itself one of the 9 accepted values — the enum only contains the hyphenated `"reasoning-duo"`. If you set `swarm_type` explicitly, use one of the 9 hyphenated/listed values above; the underscore form is rejected.
+`reasoning-duo`, `reasoning-agent`, `ire`, `ire-agent` and `GKPAgent` were removed. A request that names one of them, or sends `swarm_type: null`, returns 422.
 </Note>
 
 ## Response Format
@@ -177,7 +167,7 @@ The schema default for `swarm_type` is the underscore spelling `"reasoning_duo"`
         "model_name": "gpt-4.1",
         "system_prompt": "You are a logical reasoning assistant.",
         "max_loops": 1,
-        "swarm_type": "reasoning-agent",
+        "swarm_type": "ReflexionAgent",
         "num_samples": 1,
         "task": "Solve this logic puzzle: If all bloops are razzes and some razzes are fizzles, are all bloops fizzles?"
     }
@@ -202,22 +192,21 @@ The schema default for `swarm_type` is the underscore spelling `"reasoning_duo"`
         "agent_name": "Refinement Agent",
         "model_name": "gpt-4.1",
         "system_prompt": "You are an agent that improves through iteration.",
-        "swarm_type": "ire",  # manages its refinement iterations internally; max_loops is ignored
-        "num_samples": 2,
+        "max_loops": 3,
+        "swarm_type": "ReflexionAgent",
         "task": "Design a more efficient algorithm for sorting a list of numbers."
     }
     ```
   </Tab>
-  <Tab title="Reasoning Duo">
+  <Tab title="Agent Judge">
     ```python
     payload = {
-        "agent_name": "Dual Reasoner",
+        "agent_name": "Answer Judge",
         "model_name": "gpt-4.1",
-        "system_prompt": "You are a dual reasoning system.",
+        "system_prompt": "You are a strict reviewer of reasoning quality.",
         "max_loops": 1,
-        "swarm_type": "reasoning-duo",
-        "num_samples": 2,
-        "task": "Debate the pros and cons of renewable energy adoption."
+        "swarm_type": "AgentJudge",
+        "task": "Critique this answer: renewable energy adoption has no downsides."
     }
     ```
   </Tab>
@@ -258,7 +247,6 @@ The schema default for `swarm_type` is the underscore spelling `"reasoning_duo"`
         "max_loops": 1,
         "swarm_type": "consistency-agent",
         "num_samples": 3,
-        "num_knowledge_items": 5,  # Include knowledge base
         "memory_capacity": 10,
         "task": "Integrate these research findings into a coherent theory."
     }
@@ -295,7 +283,7 @@ else:
 
         if time_constraint == "fast":
             return {
-                "swarm_type": "reasoning-agent",
+                "swarm_type": "self-consistency",
                 "num_samples": 1,
                 "max_loops": 1,
                 "model_name": "gpt-4.1-mini"
@@ -323,7 +311,7 @@ else:
 
         if budget < 0.1:
             return {
-                "swarm_type": "reasoning-agent",
+                "swarm_type": "self-consistency",
                 "model_name": "gpt-4.1-mini",
                 "num_samples": 1
             }
@@ -335,7 +323,7 @@ else:
             }
         else:
             return {
-                "swarm_type": "reasoning-duo",
+                "swarm_type": "self-consistency",
                 "model_name": "gpt-4.1-mini",
                 "num_samples": 2
             }
@@ -350,8 +338,8 @@ else:
     ```python
     payload = {
         "agent_name": "Scientific Reasoner",
-        "swarm_type": "ire",
-        "num_samples": 3,
+        "swarm_type": "ReflexionAgent",
+        "max_loops": 3,
         "task": "Design an experiment to test the hypothesis that X causes Y."
     }
     ```
@@ -360,8 +348,7 @@ else:
     ```python
     payload = {
         "agent_name": "Strategy Consultant",
-        "swarm_type": "reasoning-duo",
-        "num_samples": 2,
+        "swarm_type": "AgentJudge",
         "task": "Evaluate three potential market entry strategies for our product."
     }
     ```
@@ -398,8 +385,8 @@ else:
 
 ### Quality Assurance
 1. **Consistency Checking**: Use self-consistency for critical decisions
-2. **Diverse Perspectives**: Leverage reasoning-duo for balanced analysis
-3. **Iterative Improvement**: Apply IRE for complex problem-solving
+2. **Critique**: Use AgentJudge to review another agent's answer
+3. **Iterative Improvement**: Apply ReflexionAgent to answers that improve with self-critique
 4. **Validation**: Always validate reasoning outputs
 
 ### Performance Considerations
