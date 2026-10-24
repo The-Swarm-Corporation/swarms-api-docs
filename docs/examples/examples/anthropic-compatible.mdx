@@ -1,0 +1,91 @@
+---
+title: 'Anthropic-Compatible Messages'
+description: 'Call the Swarms API with the Anthropic Python SDK: one message, a multi-turn conversation, and handling a field that is not supported yet.'
+---
+
+## What This Example Shows
+
+- Pointing the Anthropic Python SDK at `POST /v1/messages` by changing `base_url` and `api_key`
+- Running any Swarms model, Claude or not, through `client.messages.create`
+- Continuing a conversation by sending the earlier turns back
+- Catching the 400 for a field that is not supported yet
+
+## Why This Matters
+
+Code already written against the Anthropic SDK keeps its client, its message format and its error handling. Only the two client settings change, and the same call can then run a GPT, Gemini or Groq model as well as Claude. For the fields and errors, see the [Anthropic-Compatible Endpoint](/docs/documentation/capabilities/anthropic-compatible) reference and [Messages (Anthropic-compatible)](/api-reference/anthropic-compatible/messages-anthropic-compatible) in the API Reference.
+
+## Step 1: Setup
+
+Get an API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
+
+```bash
+pip install anthropic
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## Step 2: Send a Message
+
+```python
+import os
+
+import anthropic
+
+client = anthropic.Anthropic(api_key=os.environ["SWARMS_API_KEY"], base_url="https://api.swarms.world")
+
+msg = client.messages.create(
+    model="claude-sonnet-5",
+    max_tokens=30,
+    system="Answer with one word.",
+    messages=[{"role": "user", "content": "What is the capital of Italy?"}],
+)
+print(msg.content[0].text)
+print(msg.stop_reason, msg.usage.input_tokens, msg.usage.output_tokens)
+```
+
+Output from a production run:
+
+```text
+Rome
+end_turn 62 4
+```
+
+`stop_reason` is `max_tokens` instead of `end_turn` when the answer was cut off at `max_tokens`.
+
+## Step 3: Continue the Conversation
+
+The endpoint keeps no state between requests. Send the earlier turns back, ending on the new `user` turn.
+
+```python
+history = [
+    {"role": "user", "content": "What is the capital of Italy?"},
+    {"role": "assistant", "content": msg.content[0].text},
+    {"role": "user", "content": "And of France?"},
+]
+
+reply = client.messages.create(model="claude-sonnet-5", max_tokens=30, system="Answer with one word.", messages=history)
+print(reply.content[0].text)
+```
+
+## Step 4: Handle a Field That Is Not Supported Yet
+
+Streaming, images, documents, tools, thinking, `stop_sequences` and assistant prefill return 400 for now. The SDK raises `BadRequestError`, and the message names the field.
+
+```python
+try:
+    client.messages.create(
+        model="claude-sonnet-5",
+        max_tokens=30,
+        stop_sequences=["\n"],
+        messages=[{"role": "user", "content": "Count to three."}],
+    )
+except anthropic.BadRequestError as error:
+    print(error.status_code, error.body["error"]["message"])
+```
+
+```text
+400 Not supported yet: stop_sequences
+```
+
+## Cost
+
+A request is billed like `/v1/chat/completions`: the model's price per 1M input and output tokens plus the 15% service fee, on the `usage` counts in the response. Your credit balance must be above \$1.00. See [Pricing](/docs/documentation/resources/pricing).

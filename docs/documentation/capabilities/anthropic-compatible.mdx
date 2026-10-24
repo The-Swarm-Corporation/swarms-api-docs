@@ -1,0 +1,121 @@
+---
+title: 'Anthropic-Compatible Endpoint'
+description: 'POST /v1/messages accepts the Anthropic Messages API format, so code written for the Anthropic SDK runs on Swarms with only base_url and api_key changed.'
+---
+
+`POST /v1/messages` takes an [Anthropic Messages API](https://docs.anthropic.com/en/api/messages) request and returns an Anthropic message. Code written for the Anthropic SDK runs against Swarms with two changes, `base_url` and `api_key`, and can call any model Swarms serves, not only Claude. It is non-streaming and text only for now; see [Not Supported Yet](#not-supported-yet).
+
+Each request runs on the same path as the [OpenAI-compatible endpoint](/docs/documentation/capabilities/openai-compatible), so billing, rate limits and the minimum credit balance are the same as for `/v1/chat/completions`.
+
+<Info>
+The full schema is in the API Reference: [Messages (Anthropic-compatible)](/api-reference/anthropic-compatible/messages-anthropic-compatible).
+</Info>
+
+## Endpoint Information
+
+- **URL**: `/v1/messages`
+- **Method**: `POST`
+- **Authentication**: `x-api-key` header, which the Anthropic SDK sends from `api_key`. The `anthropic-version` header is accepted and ignored
+- **Billing**: billed like `/v1/chat/completions`, and needs a credit balance above \$1.00
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import anthropic
+
+    client = anthropic.Anthropic(api_key="<your Swarms API key>", base_url="https://api.swarms.world")
+
+    msg = client.messages.create(
+        model="claude-sonnet-5",
+        max_tokens=30,
+        system="Answer with one word.",
+        messages=[{"role": "user", "content": "What is the capital of Italy?"}],
+    )
+    print(msg.content[0].text)
+    print(msg.stop_reason, msg.usage.input_tokens, msg.usage.output_tokens)
+    ```
+
+    ```text
+    Rome
+    end_turn 62 4
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST https://api.swarms.world/v1/messages \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"model": "gpt-4o-mini", "max_tokens": 40, "system": "Be brief.",
+           "messages": [{"role": "user", "content": "Say hello in five words."}]}'
+    ```
+
+    ```json
+    {
+      "id": "msg_62baeba8f38944db9b0f0a38",
+      "type": "message",
+      "role": "assistant",
+      "model": "gpt-4o-mini",
+      "content": [{"type": "text", "text": "Hello! How are you today?"}],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {"input_tokens": 20, "output_tokens": 7}
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Request Fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `model` | `string` | Yes | Any model from `GET /v1/models/available`, such as `claude-sonnet-5` or `gpt-4o-mini` |
+| `max_tokens` | `integer` | Yes | Maximum tokens to generate, at least 1 |
+| `messages` | `array` | Yes | `user` and `assistant` turns. `content` is a string or a list of `text` blocks. The last turn must be `user` |
+| `system` | `string` or `array` | No | System prompt, as a string or a list of `text` blocks |
+| `temperature` | `float` | No | 0 to 1 |
+| `top_p` | `float` | No | 0 to 1 |
+
+## Response Fields
+
+| Field | Description |
+| --- | --- |
+| `id` | `msg_` followed by 24 hex characters |
+| `type`, `role` | Always `"message"` and `"assistant"` |
+| `model` | The requested model |
+| `content` | One `text` block with the answer |
+| `stop_reason` | `"end_turn"`, or `"max_tokens"` when the answer reached `max_tokens` |
+| `stop_sequence` | Always `null` |
+| `usage` | `input_tokens` and `output_tokens`, the counts the request is billed on |
+
+## Not Supported Yet
+
+These return **400** with the message `Not supported yet: <names>`:
+
+- `stream: true`
+- `image`, `document` or any other content block that is not `text`
+- `tools`, `thinking`, `stop_sequences`, and any other field not listed above, when it is set to a non-empty value
+
+A `messages` list that ends on an `assistant` turn (assistant prefill) also returns 400, with `messages must end with a user turn. Assistant prefill is not supported yet.`
+
+## Errors
+
+Errors from the endpoint itself use the Anthropic error shape:
+
+```json
+{"type": "error", "error": {"type": "invalid_request_error", "message": "Not supported yet: stream"}}
+```
+
+| Status | `error.type` | When |
+| --- | --- | --- |
+| 400 | `invalid_request_error` | An unsupported field or block, assistant prefill, or the provider rejected the request |
+| 402 | `billing_error` | The run's cost could not be deducted from your credits |
+| 403 | `permission_error` | A free-tier key asked for a premium model |
+| 404 | `not_found_error` | The model does not exist, or its provider does not serve it |
+| 429 | `rate_limit_error` | The provider is rate limiting the model |
+| 500, 502 | `api_error` | The provider or the run failed |
+
+The API key, credit balance and rate limit are checked before a request reaches the endpoint, so those errors keep the Swarms shape: a missing or invalid key is 401 and a balance of \$1.00 or less is 402, both as `{"error": {"type", "message", "detail", "status_code"}}`, and a rate limit is 429 as `{"detail": "..."}`. A body that fails schema validation, such as a missing `max_tokens` or a `temperature` above 1, is 422 as `{"detail": [...]}`. The Anthropic SDK raises its usual exception for each status either way.
+
+See the [Python example](/docs/examples/examples/anthropic-compatible) for a multi-turn conversation and error handling.
