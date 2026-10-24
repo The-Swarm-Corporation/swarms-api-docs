@@ -93,7 +93,7 @@ payload = {
 }
 
 r = requests.post(f"{BASE_URL}/v1/swarm/completions", headers=headers, json=payload, timeout=300)
-print(r.json()["output"][-1]["content"])
+print(next(turn["content"] for turn in reversed(r.json()["output"]) if turn["role"] == "Portfolio Manager"))
 ```
 
 That's the whole file. The orchestration, the fan-in to the PM, the usage accounting — all server-side.

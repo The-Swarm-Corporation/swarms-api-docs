@@ -188,7 +188,7 @@ For your acquisitions pipeline you only want the Director's one-pager — the an
 def extract_director_memo(result: dict) -> str:
     for output in result.get("output", []):
         role = output.get("role", "")
-        if "Investment Director" in role or "Director" in role:
+        if role == "Investment Director":
             content = output["content"]
             if isinstance(content, list):
                 content = " ".join(str(c) for c in content)
