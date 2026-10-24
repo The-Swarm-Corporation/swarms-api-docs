@@ -50,6 +50,8 @@ npm install axios dotenv
 
 The API uses API key authentication through the `x-api-key` header. For OpenAI SDK compatibility, the `Authorization: Bearer <your-api-key>` header is also accepted. Store your API key securely as an environment variable.
 
+The Anthropic SDK works too: point it at `https://api.swarms.world` with your Swarms API key and call `client.messages.create`. See the [Anthropic-Compatible Endpoint](/docs/documentation/capabilities/anthropic-compatible).
+
 **Base URL:**
 
 * Production: `https://api.swarms.world`
