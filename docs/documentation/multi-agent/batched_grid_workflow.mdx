@@ -545,7 +545,7 @@ To refine several *different* topics in parallel, issue one request per topic (l
 | `agent_name` | string | No | Unique name for the agent |
 | `description` | string | No | Description of the agent's role |
 | `system_prompt` | string | No | System prompt defining agent behavior |
-| `model_name` | string | No | Model to use (e.g., "gpt-4.1", "claude-sonnet-4-20250514"); defaults to `claude-sonnet-5` |
+| `model_name` | string | No | Model to use (e.g., "gpt-4.1", "claude-sonnet-5"); defaults to `claude-sonnet-5` |
 | `max_loops` | integer or string | No | Max internal loops for this single agent's own run, or `"auto"` (default: 1). Independent of the workflow-level `max_loops` above |
 | `max_tokens` | integer | No | Maximum tokens the agent can generate (default: 16000); values below 1 are rejected with a 422 validation error |
 | `temperature` | float | No | Sampling temperature; if omitted, the provider's own default applies |
@@ -617,7 +617,7 @@ Because of this, don't rely on this endpoint for large fan-outs where you expect
 ### Cost Optimization
 
 - Start with a small agent/task pair count to test your workflow before scaling to 50
-- Use appropriate models (`claude-sonnet-4-20250514` or `gpt-4.1` for quality, a smaller model for cost-sensitive runs)
+- Use appropriate models (`claude-sonnet-5` or `gpt-4.1` for quality, a smaller model for cost-sensitive runs)
 - Monitor token usage and adjust prompt verbosity
 - Remember `max_loops` multiplies output tokens roughly linearly — a `max_loops=3` run costs about 3x the output tokens of `max_loops=1`
 
