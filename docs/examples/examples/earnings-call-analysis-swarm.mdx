@@ -1,11 +1,11 @@
 ---
 title: "Earnings Call Analysis Swarm: Tone, Guidance, and Q&A Red Flags in 60 Seconds"
-description: "A ConcurrentWorkflow of four specialist agents plus a Synthesizer turns every earnings call transcript into a structured note — covering all 125 calls per day during peak earnings season for under $50."
+description: "An AgentRearrange flow of four parallel specialists feeding a Synthesizer turns every earnings call transcript into a structured note — covering all 125 calls per day during peak earnings season for under $50."
 ---
 
 ## What This Example Shows
 
-- A `ConcurrentWorkflow` of four specialists — Transcript Analyzer, Guidance Tracker, Q&A Sentiment, Material Disclosure Detector — fanning out in parallel, then merged by a Synthesizer agent
+- An `AgentRearrange` flow where four specialists (Transcript Analyzer, Guidance Tracker, Q&A Sentiment, Material Disclosure Detector) fan out in parallel, then a Synthesizer agent merges their outputs
 - Per-agent function tools in OpenAI schema (`tools_list_dictionary`): `score_tone`, `compare_guidance`, `detect_material_disclosure`, `extract_qa_red_flags`
 - Mixed-provider model routing: Claude Sonnet 4.5 for analysis and synthesis, GPT-4.1 for guidance arithmetic, Claude Haiku 4.5 for cheap sentiment, Claude Opus 4.8 with `reasoning_effort: "high"` for the high-stakes disclosure check
 - How to scale a single call across the full earnings-season firehose using `/v1/swarm/batch/completions`
@@ -35,8 +35,8 @@ Four specialists run in parallel against the same transcript. A Synthesizer agen
 +-------------+--------------+
               |
               v
-+----------------------------+        ConcurrentWorkflow — all four fire in parallel
-|       ConcurrentWorkflow   |
++----------------------------+        AgentRearrange: all four fire in parallel
+|       AgentRearrange       |
 |                            |
 |  +----------------------+  |
 |  | Transcript Analyzer  |  |   ->  score_tone()
@@ -422,7 +422,8 @@ def build_earnings_swarm(ticker: str, period: str,
     return {
         "name": f"Earnings Call Analysis - {ticker} {period}",
         "description": "Four specialists in parallel plus a Synthesizer.",
-        "swarm_type": "ConcurrentWorkflow",
+        "swarm_type": "AgentRearrange",
+        "rearrange_flow": "Transcript Analyzer, Guidance Tracker, Q&A Sentiment, Material Disclosure Detector -> Synthesizer",
         "max_loops": 1,
         "task": task,
         "agents": [
@@ -484,6 +485,10 @@ def build_earnings_swarm(ticker: str, period: str,
         ],
     }
 ```
+
+<Note>
+`rearrange_flow` is what lets the Synthesizer read the specialists' outputs: the four run in parallel, then the Synthesizer runs with their outputs in context. A `ConcurrentWorkflow` sends the same task to every agent at once, so a Synthesizer listed there would work from the raw transcript alone.
+</Note>
 
 <Note>
 Function tools force structured outputs at the source, not at the synthesizer. By the time the Synthesizer reads the four specialist outputs, the tone scores, guidance deltas, and disclosure list are already typed JSON — the Synthesizer is just merging, not parsing free-form text. This is what makes the JSON contract reliable enough to feed straight into a Postgres or Snowflake table.
@@ -653,6 +658,6 @@ Material disclosure detection is an assistive layer, not a compliance system of 
 
 ## Next Steps
 
-- [Build an AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) — the HierarchicalSwarm variant when you need a director synthesizing analyst briefs instead of fanning out in parallel
+- [Build an AI Hedge Fund Research Pipeline](/docs/examples/examples/ai-hedge-fund) — the same fan-out-then-decide flow applied to equity research, with an overnight batch step
 - [Sell-Side Research Pipeline](/docs/examples/examples/sell-side-research-pipeline) — composing earnings notes, cited research, and reasoning agents into a single end-of-day deliverable
 - [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) — model routing, token budgeting, and batch scheduling patterns that keep the per-call number under a dollar at scale

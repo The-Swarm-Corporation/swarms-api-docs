@@ -1,22 +1,22 @@
 ---
 title: "Build an AI Hedge Fund Research Pipeline"
-description: "A HierarchicalSwarm of a Portfolio Manager directing Fundamentals, Technicals, and Macro analysts — then scaled overnight across a full watchlist with batch completions."
+description: "Fundamentals, Technicals, and Macro analysts run in parallel and a Portfolio Manager makes the call from their briefs, then the same flow is scaled overnight across a full watchlist with batch completions."
 ---
 
 ## What This Example Shows
 
-- A `HierarchicalSwarm` with a Portfolio Manager (director) coordinating three worker analysts: Fundamentals, Technicals, and Macro
+- An `AgentRearrange` flow that runs three analysts in parallel (Fundamentals, Technicals, and Macro), then a Portfolio Manager who makes the call from their briefs
 - How to produce a structured buy/sell/hold call with a key signal for a single ticker
 - How to scale the same swarm across a 20-ticker watchlist using `/v1/swarm/batch/completions`
 - A realistic cost comparison against staffing a junior analyst team
 
 <Info>
-`HierarchicalSwarm` via `/v1/swarm/completions` (Step 3) works on any tier with a positive credit balance. `/v1/swarm/batch/completions` (Step 4) is a **premium-only** endpoint — it requires an active premium subscription. Upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings) to unlock batch execution for overnight jobs across hundreds of tickers.
+`AgentRearrange` via `/v1/swarm/completions` (Step 3) works on any tier with a positive credit balance. `/v1/swarm/batch/completions` (Step 4) is a **premium-only** endpoint — it requires an active premium subscription. Upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings) to unlock batch execution for overnight jobs across hundreds of tickers.
 </Info>
 
 ## Why This Matters
 
-Most discretionary research desks are bottlenecked by the same thing: one analyst, one ticker at a time. A small fund's morning meeting touches maybe five names. By 9:30 AM half the watchlist has already moved without coverage. The job here is not to replace the PM's judgement — it is to put a structured, repeatable research note in front of them for every ticker on the watchlist before the open, every day. That is exactly what a hierarchical swarm of specialist analysts does cheaply and on a schedule.
+Most discretionary research desks are bottlenecked by the same thing: one analyst, one ticker at a time. A small fund's morning meeting touches maybe five names. By 9:30 AM half the watchlist has already moved without coverage. The job here is not to replace the PM's judgement — it is to put a structured, repeatable research note in front of them for every ticker on the watchlist before the open, every day. That is exactly what a swarm of specialist analysts does cheaply and on a schedule.
 
 ## Step 1: Setup
 
@@ -84,8 +84,9 @@ MACRO_PROMPT = (
 def build_swarm_for_ticker(ticker: str) -> dict:
     return {
         "name": f"AI Hedge Fund Research — {ticker}",
-        "description": "Portfolio Manager directing Fundamentals, Technicals, and Macro analysts.",
-        "swarm_type": "HierarchicalSwarm",
+        "description": "Fundamentals, Technicals, and Macro analysts feeding a Portfolio Manager.",
+        "swarm_type": "AgentRearrange",
+        "rearrange_flow": "Fundamentals Analyst, Technicals Analyst, Macro Analyst -> Portfolio Manager",
         "max_loops": 1,
         "task": (
             f"Produce a same-day research note for {ticker}. "
@@ -135,6 +136,10 @@ def build_swarm_for_ticker(ticker: str) -> dict:
         ],
     }
 ```
+
+<Note>
+`rearrange_flow` is what puts the briefs in front of the Portfolio Manager: the three analysts run in parallel, then the Portfolio Manager runs with their briefs in context. A `HierarchicalSwarm` would not do this. It builds its own Director and runs every listed agent, the Portfolio Manager included, as a parallel worker that never sees the others' output.
+</Note>
 
 ## Step 3: Run One Ticker End-to-End
 
@@ -230,7 +235,7 @@ Schedule this script as a cron job for 6:00 AM ET on weekdays. By the time the P
 
 | Scenario | Cost per ticker | Cost per day (20 tickers) | Annualized |
 | --- | --- | --- | --- |
-| Hierarchical swarm (4 agents, GPT-4.1) | ~\$0.12 | ~\$2.40 | ~\$600 |
+| Analyst swarm (4 agents, GPT-4.1) | ~\$0.12 | ~\$2.40 | ~\$600 |
 | One junior analyst (fully loaded \$150k) | — | ~\$600 | \$150,000 |
 | Three-analyst pod (junior + mid + senior) | — | ~\$2,000 | \$500,000 |
 
