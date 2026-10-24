@@ -111,6 +111,7 @@ The Swarms `/v1/chat/completions` endpoint is a faithful OpenAI ChatCompletion. 
 - **Standard error classes** from the SDK (`openai.RateLimitError`, `openai.APIStatusError`, etc.)
 - **`usage` accounting** in the response — prompt/completion/total token counts
 - **`max_tokens`, `temperature`, `top_p`, `presence_penalty`, `frequency_penalty`** all forwarded
+- **`client.responses.create`** on `POST /v1/responses`, non-streaming with text input. See [OpenAI Responses API](/docs/documentation/capabilities/openai-responses)
 
 A worked example reusing the SDK exactly as you'd use it against OpenAI:
 

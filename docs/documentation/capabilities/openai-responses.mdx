@@ -1,0 +1,123 @@
+---
+title: 'OpenAI Responses API'
+description: 'POST /v1/responses accepts the OpenAI Responses API format, so client.responses.create runs on Swarms with only base_url and api_key changed.'
+---
+
+`POST /v1/responses` takes an [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses/create) request and returns a `response` object. Code that calls `client.responses.create(...)` runs against Swarms with two changes, `base_url` and `api_key`. It is non-streaming and takes text input for now; see [Not Supported Yet](#not-supported-yet).
+
+Each request runs on the same path as [`/v1/chat/completions`](/docs/documentation/capabilities/openai-compatible), so billing, rate limits and the minimum credit balance are the same.
+
+<Info>
+The full schema is in the API Reference: [Create a response (OpenAI-compatible, non-streaming)](/api-reference/openai-compatible/create-a-response-openai-compatible-non-streaming).
+</Info>
+
+## Endpoint Information
+
+- **URL**: `/v1/responses`
+- **Method**: `POST`
+- **Authentication**: `Authorization: Bearer <key>`, which the OpenAI SDK sends from `api_key`, or `x-api-key`
+- **Billing**: billed like `/v1/chat/completions`, and needs a credit balance above \$1.00
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(api_key="<your Swarms API key>", base_url="https://api.swarms.world/v1")
+
+    resp = client.responses.create(
+        model="claude-sonnet-5",
+        instructions="Answer with one word.",
+        input="What is the capital of Italy?",
+        max_output_tokens=20,
+    )
+    print(resp.output_text)
+    print(resp.status, resp.usage.total_tokens)
+    ```
+
+    ```text
+    Rome
+    completed 71
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST https://api.swarms.world/v1/responses \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"model": "gpt-4o-mini", "input": "Say hello in five words.", "max_output_tokens": 40}'
+    ```
+
+    ```json
+    {
+      "id": "resp_91d4de7ae5a04086874a6c0c9f66c9f4",
+      "object": "response",
+      "created_at": 1792689917,
+      "model": "gpt-4o-mini",
+      "status": "completed",
+      "incomplete_details": null,
+      "error": null,
+      "output": [{"type": "message", "id": "msg_b0f7...", "role": "assistant", "status": "completed",
+                  "content": [{"type": "output_text", "text": "Hello! How are you today?", "annotations": []}]}],
+      "usage": {"input_tokens": 23, "output_tokens": 7, "total_tokens": 30,
+                "input_tokens_details": {"cached_tokens": 0}, "output_tokens_details": {"reasoning_tokens": 0}}
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Request Fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `model` | `string` | Yes | Any model from `GET /v1/models/available` |
+| `input` | `string` or `array` | Yes | The user's text, or a list of `message` items with role `user`, `assistant`, `system` or `developer`. Item `content` is a string or a list of `input_text` and `output_text` parts. At least one `user` message is required |
+| `instructions` | `string` | No | System prompt. Joined with any `system` and `developer` messages in `input`, in that order |
+| `max_output_tokens` | `integer` | No | Maximum tokens to generate, at least 1. Defaults to 8192 |
+| `temperature` | `float` | No | 0 to 2. No default, so the model's own default applies |
+| `top_p` | `float` | No | Nucleus sampling cutoff |
+
+## Response Fields
+
+| Field | Description |
+| --- | --- |
+| `id` | `resp_` followed by 32 hex characters |
+| `object` | Always `"response"` |
+| `created_at` | Unix time the response was created |
+| `model` | The requested model |
+| `status` | `"completed"`, or `"incomplete"` when the answer reached `max_output_tokens` |
+| `incomplete_details` | `{"reason": "max_output_tokens"}` when `status` is `"incomplete"`, otherwise `null` |
+| `error` | Always `null`. Failures are HTTP errors |
+| `output` | One assistant `message` item with one `output_text` part. The SDK's `resp.output_text` reads it |
+| `usage` | `input_tokens`, `output_tokens` and `total_tokens`, the counts the request is billed on. `cached_tokens` and `reasoning_tokens` are always 0 |
+
+## Not Supported Yet
+
+These return **400**:
+
+- `stream: true`, `tools`, `previous_response_id`, and any other field not listed above, when it is set to a non-empty value. The message is `Not supported yet: <names>`
+- Image or file parts, and `input` items that are not text messages, such as `function_call_output`. The message is `input supports text message items only`
+- `input` with no `user` message. The message is `input needs at least one user message`
+
+## Errors
+
+Errors from the endpoint use the OpenAI error shape, so the OpenAI SDK raises its usual exception for each status:
+
+```json
+{"error": {"message": "Not supported yet: stream", "type": "invalid_request_error", "code": null, "param": null}}
+```
+
+| Status | `error.type` | `error.code` | When |
+| --- | --- | --- | --- |
+| 400 | `invalid_request_error` | `null` | A field or input that is not supported yet, or the provider rejected the request |
+| 402 | `invalid_request_error` | `null` | The run's cost could not be deducted from your credits |
+| 403 | `invalid_request_error` | `null` | A free-tier key asked for a premium model |
+| 404 | `invalid_request_error` | `model_not_found` | The model does not exist, or its provider does not serve it |
+| 429 | `invalid_request_error` | `null` | The provider is rate limiting the model |
+| 500, 502 | `server_error` | `internal_error` or `null` | The provider or the run failed |
+
+The API key, credit balance and rate limit are checked before a request reaches the endpoint, so those errors keep the Swarms shape: a missing or invalid key is 401 and a balance of \$1.00 or less is 402, both as `{"error": {"type", "message", "detail", "status_code"}}`, and a rate limit is 429 as `{"detail": "..."}`. A body that fails schema validation, such as a `temperature` above 2 or a `max_output_tokens` of 0, is 422 as `{"detail": [...]}`.
+
+For chat-style requests with streaming, tools or images, use [`/v1/chat/completions`](/docs/documentation/capabilities/openai-compatible). See the [OpenAI-compatible examples](/docs/examples/examples/openai-compatible#8-responses-api) for the Python quick start.
