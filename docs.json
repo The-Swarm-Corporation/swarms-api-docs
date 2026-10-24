@@ -263,7 +263,8 @@
               "docs/examples/examples/decision-model-completion",
               "docs/examples/examples/decision-model-list-models",
               "docs/examples/examples/decision-models-with-agents",
-              "docs/examples/examples/decision-models-with-swarms"
+              "docs/examples/examples/decision-models-with-swarms",
+              "docs/examples/examples/typesafe-sdk-with-swarms-api"
             ]
           },
           {

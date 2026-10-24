@@ -11,6 +11,10 @@ Get a comprehensive list of all AI models available through the Swarms API. This
 The `/v1/models/available` endpoint returns all models currently supported by the Swarms API, each with its price per 1M input and output tokens (15% service fee included).
 </Info>
 
+<Note>
+Decision models such as `jev-latest` are not in this list. `GET /v1/decision/models` lists them with their price per 1M input and output tokens; see [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models).
+</Note>
+
 ## Quick Start
 
 <Tabs>

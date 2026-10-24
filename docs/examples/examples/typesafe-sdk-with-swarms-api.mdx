@@ -1,0 +1,86 @@
+---
+title: "Use the TypeSafe SDK with the Swarms API"
+description: "Point the TypeSafe Python and JavaScript SDKs at api.swarms.world with a Swarms API key, read the charge and request ID, and handle errors."
+---
+
+## What This Example Shows
+
+- The `typesafe-sdk` Python client and the `@typesafe-ai/sdk` JavaScript client calling `POST /v1/systemone` on `https://api.swarms.world`
+- Reading the request ID and the amount charged from the response
+- Which SDK error each Swarms API failure raises
+
+## Why This Matters
+
+An existing TypeSafe integration moves onto Swarms billing by changing two environment variables and turning off request compression. The questions, answers and SDK types stay the same, and each request is charged to your Swarms credits: `jev-latest` costs \$0.0483 per 1M input tokens with output free, so a request with 400 input tokens costs 400 × \$0.0483 / 1M, about \$0.00002.
+
+## Step 1: Setup
+
+Get an API key from [https://swarms.world/platform/api-keys](https://swarms.world/platform/api-keys). Both SDKs read the key and base URL from `TYPESAFE_API_KEY` and `TYPESAFE_BASE_URL`, or from the `api_key` and `base_url` (Python) or `apiKey` and `baseURL` (JavaScript) client options.
+
+```bash
+pip install typesafe-sdk
+npm install @typesafe-ai/sdk
+export TYPESAFE_API_KEY="your-swarms-api-key"
+export TYPESAFE_BASE_URL="https://api.swarms.world"
+```
+
+## Step 2: Ask Questions
+
+Set `compression` to false. Where the runtime supports it (Python 3.14 and newer, the `typesafe-sdk[zstd]` extra, or Node.js 22.15 and newer), the SDKs compress request bodies of 1 KiB or more with zstd, and the Swarms API rejects a compressed body because it cannot read it.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from typesafe_sdk import Choice, Noul, TypeSafeClient
+
+    with TypeSafeClient(compression=False) as client:
+        result = client.system_one(
+            state="I was charged twice. Please help.",
+            questions={
+                "billing": Noul(instructions="Is this about billing?"),
+                "tone": Choice(instructions="What is the tone?", criteria={"calm": None, "angry": None}),
+            },
+        )
+        print(result.nouls["billing"].noul, result.choices["tone"].choice)
+        print(result.request_id, result.raw_http_response.headers["x-swarms-total-cost"])
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    import { TypeSafeClient, choice, noul } from "@typesafe-ai/sdk";
+
+    const client = new TypeSafeClient({ compression: false });
+    const { data, response, requestId } = await client
+      .systemOne({
+        state: "I was charged twice. Please help.",
+        questions: {
+          billing: noul("Is this about billing?"),
+          tone: choice("What is the tone?", { calm: null, angry: null }),
+        },
+      })
+      .withResponse();
+    console.log(data.answers.billing.noul, data.answers.tone.choice);
+    console.log(requestId, response.headers.get("x-swarms-total-cost"));
+    ```
+  </Tab>
+</Tabs>
+
+Both SDKs send `model` as `jev-latest` unless you set one. The request ID is the `x-typesafe-request-id` header, and `x-swarms-total-cost` is the amount charged in USD. `client.models.list()` returns each decision model's `name`, `description` and `release_date`, with the prices in the `description` text. The async Python client, `AsyncTypeSafeClient`, takes the same options and is used as `async with AsyncTypeSafeClient() as client`, then `await client.system_one(...)`.
+
+## Step 3: Handle Errors
+
+| Status | When | Python | JavaScript |
+| --- | --- | --- | --- |
+| 400 | Unknown model | `TypeSafeBadRequestError` | `BadRequestError` |
+| 401 | Missing or invalid API key | `TypeSafeAuthenticationError` | `AuthenticationError` |
+| 402 | Credit balance at or below \$1.00 | `TypeSafeAPIError` with `status` 402 | `APIError` with `status` 402 |
+| 422 | Invalid question, a `box` question, or an image | `TypeSafeUnprocessableEntityError` | `UnprocessableEntityError` |
+| 429 | Rate limit exceeded | `TypeSafeRateLimitError` | `RateLimitError` |
+| 502 | The decision model provider is unavailable | `TypeSafeInternalServerError` | `InternalServerError` |
+
+By default both SDKs retry a 429 or 502 twice before raising it. A failed request is not charged. The other differences from the TypeSafe API are listed under [TypeSafe API Format](/docs/documentation/capabilities/decision-models#typesafe-api-format).
+
+## Next Steps
+
+- [Decision Models Reference](/docs/documentation/capabilities/decision-models): question types, errors and the TypeSafe API format
+- [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models): current prices and per-request cost math
