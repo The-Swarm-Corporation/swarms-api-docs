@@ -101,7 +101,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Every worker agent gets the tools it actually needs — nothing more. Tools are OpenAI-format function schemas; your runtime resolves the calls server-side or replays them locally after the swarm finishes, depending on your tool host.
+Every worker agent gets the tools it actually needs — nothing more. Tools are OpenAI-format function schemas. The API never executes them, so each call comes back in that agent's output with its arguments, and a later stage sees the call, never its result. Parse the PDF and look up consensus in your own code and put the results in the `task`, then replay the returned calls, such as the Slack post, after the swarm finishes. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 PARSE_PDF_TOOL = {
