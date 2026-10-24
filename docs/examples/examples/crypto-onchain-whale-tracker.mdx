@@ -1,13 +1,13 @@
 ---
 title: "Crypto On-Chain Whale Tracker: Multi-Chain Movement Classification"
-description: "A ConcurrentWorkflow that watches the top 100 wallets across ETH, BTC, SOL, and Base every block, classifies every movement, and alerts before the chart catches up."
+description: "An AgentRearrange flow that watches the top 100 wallets across ETH, BTC, SOL, and Base every block, classifies every movement, and alerts before the chart catches up."
 ---
 
 Every twelve seconds the largest wallets on four chains get classified — and an hour before the spot move shows up on a chart, your Slack already knows where the flow is going.
 
 ## What This Example Shows
 
-- A `ConcurrentWorkflow` that runs four per-chain monitors (ETH, BTC, SOL, Base) in parallel — one swarm call per block, every block
+- An `AgentRearrange` flow that runs four per-chain monitors (ETH, BTC, SOL, Base) in parallel, then the Movement Classifier and the Alert Generator in turn — one swarm call per block, every block
 - MCP wiring for Alchemy / Infura / Helius RPC endpoints so each chain agent reads its native mempool and block stream directly
 - Function tools that classify every whale tx: CEX inflow/outflow, OTC, DEX swap, or bridge — with wallet-label enrichment
 - Sustained polling rate-limit math: ETH block time of 12 seconds compounds to ~7,200 swarm calls/day, blowing through the Free tier's per-day cap after a few hours
@@ -19,7 +19,7 @@ Continuous block-by-block polling breaches the Free tier per-day cap within a fe
 
 ## Why This Matters
 
-Whale wallets historically lead the tape by 15 to 60 minutes — a \$40M wBTC pull off Coinbase Prime, a fresh deposit into a Binance OTC sub-account, a bridge from Base to Solana — these are the movements that show up on a price chart later as a green or red candle. The alpha is not in seeing the transaction (any block explorer does that). The alpha is in classifying it inside the same block: is this a market maker rebalancing, an OTC settlement that will hit spot in 20 minutes, or a known fund unwinding into a bridge? Sub-block latency on that classification — and the wallet label that makes it tradeable — is the entire edge. A `ConcurrentWorkflow` lets you process all four major L1/L2 chains in the same swarm call, so when the ETH monitor sees a whale deposit on block N, the Base monitor on that same swarm call has already seen the bridge ack on the other side.
+Whale wallets historically lead the tape by 15 to 60 minutes — a \$40M wBTC pull off Coinbase Prime, a fresh deposit into a Binance OTC sub-account, a bridge from Base to Solana — these are the movements that show up on a price chart later as a green or red candle. The alpha is not in seeing the transaction (any block explorer does that). The alpha is in classifying it inside the same block: is this a market maker rebalancing, an OTC settlement that will hit spot in 20 minutes, or a known fund unwinding into a bridge? Sub-block latency on that classification — and the wallet label that makes it tradeable — is the entire edge. Running the four chain monitors as one parallel step lets you process all four major L1/L2 chains in the same swarm call, so when the ETH monitor sees a whale deposit on block N, the Base monitor on that same swarm call has already seen the bridge ack on the other side.
 
 ## The Architecture
 
@@ -31,7 +31,7 @@ Whale wallets historically lead the tape by 15 to 60 minutes — a \$40M wBTC pu
                                │
                                ▼
         ┌──────────────────────────────────────────┐
-        │           ConcurrentWorkflow             │
+        │      AgentRearrange, parallel step       │
         │                                          │
         │  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
         │  │  ETH   │  │  BTC   │  │  SOL   │  │  Base  │
@@ -250,7 +250,7 @@ CLASSIFIER_TOOLS = [CLASSIFY_MOVEMENT, LOOKUP_WALLET_LABEL, IS_CEX_ADDRESS]
 ALERT_TOOLS = [POST_WHALE_ALERT]
 ```
 
-## Step 3: Define the Concurrent Per-Chain Agents
+## Step 3: Define the Per-Chain Agents and the Flow
 
 Each chain monitor runs on `gpt-4.1-mini` — fast and cheap is the only thing that matters when you are firing this swarm every 12 seconds. The Movement Classifier runs on `xai/grok-4.3` for its real-time bias and willingness to commit to a classification under uncertainty. The Alert Generator runs on `claude-sonnet-5` because the natural-language quality of the Slack message is what makes the desk actually read it.
 
@@ -330,7 +330,11 @@ def build_whale_swarm(block_targets: dict[str, int]) -> dict:
     return {
         "name": "On-Chain Whale Tracker",
         "description": "Per-chain concurrent monitors → classifier → alerter, one swarm call per block.",
-        "swarm_type": "ConcurrentWorkflow",
+        "swarm_type": "AgentRearrange",
+        "rearrange_flow": (
+            ", ".join(agent["agent_name"] for agent in chain_agents)
+            + " -> Movement Classifier -> Alert Generator"
+        ),
         "max_loops": 1,
         "task": (
             "For the given block on each chain, identify and classify every whale-relevant "
@@ -342,7 +346,7 @@ def build_whale_swarm(block_targets: dict[str, int]) -> dict:
 ```
 
 <Note>
-The classifier and alert generator are inside the same `ConcurrentWorkflow` call as the chain monitors. The swarm scheduler still gives the chain monitors their parallel fan-out — the later-stage agents simply run with the aggregated outputs as input context. If you want a strict pipeline (fan-out then sequential), wrap the chain monitors in an inner `ConcurrentWorkflow` and the classifier/alerter in an outer `SequentialWorkflow`. For a hot loop you want the simpler single-swarm shape.
+`rearrange_flow` is what gives the later stages the monitors' output: the four chain monitors run in parallel, then the Movement Classifier runs with their rows in context, then the Alert Generator with the classifications. In a `ConcurrentWorkflow` every agent gets the same task at the same time, so the classifier and alert generator would see only the block targets. Nesting a `ConcurrentWorkflow` inside a `SequentialWorkflow` is not an option either, because `SwarmSpec.agents` takes only agent specs. The flow string gives you fan-out then sequential in one swarm call.
 </Note>
 
 ## Step 4: Process One Block End-to-End

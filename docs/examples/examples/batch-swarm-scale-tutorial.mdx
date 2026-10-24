@@ -17,7 +17,7 @@ description: "Run 50 separate due-diligence swarms as one overnight batch job us
 
 ## Why This Matters
 
-A single multi-agent swarm — director plus three specialists — does the work of an analyst team over a 30-minute call. But the real enterprise pattern isn't one swarm. It's _fifty_ swarms running while everyone sleeps: one per portfolio company, one per RFP response, one per region for a market scan, one per candidate in a final-round panel. Schedule a batch swarm job at 8pm, have a folder of completed due-diligence memos waiting at 7am. This tutorial shows how to build that job.
+A single multi-agent swarm (three specialists plus a director who writes the memo) does the work of an analyst team over a 30-minute call. But the real enterprise pattern isn't one swarm. It's _fifty_ swarms running while everyone sleeps: one per portfolio company, one per RFP response, one per region for a market scan, one per candidate in a final-round panel. Schedule a batch swarm job at 8pm, have a folder of completed due-diligence memos waiting at 7am. This tutorial shows how to build that job.
 
 ## Step 1: Setup
 
@@ -31,7 +31,7 @@ export SWARMS_API_KEY="your-api-key-here"
 
 ## Step 2: Define a Reusable Due-Diligence Swarm Template
 
-Every swarm in the batch is a full `SwarmSpec`. We define one template (a four-agent `HierarchicalSwarm`) and stamp it out per company.
+Every swarm in the batch is a full `SwarmSpec`. We define one template (a four-agent `AgentRearrange` flow: three specialists in parallel, then the DD Director, who reads their analyses and writes the memo) and stamp it out per company. A `HierarchicalSwarm` would not work here: it builds its own Director, and the DD Director would run as one more parallel worker that never sees the specialists' output.
 
 ```python
 import json
@@ -53,8 +53,9 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 def due_diligence_swarm(company: str, ticker: str) -> dict:
     return {
         "name": f"Due Diligence - {company}",
-        "description": f"Hierarchical due diligence swarm for {company} ({ticker}).",
-        "swarm_type": "HierarchicalSwarm",
+        "description": f"Due diligence swarm for {company} ({ticker}).",
+        "swarm_type": "AgentRearrange",
+        "rearrange_flow": "Financial Analyst, Market Analyst, Risk Analyst -> DD Director",
         "max_loops": 1,
         "task": (
             f"Produce a board-ready due diligence memo on {company} (ticker: {ticker}). "
@@ -64,7 +65,7 @@ def due_diligence_swarm(company: str, ticker: str) -> dict:
         "agents": [
             {
                 "agent_name": "DD Director",
-                "description": "Coordinates specialists and writes the final memo.",
+                "description": "Writes the final memo from the specialists' analyses.",
                 "system_prompt": (
                     "You are a senior due diligence director at a tier-1 investment firm. "
                     "Synthesize specialist analyses into a board-ready memo with a clear "
@@ -273,4 +274,4 @@ Only the swarm template and the input list change. The batch envelope, schedulin
 
 - [Batch Agent Completions at Scale](/docs/examples/examples/batch-agent-scale-tutorial) when a single agent per record is enough
 - [Batch Swarm Completions (Multi-Agent)](/docs/examples/examples/batch-swarm-completions) for the request-shape reference
-- [Supply Chain Hierarchical Swarm](/docs/examples/examples/supply-chain-swarm) for the inner hierarchical-swarm pattern this tutorial replicates 50 times
+- [Supply Chain Hierarchical Swarm](/docs/examples/examples/supply-chain-swarm) for a single multi-agent swarm walked through end to end
