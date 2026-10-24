@@ -10,7 +10,7 @@ The Swarms API provides a comprehensive multi-tier architecture for building int
 | Tier       | Name               | Agent Count    | Complexity  | Primary Use          | Example Use Cases                                 | API Endpoint                      |
 | ---------- | ------------------ | -------------- | ----------- | -------------------- | ------------------------------------------------- | --------------------------------- |
 | **Tier 1** | Individual Agents  | 1              | Low-Medium  | Focused tasks        | Content generation, data analysis, Q\&A           | `/v1/agent/completions`           |
-| **Tier 2** | Reasoning Agents   | 1-2 (internal) | Medium-High | Complex reasoning    | Mathematical proofs, logical validation, research | `/v1/reasoning-agent/completions` |
+| **Tier 2** | Reasoning Agents   | 1+ (internal)  | Medium-High | Complex reasoning    | Mathematical proofs, logical validation, research | `/v1/reasoning-agent/completions` |
 | **Tier 3** | Multi-Agent Swarms | 1-2,000      | High        | Enterprise workflows | Process automation, large-scale systems, R\&D     | `/v1/swarm/completions`           |
 
 #### Tier 1: Individual Agents
@@ -68,7 +68,7 @@ response = requests.post(
 **Premium Tier Required**: The `/v1/reasoning-agent/completions` endpoint is available only on Pro, Ultra, and Premium plans. [Upgrade your account](https://swarms.world/platform/account) to access advanced reasoning capabilities.
 </Note>
 
-Reasoning agents leverage sophisticated reasoning techniques to solve complex problems that require deep analysis, multiple perspectives, and systematic thinking. These agents may internally use 1-2 specialized sub-agents to achieve their reasoning goals.
+Reasoning agents leverage sophisticated reasoning techniques to solve complex problems that require deep analysis, multiple perspectives, and systematic thinking. Depending on `swarm_type`, one request runs one or more internal agents: `AgentJudge` runs one, `ReflexionAgent` runs an actor, an evaluator and a reflector, and `self-consistency` runs `num_samples` sample agents plus a majority-vote agent.
 
 **Key Characteristics**
 
@@ -215,7 +215,7 @@ response = requests.post(
 
 | Aspect             | Individual Agents | Reasoning Agents  | Multi-Agent Swarms   |
 | ------------------ | ----------------- | ----------------- | -------------------- |
-| **Agent Count**    | 1                 | 1-2 (internal)    | 1-2,000            |
+| **Agent Count**    | 1                 | 1+ (internal)     | 1-2,000            |
 | **Complexity**     | Low-Medium        | Medium-High       | High-Extreme         |
 | **Use Case**       | Focused tasks     | Complex reasoning | Enterprise workflows |
 | **Setup Time**     | Minutes           | Minutes-Hours     | Hours-Days           |
@@ -272,7 +272,7 @@ You can combine different tiers for optimal results:
 Exact latency and throughput depend on the model, prompt size, and `max_loops` you configure, and are not published as fixed numbers. In general, latency and cost scale with the number of agents and loops in a run:
 
 * **Individual Agents**: One model call per loop. The fastest and cheapest tier for a given task.
-* **Reasoning Agents**: 1-2 internal model calls per loop, so latency and cost are typically higher than a single agent call.
+* **Reasoning Agents**: one or more internal agents per request (for `self-consistency`, `num_samples` samples plus a majority vote), so latency is typically higher than a single agent call.
 * **Multi-Agent Swarms**: Latency and cost scale with `number_of_agents` and `max_loops` (up to 2,000 agents and 50 loops).
 
 Every completion charges a token cost plus, for swarms and workflows, a flat \$0.01 per agent (`swarm_completions_agent_cost`). Tokens are billed at each model's own price per 1M input and output tokens plus a 15% service fee, with a 50% night-time discount (8 PM - 6 AM Pacific) on the token component for swarm completions. See <a href="/docs/documentation/resources/pricing">Pricing</a>, call `GET /v1/models/available` or `GET /v1/models/pricing` for per-model prices and `GET /v1/usage/costs` for the flat fees, and rate-limit tier (free tokens_per_agent=200,000 vs premium 2,000,000) at `GET /v1/rate/limits`.

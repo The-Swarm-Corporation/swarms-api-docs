@@ -79,9 +79,9 @@ Two more implementation details, grounded in the `swarms` package's `ReasoningAg
 
 ### Output Types
 
-`output_type` controls the shape of `outputs`: `list`, `dict`, `dictionary`, `string`, `str`, `final`, `last`, `json`, `all`, `yaml`, `xml`, `dict-all-except-first`, `str-all-except-first`, `basemodel`, `dict-final`, `list-final`.
+`output_type` is accepted but has no effect: the API always runs the agent with `dict-all-except-first`. The value must still be one of `list`, `dict`, `dictionary`, `string`, `str`, `final`, `last`, `json`, `all`, `yaml`, `dict-all-except-first`, `str-all-except-first`, `basemodel`, `dict-final` or `list-final`. Anything else, including `xml`, returns 422.
 
-Use `final` or `last` when you want only the answer. Use the default `dict-all-except-first` when you want the reasoning trace alongside it.
+To keep only the answer, pick it out of `outputs` yourself. Its shape depends on `swarm_type`.
 
 ## Quick Start
 
@@ -232,7 +232,7 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 |-------|------|-------------|
 | `job_id` | `string` | Unique identifier for the reasoning agent run |
 | `status` | `string` | Status of the run. Defaults to `"success"` |
-| `outputs` | `any` | The generated output. **Shape varies by reasoning type** and `output_type` |
+| `outputs` | `any` | The generated output. **Shape varies by reasoning type**. `output_type` does not change it |
 | `timestamp` | `string` | ISO-formatted timestamp of when the run executed |
 | `agent_name` | `string` | Name of the agent |
 | `agent_type` | `string` | The reasoning architecture that ran (the `swarm_type`) |
@@ -259,9 +259,11 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 This endpoint is both premium-only and billable, so a request is checked, in order, for: API key presence (401), API key validity (400), credit balance (402), and premium tier (403) — all before the reasoning agent runs. Every error from this pre-flight check is returned in the shape `{"error": {"type": ..., "message": ..., "detail": ..., "status_code": ...}}`.
 </Note>
 
+The request can still fail after these checks: `400` for an Ollama or Hugging Face `model_name`, or a prompt over your tier's token limit, and `500` when the reasoning agent fails while running. Neither is charged.
+
 ## When to Use a Reasoning Agent
 
-Reasoning agents cost more than a plain agent call — multiple internal passes means multiple sets of billed tokens. They earn that cost on problems where a single pass is unreliable:
+Reasoning agents are slower than a plain agent call. The bill is your prompt counted once plus the tokens of the `outputs` returned, at the `model_name` price, so internal passes that are not returned are not billed. They earn the wait on problems where a single pass is unreliable:
 
 | Use it for | Use a plain agent for |
 |------------|----------------------|
@@ -270,7 +272,7 @@ Reasoning agents cost more than a plain agent call — multiple internal passes 
 | High-stakes classification where a wrong call is expensive | High-volume, low-stakes classification |
 | Problems where you want the reasoning trace as an artifact | Cases where only the final text matters |
 
-Raise `num_samples` to increase consensus strength on `self-consistency`; raise `max_loops` to give reflective architectures more revision rounds. Both multiply cost roughly linearly.
+Raise `num_samples` to increase consensus strength on `self-consistency`; raise `max_loops` to give reflective architectures more revision rounds. Every sample is returned, so `num_samples` raises the bill roughly linearly. `ReflexionAgent` returns only its final answer, so a higher `max_loops` adds time but barely changes the bill.
 
 ## Related Resources
 
