@@ -17,6 +17,8 @@ The Swarms API gives an agent access to tools through three independent mechanis
 
 Custom function tools (`tools_list_dictionary`) and structured JSON output (`llm_args.response_format`) are documented in full, with worked examples and response parsing, on the [Structured Outputs & Function Calling](/docs/documentation/capabilities/swarms_api_tools) page. This page covers the other two mechanisms: built-in tools and the autonomous looper's tools.
 
+OpenAI SDK clients can send the same kind of function tools as `tools` and `tool_choice` on `/v1/chat/completions` and get the calls back in `message.tool_calls`. See [Tool Calling](/docs/documentation/capabilities/openai-compatible#tool-calling).
+
 ## Built-in tools (`tools_enabled`)
 
 The API ships exactly two built-in tools. Enable them by name in the `tools_enabled` array on the request body — a sibling of `agent_config`, not a field inside it:
