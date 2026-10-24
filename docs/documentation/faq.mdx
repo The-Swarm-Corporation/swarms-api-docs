@@ -70,9 +70,10 @@ The Swarms API accepts model ids from multiple providers (OpenAI, Anthropic, Goo
 
 **Premium-only models** (rejected on the free tier, with a suggested free-tier alternative in the error response):
 - `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6`
-- `claude-fable-5`, `claude-opus-5`, `claude-opus-4-8`
-- `gemini-3.1-pro`, `gemini-3.1-deep-think`
+- `claude-fable-5`, `claude-fable-5-1`, `claude-opus-5`, `claude-opus-5-5`, `claude-opus-4-8`
+- `gemini-3.1-pro-preview`, `gemini-3.1-pro-preview-customtools`
 - `xai/grok-4.5`, `xai/grok-4.5-latest`
+- The `openrouter/` ids of these models, and any other provider prefix or `:variant` suffix on them. [Premium-Only Models](/docs/documentation/resources/pricing#premium-only-models) lists every id
 - Any model id beginning with `groq/`
 
 Free-tier alternatives the API suggests in place of these: `claude-sonnet-5`, `gpt-5.5`, `gemini-3.5-flash` (and `claude-haiku-4-5`, `gpt-5.4-mini`, `gemini-3.5-flash-lite` for the `luna` tier). Every other model id, including `gpt-4.1`, is available on the free tier.
@@ -225,7 +226,7 @@ Create specialized tools using OpenAPI-style function specifications for enhance
 **Model Availability:**
 - Check if your requested model is currently available
 - Have fallback models configured
-- Monitor model status through the health endpoint
+- Check that the model is listed by `GET /v1/models/available`. `GET /health` only reports that the API is up
 </Accordion>
 
 <Accordion title="What security features are available?">
