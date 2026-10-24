@@ -153,7 +153,7 @@ The `swarm_type` field on `POST /v1/swarm/completions` accepts these 14 values. 
 | **PlannerWorkerSwarm**   | Planner delegates to workers      | Task decomposition, project execution            |
 
 <Note>
-Grid-style batch execution (many agents across many tasks) and directed-graph orchestration are separate endpoints rather than `swarm_type` values — see `POST /v1/batched-grid-workflow/completions` and `POST /v1/graph-workflow/completions` (both Premium).
+Grid-style batch execution (agent _i_ runs task _i_, all in parallel) and directed-graph orchestration are separate endpoints rather than `swarm_type` values — see `POST /v1/batched-grid-workflow/completions` and `POST /v1/graph-workflow/completions` (both Premium).
 </Note>
 
 **Use Cases**
