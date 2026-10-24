@@ -50,7 +50,7 @@ Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platfo
 | `presence_penalty` | `float` | No | — | Penalize tokens based on whether they have appeared in the text so far |
 | `frequency_penalty` | `float` | No | — | Penalize tokens based on how frequently they appear in the text so far |
 | `n` | `integer` | No | `1` | Number of completions to generate. Only `1` is supported — requests with `n > 1` are rejected |
-| `user` | `string` | No | — | A unique identifier for the end-user, used for tracking |
+| `user` | `string` | No | — | Accepted for SDK compatibility and ignored. It is not stored or used for tracking |
 | `max_loops` | `integer` | No | `1` | *Swarms extension.* Maximum number of agent reasoning loops, 1 to 50. `1` = single pass (default). Higher values let the agent iterate on its own output. Pass via `extra_body` in the OpenAI SDK |
 
 ### ChatMessage Object
@@ -59,7 +59,7 @@ Each message in the `messages` array:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `role` | `string` | Yes | One of `system`, `user`, or `assistant` |
+| `role` | `string` | Yes | `system`, `developer`, `user`, `assistant` or `tool`. Every `system` and `developer` message is joined, in order, into the system prompt. A message with any other role is dropped without an error |
 | `content` | `string` or `List[ContentPart]` | No | Text content, or an array of content parts for multimodal input. Defaults to `null` |
 | `name` | `string` | No | An optional name for the participant |
 
@@ -78,6 +78,8 @@ When `content` is an array, each element is a content part:
 ```
 
 The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:image/png;base64,...`).
+
+Image parts are read from every message, earlier turns included, and each image is billed \$0.25 on every request that carries it. Resending a chat history that holds images bills those images again, so drop them from earlier turns once the model no longer needs them.
 
 ### Validation Rules
 
@@ -128,7 +130,7 @@ The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:imag
 
 | Field | Type | Description |
 |---|---|---|
-| `prompt_tokens` | `integer` | Number of tokens in the input (system prompt + history + task) |
+| `prompt_tokens` | `integer` | Input tokens the provider reported, summed over every loop of the run |
 | `completion_tokens` | `integer` | Number of tokens in the generated response |
 | `total_tokens` | `integer` | Sum of `prompt_tokens` and `completion_tokens` |
 
@@ -205,6 +207,32 @@ data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300
 data: [DONE]
 ```
 
+### Errors During a Stream
+
+The API key, credit and rate-limit checks, body validation and the 404 for an unknown `model` all run before the stream opens, so they return a normal HTTP error. Anything that fails after that, including a free-tier key asking for a premium model and an empty last user message with no earlier turns, arrives on the HTTP 200 as one error frame followed by `[DONE]`:
+
+```text
+data: {"error": {"message": "400: No task provided. Pass a non-empty `task`, or `history` to continue from.", "type": "server_error", "code": "internal_error"}}
+
+data: [DONE]
+```
+
+For a rejected request the message starts with the status the same request gets without streaming. The OpenAI Python SDK raises `openai.APIError` with that message while you iterate, so wrap the loop:
+
+```python
+import openai
+
+try:
+    for chunk in stream:
+        content = chunk.choices[0].delta.content
+        if content:
+            print(content, end="", flush=True)
+except openai.APIError as error:
+    print(f"Stream failed: {error.message}")
+```
+
+Without the SDK, check each `data:` payload for an `error` key before reading `choices`.
+
 ---
 
 ## Error Response Schema
@@ -220,13 +248,17 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 | `error.code` | `string` or `null` | Machine-readable error code |
 | `error.param` | `string` or `null` | The parameter that caused the error |
 
+The 401 and 402 from the API key and credit checks are sent before the request reaches this endpoint, so their body differs: `error` has `type`, `message`, `detail` and `status_code`, and no `code` or `param`. The 402 for an insufficient balance (`type` `insufficient_credits`) also carries `current_balance`, `minimum_required` and `upgrade_url`. A 402 with `type` `credit_check_failed` means the balance lookup itself failed.
+
 ### Error Types
 
 | HTTP Status | `type` | When |
 |---|---|---|
 | 400 | `invalid_request_error` | Malformed request, validation failure, missing required fields |
+| 400 | `invalid_request_error` | The model returned no output and the provider reported no error: `Model 'X' produced no output for this request. Nothing was charged.` |
 | 401 | `authentication_error` | Missing or invalid API key |
-| 403 | `permission_error` | Insufficient permissions or subscription tier |
+| 402 | `insufficient_credits` | Your purchased credit balance is \$1.00 or less, or `credit_check_failed` if the balance lookup itself failed |
+| 403 | `invalid_request_error` | A free-tier key asked for a premium model. `code` is `null` |
 | 429 | `rate_limit_error` | Rate limit exceeded |
 | 500 | `server_error` | Internal error during agent execution |
 
@@ -237,7 +269,7 @@ All request-body validation failures on this endpoint — including out-of-range
 ```json
 {
   "error": {
-    "message": "At least one message with role 'user' is required.",
+    "message": "body: Value error, At least one message with role 'user' is required.",
     "type": "invalid_request_error",
     "code": "invalid_request",
     "param": null
@@ -957,10 +989,10 @@ For users already familiar with the native Swarms API, here is how the OpenAI re
 | OpenAI Field | Swarms Equivalent | Notes |
 |---|---|---|
 | `model` | `AgentSpec.model_name` | Passed through as-is |
-| `messages` (system) | `AgentSpec.system_prompt` | Defaults to "You are a helpful assistant." if absent |
+| `messages` (system) | `AgentSpec.system_prompt` | Every `system` and `developer` message, joined in order. Defaults to "You are a helpful assistant." if absent |
 | `messages` (last user) | `AgentCompletion.task` | The actual prompt the agent runs on |
 | `messages` (prior turns) | `AgentCompletion.history` | User and assistant messages before the final user message |
-| `messages` (image_url parts) | `AgentCompletion.img` / `imgs` | Extracted from multimodal content parts |
+| `messages` (image_url parts) | `AgentCompletion.img` / `imgs` | Taken from every message, earlier turns included. Each image is billed \$0.25 |
 | `temperature` | `AgentSpec.temperature` | Defaults to 0.5 |
 | `max_tokens` / `max_completion_tokens` | `AgentSpec.max_tokens` | `max_completion_tokens` takes precedence; defaults to 8192 |
 | `top_p` | `AgentSpec.llm_args.top_p` | Passed through to the underlying LLM |
@@ -1038,8 +1070,9 @@ Usage is metered and billed identically to the native `/v1/agent/completions` en
 
 - **Tokens** are the input and output tokens the model provider reports, summed over every model call the agent makes (every loop, re-sent conversation history, and reasoning tokens)
 - **Price** is the requested model's own price per 1M input and output tokens plus a 15% service fee. Look it up with `GET /v1/models/pricing?model_name=<model>` or in the `pricing` object on `GET /v1/models`; see [Pricing](/docs/documentation/resources/pricing)
+- **Images** are billed \$0.25 each on every request, counted across all messages including earlier turns
 - **Credits are deducted** automatically after each completion
-- The `usage` field in the response shows the exact token counts
+- `usage.prompt_tokens` and `usage.completion_tokens` are those provider counts. If the provider reports no input count, the API's own count of the prompt is billed instead. Image fees are not in `usage`
 - `/v1/chat/completions` is billable: it requires a total credit balance greater than $1.00, or the request is rejected before the agent runs
 
 Check your balance anytime with `GET /v1/account/credits`.
