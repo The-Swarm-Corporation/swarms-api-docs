@@ -536,7 +536,7 @@ To refine several *different* topics in parallel, issue one request per topic (l
 | `agent_completions` | array | No | List of agent configurations (see AgentSpec below). Paired 1:1 by index with `tasks`. At most 50 entries |
 | `tasks` | array | No | List of task strings, one per agent, matched by index to `agent_completions`. At most 50 entries. Must be the same length as `agent_completions` — a mismatch returns a `400` before any agent runs |
 | `max_loops` | integer | No | Number of times to rerun the same agent/task pairs, reusing the same agent instances (default: 1). Must be between 1 and 50 — values outside that range are rejected with a `422` validation error |
-| `imgs` | array | No | Accepted for forward compatibility, but not currently used in execution — passing images here has no effect on the run |
+| `imgs` | array | No | Not supported. The grid runs every agent without images, so a non-empty list is rejected with a `422` before any agent runs or anything is billed. Omit it, or send `null` or `[]` |
 
 ### AgentSpec
 
@@ -630,7 +630,7 @@ The API returns standard HTTP status codes:
 - **401**: Unauthorized (invalid API key)
 - **402**: Payment required (insufficient credits)
 - **403**: Forbidden (account is not on a premium tier)
-- **422**: Validation error — `agent_completions` or `tasks` has more than 50 entries, or `max_loops` is outside 1-50
+- **422**: Validation error — `agent_completions` or `tasks` has more than 50 entries, `max_loops` is outside 1-50, or `imgs` is a non-empty list
 - **500**: Server error
 
 Example error response for a length mismatch:
