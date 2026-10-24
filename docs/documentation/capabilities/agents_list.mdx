@@ -4,14 +4,16 @@ description: 'Retrieve all agents you have created via the API'
 ---
 
 
-The List Agents endpoint (`/v1/agents/list`) allows you to retrieve all agent configurations you have previously created through the Swarms API. This endpoint provides a comprehensive view of your agent inventory, including their names, descriptions, system prompts, model configurations, and other settings.
+The List Agents endpoint (`/v1/agents/list`) returns the agent configurations you have already run through the Swarms API, including their names, descriptions, system prompts, model configurations, and other settings.
 
-When you create agents using the Swarms API (via the `/v1/agent/completions` endpoint or other agent creation methods), each agent configuration is stored in your account. The List Agents endpoint enables you to:
+There is no separate step that saves an agent. The list is built from the `agent_config` of every request you have sent to `/v1/agent/completions` and `/v1/agent/batch/completions`:
 
-- **View all your agents**: Retrieve a complete list of all agent configurations associated with your API key
-- **Manage your agent library**: Keep track of different agent configurations you've created for various use cases
-- **Reuse agent configurations**: Access previously created agent settings to reuse them in new tasks or workflows
-- **Audit and organize**: Review your agent inventory to understand what agents you have available and their configurations
+- **Named agents only**: a config without an `agent_name` is never listed
+- **One entry per name**: reusing a name with different settings keeps only the most recently used config
+- **Every key on your account**: requests made with any of your API keys count, including keys you have since revoked
+- **Agent endpoints only**: agents you send inside `/v1/swarm/completions`, graph workflows, or other multi-agent requests are not listed
+- **One entry for the compatible endpoints**: requests to `/v1/chat/completions`, `/v1/responses`, and `/v1/messages` are recorded too, as a single entry named `openai-compat-agent` that holds the settings of the latest such request
+- **Validated requests only**: a request rejected before it runs, for example for an unknown model or a missing `task`, is not recorded
 
 ## Endpoint Information
 
@@ -25,14 +27,8 @@ When you create agents using the Swarms API (via the `/v1/agent/completions` end
 The endpoint returns a JSON object containing:
 
 - **`success`**: A boolean indicating whether the agent list was retrieved successfully
-- **`count`**: An integer representing the total number of unique agent configurations in your account
-- **`agents`**: An array of agent definition objects, each containing the complete configuration details of agents you've previously created, including:
-  - Agent name and description
-  - System prompts
-  - Model configurations (model name, temperature, max_tokens, etc.)
-  - Tool configurations
-  - MCP integrations
-  - Other agent-specific settings
+- **`count`**: The number of entries in `agents`
+- **`agents`**: One object per agent name, most recently used first. Each is the `agent_config` from the latest request that used that name, with every `AgentSpec` field present (fields you did not set carry their defaults), plus a `last_used` timestamp
 - **`timestamp`**: An ISO 8601 UTC timestamp indicating when the list was generated
 
 ## Use Cases

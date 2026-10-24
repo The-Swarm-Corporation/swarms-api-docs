@@ -52,6 +52,7 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
         json=payload,
         stream=True
     )
+    response.raise_for_status()
 
     # Process the streaming response
     for line in response.iter_lines():
@@ -60,6 +61,8 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
             if line.startswith('data: '):
                 try:
                     data = json.loads(line[6:])
+                    if 'error' in data:
+                        raise RuntimeError(data['error'])
                     if 'content' in data:
                         print(data['content'], end='', flush=True)
                 except json.JSONDecodeError:
@@ -97,6 +100,7 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
         body: JSON.stringify(payload)
     })
     .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
 
@@ -111,6 +115,10 @@ Enable streaming by adding the `streaming_on` parameter to your agent configurat
                     if (line.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(line.substring(6));
+                            if (data.error) {
+                                console.error(data.error);
+                                return;
+                            }
                             if (data.content) {
                                 process.stdout.write(data.content);
                             }
@@ -171,10 +179,10 @@ event: chunk
 data: {"content": ", in a workshop filled with", "timestamp": "2026-02-05T00:58:15.250000+00:00"}
 
 event: usage
-data: {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "img_cost": 0.0, "total_cost": 0.000241}
+data: {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "image_count": 0, "img_cost": 0.0, "total_cost": 0.000241}
 
 event: end
-data: {"job_id": "abc123", "usage": {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "img_cost": 0.0, "total_cost": 0.000241}, "timestamp": "2026-02-05T00:58:16.000000+00:00", "complete": true}
+data: {"job_id": "abc123", "usage": {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "image_count": 0, "img_cost": 0.0, "total_cost": 0.000241}, "timestamp": "2026-02-05T00:58:16.000000+00:00", "complete": true}
 
 event: done
 data: {"message": "Agent processing complete"}
@@ -183,6 +191,19 @@ data: {"message": "Agent processing complete"}
 <Note>
 The first frame (initial metadata) is sent without an `event:` line, so it arrives as a default `message` event. Only `content` chunks include the `content` key, which is what the example consumer code above checks for.
 </Note>
+
+### Errors
+
+Requests rejected before the stream opens still get their real HTTP status and a JSON body: `401` for a missing or invalid key, `402` `insufficient_credits`, `422` for schema validation, and `429` for rate limits. The model and task checks run inside the stream, so an unknown model (`404`), a premium-only model on a free-tier key (`403`), or a missing `task` (`400`) gets `200` followed by a single `event: error` frame with no metadata frame before it and no `done` after it. The status code starts the `error` text:
+
+```text
+event: error
+data: {"error": "AgentCompletionError: 404: The model 'gpt-4.1-mini-legacy' does not exist or is no longer available. See https://api.swarms.world/v1/models/available for the models you can use.", "timestamp": "2026-10-22T18:04:11.512894+00:00"}
+```
+
+For errors after the run has started, see [Streaming](/docs/documentation/capabilities/agent#streaming).
+
+The Quick Start code above checks the HTTP status before reading the stream, then checks every frame for an `error` key.
 
 ## Key Benefits
 
