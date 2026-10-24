@@ -22,7 +22,7 @@ A request costs a few hundredths of a cent, so you can put a decision model in f
 | `POST` | `/v1/systemone` | The same completion in the TypeSafe API's request and response format |
 | `GET` | `/v1/decision/models` | The available decision models and their prices |
 
-All three take your API key in the `x-api-key` header.
+All three take your API key in the `x-api-key` header or as `Authorization: Bearer <key>`.
 
 ## Request
 
@@ -89,10 +89,18 @@ Every question has a `type`, optional `instructions` saying what to decide, and 
 - `model` is required.
 - The response has only `model`, `answers` and `usage` with `input_tokens` and `output_tokens`.
 - The job ID is in the `x-typesafe-request-id` response header, and the amount charged in `x-swarms-total-cost`.
+- `GET /v1/models` returns the decision model list when the request carries the SDKs' `X-TypeSafe-SDK` header, so `client.models.list()` works. Other clients get the OpenAI-format model list.
+
+Where the Swarms API differs from the TypeSafe API:
+
+- An unknown question `type` returns 422, where the TypeSafe API returns 400. That includes `box`: only `noul`, `choice` and `score` questions are supported.
+- A 422 lists each problem's `type`, `loc` and `msg`, without echoing the value you sent in `input`.
+- Images are not supported. The SDKs send a request with an image as `multipart/form-data`, which returns 422.
+- `release_date` is an empty string in the model list.
 
 ## Models and Pricing
 
-Decision models are billed per token at the model's price. Call `GET /v1/decision/models` for the current models and their `input_cost_per_1m` and `output_cost_per_1m` in USD, and see [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models) for estimating a request's cost from them.
+Decision models are billed per token at the model's provider price plus the 15% service fee, with no per-agent fee and no night-time discount. See [Decision model prices](/docs/documentation/resources/pricing#decision-model-prices). Call `GET /v1/decision/models` for the current models and their `input_cost_per_1m` and `output_cost_per_1m` in USD, and see [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models) for estimating a request's cost from them.
 
 - The same \$1.00 minimum balance as the other completion endpoints applies.
 - Nothing is charged when a request fails.
@@ -115,3 +123,4 @@ Decision models are billed per token at the model's price. Call `GET /v1/decisio
 - [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models): prices, pinned versions and cost math
 - [Gate and Judge an Agent](/docs/examples/examples/decision-models-with-agents): decide whether to run an agent, then grade its answer
 - [Pick a Swarm and the Best Draft](/docs/examples/examples/decision-models-with-swarms): choose the swarm type, then the best output
+- [Use the TypeSafe SDK with the Swarms API](/docs/examples/examples/typesafe-sdk-with-swarms-api): the Python and JavaScript SDKs against `POST /v1/systemone`

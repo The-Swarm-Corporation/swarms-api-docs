@@ -1017,6 +1017,8 @@ Each entry in `data` has the standard `id`, `object`, `created` and `owned_by` f
 
 To price a single model, call `GET /v1/models/pricing?model_name=<model>`. See [Available Models](/docs/examples/examples/models-available) for both endpoints.
 
+OpenAI clients always get this list from `GET /v1/models`, and decision models are not in it. Only a request that carries the `X-TypeSafe-SDK` header, which the TypeSafe SDKs send from `client.models.list()`, gets the decision model list instead, the same `{"status": ..., "models": [...]}` body as `GET /v1/decision/models`. See [Decision Models](/docs/documentation/capabilities/decision-models).
+
 ---
 
 ## Differences from the OpenAI API
