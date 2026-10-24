@@ -13,6 +13,7 @@ description: 'Drop-in usage of the Swarms API with the OpenAI SDK — basic comp
 - Multi-loop agent reasoning via `max_loops`
 - Discovering available models with `client.models.list()` (`GET /v1/models`)
 - Error handling with SDK-native exception classes
+- Calling the Responses API with `client.responses.create` (`POST /v1/responses`)
 - Working examples in Python, TypeScript, Go, and Rust
 
 <Info>
@@ -1038,6 +1039,36 @@ ask("What is the current state of the AI chip market in 2025?")
 ask("Which startups are challenging NVIDIA's dominance, and what approaches are they taking?")
 ask("Based on what you've told me, which of these challengers has the strongest technical moat?")
 ```
+
+---
+
+## 8. Responses API
+
+`client.responses.create` works too, on `POST /v1/responses`. It is non-streaming and takes text input; see [OpenAI Responses API](/docs/documentation/capabilities/openai-responses) for the fields and what is not supported yet.
+
+```python
+from openai import OpenAI
+
+client = OpenAI(api_key="<your Swarms API key>", base_url="https://api.swarms.world/v1")
+
+resp = client.responses.create(
+    model="claude-sonnet-5",
+    instructions="Answer with one word.",
+    input="What is the capital of Italy?",
+    max_output_tokens=20,
+)
+print(resp.output_text)
+print(resp.status, resp.usage.total_tokens)
+```
+
+Output from a production run:
+
+```text
+Rome
+completed 71
+```
+
+`status` is `incomplete` when the answer reached `max_output_tokens`, with `incomplete_details.reason` set to `max_output_tokens`.
 
 ---
 
