@@ -76,7 +76,7 @@ headers = {
 | `llm_args` | `dict` | No | `null` | Additional LLM arguments (top_p, frequency_penalty, etc.) |
 | `dynamic_temperature_enabled` | `boolean` | No | `false` | Whether to dynamically adjust temperature |
 | `mcp_config` | `MCPConnection` | No | `null` | MCP connection configuration |
-| `mcp_configs` | `MultipleMCPConnections` | No | `null` | Multiple MCP connections configuration |
+| `mcp_configs` | `List[MCPConnection]` | No | `null` | Several MCP connections, as a plain list. A `{"connections": [...]}` object returns a 422 |
 | `tool_call_summary` | `boolean` | No | `true` | Whether to summarize tool calls |
 | `reasoning_effort` | `string` | No | `null` (unset) | Reasoning effort level: `"none"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"ultra"`, or `"max"`. At `"xhigh"` and above, pair with a large `max_tokens` so the model has room to think and answer |
 | `thinking_tokens` | `integer` | No | `null` | Number of tokens for thinking |
@@ -92,8 +92,9 @@ headers = {
 
 **Edge Format Options:**
 - Dictionary: `{"source": "Agent1", "target": "Agent2", "metadata": {...}}`
-- Tuple: `("Agent1", "Agent2")` or `("Agent1", "Agent2", {"metadata": {...}})`
 - EdgeSpec object: Pydantic EdgeSpec instance
+
+A JSON array edge such as `["Agent1", "Agent2"]` is not accepted and returns a 422. See [Graph Workflow Edge Formats](/docs/examples/examples/graph-workflow-edge-formats).
 
 ## Output Parameters
 
@@ -105,7 +106,7 @@ headers = {
 | `name` | `string` | Workflow name from input |
 | `description` | `string` | Workflow description from input |
 | `status` | `string` | Execution status ("success" if completed) |
-| `outputs` | `dict` | Results from all nodes in the workflow, keyed by agent name |
+| `outputs` | `dict` | Results from all nodes in the workflow, keyed by agent name. When the workflow's `max_loops` is above 1, it also has a `{agent_name}_loop_{n}` key for each loop `n` from 1, and the plain keys hold the last loop. A node that failed holds `"[ERROR] Agent <name> failed: ..."` |
 | `usage` | `Usage` | Usage statistics including tokens and costs |
 | `timestamp` | `string` | ISO8601 UTC timestamp when job finished |
 
@@ -117,20 +118,24 @@ headers = {
 | `output_tokens` | `integer` | Total number of output tokens generated |
 | `total_tokens` | `integer` | Sum of input and output tokens |
 | `total_cost` | `float` | Total credits charged for the run: input and output token costs plus `cost_per_agent` |
-| `cost_per_agent` | `float` | Cost per agent (0.01 * number_of_agents) |
+| `cost_per_agent` | `float` | Agent fee: 0.01 per agent on a paid model whose node answered. A failed node pays no fee |
 
 ## Cost Calculation
 
-Graph Workflow bills $0.01 per agent plus each agent's provider-reported tokens, priced at that agent's own model plus a 15% service fee. No night-time discount applies. For detailed pricing information, see the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
+Graph Workflow bills $0.01 per agent on a paid model whose node answered, plus each agent's provider-reported tokens, priced at that agent's own model plus a 15% service fee. No night-time discount applies. For detailed pricing information, see the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
 
 ## Error Responses
 
 | Status Code | Description |
 |-------------|-------------|
-| `400` | Bad Request - Invalid workflow configuration |
+| `400` | Bad Request - Invalid workflow configuration, or the workflow raised an error while running |
 | `401` | Unauthorized - Invalid or missing API key |
+| `402` | Payment Required - Credit balance is \$1.00 or less |
+| `403` | Forbidden - The API key is on the free tier. This endpoint is premium-only |
+| `422` | Unprocessable Entity - Request validation failed, for example an edge sent as a JSON array or `mcp_configs` sent as an object |
 | `429` | Too Many Requests - Rate limit exceeded |
-| `500` | Internal Server Error - Workflow execution failed |
+| `500` | Internal Server Error - Unexpected server error |
+| `502` | Bad Gateway - No node produced output. Nothing was charged. If a node recorded a provider error, that error's status (`400`, `404` or `429`) is returned instead |
 
 ## Examples
 
