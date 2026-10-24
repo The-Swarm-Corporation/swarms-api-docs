@@ -75,7 +75,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Every tool the parser and aggregator nodes use is declared as an OpenAI-style function tool. The model calls them, the runtime resolves them on your side.
+Every tool the parser and aggregator nodes use is declared as an OpenAI-style function tool. The API sends the schemas to the model but never executes them, so a node gets no tool result during the run: each call comes back in that node's output with its arguments. Fetch the 13F filings in your own code and put them in the `task`, and run any returned calls after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 FETCH_13F_FILING = {
@@ -245,7 +245,7 @@ SYNTHESIZER_TOOLS = [POST_THEME_BRIEF_TO_SLACK]
 
 ## Step 3: Define the Graph Workflow Nodes
 
-The shape is fan-out → fan-in. Each per-fund parser is a node that fetches the filing, parses the holdings table, looks up the fund profile, and diffs against the prior quarter. Multiple parsers run in parallel inside one GraphWorkflow when a filing covers multiple sub-funds under one umbrella manager. They converge into a Cross-Fund Aggregator, which feeds the Theme Synthesizer.
+The shape is fan-out → fan-in. Each per-fund parser is a node that parses the filing you put in the task, and diffs its holdings against the prior quarter you include with it. Multiple parsers run in parallel inside one GraphWorkflow when a filing covers multiple sub-funds under one umbrella manager. They converge into a Cross-Fund Aggregator, which feeds the Theme Synthesizer.
 
 Models are diversified across the DAG by the cognitive load of each node:
 - **Per-fund parsers** → `gpt-4.1-mini` — cheap, fast, mechanical. Most of the work is tool calling against structured XML.
@@ -514,7 +514,7 @@ Reporting universe: 4,983 13F-HR filings, $6.4T in long US-equity AUM.
    simultaneously — the same week as the supplemental funding bill passed.
 ```
 
-The Slack post fires automatically via the `post_theme_brief_to_slack` tool. The structured per-manager output also writes to a Postgres table so the desk can query "every fund that added NVDA this quarter, ranked by dollar size."
+The Slack post is yours to send: the Theme Synthesizer's `post_theme_brief_to_slack` call comes back in its output, and the API never executes it. The structured per-manager output also writes to a Postgres table so the desk can query "every fund that added NVDA this quarter, ranked by dollar size."
 
 ## Real Cost vs. Newsroom 13F Team
 

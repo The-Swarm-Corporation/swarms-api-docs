@@ -8,7 +8,7 @@ Every 5 minutes during market hours, an unusual-activity watchlist lands in Slac
 ## What This Example Shows
 
 - A `ConcurrentWorkflow` of three specialist agents — Flow Scanner, Greeks Analyzer, Vol Surface Watcher — fanning out in parallel on the same options snapshot
-- Per-agent `tools_list_dictionary` wired to live options market-data endpoints (Polygon / Tradier) and a Slack webhook
+- Per-agent `tools_list_dictionary` schemas for options market data (Polygon / Tradier) and a Slack webhook, which come back as tool calls for your code to run
 - An intraday cron firing every 5 minutes (`*/5 9-16 * * 1-5`) that turns into ~80 swarm runs per session
 - The rate-limit math: a 5-minute cadence is 12 requests per hour, comfortably inside the Free tier's 350/hour cap — this workload doesn't require Premium on request volume alone
 - Model diversification across providers — `gpt-4.1-mini`, `gpt-4.1`, `claude-haiku-4-5`, `claude-sonnet-4-5` — each picked for what that node actually needs
@@ -88,7 +88,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Tools are OpenAI function-call schemas attached per-agent via `tools_list_dictionary`. The agents decide when to call them — your backend executes them against Polygon / Tradier / Slack and feeds results back into the loop.
+Tools are OpenAI function-call schemas attached per-agent via `tools_list_dictionary`. The API sends them to the model but never executes them: nothing calls Polygon, Tradier or Slack during the run, and a swarm agent cannot receive a tool result mid-run. Each call the model makes comes back in that agent's output, with its arguments. So fetch the chain data in your own code and put it in the `task`, and post the Slack alerts yourself from the returned `post_slack_alert` calls after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 FETCH_OPTIONS_CHAIN = {

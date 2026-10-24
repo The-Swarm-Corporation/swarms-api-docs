@@ -8,7 +8,7 @@ Every morning by 7am ET, every new 10-Q for every name in the book has a materia
 ## What This Example Shows
 
 - A `SequentialWorkflow` that pipes a single EDGAR accession number through classification, section extraction, diffing, scoring, and memo generation
-- Five OpenAI-format **function tools** wired into the agents: EDGAR fetch, MD&A parser, Risk Factors extractor, section differ, and a materiality scorer
+- Five OpenAI-format **function tools** attached to the agents (EDGAR fetch, MD&A parser, Risk Factors extractor, section differ, and a materiality scorer), which come back as tool calls for your code to run
 - Real **EDGAR ingestion** including the SEC-mandated `User-Agent` header — no scraping, no hand-built parsers downstream
 - A **diff-against-prior** core: the pipeline only surfaces what changed versus the previous comparable filing (10-Q vs. prior 10-Q, 10-K vs. prior 10-K, 8-K vs. nothing)
 - A **materiality score** (0-100) attached to every delta so analysts read top-of-stack, not chronologically
@@ -84,7 +84,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Five OpenAI-format function tools. The agents decide when to call them; the swarm runtime carries arguments and return values between stages.
+Five OpenAI-format function tools. The agents decide when to call them, but the API never executes them: each call comes back in that agent's output with its arguments, so a later stage sees the call, never its result. Fetch the filing text in your own code and put it in the `task`, then run any returned calls after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 FETCH_EDGAR_FILING = {

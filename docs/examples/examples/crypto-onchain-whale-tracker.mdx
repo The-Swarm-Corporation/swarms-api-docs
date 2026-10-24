@@ -9,7 +9,7 @@ Every twelve seconds the largest wallets on four chains get classified — and a
 
 - A `ConcurrentWorkflow` that runs four per-chain monitors (ETH, BTC, SOL, Base) in parallel — one swarm call per block, every block
 - MCP wiring for Alchemy / Infura / Helius RPC endpoints so each chain agent reads its native mempool and block stream directly
-- Function tools that classify every whale tx: CEX inflow/outflow, OTC, DEX swap, or bridge — with wallet-label enrichment
+- Function-tool schemas for classifying every whale tx (CEX inflow/outflow, OTC, DEX swap, or bridge), wallet-label lookups, and the alert post, which come back as tool calls for your code to run
 - Sustained polling rate-limit math: ETH block time of 12 seconds compounds to ~7,200 swarm calls/day, blowing through the Free tier's per-day cap after a few hours
 - Real-time alert routing into Slack and Discord with severity scoring, including programmatic muting on quiet hours
 
@@ -97,7 +97,7 @@ MCP_URLS = {
 
 ## Step 2: Define the Function Tools
 
-Function tools are OpenAI-schema JSON. Define them once, attach them per-agent. The classifier and chain agents share the lookup tools; the alert generator only gets `post_whale_alert`.
+Function tools are OpenAI-schema JSON. Define them once, attach them per-agent. The classifier and chain agents share the lookup tools; the alert generator only gets `post_whale_alert`. The API sends these schemas to the model but never executes them, so each call comes back in that agent's output with its arguments, and a later stage sees the call, never its result. Put the wallet labels you need in the `task` yourself, and send the alerts from the returned `post_whale_alert` calls after the run. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 FETCH_RECENT_BLOCK = {

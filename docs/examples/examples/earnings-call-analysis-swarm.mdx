@@ -106,7 +106,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Each specialist gets one tool, scoped per-agent in OpenAI function schema. The tools force structured output: tone scores, guidance deltas, disclosure verdicts, and Q&A red flags all come back as parseable JSON the synthesizer (and your DB schema) can rely on.
+Each specialist gets one tool, scoped per-agent in OpenAI function schema. The API sends the schemas to the model but never executes them, so they work as structured output: each specialist fills in its tone scores, guidance deltas, disclosure verdicts, or Q&A red flags as the call's arguments, and the call comes back in that agent's output as parseable JSON the synthesizer (and your DB schema) can rely on. No tool result ever comes back to the agent. See [Parsing Swarm Tool Calls](/docs/documentation/capabilities/swarms_api_tools#parsing-swarm-tool-calls).
 
 ```python
 SCORE_TONE_TOOL = {
