@@ -34,7 +34,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `system_prompt` | `string` | No | - | The initial instruction or context provided to the agent, guiding its behavior and responses during execution |
 | `marketplace_prompt_id` | `string` | No | - | The ID of a prompt from the Swarms marketplace to use as the system prompt. If provided, the prompt will be automatically retrieved from the marketplace |
 | `model_name` | `string` | No | `"claude-sonnet-5"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. For example: gpt-4o, gpt-4.1, openai/o3-mini |
-| `fallback_models` | `List[string]` | No | - | An ordered list of models to try if the primary model errors: the request is retried with the next model on failure. **If `model_name` is omitted, the first entry of `fallback_models` becomes the primary model.** Each entry is subject to the same free-tier model restrictions as `model_name`. Example: `["gpt-4.1", "gpt-5.4"]` |
+| `fallback_models` | `List[string]` | No | - | An ordered list of models to try if the primary model errors: the request is retried with the next model on failure. `model_name` defaults to `claude-sonnet-5`, so omitting it still runs `claude-sonnet-5` first and the fallbacks are tried only after it fails. Each entry is subject to the same free-tier model restrictions as `model_name`. Example: `["gpt-4.1", "gpt-5.4"]` |
 | `fallback_model_name` | `string` | No | - | A single fallback model to try, after any `fallback_models` have been exhausted |
 | `auto_generate_prompt` | `boolean` | No | `false` | A flag indicating whether the agent should automatically create prompts based on the task requirements |
 | `max_tokens` | `integer` | No | `16000` | The maximum number of tokens that the agent is allowed to generate in its responses, limiting output length. Values below 1 are rejected with a 422 validation error |
@@ -62,7 +62,7 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `category` | `string` | No | - | The marketplace category for the agent (e.g., 'research', 'content', 'coding', 'finance', 'healthcare', 'education', 'legal') |
 | `is_free` | `boolean` | No | `true` | A flag indicating whether the agent is free to use in the marketplace |
 | `price_usd` | `float` | No | - | The price in USD for using this agent in the marketplace (if not free) |
-| `handoffs` | `List[AgentSpec]` | No | - | A list of agent specifications that this agent can hand off tasks to. These agents will be created and passed to the agent's handoffs parameter |
+| `handoffs` | `List[AgentSpec]` | No | - | A list of agent specifications that this agent can hand off tasks to. These agents will be created and passed to the agent's handoffs parameter. At most 2000 agents. Each handoff agent gets the same model and premium-access checks as the main agent, so a premium-only model in a handoff returns 403 on a free-tier key |
 
 ## MCP Connections
 
@@ -90,7 +90,7 @@ For anything that needs authentication, a custom transport, or non-default timeo
 | `api_key_prefix` | `string` | `"Bearer"` | Prefix prepended to the API key value. Set to `null`/`""` for a raw key |
 | `auth_type` | `string` | - | Explicit auth mode. Inferred from the other fields when omitted |
 | `oauth` | `MCPOAuthConfig` | - | OAuth 2.1 configuration for this server — see below |
-| `transport` | `string` | `"streamable_http"` | Transport protocol: `"streamable_http"`, `"sse"`, `"stdio"`, or `"auto"` |
+| `transport` | `string` | `"auto"` | Transport protocol: `"streamable_http"`, `"sse"`, `"stdio"`, or `"auto"`. `auto` uses `stdio` when `command` is set, SSE for an `http(s)` URL ending in `/sse`, and streamable HTTP for any other URL |
 | `headers` | `Dict` | - | Extra headers to send to the MCP server |
 | `timeout` | `integer` | `30` | Request timeout (seconds) for the MCP server |
 | `sse_read_timeout` | `integer` | `300` | How long to wait for streamed events before giving up |
@@ -1285,12 +1285,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 </Tab>
 </Tabs>
 
+**Response**: `200` with an envelope of `batch_id`, `total_requests`, `execution_time` (seconds), `timestamp` and `results`, one entry per request in the order sent. A successful entry is the same object `/v1/agent/completions` returns. A failed entry is `{"success": false, "name": ..., "detail": ..., "status_code": ...}`, where `status_code` is what that request would have returned on its own, such as `404` for an unknown model. One failed entry does not fail the batch, so check `success` on every entry. See [Batch Processing](/docs/examples/examples/batch-processing#expected-output) for a full response.
+
 ## Error Handling
 
 The API returns appropriate HTTP status codes and error messages:
 
 - **400 Bad Request**: Invalid input parameters or validation failures
 - **401 Unauthorized**: Missing or invalid API key
+- **402 Payment Required**: `insufficient_credits` when your purchased credit balance is $1.00 or less. Free and referral credits do not count toward it
+- **403 Forbidden**: `Premium model access required` when a free-tier key asks for a premium-only model (in `model_name`, `fallback_models`, `fallback_model_name` or a handoff), and `premium_access_required` for any call to `/v1/agent/batch/completions` from a free-tier key
 - **422 Unprocessable Entity**: Schema validation failures (e.g. a non-positive `max_loops` or `max_tokens`)
 - **429 Too Many Requests**: Rate limit exceeded
 - **500 Internal Server Error**: Server-side processing errors

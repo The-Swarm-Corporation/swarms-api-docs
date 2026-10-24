@@ -117,7 +117,7 @@ All four fields above accept objects shaped like `MCPConnection`:
 | `api_key_prefix` | `string` | `"Bearer"` | Prefix prepended to the `api_key` value. Set to `null`/`""` for a raw key. |
 | `auth_type` | `string` | — | Explicit auth mode override (`"oauth"`, `"api_key"`, `"bearer"`, `"custom"`, `"none"`). Inferred from the other fields when omitted — see [Auth modes](#auth-modes). |
 | `oauth` | [`MCPOAuthConfig`](#mcpoauthconfig-fields) | — | OAuth 2.1 configuration for this server. |
-| `transport` | `string` | `"streamable_http"` | One of `"streamable_http"`, `"sse"`, `"stdio"`, `"auto"`. |
+| `transport` | `string` | `"auto"` | One of `"streamable_http"`, `"sse"`, `"stdio"`, `"auto"`. |
 | `headers` | `object` | — | Extra headers sent to the MCP server verbatim (not env-resolved). |
 | `timeout` | `integer` | `30` | Request timeout for the MCP server, in seconds. |
 | `sse_read_timeout` | `integer` | `300` | How long to wait for streamed events before giving up, in seconds. |
@@ -130,10 +130,10 @@ All four fields above accept objects shaped like `MCPConnection`:
 
 Set `transport` on the connection object:
 
-- `streamable_http` (default) — HTTP-based MCP transport, used for most remote servers.
+- `streamable_http` — HTTP-based MCP transport, used for most remote servers.
 - `sse` — Server-sent events transport.
 - `stdio` — Launches a local process (`command` + `args`) and speaks MCP over stdin/stdout.
-- `auto` — Let the client negotiate the transport with the server.
+- `auto` (default) — `stdio` when `command` is set, `sse` for an `http(s)` URL ending in `/sse`, and `streamable_http` for any other URL.
 
 ## Auth modes
 
