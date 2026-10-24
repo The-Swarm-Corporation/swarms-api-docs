@@ -337,6 +337,7 @@ The `/v1/swarms/available` endpoint currently returns 14 swarm types (the `swarm
             }
         ],
         "swarm_type": "GroupChat",
+        "max_loops": 5,
         "messages": [
             {"role": "user", "content": "Let's brainstorm innovative product ideas"},
             {"role": "user", "content": "What are the technical challenges?"},
@@ -410,8 +411,6 @@ The `/v1/swarms/available` endpoint currently returns 14 swarm types (the `swarm
     def optimize_swarm_for_quality(requirements):
         """Optimize swarm for maximum quality"""
         if requirements.get("consensus_required"):
-            # Use an odd number of agents in the payload's "agents" list
-            # so MajorityVoting can always reach a decision
             return {
                 "swarm_type": "MajorityVoting"
             }

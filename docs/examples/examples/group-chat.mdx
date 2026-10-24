@@ -27,7 +27,7 @@ headers = {
 Create agents with distinct expertise who will collaborate through group conversation.
 
 <Warning>
-For `GroupChat`, `max_loops` is the maximum number of **total messages posted across the whole conversation** (one speaker per turn), not a per-agent iteration count - the framework default is 20. The API's own `SwarmSpec.max_loops` default is 1, so leaving `max_loops` unset (or at `1`) lets only a single agent speak once. Set it high enough for every participant to get at least one turn (the chat can also end early if no agent has anything worth adding).
+For `GroupChat`, `max_loops` is the maximum number of **total messages in the conversation** (one speaker per turn), and your task counts as the first one. It is not a per-agent iteration count, and the framework default is 20. The API's own `SwarmSpec.max_loops` default is 1, so leaving `max_loops` unset (or at `1`) means no agent speaks and `output` is `[]`, while every agent's fee is still billed. Set it to at least the number of agents + 1 so every participant can get a turn (the chat can also end early if no agent has anything worth adding).
 </Warning>
 
 ```python

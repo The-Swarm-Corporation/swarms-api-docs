@@ -418,6 +418,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     "swarm_type": "MixtureOfAgents",
     "output": [
         {
+            "role": "System",
+            "content": "Team Name: Comprehensive Market Analysis\nTeam Description: Multi-perspective market analysis combining various expert viewpoints\nThese are the agents in your team..."
+        },
+        {
             "role": "Technology Analyst",
             "content": "From a technological perspective, the EV market is experiencing rapid innovation in battery technology, with solid-state batteries and improved energy density..."
         },
@@ -432,6 +436,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         {
             "role": "Policy Expert",
             "content": "Policy-wise, governments worldwide are implementing various incentives and regulations to accelerate EV adoption..."
+        },
+        {
+            "role": "Policy Expert",
+            "content": "Synthesis: falling battery costs, strong demand growth and policy incentives make the EV market attractive, with grid carbon intensity as the main environmental caveat..."
         }
     ],
     "number_of_agents": 4,
@@ -464,7 +472,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Output Shape
 
-Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `MixtureOfAgents` runs the requested `agents` in parallel as specialists, then an internal aggregator agent synthesizes their outputs into a consolidated answer. A full run's `output` therefore typically contains one turn per specialist plus a final aggregator/synthesis turn (the abbreviated example above shows only the specialist turns); `number_of_agents` in the response still reflects only the specialists you supplied in `agents`, since the aggregator is not part of that roster.
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `MixtureOfAgents` uses the last agent in `agents` as its aggregator. Every agent, the last one included, answers the task in parallel, then the last agent runs again to synthesize all the answers. So `output` starts with a `System` turn listing the team, then has one turn per agent, then a second turn under the last agent's name with the synthesis, as in the example above, where `Policy Expert` appears twice. The swarm-level `max_loops` sets the number of worker layers: with `max_loops` above 1, each layer's workers see the previous layer's answers and their turns are named `<agent_name> (layer i/N)`. `number_of_agents` counts the agents you sent, aggregator included. Put a dedicated synthesis agent last if you don't want a specialist's prompt reused for aggregation.
 
 ## Best Practices
 
