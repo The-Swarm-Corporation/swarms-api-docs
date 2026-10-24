@@ -245,6 +245,32 @@ All request-body validation failures on this endpoint — including out-of-range
 }
 ```
 
+### Provider Errors
+
+When the model's provider fails, the error carries the provider's reason and a matching status, in the same shape. None of these is charged, and the 429 and 502 are safe to retry:
+
+| HTTP Status | `type` | `message` |
+|---|---|---|
+| 404 | `invalid_request_error`, with `code` `model_not_found` | `The provider does not serve model 'X': <provider reason>. Nothing was charged.` |
+| 400 | `invalid_request_error` | `The provider rejected the request for model 'X': <provider reason>. Nothing was charged.` |
+| 429 | `invalid_request_error` | `The provider is rate limiting model 'X'. Retry shortly. Nothing was charged.` |
+| 502 | `server_error` | `The provider for model 'X' failed (<ErrorType>). Retry, or use another model. Nothing was charged.` |
+
+These are the non-streaming responses. On a streamed request, the same message arrives in an error frame on the HTTP 200, with `type` `server_error` and `code` `internal_error`, prefixed with its status (for example `400: The provider rejected ...`).
+
+For example, a decommissioned Groq model:
+
+```json
+{
+  "error": {
+    "message": "The provider rejected the request for model 'groq/llama-guard-3-8b': The model `llama-guard-3-8b` has been decommissioned and is no longer supported. Please refer to https://console.groq.com/docs/deprecations for a recommendation on which model to use instead. Nothing was charged.",
+    "type": "invalid_request_error",
+    "code": null,
+    "param": null
+  }
+}
+```
+
 ---
 
 ## Code Examples
