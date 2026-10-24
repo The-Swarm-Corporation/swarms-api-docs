@@ -1,12 +1,12 @@
 ---
 title: "Night-Mode Pricing: 50% Off Overnight Batch Workflows"
-description: "Move batch swarms and overnight pipelines into the 8 PM – 6 AM Pacific window for a 50% discount on swarm-completion token costs. Includes scheduling recipes with cron and Airflow."
+description: "Move batch swarms and overnight pipelines into the 8 PM – 6 AM Pacific window for a 50% discount on swarm-completion token costs on a paid plan. Includes scheduling recipes with cron and Airflow."
 ---
 
 
 ## What This Covers
 
-- The exact window the discount applies to (8 PM – 6 AM **America/Los_Angeles**) and what it covers
+- Who gets the discount (paid plans only), the exact window (8 PM – 6 AM **America/Los_Angeles**) and what it covers
 - Realistic monthly savings: a team running 1,000 swarm jobs/day at daytime rates vs. overnight rates
 - A drop-in cron recipe for scheduling overnight batch swarms from any server
 - An Airflow DAG pattern for production-grade overnight orchestration
@@ -14,11 +14,11 @@ description: "Move batch swarms and overnight pipelines into the 8 PM – 6 AM P
 
 ## Why This Matters
 
-The single highest-ROI cost lever the Swarms API offers is its overnight discount: **swarm-completion input and output tokens are billed at 50% between 8 PM and 6 AM Pacific time**. For any workload that doesn't need sub-second turnaround — overnight reports, daily research digests, RAG-index refreshes, training-data generation, backfills, evaluation suites — this is free money you collect by changing *when* the job runs, not *what* the job runs. A team spending \$10,000/month on swarm jobs that could shift to the overnight window saves roughly **\$4,500/month** with zero code-quality tradeoff. This guide makes that shift mechanical.
+The single highest-ROI cost lever the Swarms API offers paid plans is its overnight discount: **on tier `pro`, `ultra` or `premium`, or with an active subscription, swarm-completion input and output tokens are billed at 50% between 8 PM and 6 AM Pacific time**. Free accounts pay the full token price at any hour, so nothing in this guide lowers their bill. For any workload that doesn't need sub-second turnaround (overnight reports, daily research digests, RAG-index refreshes, training-data generation, backfills, evaluation suites), this is free money you collect by changing *when* the job runs, not *what* the job runs. A team spending \$10,000/month on swarm jobs that could shift to the overnight window saves roughly **\$4,500/month** with zero code-quality tradeoff. This guide makes that shift mechanical.
 
 ## How the Discount Works
 
-The discount is applied server-side, in `api/deductions_utils.py`. `is_night_time()` reads the wall-clock hour in the `PRICING_TIMEZONE` constant — `America/Los_Angeles` — and `charge_swarm_usage()` (called by the swarm-completions billing path) applies `pricing.night_time_discount` to the per-model token cost only when that check is true:
+The discount is applied server-side, in `api/deductions_utils.py`. `is_night_time()` reads the wall-clock hour in the `PRICING_TIMEZONE` constant, `America/Los_Angeles`. At night, `charge_swarm_usage()` (called by the swarm-completions billing path) also calls `is_paid_member()`, and applies `pricing.night_time_discount` to the per-model token cost only when both checks are true. `is_paid_member()` is true for tier `pro`, `ultra` or `premium`, or an active subscription. A failed plan lookup counts as unpaid, so that run is billed at full price:
 
 ```python
 # Excerpt from api/deductions_utils.py — the off-peak check
@@ -36,10 +36,11 @@ def is_night_time(now: Optional[datetime] = None) -> bool:
 
 # In charge_swarm_usage(), once night_time is resolved. Each agent's tokens
 # are priced at its own model's price, times the discount at night.
+discounted = night_time and is_paid_member(api_key)
 agent_cost = number_of_agents * pricing.swarm_completions_agent_cost
 billing = price_token_usage(
     token_usage,
-    discount=pricing.night_time_discount if night_time else 1.0,  # 0.50 = 50% off
+    discount=pricing.night_time_discount if discounted else 1.0,
 )
 total_cost = agent_cost + billing["input_cost"] + billing["output_cost"]
 # agent_cost is outside the discount, so it is never discounted.
@@ -98,7 +99,7 @@ Per 30-day month: **\$2,121.00**
 
 ### Savings
 
-**\$2,742 – \$2,121 = \$621/month** saved by shifting the same workload into the overnight window. Annualized: **\$7,452**. Zero code changes to the agents themselves — just *when* they run.
+**\$2,742 – \$2,121 = \$621/month** saved on a paid plan by shifting the same workload into the overnight window. Annualized: **\$7,452**. Zero code changes to the agents themselves, just *when* they run.
 
 For larger workloads the savings scale linearly until the agent-fee floor dominates. At 10,000 jobs/day this same calculation yields **\$6,210/month** in savings.
 
@@ -142,7 +143,7 @@ print(f"Discount percent:   {billing['discount_percentage']}%")
 print(f"Total cost (USD):   ${billing['total_cost']}")
 ```
 
-If `discount_active` is `False` on a job you scheduled for overnight, your cron or worker timezone is wrong — see the troubleshooting section below.
+If `discount_active` is `False` on a job you scheduled for overnight, check the plan first: a free account gets `False`, `discount_type: "none"` and `discount_percentage: 0` at every hour. On a paid plan, your cron or worker timezone is wrong; see the troubleshooting section below.
 
 ---
 
@@ -220,7 +221,7 @@ for job in JOBS:
 For teams already running Airflow, this is the production-grade pattern. The DAG runs once per night at 9 PM PT, fans out to N batch jobs in parallel via `/v1/swarm/batch/completions`, and writes a cost-discount audit so you can prove the 50% landed.
 
 <Note>
-`/v1/swarm/batch/completions` is a premium-only endpoint (`GET /v1/account/premium-endpoints` lists it alongside `/v1/agent/batch/completions`, `/v1/reasoning-agent/completions`, `/v1/batched-grid-workflow/completions`, and `/v1/graph-workflow/completions`). If your account is on the free tier, submit the jobs in `JOBS` as separate `/v1/swarm/completions` calls instead, as in Recipe 1.
+`/v1/swarm/batch/completions` is a premium-only endpoint (`GET /v1/account/premium-endpoints` lists it alongside `/v1/agent/batch/completions`, `/v1/reasoning-agent/completions`, `/v1/batched-grid-workflow/completions`, and `/v1/graph-workflow/completions`). A free-tier account cannot call it, and gets no night-time discount on any endpoint, so neither recipe lowers its bill.
 </Note>
 
 ```python
@@ -293,7 +294,7 @@ def nightly_swarm_batch():
         if failures:
             raise RuntimeError(
                 f"Overnight discount did not apply to: {failures}. "
-                f"Check scheduler timezone (must run between 8 PM and 6 AM Pacific)."
+                f"Check the account is on a paid plan and the scheduler timezone (must run between 8 PM and 6 AM Pacific)."
             )
         return f"OK — all {len(batch_result)} runs got the 50% discount."
 
@@ -340,6 +341,7 @@ if not in_discount_window():
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
+| `discount_active: false` on every run, overnight included | The account is on the free tier; the discount is for paid plans only | Upgrade to a paid plan from the [Pricing](/docs/documentation/resources/pricing) page, or budget free-tier runs at the full token price |
 | `discount_active: false` on a job you scheduled overnight | Scheduler ran in UTC/local-server-time, not Pacific | Set `CRON_TZ=America/Los_Angeles` or convert in your DAG |
 | Discount lands on some runs in the batch but not others | Long-running job crossed the 6 AM boundary | Start earlier; cap batch size so all runs finish before 5 AM PT |
 | Discount applied but bill barely changed | Agent fee dominates (heavy-swarm pattern with many agents) | Token costs are 50% off; the `$0.01 * num_agents` fee is not. Prune agents per the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) |

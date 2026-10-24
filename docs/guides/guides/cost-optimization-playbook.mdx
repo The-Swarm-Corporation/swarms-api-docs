@@ -25,7 +25,7 @@ Swarm completions on Swarms are priced per model:
 | Input tokens | Each agent's model input price + 15% service fee |
 | Output tokens | Each agent's model output price + 15% service fee |
 | Per-agent fee | `$0.01` per agent per run |
-| Overnight discount | `50% off` token costs, 8 PM – 6 AM Pacific |
+| Overnight discount | `50% off` token costs, 8 PM – 6 AM Pacific, paid plans only |
 
 At the time of writing, the models in this playbook cost (per 1M tokens, service fee included):
 
@@ -241,7 +241,7 @@ total       = $0.0811 per run
 At 500 runs/day: **\$40.55/day** — a **~2.8× reduction** from \$114.70/day with the same agent count and the same quality of final memo. Fewer tokens travel through the pipeline, and the workers run on `gpt-4.1-mini`, which costs a fifth of `gpt-4.1` per token.
 
 <Info>
-Run the same swarm overnight (8 PM – 6 AM Pacific) and the token costs drop another 50% — total falls to roughly **\$0.066/run** or **\$33/day**. See the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide.
+On a paid plan, run the same swarm overnight (8 PM to 6 AM Pacific) and the token costs drop another 50%, so the total falls to roughly **\$0.066/run** or **\$33/day**. A free account pays the daytime price at any hour. See the [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) guide.
 </Info>
 
 ---
@@ -290,7 +290,7 @@ Before you ship a swarm to production, walk this list:
 3. **Force structured output from workers.** JSON schema or `tools_dictionary`. Prose-to-prose handoffs are where bills go to die.
 4. **Match the model to the job.** Each agent's tokens bill at its own model's price. Check `/v1/models/pricing` and put triage and extraction on a mini model.
 5. **Prune redundant agents.** Two analysts saying overlapping things is two `$0.01` fees plus their output tokens for no signal gain.
-6. **Run batch and back-office workloads overnight.** 50% off tokens for jobs that don't need a sub-second response — see the [night-mode guide](/docs/guides/guides/night-mode-pricing-strategy).
+6. **Run batch and back-office workloads overnight.** On a paid plan, that is 50% off tokens for jobs that don't need a sub-second response; see the [night-mode guide](/docs/guides/guides/night-mode-pricing-strategy).
 7. **Measure, don't guess.** Read `response["usage"]["billing_info"]["cost_breakdown"]` after every run. The token counts tell you exactly which agent is bloated.
 
 ## Reading Your Usage Block
