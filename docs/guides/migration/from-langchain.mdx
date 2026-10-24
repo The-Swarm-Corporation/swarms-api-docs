@@ -16,8 +16,8 @@ LangChain provides Python building blocks — `LLMChain`, `AgentExecutor`, LCEL 
 | `chain_a | chain_b` (LCEL pipe) | `SequentialWorkflow` with agents in order |
 | `chain.invoke({"input": "..."})` | `POST` request with `"task": "..."` |
 | `chain.stream({"input": "..."})` | Same endpoint with `"streaming_on": true` (see [Streaming](/docs/examples/examples/streaming)) |
-| `chain.batch([input1, input2])` | `ConcurrentWorkflow` or batch endpoint |
-| `ConversationBufferMemory` | Stateless; manage conversation history externally |
+| `chain.batch([input1, input2])` | `ConcurrentWorkflow`, or the premium-only batch endpoints (`/v1/agent/batch/completions`, `/v1/swarm/batch/completions`) |
+| `ConversationBufferMemory` | Stateless; send earlier turns in the `history` field of `/v1/agent/completions` |
 | `Tool(name, func, description)` | `tools_list_dictionary` (OpenAI-style function schemas) |
 | `ChatOpenAI(model="gpt-4.1")` | `"model_name": "gpt-4.1"` on agent spec |
 
@@ -257,7 +257,7 @@ result = requests.post(
     timeout=90,
 ).json()
 
-outputs = result["output"]
+outputs = {message["role"]: message["content"] for message in result["output"]}
 print(outputs["pros_analyst"])
 print(outputs["cons_analyst"])
 print(outputs["examples_analyst"])
@@ -490,7 +490,7 @@ result = requests.post(
     timeout=60,
 ).json()
 
-sentiment = json.loads(result["outputs"])
+sentiment = json.loads(result["outputs"][-1]["content"])
 print(sentiment["label"], sentiment["score"])
 ```
 
@@ -500,7 +500,7 @@ There is no dedicated `response_format` field on the Swarms API — structured J
 
 ## Memory and Conversation History
 
-LangChain's `ConversationBufferMemory` persists chat history between chain calls. The Swarms API is stateless — maintain history externally and pass it in the `task` field.
+LangChain's `ConversationBufferMemory` persists chat history between chain calls. The Swarms API is stateless: keep the history yourself and send earlier turns in the `history` field of `/v1/agent/completions`, a list of `{"role", "content"}` messages that the API puts in front of the `task`.
 
 ### LangChain
 
@@ -525,14 +525,12 @@ import requests
 conversation_history = []
 
 def chat(user_message: str) -> str:
-    conversation_history.append(f"User: {user_message}")
-    context = "\n".join(conversation_history)
-
     result = requests.post(
         "https://api.swarms.world/v1/agent/completions",
         headers={"x-api-key": os.environ["SWARMS_API_KEY"], "Content-Type": "application/json"},
         json={
-            "task": f"Conversation so far:\n{context}\n\nRespond to the last user message.",
+            "task": user_message,
+            "history": conversation_history,
             "agent_config": {
                 "agent_name": "conversational_agent",
                 "system_prompt": "You are a friendly conversational assistant. Use the conversation history provided to give contextually aware responses.",
@@ -544,8 +542,9 @@ def chat(user_message: str) -> str:
         timeout=60,
     ).json()
 
-    reply = result["outputs"]
-    conversation_history.append(f"Assistant: {reply}")
+    reply = result["outputs"][-1]["content"]
+    conversation_history.append({"role": "user", "content": user_message})
+    conversation_history.append({"role": "assistant", "content": reply})
     return reply
 
 print(chat("Hi, my name is Alice."))
@@ -559,7 +558,7 @@ print(chat("What is my name?"))
 | Concern | LangChain | Swarms API |
 |---|---|---|
 | LCEL composition | `chain_a | chain_b` pipe syntax | `SequentialWorkflow` with agents in order |
-| Memory | `ConversationBufferMemory`, `VectorStoreRetriever` | Stateless; manage externally |
+| Memory | `ConversationBufferMemory`, `VectorStoreRetriever` | Stateless; send earlier turns in `history` |
 | Streaming | `.stream()` / `.astream()` | Same endpoint with `"streaming_on": true` on the agent config (SSE response) |
 | Callbacks | `callbacks=[...]` on chain/agent | Not needed; all outputs returned in response |
 | Retry logic | `with_retry()` | Handled server-side |
