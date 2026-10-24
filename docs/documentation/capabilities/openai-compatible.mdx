@@ -59,7 +59,7 @@ Each message in the `messages` array:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `role` | `string` | Yes | `system`, `user`, `assistant` or `tool`. A message with any other role, including OpenAI's `developer`, is dropped without an error. Only the last `system` message is used |
+| `role` | `string` | Yes | `system`, `developer`, `user`, `assistant` or `tool`. Every `system` and `developer` message is joined, in order, into the system prompt. A message with any other role is dropped without an error |
 | `content` | `string` or `List[ContentPart]` | No | Text content, or an array of content parts for multimodal input. Defaults to `null` |
 | `name` | `string` | No | An optional name for the participant |
 
@@ -989,7 +989,7 @@ For users already familiar with the native Swarms API, here is how the OpenAI re
 | OpenAI Field | Swarms Equivalent | Notes |
 |---|---|---|
 | `model` | `AgentSpec.model_name` | Passed through as-is |
-| `messages` (system) | `AgentSpec.system_prompt` | The last `system` message only. Defaults to "You are a helpful assistant." if absent |
+| `messages` (system) | `AgentSpec.system_prompt` | Every `system` and `developer` message, joined in order. Defaults to "You are a helpful assistant." if absent |
 | `messages` (last user) | `AgentCompletion.task` | The actual prompt the agent runs on |
 | `messages` (prior turns) | `AgentCompletion.history` | User and assistant messages before the final user message |
 | `messages` (image_url parts) | `AgentCompletion.img` / `imgs` | Taken from every message, earlier turns included. Each image is billed \$0.25 |
