@@ -190,7 +190,7 @@ The response includes detailed usage metrics. For example, a `claude-sonnet-5` a
 }
 ```
 
-`image_count` is the number of images in the request, counted across `img` and `imgs`, and `img_cost` is $0.25 per image. `total_cost` is the token cost, priced at the agent's own model plus the 15% service fee, plus `img_cost`. The `auto_search` fee is charged separately and is not included in `total_cost`. See the [Pricing](/docs/documentation/resources/pricing) page for per-model prices and flat fees.
+`image_count` is the number of images in the request, counted across `img` and `imgs`, and `img_cost` is $0.25 per image. `total_cost` is the token cost, priced at the agent's own model plus the 15% service fee, plus `img_cost`, plus the `auto_search` fee when the request enables it. See the [Pricing](/docs/documentation/resources/pricing) page for per-model prices and flat fees.
 
 ## Streaming
 
