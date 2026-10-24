@@ -26,15 +26,15 @@ These limits control how many API calls you can make within specific time window
 
 | Tier         | Requests per Minute | Reset Interval         | Enforced On        |
 |--------------|--------------------|------------------------|--------------------|
-| Free         | 100                | Every minute (sliding) | All API endpoints (only completed billable requests count) |
-| Premium      | 2,000              | Every minute (sliding) | All API endpoints (only completed billable requests count) |
+| Free         | 100                | Every minute (sliding) | Every endpoint except `/health` and `/v1/rate/limits` (only completed billable requests count) |
+| Premium      | 2,000              | Every minute (sliding) | Every endpoint except `/health` and `/v1/rate/limits` (only completed billable requests count) |
 
 #### **Per-Hour Limit**
 
 - **Free Tier**: 350 requests per hour
 - **Premium Tier**: 10,000 requests per hour
 - **Reset**: Every hour (sliding window)
-- **Enforced on**: All API endpoints (only completed billable requests count)
+- **Enforced on**: Every endpoint except `/health` and `/v1/rate/limits` (only completed billable requests count)
 
 #### **Per-Day Limit**
 
@@ -44,7 +44,7 @@ These limits control how many API calls you can make within specific time window
 
 - **Reset**: Every 24 hours (sliding window)
 
-- **Enforced on**: All API endpoints (only completed billable requests count)
+- **Enforced on**: Every endpoint except `/health` and `/v1/rate/limits` (only completed billable requests count)
 
 ### 2. **Token Limits**
 
@@ -93,9 +93,9 @@ These limits control concurrent processing capabilities.
 The system uses a database-based approach for API key requests:
 
 1. **Request Logging**: Completed billable work is logged to the `swarms_api_logs` table with the `completion` category
-2. **Time Window Queries**: The system counts `completion` rows in the last minute, hour, and day. Telemetry and input rows are deliberately excluded, so GET endpoints and work that never completed do not increment your counters — each completed swarm, agent, or workflow run counts exactly once
+2. **Time Window Queries**: The system counts `completion` rows in the last minute, hour, and day. Telemetry and input rows are deliberately excluded, so GET endpoints and work that never completed do not increment your counters. Each completed swarm, agent, or workflow run counts once, and an agent batch of N items counts up to N+1: one for each item that completes, plus one for the batch. Rows from every API key on your account count together, revoked keys included
 3. **Limit Comparison**: Current counts are compared against configured limits
-4. **Request Blocking**: Requests are blocked if any limit is exceeded — the limits are enforced on all endpoints, even though only completed billable requests count toward them
+4. **Request Blocking**: Requests are blocked if any limit is exceeded. The limits are enforced on every endpoint except `/health` and `/v1/rate/limits`, even though only completed billable requests count toward them
 
 ### Sliding Windows
 

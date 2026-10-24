@@ -21,7 +21,7 @@ Most teams discover their observability gap the day a customer asks "what did th
 | Per-request logs | `GET /v1/account/logs` | Per request | "What ran? Did it succeed? How much did it cost?" |
 | Live pricing rates | `GET /v1/usage/costs`, `GET /v1/models/pricing` | Snapshot (current rate card) | "What does each model cost per token, and what are the per-agent and search fees right now?" |
 | Credit balance | `GET /v1/account/credits` | Snapshot | "Do we have headroom for the next batch job?" |
-| Rate-limit headers | `X-RateLimit-*` on every response | Per request | "Are we about to get 429'd? Do we need to back off?" |
+| Rate-limit headers | `X-RateLimit-*` on every rate-limited response and on `/v1/rate/limits` | Per request | "Are we about to get 429'd? Do we need to back off?" |
 
 The rule of thumb: **headers for the next millisecond, logs for the last hour (and for trend analysis — there's no separate daily-rollup endpoint), live rates before you estimate a job's cost, credits before you submit a batch.**
 
@@ -198,7 +198,7 @@ def guard_batch(estimated_cost: float, safety_margin: float = 1.5):
 
 ## Step 5: Watch Rate-Limit Headers in Flight
 
-The headers are on **every** authenticated response, including errors. You do not need a separate call. Log them after every request and feed the data into your throttling logic.
+The headers are on every response from an endpoint the rate limiter covers (every endpoint but `/health` and `/v1/rate/limits`), including a `429`, and also on `/v1/rate/limits`, which sets them itself. `/health` has none. A `401`, or a `402`/`403` from the API key check, carries none, because it is returned before the rate limiter runs. You do not need a separate call. Log them after every request and feed the data into your throttling logic.
 
 ```python
 def call_with_headers_logged(payload: dict):

@@ -1304,6 +1304,8 @@ Rate limits are tier-based:
 - **Free Tier**: 100 requests/minute, 350 requests/hour, 1,200 requests/day
 - **Premium Tier**: 2,000 requests/minute, 10,000 requests/hour, 100,000 requests/day
 
+The limits count completions, not HTTP requests. GET requests and failed requests don't count, every API key on the account counts together, and an agent batch of N items counts up to N+1: one for each item that completes, plus one for the batch. See [Rate Limits](/docs/documentation/resources/ratelimits).
+
 ## Cost Calculation
 
 For detailed pricing information, see the <a href="/docs/documentation/resources/pricing">Pricing</a> page.

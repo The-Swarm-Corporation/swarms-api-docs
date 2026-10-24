@@ -174,8 +174,8 @@ The `name` and `description` strings above are the literal values the API return
 | Code | Meaning |
 |------|---------|
 | `200` | Catalog returned successfully |
-| `401` | Missing or invalid `x-api-key` |
-| `422` | Validation error — the `x-api-key` header was not supplied |
+| `401` | Missing or invalid `x-api-key`. A missing key returns `{"error": {"type": "authentication_error", "message": "Missing API key", ...}}` |
+| `429` | Rate limit exceeded. See [Rate Limits](/docs/documentation/resources/ratelimits) |
 
 ## Gating Your Own UI
 
