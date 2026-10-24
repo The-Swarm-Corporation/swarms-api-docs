@@ -5,14 +5,14 @@ description: "Wire /v1/account/logs, /v1/usage/costs, /v1/account/credits, and X
 
 ## What This Covers
 
-- How the four observability signals fit together: per-request logs, daily usage rollup, credit balance, and live rate-limit headers
+- How the four observability signals fit together: per-request logs, live pricing rates, credit balance, and live rate-limit headers
 - A small Python script that pulls the last 24 hours of activity, aggregates by `swarm_type`, and prints a cost-and-error breakdown
 - The audit-trail story for enterprise, healthcare, finance, and other regulated workloads
 - Which signal answers which operational question — and which one you should be pulling first
 
 ## Why This Matters
 
-Most teams discover their observability gap the day a customer asks "what did the agent see on Tuesday at 2pm and how much did it cost us?" The Swarms API exposes everything you need to answer that — but the data is split across four endpoints with different shapes, time grains, and refresh cadences. This guide is the operator narrative on top of the [Swarm Logs](/docs/examples/examples/swarm-logs), [Usage Report](/docs/examples/examples/usage-report), and [Account Credits](/docs/examples/examples/account-credits) reference pages: which signal to use when, how to combine them, and the minimum production-grade script for a daily dashboard.
+Most teams discover their observability gap the day a customer asks "what did the agent see on Tuesday at 2pm and how much did it cost us?" The Swarms API exposes everything you need to answer that — but the data is split across four endpoints with different shapes, time grains, and refresh cadences. This guide is the operator narrative on top of the [Swarm Logs](/docs/examples/examples/swarm-logs), [Pricing Details](/docs/examples/examples/pricing-details-basic), and [Account Credits](/docs/examples/examples/account-credits) reference pages: which signal to use when, how to combine them, and the minimum production-grade script for a daily dashboard.
 
 ## The Four Signals
 
@@ -235,7 +235,7 @@ For enterprise and regulated workloads — healthcare, financial services, legal
 - "Reconstruct the chain of agent outputs that produced this trade recommendation."
 - "Produce the model name, system prompt, and output for the decision made at 14:32 UTC."
 
-The `/v1/account/logs` endpoint is filtered to your API key and excludes any row whose payload contains client IP information. Each row is the full response body of a successful, billable run — `job_id`, `output`/`outputs`, `usage` (tokens and cost), and for swarm completions `execution_time` and `number_of_agents`. It does not carry the model name back to you; if you need to reconstruct which model produced a given output, pin `model_name` per agent on your side and correlate by `job_id` or the run's `name`. Combined with deterministic agent configs (low temperature, pinned model names, fixed `max_loops`) on your own side, this gives you a reproducible record per completion — which is what most regulators actually want.
+The `/v1/account/logs` endpoint covers every API key on your account, revoked ones included, and excludes any row whose payload contains client IP information. Each row is the full response body of a successful, billable run — `job_id`, `output`/`outputs`, `usage` (tokens and cost), and for swarm completions `execution_time` and `number_of_agents`. It does not carry the model name back to you; if you need to reconstruct which model produced a given output, pin `model_name` per agent on your side and correlate by `job_id` or the run's `name`. Combined with deterministic agent configs (low temperature, pinned model names, fixed `max_loops`) on your own side, this gives you a reproducible record per completion — which is what most regulators actually want.
 
 <Info>
 The platform's existing log retention is suitable for debugging and operational analytics. For workloads with formal retention requirements (GxP, HIPAA, SOX, SR 11-7), export logs to your own storage on a daily cadence — the [Swarm Logs examples](/docs/examples/examples/swarm-logs) show CSV/JSON/compressed export patterns.
@@ -255,6 +255,6 @@ That's the full observability story — three scheduled pulls and one inline log
 ## Next Steps
 
 - Read [Swarm Logs & API History](/docs/examples/examples/swarm-logs) for filtering, export, and the full log schema
-- Read [Usage Report](/docs/examples/examples/usage-report) for daily-rollup query parameters and the response schema
+- Read [Pricing Details](/docs/examples/examples/pricing-details-basic) for the `/v1/usage/costs` response schema
 - Read [Rate Limit Headers](/docs/documentation/resources/rate-limit-headers) for tier thresholds and the full header set
 - Read the [Production Readiness Checklist](/docs/guides/guides/production-readiness-checklist) to wire these signals into a complete production wrapper

@@ -49,9 +49,9 @@ The first 80% of any API integration is happy-path code. The last 20% — the pa
 
 - [ ] Before any batch run, call `/v1/account/credits` and refuse to submit if `total_credits < estimated_cost * 1.5`
 - [ ] After every run, persist `result["usage"]["billing_info"]["total_cost"]` to your warehouse keyed by request ID
-- [ ] Run a daily cron against `/v1/usage/costs` and alert on day-over-day cost > 2x the trailing 7-day mean
+- [ ] Run a daily cron over the costs you persisted and alert on day-over-day cost > 2x the trailing 7-day mean (`/v1/usage/costs` returns current prices, not spend)
 - [ ] Set hard budget caps in your wrapper — a runaway loop should fail fast, not bleed credits
-- [ ] Reference: [Production Observability](/docs/guides/guides/production-observability), [Usage Report](/docs/examples/examples/usage-report), [Get Credit Balance](/docs/examples/examples/account-credits)
+- [ ] Reference: [Production Observability](/docs/guides/guides/production-observability), [Get Credit Balance](/docs/examples/examples/account-credits)
 
 ### Batch Endpoints for Offline Workloads
 

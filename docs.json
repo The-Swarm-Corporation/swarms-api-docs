@@ -365,8 +365,7 @@
               "docs/examples/api_examples/rate_limits",
               "docs/examples/examples/pricing-details-basic",
               "docs/examples/examples/pricing-cost-estimator",
-              "docs/examples/examples/account-credits",
-              "docs/examples/examples/usage-report"
+              "docs/examples/examples/account-credits"
             ]
           },
           {
