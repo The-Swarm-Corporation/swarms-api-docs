@@ -1,19 +1,18 @@
 ---
 title: "MajorityVoting"
-description: "Democratic decision-making swarm where multiple agents vote on solutions, with the majority determining the final outcome"
+description: "Decision-making swarm where multiple agents answer independently and a consensus agent writes the final outcome"
 ---
 
 **Swarm Type**: `MajorityVoting`
 
 ## Overview
 
-The MajorityVoting swarm type implements a democratic decision-making process where multiple agents independently analyze a problem and propose solutions. The final outcome is determined by majority consensus, making this architecture ideal for scenarios where you want to leverage collective intelligence while maintaining a clear decision-making process.
+The MajorityVoting swarm type implements a democratic decision-making process where multiple agents independently analyze a problem and propose solutions. A consensus agent then reads every answer and writes the final outcome, making this architecture ideal for scenarios where you want to leverage collective intelligence while maintaining a clear decision-making process.
 
 Key features:
-- **Democratic Decision Making**: Multiple agents vote on solutions
-- **Consensus Building**: Majority rule determines final outcome
-- **Independent Analysis**: Each agent works independently before voting
-- **Transparent Process**: Clear voting mechanism and results
+- **Independent Analysis**: Each agent answers the task on its own
+- **Consensus Agent**: A fixed `Consensus-Agent` on `gpt-5.4` reads every answer and writes the final one, once per loop
+- **Transparent Process**: Every agent's answer and the consensus answer are returned in `output`
 
 ## Architecture
 
@@ -22,13 +21,13 @@ flowchart LR
     T["Task"] --> A["Agent 1 votes"]
     T --> B["Agent 2 votes"]
     T --> C["Agent 3 votes"]
-    A --> V["Majority consensus"]
+    A --> V["Consensus-Agent"]
     B --> V
     C --> V
     V --> O["Final outcome"]
 ```
 
-Each agent decides independently, without seeing the others. The majority answer wins.
+Each agent decides independently, without seeing the others. Nothing tallies the votes: the `Consensus-Agent` reads every answer and writes the final one.
 
 ## Use Cases
 
@@ -455,6 +454,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     "swarm_type": "MajorityVoting",
     "output": [
         {
+            "role": "user",
+            "content": "Review and vote on whether to approve this marketing content for publication: [Content: Our revolutionary AI solution transforms business operations by leveraging cutting-edge machine learning algorithms to optimize workflows and increase productivity by up to 300%]"
+        },
+        {
             "role": "Marketing Expert",
             "content": "VOTE: YES. The content effectively communicates the value proposition and uses compelling language that would resonate with business audiences."
         },
@@ -473,6 +476,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         {
             "role": "Audience Advocate",
             "content": "VOTE: NO. The '300% productivity increase' claim reads as implausible and undermines the credibility of the message for a business audience."
+        },
+        {
+            "role": "Consensus-Agent",
+            "content": "Final answer: NO. The unsubstantiated '300% productivity increase' claim is the deciding issue, raised on accuracy, legal and credibility grounds. Approve once the claim is sourced or removed."
         }
     ],
     "number_of_agents": 5,
@@ -505,7 +512,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Best Practices
 
-- Use an odd number of agents to avoid tie votes
+- The number of agents doesn't need to be odd: nothing counts votes, so there are no ties
 - Design agents with distinct evaluation criteria
 - Ensure clear voting instructions in system prompts
 - Ideal for quality control and approval workflows

@@ -58,7 +58,7 @@ Response: <the model's answer to evaluate>
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `council_judge_model_name` | `string` | `"gpt-5.4"` | The model used by the judge that delivers the final ruling. |
+| `council_judge_model_name` | `string` | `"gpt-5.4"` | The model used by the six dimension judges. The aggregator that writes the final ruling always runs on `gpt-5.4`. |
 
 ## Use Cases
 
@@ -198,10 +198,6 @@ fetch(`${API_BASE_URL}/v1/swarm/completions`, {
     "swarm_type": "CouncilAsAJudge",
     "output": [
         {
-            "role": "User",
-            "content": "Task: A customer asks how to get a refund for an order placed 40 days ago, outside the 30-day window. Write a helpful, policy-compliant reply.\n\nResponse: \"Unfortunately our policy only allows refunds within 30 days, so there is nothing we can do. Please contact the manufacturer directly.\""
-        },
-        {
             "role": "accuracy_judge",
             "content": "The response accurately states the 30-day policy but does not verify whether exceptions (store credit, goodwill gesture) exist, which may be an incomplete representation of available options..."
         },
@@ -261,7 +257,7 @@ fetch(`${API_BASE_URL}/v1/swarm/completions`, {
 ## Best Practices
 
 - Always include both the original task and the candidate response inside `task` — evaluating a bare question with no response to grade produces a meaningless ruling
-- Use a strong `council_judge_model_name` — it drives the final synthesis that most consumers of the output will actually read
+- Use a strong `council_judge_model_name`: it sets the six dimension judges, while the final synthesis that most consumers read always runs on `gpt-5.4`
 - Pair `CouncilAsAJudge` with another swarm call: generate a response first, then post it (plus the original task) through `CouncilAsAJudge` as a quality gate
 - Keep the required placeholder `agents` entry minimal and cheap — it is billed but never executed
 - Best for scoring and review workflows, not for generating original content

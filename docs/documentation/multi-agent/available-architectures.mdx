@@ -48,7 +48,7 @@ As of this writing there are **14** supported `swarm_type` values. `"auto"` and 
 | `RoundRobin` | workflow | Agents take turns in a fixed rotation, cycling through the roster so the work is shared evenly across loops. | [Round Robin](/docs/documentation/multi-agent/round_robin) |
 | `PlannerWorkerSwarm` | collaboration | Separates planning from execution: planner agents break the task into sub-tasks that worker agents pull from a shared queue and execute. | [Planner / Worker Swarm](/docs/documentation/multi-agent/planner_worker_swarm) |
 
-Descriptions above are the exact strings the live API returns for each type's `description` field.
+Descriptions above are the exact strings the live API returns for each type's `description` field. The `MajorityVoting` string says the majority answer is selected, but nothing counts votes: a `Consensus-Agent` on `gpt-5.4` reads every answer and writes the final one.
 
 ## Tuning Parameters by Architecture
 

@@ -65,7 +65,7 @@ def run_heavy_analysis(task: str, heavy_swarm_max_loops: int = 1) -> dict:
 ```
 
 <Warning>
-For `HeavySwarm`, the top-level `max_loops` field is not used - it only controls how many worker agents you supply (irrelevant here since `agents` is empty). Use `heavy_swarm_max_loops` to control HeavySwarm's own iteration count.
+For `HeavySwarm`, the top-level `max_loops` field is not used: the API never passes it to HeavySwarm. Use `heavy_swarm_max_loops` to control how many times the whole pipeline runs.
 </Warning>
 
 <Note>

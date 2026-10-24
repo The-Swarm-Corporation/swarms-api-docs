@@ -365,20 +365,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     "swarm_name": "Market Strategy Roundtable",
     "description": "Collaborative market strategy discussion with round-robin agent turns",
     "swarm_type": "RoundRobin",
-    "output": [
-        {
-            "role": "Product Strategist",
-            "content": "Our core value proposition centers on 'AI-native code review that understands your codebase, not just syntax.' Unlike GitHub Copilot (focused on generation) or SonarQube (static analysis), we combine deep codebase understanding with contextual review that catches architectural issues, not just linting errors..."
-        },
-        {
-            "role": "Growth Marketer",
-            "content": "Building on the Product Strategist's positioning, here's the channel strategy: 1) Developer communities (Dev.to, Hacker News launches) - lowest CAC at $15-25. 2) GitHub Marketplace listing - organic discovery channel. 3) Content marketing targeting 'code review best practices' keywords..."
-        },
-        {
-            "role": "Sales Engineer",
-            "content": "Acknowledging the positioning and channel strategy above, here's the enterprise readiness assessment: Integration requirements include GitHub/GitLab webhooks, SSO via SAML/OIDC, and a 15-minute POC setup. For mid-size teams, the key adoption blocker is proving value in the first PR review..."
-        }
-    ],
+    "output": "Acknowledging the positioning and channel strategy above, here's the enterprise readiness assessment: Integration requirements include GitHub/GitLab webhooks, SSO via SAML/OIDC, and a 15-minute POC setup. For mid-size teams, the key adoption blocker is proving value in the first PR review...",
     "number_of_agents": 3,
     "execution_time": 32.6,
     "usage": {
@@ -406,6 +393,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 ```
+
+`output` is a single string: the last agent's final message. The API doesn't pass an `output_type` to RoundRobin, so it keeps its default, `"final"`, instead of returning the list of turns other swarm types return.
 
 ## Best Practices
 

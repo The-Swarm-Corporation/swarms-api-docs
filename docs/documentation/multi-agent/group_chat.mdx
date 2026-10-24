@@ -29,6 +29,10 @@ flowchart TD
 Unlike the workflow types, agents talk to each other. Every contribution lands in one shared
 transcript that the others can build on or push back against.
 
+<Warning>
+The swarm's `max_loops` caps the total number of messages in the chat, and the task counts as the first one. With `max_loops: 1` no agent speaks: `output` is `[]`, and every agent's fee is still billed. Set it to at least the number of agents + 1. The examples below use `5` for four agents.
+</Warning>
+
 ## Use Cases
 
 - Product strategy brainstorming sessions
@@ -90,7 +94,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
         "temperature": 0.5
       }
     ],
-    "max_loops": 1
+    "max_loops": 5
   }'
 ```
 </Tab>
@@ -155,7 +159,7 @@ swarm_config = {
             "temperature": 0.5
         }
     ],
-    "max_loops": 1
+    "max_loops": 5
 }
 
 response = requests.post(
@@ -227,7 +231,7 @@ const swarmConfig = {
             temperature: 0.5
         }
     ],
-    max_loops: 1
+    max_loops: 5
 };
 
 fetch(`${API_BASE_URL}/v1/swarm/completions`, {
@@ -326,7 +330,7 @@ func main() {
                 Temperature:  0.5,
             },
         },
-        MaxLoops: 1,
+        MaxLoops: 5,
     }
 
     jsonData, _ := json.Marshal(swarmConfig)
@@ -403,7 +407,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "temperature": 0.5
             }
         ],
-        "max_loops": 1
+        "max_loops": 5
     });
 
     let client = Client::new();
@@ -485,7 +489,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Output Shape
 
-Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `GroupChat` specifically produces a multi-turn transcript: each agent speaks in turn, sees the accumulated conversation so far (including what previous agents said), and its `content` in `output` is its contribution to that shared discussion — so, unlike `ConcurrentWorkflow`, later agents' turns are expected to reference or build on earlier ones rather than being independent.
+A `GroupChat` run goes through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `GroupChat` specifically produces a multi-turn transcript. Each turn, every agent bids to speak and the single highest bidder above 0.5, after a recency penalty for agents that spoke recently, posts its reply. The chat ends at the first turn where no agent clears 0.5, or once `max_loops` messages (counting the task) have been posted. Each speaker sees the conversation so far, so unlike `ConcurrentWorkflow`, later turns are expected to reference or build on earlier ones. GroupChat needs at least 2 agents.
 
 - Design agents with complementary but distinct expertise to maximize discussion breadth
 - Use descriptive system prompts that instruct agents to build on and react to other participants' input
