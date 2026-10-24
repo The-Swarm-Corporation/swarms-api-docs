@@ -10,7 +10,7 @@ The Auto Agent Builder generates agent configurations from a task. You describe 
 Two things to know up front:
 
 - **It designs, it does not run.** The response contains agent *configurations only* — no agents are constructed or executed, and nothing beyond the single builder call is billed. Pipe the returned roster into [`/v1/swarm/completions`](/docs/documentation/multi-agent/overview) (or any multi-agent endpoint) to actually run it.
-- **Available on all tiers.** Unlike its siblings Graph Workflow and Batched Grid Workflow, this endpoint is not premium-gated. It is billable, so your account needs a minimum credit balance of $1.00.
+- **Available on all tiers.** Unlike its siblings Graph Workflow and Batched Grid Workflow, this endpoint is not premium-gated. It is billable, so a purchased credit balance of $1.00 or less gets a 402.
 
 **Endpoint:** `POST /v1/auto-agent-builder/completions`
 
@@ -52,7 +52,7 @@ headers = {
 | `max_agents` | `integer` | No | `5` | Ceiling on roster size (1-100). The builder prefers the smallest roster that covers the task. |
 | `num_agents` | `integer` | No | `null` | Exact roster size (1-100). When set, overrides `max_agents` and the prefer-fewer guidance. |
 | `system_prompt` | `string` | No | builder default | Custom instructions for the builder agent (not the generated agents). |
-| `agent_kwargs` | `dict` | No | `null` | Extra fields applied to every generated agent (e.g. `max_loops`, `streaming_on`). Keys the builder itself produces (`agent_name`, `description`, `system_prompt`, `model_name`) cannot be overridden and are ignored. |
+| `agent_kwargs` | `dict` | No | `null` | Accepted, but has no effect on the response: the generated entries do not pick up these fields. Set fields such as `max_loops` or `streaming_on` on each returned entry yourself. |
 
 ## Output Parameters
 
@@ -70,7 +70,7 @@ headers = {
 
 ### Generated agent entries
 
-Each entry in `agents` is an `AgentSpec`, but the builder populates only these fields — do not expect the full AgentSpec surface (e.g. `max_tokens`, `tools_list_dictionary`) unless you supplied it via `agent_kwargs`:
+Each entry in `agents` is a complete `AgentSpec`. The builder writes these four fields, and every other field carries its AgentSpec default, such as `max_tokens: 16000`, `max_loops: 1` and `role: "worker"`, with `null` for fields that have no default:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -102,10 +102,10 @@ The endpoint bills one builder-agent call:
 
 | Status | Meaning |
 |--------|---------|
-| `400` | Empty or invalid `task`, an Ollama `model_name`, or the builder produced no usable configs. |
+| `400` | A `task` of only whitespace, an Ollama `model_name`, or the builder produced no usable configs. |
 | `401` | Missing or invalid API key. |
-| `402` | Account credit balance below the $1.00 minimum for billable endpoints. |
-| `422` | Request failed schema validation (e.g. `max_agents` outside 1-100). |
+| `402` | Purchased credit balance of $1.00 or less. |
+| `422` | Request failed schema validation (e.g. an empty `task`, or `max_agents` outside 1-100). |
 | `429` | Rate limit exceeded. |
 | `500` | Unexpected server error. |
 
@@ -123,7 +123,7 @@ curl -X POST "https://api.swarms.world/v1/auto-agent-builder/completions" \
   }'
 ```
 
-Example response:
+Example response, with each entry trimmed to the four fields the builder writes:
 
 ```json
 {
@@ -177,11 +177,12 @@ response = requests.post(
     json={
         "task": "Design, write, and edit a technical blog post about vector databases",
         "num_agents": 3,
-        "agent_kwargs": {"max_loops": 1, "max_tokens": 4000},
     },
     timeout=120,
 )
 roster = response.json()["agents"]
+for agent in roster:
+    agent.update(max_loops=1, max_tokens=4000)
 ```
 
 ### Build a team, then run it
@@ -224,7 +225,7 @@ print(result["output"])
 ## Best Practices
 
 - **Let the builder decide the size.** `max_agents` is a ceiling, not a target — the builder prefers the smallest team that covers the task. Reach for `num_agents` only when you need an exact count.
-- **Use `agent_kwargs` for runtime settings.** Fields like `max_loops`, `max_tokens`, or `streaming_on` applied via `agent_kwargs` land on every generated agent; the builder's own choices (`agent_name`, `description`, `system_prompt`, `model_name`) always win over colliding keys.
+- **Set runtime settings on the roster yourself.** `agent_kwargs` does not change the response, so set fields like `max_loops`, `max_tokens`, or `streaming_on` on each returned entry before posting the roster.
 - **Review before running.** The roster is plain JSON — inspect or edit the system prompts and model choices before posting them to a completions endpoint, especially for cost-sensitive workloads.
 
 ## Rate Limits
