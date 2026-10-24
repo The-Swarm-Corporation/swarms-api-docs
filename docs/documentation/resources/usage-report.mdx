@@ -161,7 +161,7 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
 |---|---|---|
 | `status` | `string` | Status of the request |
 | `count` | `integer` | Exact total number of matching log entries across every API key on the account, including revoked ones. This is **not** `len(logs)` — `logs` is capped at the 1000 newest entries, so `count` exceeds it once your account passes 1000 requests |
-| `logs` | `array` | Log entries with timestamps, endpoints, and status (capped at the 1000 newest) |
+| `logs` | `array` | Stored log rows, newest first (capped at the 1000 newest). Each row has `id`, `created_at`, `api_key` (redacted to its last 4 characters), `category` and `data`, the payload logged for the completion (its response body, for a non-streaming request) |
 | `timestamp` | `string` | ISO timestamp when the response was generated |
 
 ```json
@@ -170,9 +170,22 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
   "count": 1284,
   "logs": [
     {
-      "endpoint": "/v1/agent/completions",
-      "status": "success",
-      "timestamp": "2026-09-14T09:12:03+00:00"
+      "id": 12345,
+      "created_at": "2026-09-14T09:12:03+00:00",
+      "api_key": "...a1b2",
+      "category": "completion",
+      "data": {
+        "job_id": "agent-abc123",
+        "success": true,
+        "name": "Research Assistant",
+        "usage": {
+          "input_tokens": 45,
+          "output_tokens": 120,
+          "total_tokens": 165,
+          "total_cost": 0.002735
+        },
+        "timestamp": "2026-09-14T09:12:03+00:00"
+      }
     }
   ],
   "timestamp": "2026-09-14T12:00:00+00:00"
