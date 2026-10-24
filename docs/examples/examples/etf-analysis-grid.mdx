@@ -1,16 +1,16 @@
 ---
 title: "ETF Analysis with Batched Grid Workflow"
-description: "Fan two analyst agents across two tasks in parallel using BatchedGridWorkflow."
+description: "Pair two analyst agents with two tasks, one task each, and run them in parallel with BatchedGridWorkflow."
 ---
 
 ## What This Example Shows
 
-- The `BatchedGridWorkflow` endpoint, which runs every agent against every task in parallel
-- A practical financial-analysis use case: two ETF analysts (risk + quant) across two sector queries (energy + semis)
-- How to parse the per-task, per-agent output grid
+- The `BatchedGridWorkflow` endpoint, which pairs agent _i_ with task _i_ and runs the pairs in parallel
+- A practical financial-analysis use case: two ETF analysts (risk + quant), each paired with one sector query (energy, semis)
+- How to parse the per-loop, per-agent output
 
 <Info>
-`BatchedGridWorkflow` is a fan-out × fan-out primitive. If you give it `N` agents and `M` tasks, you get `N × M` independent agent runs in parallel — perfect for "analyze each of these tickers using each of these specialists" workloads.
+`BatchedGridWorkflow` pairs agents and tasks by index: `agent_completions[i]` runs `tasks[i]`, so the two lists must be the same length, and `N` agents with `N` tasks make `N` runs, not `N × N`. To run every specialist on every ticker, send one entry per (specialist, ticker) pair, each with its own `agent_name`, since `outputs` is keyed by agent name.
 </Info>
 
 ## Step 1: Setup
@@ -34,7 +34,7 @@ HEADERS = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Build the Grid
 
-Two specialists, two tasks → four parallel agent runs.
+Two specialists, two tasks, two parallel runs: the Risk Analyst takes the energy task and the Quantitative Analyst takes the semiconductor task.
 
 ```python
 def build_payload() -> Dict[str, Any]:
@@ -119,16 +119,16 @@ async def run_grid() -> Dict[str, Any]:
 
 ## Step 4: Parse the Output
 
-The response carries one entry per task; each entry is a dict keyed by agent name.
+`outputs` has one entry per loop (one here, since `max_loops` is 1). Each entry is a dict keyed by agent name, holding that agent's answer to its paired task.
 
 ```python
 def show(response_data: Dict[str, Any]) -> None:
-    for task_idx, task_outputs in enumerate(response_data.get("outputs", []), start=1):
+    for loop_idx, loop_outputs in enumerate(response_data.get("outputs", []), start=1):
         print("=" * 60)
-        print(f"Task {task_idx}")
+        print(f"Loop {loop_idx}")
         print("=" * 60)
-        if isinstance(task_outputs, dict):
-            for agent_name, agent_response in task_outputs.items():
+        if isinstance(loop_outputs, dict):
+            for agent_name, agent_response in loop_outputs.items():
                 print(f"\n--- {agent_name} ---")
                 print(str(agent_response)[:400] + "...")
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
 ```
 
 <Note>
-Output shape: `outputs[task_index][agent_name] = response`. If you flatten this into a 2-D grid (rows = tasks, columns = agents), every cell is an independent analyst opinion you can compare side-by-side.
+Output shape: `outputs[loop_index][agent_name] = response`, where each agent's response answers the task at that agent's own index in `tasks`.
 </Note>
 
 ## When To Use Batched Grid
@@ -148,7 +148,7 @@ Output shape: `outputs[task_index][agent_name] = response`. If you flatten this 
 | --- | --- |
 | Each agent to see the previous agent's output | `SequentialWorkflow` |
 | All agents to react to the same task in parallel | `ConcurrentWorkflow` |
-| Same agents applied to many independent tasks | **`BatchedGridWorkflow`** |
+| Each agent on its own task, all in parallel | **`BatchedGridWorkflow`** |
 | A director to synthesize specialist opinions | `HierarchicalSwarm` |
 
 Batched Grid is the right choice when each task is independent — no shared state, no inter-agent communication, just maximum parallelism.

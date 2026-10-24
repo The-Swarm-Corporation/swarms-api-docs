@@ -479,7 +479,8 @@ grid = requests.post(
     headers=HEADERS,
     json={
         "agent_completions": [
-            {"agent_name": "worker", "model_name": "gpt-4.1", "max_loops": 1}
+            {"agent_name": "summarizer-a", "model_name": "gpt-4.1", "max_loops": 1},
+            {"agent_name": "summarizer-b", "model_name": "gpt-4.1", "max_loops": 1},
         ],
         "tasks": ["Summarize article A", "Summarize article B"],
     },
