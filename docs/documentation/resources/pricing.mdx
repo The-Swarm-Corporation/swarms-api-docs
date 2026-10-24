@@ -148,7 +148,7 @@ MCP servers and the `web_scraper` tool have no fee: only the tokens the agent us
 
 | Endpoint | What is billed |
 |----------|----------------|
-| Swarm Completions | \$0.01 per agent plus each agent's tokens at its own model. Night-time discount applies to the token cost. |
+| Swarm Completions | \$0.01 per agent plus each agent's tokens at its own model. On a paid plan, the night-time discount applies to the token cost. |
 | Agent Completions, Chat Completions | Tokens at the agent's model, plus image and search fees. No per-agent fee. |
 | Graph Workflow | \$0.01 per agent plus each agent's tokens at its own model. No night-time discount. |
 | Batched Grid Workflow | \$0.01 per agent plus each agent's tokens at its own model. No night-time discount. |
@@ -160,7 +160,9 @@ Some swarm types build agents of their own: the HierarchicalSwarm director, the 
 
 ### Discounts
 
-**Night-time discount**: swarm completions get 50% off the token cost from 8 PM to 6 AM Pacific Time, judged when the run is billed, after it finishes. The \$0.01 agent cost is not discounted, and no other endpoint gets the discount.
+**Night-time discount**: on a paid plan, swarm completions get 50% off the token cost from 8 PM to 6 AM Pacific Time, judged when the run is billed, after it finishes. A paid plan is tier `pro`, `ultra` or `premium`, or an active subscription, the same check that unlocks the Premium Endpoints. Free accounts pay the full token price at any hour. The \$0.01 agent cost is not discounted, and no other endpoint gets the discount.
+
+Every swarm response reports the outcome in `usage.billing_info`: `discount_active`, `discount_type` (`"night_time"` or `"none"`), `discount_percentage` (`50` or `0`) and `cost_breakdown.night_time_discount_applied`. A free account billed at night gets `false`, `"none"` and `0`. If the plan lookup fails, the run is billed at full price.
 
 ### Worked examples
 
@@ -175,7 +177,7 @@ claude-sonnet-5   = (0.2 × $2.00 + 0.3 × $10.00) × 1.15       = $3.91
 Total                                                         = $7.0925
 ```
 
-At night the two token costs are halved: \$0.02 + \$1.58125 + \$1.955 = \$3.55625.
+At night on a paid plan the two token costs are halved: \$0.02 + \$1.58125 + \$1.955 = \$3.55625. A free account pays the daytime \$7.0925 at any hour.
 
 **Agent completion with an image.** A `claude-sonnet-5` agent with 250,000 input and 100,000 output tokens and one image:
 

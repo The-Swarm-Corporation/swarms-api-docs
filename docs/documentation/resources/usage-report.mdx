@@ -108,7 +108,7 @@ None. This endpoint always returns the current pricing model in effect.
 | `swarm_completions_agent_cost` | `number` | Cost per agent in the request for swarm completions, graph workflow and batched grid workflow (USD) |
 | `agent_completions_img_cost` | `number` | Cost per image for agent completions (USD) |
 | `search_cost` | `number` | Cost per agent completion request that enables `auto_search`, however many searches run (USD) |
-| `night_time_discount` | `number` | Discount multiplier applied to swarm completion token costs, 8 PM - 6 AM PT (0.5 = 50% off) |
+| `night_time_discount` | `number` | Discount multiplier applied to swarm completion token costs, 8 PM - 6 AM PT, for paid plans only (0.5 = 50% off). Every account sees the same value, but a free account pays the full token price at any hour |
 
 <Note>
 MCP servers and the `web_scraper` tool have no fee of their own; only the tokens are billed. The old `swarm_completions_*_cost_per_1m`, `agent_completions_*_cost_per_1m`, `agent_completions_mcp_cost` and `scrape_cost` fields are no longer returned.
