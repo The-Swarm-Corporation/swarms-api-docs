@@ -1,6 +1,6 @@
 ---
 title: 'Reasoning Agent Completions'
-description: 'Execute reasoning agents with specialized cognitive architectures — self-consistency, reasoning duo, iterative reflective expansion, and more — via /v1/reasoning-agent/completions'
+description: 'Execute reasoning agents (self-consistency, consistency-agent, ReflexionAgent and AgentJudge) via /v1/reasoning-agent/completions'
 ---
 
 The Reasoning Agent Completions endpoint (`/v1/reasoning-agent/completions`) runs a single task through a specialized reasoning architecture rather than a plain agent loop. Instead of one model call producing one answer, a reasoning agent decomposes, samples, critiques, or debates its way to a result — trading cost and latency for reliability on problems where a single pass is often wrong.
@@ -46,10 +46,9 @@ The request body is a single `ReasoningAgentSpec` object.
 | `model_name` | `string` | No | `"claude-sonnet-4-20250514"` | The AI model backing the reasoning agent |
 | `system_prompt` | `string` | No | `null` | Initial instruction or context provided to the agent |
 | `max_loops` | `integer` | No | `1` | Maximum times the agent repeats its task. Between 1 and 50 |
-| `swarm_type` | `string` | No | `"reasoning_duo"` | The reasoning architecture to use — see [Reasoning Types](#reasoning-types) |
+| `swarm_type` | `string` | No | `"self-consistency"` | The reasoning architecture to use: `AgentJudge`, `ReflexionAgent`, `self-consistency` or `consistency-agent`. See [Reasoning Types](#reasoning-types) |
 | `num_samples` | `integer` | No | `1` | Number of samples to generate. Drives the vote count for consensus architectures |
 | `output_type` | `string` | No | `"dict-all-except-first"` | Output format — see [Output Types](#output-types) |
-| `num_knowledge_items` | `integer` | No | `null` | Number of knowledge items to use |
 | `memory_capacity` | `integer` | No | `null` | Memory capacity for the reasoning agent |
 
 ### Reasoning Types
@@ -58,24 +57,16 @@ The request body is a single `ReasoningAgentSpec` object.
 
 | Value | Description |
 |-------|-------------|
-| `reasoning-duo` | Two internal agents per call: a reasoning/critique pass (fixed to `gpt-4o`) and a main answering pass on your requested `model_name` |
-| `reasoning-agent` | Alias for `reasoning-duo` — identical two-agent architecture |
-| `self-consistency` | Samples multiple independent answers (`num_samples`) and reconciles them into one result |
+| `self-consistency` | Samples `num_samples` independent answers, then a majority-vote agent reconciles them. `outputs` has two entries: one named after `agent_name` whose `content` is the list of samples, then a `Majority Voting Agent` entry with the answer |
 | `consistency-agent` | Alias for `self-consistency` |
-| `ire` | Iterative Reflective Expansion — expands and revises a solution over repeated passes, driven by `num_samples` rather than `max_loops` |
-| `ire-agent` | Alias for `ire` |
-| `ReflexionAgent` | Attempts the task, evaluates its own output, and revises using a short/long-term memory of prior attempts |
-| `GKPAgent` | Generates supporting background knowledge first, then reasons from it to answer |
-| `AgentJudge` | Reviews and critiques a candidate output rather than generating a fresh answer from scratch |
+| `ReflexionAgent` | Attempts the task, evaluates its own output, and revises using a short/long-term memory of prior attempts. `outputs` is the final answer as a string |
+| `AgentJudge` | Reviews and critiques a candidate output rather than generating a fresh answer from scratch. `outputs` is the judge's transcript as a string |
 
 <Note>
-The default is `reasoning_duo` (underscore), while the enum lists `reasoning-duo` (hyphen). Pass one of the enumerated values explicitly rather than relying on the default. Call [`GET /v1/reasoning-agent/types`](/docs/examples/examples/reasoning-agent-types) for the live list.
+Any other value, including the removed `reasoning-duo`, `reasoning-agent`, `ire`, `ire-agent` and `GKPAgent`, returns 422 before any model call or charge. Call [`GET /v1/reasoning-agent/types`](/docs/examples/examples/reasoning-agent-types) for the live list.
 </Note>
 
-Two more implementation details, grounded in the `swarms` package's `ReasoningAgentRouter` (the router this endpoint delegates to) and not visible from the table above:
-
-- For `ire`/`ire-agent`, this endpoint does not forward `max_loops` to the router at all — that architecture uses `num_samples` as its loop count instead.
-- For `GKPAgent`, `max_loops` has no effect: its underlying implementation doesn't accept a loop count.
+Two known issues in the `swarms` package: the majority vote in `self-consistency` and `consistency-agent` runs on `gpt-5.4` whatever `model_name` you send ([swarms#2345](https://github.com/kyegomez/swarms/issues/2345)), and `AgentJudge` output includes your task text ([swarms#2346](https://github.com/kyegomez/swarms/issues/2346)).
 
 ### Output Types
 
@@ -210,6 +201,14 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
   "outputs": [
     {
       "role": "Valuation Reasoner",
+      "content": [
+        "Implied valuation: $100.8M. Runway: 40 months.",
+        "Implied valuation: $100.8M. Runway: 40 months.",
+        "Implied valuation: $100.8M. Runway: 40 months."
+      ]
+    },
+    {
+      "role": "Majority Voting Agent",
       "content": "Implied valuation: $12M ARR x 1.40 = $16.8M forward revenue, x 6 = $100.8M. Runway: $20M / $0.5M per month = 40 months."
     }
   ],
@@ -240,7 +239,7 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 | `usage` | `object` | `input_tokens`, `output_tokens`, `total_tokens` (integers), plus `total_cost` (a float — the credits charged for this run) |
 
 <Warning>
-`outputs` is deliberately untyped in the schema: a `self-consistency` run and a `reasoning-duo` run return different structures, and `output_type` changes it again. Do not assume a fixed shape — branch on `agent_type`, or pin `output_type` to `final` when you only need the answer string.
+`outputs` is deliberately untyped in the schema: `AgentJudge` and `ReflexionAgent` return a string, while `self-consistency` and `consistency-agent` return an entry holding the list of samples followed by a `Majority Voting Agent` entry. Branch on `agent_type` rather than assuming one shape.
 </Warning>
 
 ### Status Codes
