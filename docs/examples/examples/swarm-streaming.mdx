@@ -64,6 +64,10 @@ When `stream=true` is set on **any** swarm type, `/v1/swarm/completions` respond
 `chunk` has two different shapes depending on `swarm_type`. For `SequentialWorkflow` and `AgentRearrange` (the only types with per-token `arun_stream` support), each `chunk` carries one token: `{"content": "...", "agent": "...", "timestamp": "..."}`. For every other swarm type, the whole swarm still runs first (not streamed internally), then exactly **one** `chunk` event is sent with the complete result: `{"output": ..., "timestamp": "..."}` — no `agent` or `content` field. Branch on `swarm_type` (or check for the `content`/`agent` keys) before assuming per-token shape.
 </Warning>
 
+<Warning>
+On the per-token path (`SequentialWorkflow` or `AgentRearrange` with a `task` or `messages`), the API builds the workflow from `name`, `description`, `agents`, `max_loops` and `rearrange_flow` only. `img`, `multi_agent_collab_prompt` and `list_all_agents` are dropped, so the agents never see the image or the collaboration prompt. A `tasks` batch is not streamed per token: it runs through the router, keeps all three fields, and arrives as one `chunk`. Send `stream: false` if a single-task run needs any of them.
+</Warning>
+
 <Note>
 The defining feature of per-token swarm streaming is that **every `chunk` event carries an `agent` field**. That's how you attribute a token to the correct worker when multiple agents are running. Single-agent streaming on `/v1/agent/completions` does not need this — there is only one agent.
 </Note>

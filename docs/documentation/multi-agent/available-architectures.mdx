@@ -17,7 +17,7 @@ curl -X GET "https://api.swarms.world/v1/swarms/available" \
 which returns `{"status", "timestamp", "swarm_types": [...], "swarm_types_metadata": [...]}`. Call it if you want to check this list programmatically rather than trusting a docs page to stay current.
 
 <Note>
-As of this writing there are **14** supported `swarm_type` values. `"auto"` and `"SpreadSheetSwarm"` are explicitly rejected with a `400` error ("not supported currently") if you send them, even though you may see them referenced elsewhere. `BatchedGridWorkflow` and `GraphWorkflow` are **not** `swarm_type` values at all — each is a separate, premium-only endpoint. See [Not a `swarm_type`](#not-a-swarm-type-separate-endpoints) below.
+As of this writing there are **14** supported `swarm_type` values. `"auto"` and `"SpreadSheetSwarm"` are not in the `swarm_type` enum, so sending either returns a `422` validation error, even though you may see them referenced elsewhere. `BatchedGridWorkflow` and `GraphWorkflow` are **not** `swarm_type` values at all — each is a separate, premium-only endpoint. See [Not a `swarm_type`](#not-a-swarm-type-separate-endpoints) below.
 </Note>
 
 ## Architecture Categories
@@ -52,7 +52,7 @@ Descriptions above are the exact strings the live API returns for each type's `d
 
 ## Tuning Parameters by Architecture
 
-Every architecture accepts the common `SwarmSpec` fields (`agents`, `task`/`tasks`/`messages`, `max_loops`, `name`, `description`, `stream`, `multi_agent_collab_prompt`, `list_all_agents`, `img`). Some architectures also read additional, type-specific fields — sending them for a different `swarm_type` is harmless but has no effect. Full field definitions are on the [Swarm Completions Reference](/docs/documentation/multi-agent/swarm_completions#request-body-swarmspec).
+Every architecture accepts the common `SwarmSpec` fields (`agents`, `task`/`tasks`/`messages`, `max_loops`, `name`, `description`, `stream`). `multi_agent_collab_prompt` and `list_all_agents` only take effect for `SequentialWorkflow` and `AgentRearrange`. `img` currently fails with a `500` for `CouncilAsAJudge`, `MultiAgentRouter`, `LLMCouncil`, `DebateWithJudge` and `GroupChat`, which don't take an image. Some architectures also read additional, type-specific fields — sending them for a different `swarm_type` is harmless but has no effect. Full field definitions are on the [Swarm Completions Reference](/docs/documentation/multi-agent/swarm_completions#request-body-swarmspec).
 
 | `swarm_type` | Extra parameters |
 |---|---|
@@ -172,7 +172,7 @@ Two related workflow types are **not** values you can pass to `swarm_type`; each
 
 ## Rejected values
 
-`"auto"` (automatic architecture selection) and `"SpreadSheetSwarm"` are checked explicitly by the API and rejected with a `400 Bad Request` ("SpreadSheetSwarm and auto swarm types are not supported currently"). Do not send either as `swarm_type`.
+`"auto"` (automatic architecture selection) and `"SpreadSheetSwarm"` are not in the `swarm_type` enum, so request validation rejects them with a `422` (`literal_error`) before anything runs. Do not send either as `swarm_type`.
 
 ## Getting Started
 

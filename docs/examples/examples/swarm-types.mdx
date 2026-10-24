@@ -98,7 +98,7 @@ Different swarm types are optimized for different workflows - choose the right a
     # documentation_url; see "Understanding the Response" below):
     # {
     #   "status": true,
-    #   "timestamp": "2026-07-13T19:37:41.821232",
+    #   "timestamp": "2026-07-13T19:37:41.821232+00:00",
     #   "swarm_types": [
     #     "AgentRearrange",
     #     "MixtureOfAgents",
@@ -137,7 +137,7 @@ Different swarm types are optimized for different workflows - choose the right a
 </Tabs>
 
 <Note>
-`swarm_types` is a flat list of the 14 identifiers you pass as `swarm_type` in a `SwarmSpec`. `swarm_types_metadata` carries the same 14 types with rich metadata: `name`, `description`, `category` (`workflow`, `collaboration`, `routing`, `judgment`, or `auto`), `best_for` (representative use cases), `parameters` (swarm-type-specific `SwarmSpec` fields beyond the common `agents`/`task`/`max_loops`), and `documentation_url` (`null` for types without a dedicated docs page).
+`swarm_types` is a flat list of the 14 identifiers you pass as `swarm_type` in a `SwarmSpec`. `swarm_types_metadata` carries the same 14 types with rich metadata: `name`, `description`, `category` (`workflow`, `collaboration`, `routing`, `judgment`, or `auto`), `best_for` (representative use cases), `parameters` (swarm-type-specific `SwarmSpec` fields beyond the common `agents`/`task`/`max_loops`), and `documentation_url` (a link to the type's reference page, or `null` when the API has none on file; it is currently `null` for `CouncilAsAJudge`, `LLMCouncil` and `PlannerWorkerSwarm`, although those pages exist).
 </Note>
 
 ## Swarm Type Selection Guide
@@ -224,6 +224,8 @@ Different swarm types are optimized for different workflows - choose the right a
         ]
     }
     ```
+
+    With `tasks`, the swarm runs each task through all three processors, one task after another. The processors work in parallel on the same task; the tasks themselves are not split across agents or run at the same time.
   </Tab>
   <Tab title="Dynamic Optimization">
     ```python
@@ -271,7 +273,7 @@ The `/v1/swarms/available` endpoint currently returns 14 swarm types (the `swarm
 | **PlannerWorkerSwarm** | collaboration | Tasks that benefit from explicit planning before execution | — |
 
 <Warning>
-`swarm_type: "auto"` and `swarm_type: "SpreadSheetSwarm"` are rejected with a 400 error ("...are not supported currently") by `/v1/swarm/completions` — always pass one of the 14 types above.
+`swarm_type: "auto"` and `swarm_type: "SpreadSheetSwarm"` are not in the `swarm_type` enum, so `/v1/swarm/completions` rejects them with a 422 validation error (`literal_error`) before anything runs. Always pass one of the 14 types above.
 </Warning>
 
 ## Advanced Swarm Configuration
@@ -359,7 +361,7 @@ The `/v1/swarms/available` endpoint currently returns 14 swarm types (the `swarm
         resource_count = len(available_resources)
 
         if task_count > resource_count * 2:
-            # High load - run every task in parallel via the "tasks" list
+            # High load - send the batch as "tasks"; each task runs through the whole swarm in turn
             return {
                 "swarm_type": "ConcurrentWorkflow",
                 "tasks": tasks
