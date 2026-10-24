@@ -321,6 +321,18 @@ for item in result["results"]:
         print(item.get("name"), "FAILED:", item.get("detail"))
 ```
 
+The envelope is stored, so you can fetch it again later by passing its `batch_id` to `GET /v1/job/{job_id}`. You get the same `batch_id`, `total_requests`, `execution_time`, `timestamp` and `results` back. A `batch_id` that did not run under an API key on your account returns `404`:
+
+```python
+stored = requests.get(
+    f"{BASE_URL}/v1/job/{result['batch_id']}",
+    headers=headers,
+    timeout=30,
+)
+stored.raise_for_status()
+print(stored.json()["total_requests"])
+```
+
 ## Environment Setup
 
 Create a `.env` file in your project directory:
