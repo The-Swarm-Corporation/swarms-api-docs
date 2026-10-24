@@ -248,15 +248,14 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 | Code | Meaning |
 |------|---------|
 | `200` | Completion returned successfully |
-| `400` | API key present but not recognized — rejected before the request reaches the route handler |
-| `401` | Missing `x-api-key` (and no `Authorization: Bearer` fallback) |
+| `401` | Missing `x-api-key` (and no `Authorization: Bearer` fallback), or a key that is unknown, revoked or malformed |
 | `402` | Credit balance at or below $1.00 |
 | `403` | Free tier — premium subscription required |
 | `422` | Malformed request body (e.g. invalid `swarm_type`, or `max_loops` outside 1–50) |
 | `429` | Rate limit exceeded |
 
 <Note>
-This endpoint is both premium-only and billable, so a request is checked, in order, for: API key presence (401), API key validity (400), credit balance (402), and premium tier (403) — all before the reasoning agent runs. Every error from this pre-flight check is returned in the shape `{"error": {"type": ..., "message": ..., "detail": ..., "status_code": ...}}`.
+This endpoint is both premium-only and billable, so a request is checked, in order, for: API key presence (401), API key validity (401), credit balance (402), and premium tier (403) — all before the reasoning agent runs. Every error from this pre-flight check is returned in the shape `{"error": {"type": ..., "message": ..., "detail": ..., "status_code": ...}}`.
 </Note>
 
 ## When to Use a Reasoning Agent

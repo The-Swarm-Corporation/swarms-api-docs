@@ -729,9 +729,9 @@ All request-body validation failures on this endpoint — including out-of-range
         )
         print(response.choices[0].message.content)
     except AuthenticationError:
-        print("Missing API key (401)")
+        print("Missing or invalid API key (401)")
     except PermissionDeniedError:
-        print("Invalid API key or insufficient permissions (403)")
+        print("Insufficient permissions (premium required) (403)")
     except BadRequestError as e:
         print(f"Validation error (400): {e.message}")
     except RateLimitError:
@@ -757,9 +757,9 @@ All request-body validation failures on this endpoint — including out-of-range
       console.log(response.choices[0].message.content);
     } catch (error) {
       if (error instanceof OpenAI.AuthenticationError) {
-        console.error("Missing API key (401)");
+        console.error("Missing or invalid API key (401)");
       } else if (error instanceof OpenAI.PermissionDeniedError) {
-        console.error("Invalid API key or insufficient permissions (403)");
+        console.error("Insufficient permissions (premium required) (403)");
       } else if (error instanceof OpenAI.BadRequestError) {
         console.error(`Validation error (400): ${error.message}`);
       } else if (error instanceof OpenAI.RateLimitError) {
@@ -804,9 +804,9 @@ All request-body validation failures on this endpoint — including out-of-range
             if errors.As(err, &apiErr) {
                 switch apiErr.StatusCode {
                 case http.StatusUnauthorized:
-                    log.Fatal("Missing API key (401)")
+                    log.Fatal("Missing or invalid API key (401)")
                 case http.StatusForbidden:
-                    log.Fatal("Invalid API key or insufficient permissions (403)")
+                    log.Fatal("Insufficient permissions (premium required) (403)")
                 case http.StatusBadRequest:
                     log.Fatalf("Validation error (400): %s", apiErr.Message)
                 case http.StatusTooManyRequests:
