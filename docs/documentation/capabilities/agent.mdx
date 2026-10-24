@@ -1173,6 +1173,8 @@ For processing multiple agents simultaneously, use the batch endpoint:
 
 **Request**: Array of `AgentCompletion` objects (max 50 per batch)
 
+**Fetching a batch again**: the response's `batch_id` (`agent-batch-...`) works as the path parameter of `GET /v1/job/{job_id}`, which returns the stored batch response: `batch_id`, `total_requests`, `execution_time`, `timestamp` and `results`. The ownership rule is the same as for a `job_id` lookup: the batch must have run under an API key on your account, otherwise the route returns `404`. Each successful entry in `results` keeps its own `job_id`, and looking that up returns just that entry. `/v1/swarm/batch/completions` returns no id, so its results cannot be fetched again this way.
+
 <Tabs>
 <Tab title="Python">
 
