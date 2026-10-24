@@ -298,8 +298,8 @@ while (true) {
 
 ### 1. Multi-Model Support
 - **OpenAI Models**: gpt-4.1, gpt-4.1-mini, gpt-4o
-- **Anthropic Models**: claude-sonnet-4-20250514
-- **Custom Models**: Any model supported by LiteLLM
+- **Anthropic Models**: claude-sonnet-5
+- **Custom Models**: Any model id listed by `GET /v1/models/available`. An unknown or retired id, such as `claude-sonnet-4-20250514`, returns 404 before anything runs or is charged: `{"detail": "The model '<name>' does not exist or is no longer available. See https://api.swarms.world/v1/models/available for the models you can use."}`
 - **Vision Models**: Support for image analysis with gpt-4.1 and compatible models
 
 ### 2. Vision Capabilities
@@ -1155,7 +1155,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 **Supported Models**: Only vision-capable models support image analysis:
 - `gpt-4.1`: Best for detailed visual analysis
 - `gpt-4.1-mini`: Cost-effective for basic vision tasks
-- `claude-sonnet-4-20250514`: High-quality vision understanding
+- `claude-sonnet-5`: High-quality vision understanding
 
 **Image Billing**: Each image in `img` or `imgs` is billed a flat $0.25, and the input tokens the model provider reports for the request, images included, are billed at the model's own price. See the [Vision Capabilities](/docs/examples/examples/vision-capabilities) guide for detailed information on image encoding and best practices.
 

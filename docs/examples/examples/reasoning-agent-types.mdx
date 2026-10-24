@@ -138,7 +138,7 @@ Send these fields in the JSON body of `POST /v1/reasoning-agent/completions` (th
 |-----------|------|---------|-------------|
 | `agent_name` | `string` | `"reasoning-agent"` | The unique name assigned to the reasoning agent |
 | `description` | `string` | `"A reasoning agent that can answer questions and help with tasks."` | A detailed explanation of the reasoning agent's purpose and capabilities |
-| `model_name` | `string` | `"claude-sonnet-4-20250514"` | The name of the AI model that the reasoning agent will utilize |
+| `model_name` | `string` | `"claude-sonnet-5"` | The name of the AI model that the reasoning agent will utilize |
 | `system_prompt` | `string` | `None` | The initial instruction or context provided to the reasoning agent |
 | `max_loops` | `integer` | `1` | Maximum number of times the agent repeats its task (ignored for `ire` / `ire-agent`, which manage iteration internally) |
 | `swarm_type` | `string` | `"reasoning_duo"` | The reasoning agent type — pass one of the 9 values listed above |

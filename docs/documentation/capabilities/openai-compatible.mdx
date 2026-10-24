@@ -40,7 +40,7 @@ Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platfo
 
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `model` | `string` | Yes | — | Model to use for completion (e.g. `gpt-4.1`, `claude-sonnet-4-20250514`, `gpt-4.1-mini`). Any model supported by the Swarms API is accepted |
+| `model` | `string` | Yes | — | Model to use for completion (e.g. `gpt-4.1`, `claude-sonnet-5`, `gpt-4.1-mini`). Any model supported by the Swarms API is accepted |
 | `messages` | `List[ChatMessage]` | Yes | — | A list of messages comprising the conversation (see [ChatMessage Object](#chatmessage-object)) |
 | `temperature` | `float` | No | `0.5` | Sampling temperature (0.0 – 2.0). Lower values produce more deterministic output |
 | `max_tokens` | `integer` | No | `8192` | Maximum number of tokens to generate in the response |
@@ -980,8 +980,8 @@ The `model` field accepts any model supported by the Swarms API. Common options:
 | Provider | Models |
 |---|---|
 | OpenAI | `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o3-mini` |
-| Anthropic | `claude-sonnet-4-20250514`, `claude-3-7-sonnet-20250219` |
-| Groq | `groq/llama-3.3-70b-versatile`, `groq/openai/gpt-oss-120b` |
+| Anthropic | `claude-sonnet-5`, `claude-haiku-4-5` |
+| Groq | `groq/openai/gpt-oss-120b`, `groq/openai/gpt-oss-20b` |
 
 For the full list, call `GET /v1/models` (standard OpenAI list format — works with `client.models.list()` in the OpenAI SDK) or `GET /v1/models/available` (Swarms format with a `count` field, one object per model with its `model_name` and price) with your API key. Both return the same catalog, filtered by your subscription tier:
 

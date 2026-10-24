@@ -230,7 +230,7 @@ def build_support_swarm(ticket_payload: str) -> dict:
                 "agent_name": "Product Liaison",
                 "description": "Feature requests, how-do-I, roadmap.",
                 "system_prompt": PRODUCT_PROMPT,
-                "model_name": "xai/grok-4",
+                "model_name": "xai/grok-4.3",
                 "role": "worker",
                 "max_loops": 1,
                 "max_tokens": 2048,
@@ -261,7 +261,7 @@ def build_support_swarm(ticket_payload: str) -> dict:
 ```
 
 <Note>
-The Triage Manager runs on `claude-sonnet-4-5` because misrouting cascades into the wrong specialist and burns the whole pipeline. Specialists run on cheaper models (`gpt-4.1-mini`, `claude-haiku-4-5`, `xai/grok-4`) — they are doing template-shaped writing and the cost difference is what keeps this near \$0.10/ticket. The Quality Reviewer steps up to `claude-opus-4-8` because the escalation decision is load-bearing.
+The Triage Manager runs on `claude-sonnet-4-5` because misrouting cascades into the wrong specialist and burns the whole pipeline. Specialists run on cheaper models (`gpt-4.1-mini`, `claude-haiku-4-5`, `xai/grok-4.3`) — they are doing template-shaped writing and the cost difference is what keeps this near \$0.10/ticket. The Quality Reviewer steps up to `claude-opus-4-8` because the escalation decision is load-bearing.
 </Note>
 
 <Warning>
