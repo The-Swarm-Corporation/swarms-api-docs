@@ -52,6 +52,8 @@ Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platfo
 | `n` | `integer` | No | `1` | Number of completions to generate. Only `1` is supported — requests with `n > 1` are rejected |
 | `user` | `string` | No | — | A unique identifier for the end-user, used for tracking |
 | `max_loops` | `integer` | No | `1` | *Swarms extension.* Maximum number of agent reasoning loops, 1 to 50. `1` = single pass (default). Higher values let the agent iterate on its own output. Pass via `extra_body` in the OpenAI SDK |
+| `tools` | `List[object]` | No | `null` | Function tools in the OpenAI schema: `{"type": "function", "function": {"name", "description", "parameters"}}`. See [Tool Calling](#tool-calling) |
+| `tool_choice` | `string` or `object` | No | `"auto"` | `"auto"`, `"none"`, `"required"`, or `{"type": "function", "function": {"name": "..."}}` to force one function. Only valid with `tools` |
 
 ### ChatMessage Object
 
@@ -62,6 +64,8 @@ Each message in the `messages` array:
 | `role` | `string` | Yes | One of `system`, `user`, or `assistant` |
 | `content` | `string` or `List[ContentPart]` | No | Text content, or an array of content parts for multimodal input. Defaults to `null` |
 | `name` | `string` | No | An optional name for the participant |
+| `tool_calls` | `List[ToolCall]` | No | On an `assistant` message, the tool calls it made, as returned in `message.tool_calls`. Send them back unchanged in a round trip |
+| `tool_call_id` | `string` | No | On a `tool` message, the `id` of the call this result answers |
 
 #### ContentPart (Multimodal)
 
@@ -84,6 +88,7 @@ The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:imag
 - At least one message with `role: "user"` is required
 - `n` must be `1` — multiple completions per request are not supported (send separate requests instead)
 - Requests with zero messages or only system messages are rejected
+- `tool_choice` without `tools` is rejected
 
 ### Example Request Body
 
@@ -121,8 +126,8 @@ The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:imag
 | Field | Type | Description |
 |---|---|---|
 | `index` | `integer` | Always `0` (single-choice responses) |
-| `message` | `ChatMessage` | The assistant's response with `role: "assistant"` |
-| `finish_reason` | `string` | Why the model stopped generating — `"stop"` for normal completion |
+| `message` | `ChatMessage` | The assistant's response with `role: "assistant"`. When the model calls tools, `content` is `null` and `tool_calls` holds the calls |
+| `finish_reason` | `string` | Why the model stopped: `"stop"`, `"tool_calls"` when it called tools, or `"length"` when the answer reached `max_tokens` |
 
 ### CompletionUsage Object
 
@@ -180,7 +185,7 @@ When `stream: true` is set, the response is returned as Server-Sent Events (SSE)
 |---|---|---|
 | `index` | `integer` | Always `0` |
 | `delta` | `object` | Incremental content — see stream sequence below |
-| `finish_reason` | `string` or `null` | `null` during streaming, `"stop"` on the final chunk |
+| `finish_reason` | `string` or `null` | `null` during streaming; `"stop"`, `"tool_calls"` or `"length"` on the final chunk |
 
 ### Stream Sequence
 
@@ -188,7 +193,8 @@ When `stream: true` is set, the response is returned as Server-Sent Events (SSE)
 |---|---|---|---|
 | First chunk | `{"role": "assistant"}` | `null` | Role declaration |
 | Content chunks | `{"content": "..."}` | `null` | Incremental text content |
-| Final chunk | `{}` | `"stop"` | Signals completion |
+| Tool call chunk | `{"tool_calls": [...]}` | `null` | Only when the model calls tools: every call in one delta, with complete arguments |
+| Final chunk | `{}` | `"stop"`, `"tool_calls"` or `"length"` | Signals completion |
 | Terminator | `data: [DONE]` | — | SSE stream end marker |
 
 ### Example Stream
@@ -950,6 +956,75 @@ By default the agent runs a single pass (`max_loops=1`). To let the agent iterat
 
 ---
 
+## Tool Calling
+
+Send OpenAI function tools in `tools` and the model can answer with tool calls instead of text: `message.content` is `null`, `message.tool_calls` holds each call's `id`, function `name` and JSON `arguments`, and `finish_reason` is `"tool_calls"`. This is the response from a real run on `gpt-5.4`:
+
+```json
+{"choices": [{"index": 0, "finish_reason": "tool_calls",
+  "message": {"role": "assistant", "content": null,
+    "tool_calls": [{"id": "call_dntvMexfQpEEwYIAOoWL9QXs", "type": "function", "index": 0,
+      "function": {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}}]}}]}
+```
+
+The API does not run your functions. Run each call yourself, then send the assistant turn back with its `tool_calls`, followed by one `tool` message per result with the matching `tool_call_id`, and the model answers from the results:
+
+```python
+import json
+
+from openai import OpenAI
+
+client = OpenAI(api_key="your-swarms-api-key", base_url="https://api.swarms.world/v1")
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get the current weather for a city",
+            "parameters": {
+                "type": "object",
+                "properties": {"city": {"type": "string"}},
+                "required": ["city"],
+            },
+        },
+    }
+]
+messages = [{"role": "user", "content": "What's the weather in Paris?"}]
+
+response = client.chat.completions.create(model="gpt-5.4", messages=messages, tools=tools)
+message = response.choices[0].message
+
+messages.append(message.model_dump(exclude_none=True))
+for call in message.tool_calls:
+    result = {"temp_c": 18, "sky": "sunny"}
+    messages.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(result)})
+
+final = client.chat.completions.create(model="gpt-5.4", messages=messages, tools=tools)
+print(final.choices[0].message.content)
+```
+
+With that result, the real run answered `It's 18°C and sunny in Paris.`
+
+With `stream=True`, any text streams first, then one chunk carries every call in `delta.tool_calls` with complete arguments, and the final chunk has `finish_reason: "tool_calls"`:
+
+```python
+stream = client.chat.completions.create(
+    model="gpt-5.4",
+    messages=[{"role": "user", "content": "What's the weather in Paris?"}],
+    tools=tools,
+    stream=True,
+)
+for chunk in stream:
+    choice = chunk.choices[0]
+    for call in choice.delta.tool_calls or []:
+        print(call.id, call.function.name, call.function.arguments)
+    if choice.finish_reason:
+        print(choice.finish_reason)
+```
+
+---
+
 ## How It Maps to Swarms Internals
 
 For users already familiar with the native Swarms API, here is how the OpenAI request fields map to `AgentCompletion` and `AgentSpec`:
@@ -1024,7 +1099,7 @@ To price a single model, call `GET /v1/models/pricing?model_name=<model>`. See [
 | Behavior | OpenAI API | Swarms API |
 |---|---|---|
 | `n > 1` | Returns multiple choices | Rejected with error — send separate requests |
-| Tool calling / function calling | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with `tools_list_dictionary` |
+| Tool calling / function calling | Supported | Supported with `tools` and `tool_choice`, streaming included. `parallel_tool_calls` is not supported yet and is ignored |
 | `logprobs` | Supported | Not supported |
 | Response format (`json_object`) | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with structured output |
 | Streaming | True token-by-token streaming | True token-by-token streaming — tokens are forwarded live via a callback as the agent generates them, not chunked after the fact |
