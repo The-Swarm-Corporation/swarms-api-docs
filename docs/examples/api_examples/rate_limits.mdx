@@ -7,8 +7,10 @@ description: "Check current rate limit usage and configured limits with GET /v1/
 
 `GET /v1/rate/limits` returns your current request counts for the last minute, hour, and day, the configured limits for your subscription tier, and your tier (`free` or `premium`). Use it to build usage dashboards or to back off before you hit `429 Too Many Requests`.
 
+The counts are completions, not HTTP requests. Each completed swarm, agent, or workflow run counts once, and an agent batch of N items counts up to N+1: one for each item that completes, plus one for the batch. GET requests and failed requests don't count, and every API key on your account counts together, revoked keys included. Calling this endpoint is not rate limited and doesn't count.
+
 <Info>
-Every authenticated response also carries live `X-RateLimit-*` headers (`X-RateLimit-Limit-Minute`, `X-RateLimit-Remaining-Minute`, `-Hour`, `-Day`, `X-RateLimit-Reset`, `X-RateLimit-Tier`), and a `429` response adds `Retry-After`. Reading those headers off any response is cheaper than calling this endpoint separately if you just need the current remaining count.
+Every response from a rate-limited endpoint also carries live `X-RateLimit-*` headers (`X-RateLimit-Limit-Minute`, `X-RateLimit-Remaining-Minute`, `-Hour`, `-Day`, `X-RateLimit-Reset`, `X-RateLimit-Tier`), and a `429` response adds `Retry-After`. Reading those headers off any response is cheaper than calling this endpoint separately if you just need the current remaining count.
 </Info>
 
 ## Step 1: Installation

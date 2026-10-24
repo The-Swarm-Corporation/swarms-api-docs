@@ -13,7 +13,7 @@ description: "A HierarchicalSwarm that ingests sell-side PDFs from Goldman, JPM,
 - The structured signal payload your OMS, EMS, or research database actually wants — not free-form text
 
 <Info>
-This pipeline processes a high volume of PDF documents per day. `/v1/swarm/batch/completions` (Step 5) is a **premium-only** endpoint (Pro, Ultra, Premium) — the Free tier caps you at 1,200 requests per day, which this end-of-day sweep across 150+ notes will exceed. Read the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) before turning the cron on, and upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings).
+This pipeline processes a high volume of PDF documents per day. `/v1/swarm/batch/completions` (Step 5) is a **premium-only** endpoint (Pro, Ultra, Premium), so a Free tier key gets `403` on it. Read the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) before turning the cron on, and upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings).
 </Info>
 
 ## Why This Matters

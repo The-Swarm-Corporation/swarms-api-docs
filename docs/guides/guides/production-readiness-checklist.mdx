@@ -65,7 +65,7 @@ Upgrade to premium when **any** of these are true. The premium tier is \$100/mon
 
 - [ ] You hit a `429` more than once per day in production
 - [ ] You need to run more than 1,200 requests per day
-- [ ] Any single agent needs `max_tokens > 200,000`
+- [ ] Any single agent's input (system prompt, task, description, name and history) is over 200,000 tokens. The tier limit caps input tokens, not `max_tokens`
 - [ ] Reference: [Premium Endpoints](/docs/documentation/resources/premium-endpoints)
 
 ### Audit and Compliance
