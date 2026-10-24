@@ -279,7 +279,7 @@ except Exception as e:
 
 ## Search Result Format
 
-Search-enabled agents return the standard `/v1/agent/completions` response shape. The agent's answer (with any web-sourced facts woven into the text) appears in `outputs`. The search tool's $0.04 fee is charged once per request and deducted from your credits as a separate charge — it is not included in the `usage.total_cost` field, which covers token and image costs only:
+Search-enabled agents return the standard `/v1/agent/completions` response shape. The agent's answer (with any web-sourced facts woven into the text) appears in `outputs`. The search tool's \$0.04 fee is charged once per request and is included in `usage.total_cost`, along with the token and image costs. In the sample below, a `gpt-4.1` agent, that is \$0.003105 of tokens plus the \$0.04 fee:
 
 ```json
 {
@@ -300,7 +300,7 @@ Search-enabled agents return the standard `/v1/agent/completions` response shape
     "total_tokens": 450,
     "image_count": 0,
     "img_cost": 0.0,
-    "total_cost": 0.003105
+    "total_cost": 0.043105
   },
   "timestamp": "2026-02-05T00:58:15.252392+00:00"
 }
