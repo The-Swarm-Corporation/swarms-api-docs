@@ -7,7 +7,7 @@ description: "Attach OpenAI-style function tools to agents inside a multi-agent 
 
 - How to pass `tools_list_dictionary` on a per-agent basis inside a swarm
 - How the same tool schema can be shared across multiple worker agents
-- A `ConcurrentWorkflow` of two financial analysts that both call a structured `search_topic` tool
+- A `ConcurrentWorkflow` of two financial analysts that both return calls to a structured `search_topic` tool
 
 <Info>
 Every multi-agent architecture on Swarms accepts the same per-agent `tools_list_dictionary`. The pattern below works identically for `SequentialWorkflow`, `HierarchicalSwarm`, `AgentRearrange`, `GroupChat`, `MixtureOfAgents`, and the rest — only the `swarm_type` changes. The exceptions are `CouncilAsAJudge` and `HeavySwarm`, which build their own internal agents and never run the agents you supply, so tools attached to those agents are never used.
@@ -70,7 +70,7 @@ SEARCH_TOOL = {
 
 ## Step 3: Build the Swarm
 
-Two analysts run concurrently, each equipped with the same tool. Each agent independently decides when to call `search_topic`.
+Two analysts run concurrently, each equipped with the same tool. Each agent independently decides when to call `search_topic`. The API returns those calls in the output without executing them, and nothing feeds a tool result back into the run: execute the returned calls in your own code after the swarm finishes, or fetch the data first and put it in the `task`.
 
 ```python
 def run_financial_swarm() -> dict:

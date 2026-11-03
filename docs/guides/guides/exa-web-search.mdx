@@ -414,18 +414,20 @@ Search-enabled agents return the standard `/v1/agent/completions` response shape
     "input_tokens": 500,
     "output_tokens": 1200,
     "total_tokens": 1700,
+    "image_count": 0,
     "img_cost": 0.0,
-    "total_cost": 0.01219
+    "flash_sale_applied": false,
+    "total_cost": 0.05219
   },
   "timestamp": "2024-01-15T00:00:00Z"
 }
 ```
 
-Note: the `total_cost` in `usage` is the token cost at the agent's model price (15% service fee included; the sample above assumes `gpt-4.1`) plus any image fees. The flat $0.04 `auto_search` fee is deducted from your account credits separately and does not appear in this `usage` object.
+Note: the `total_cost` in `usage` is the whole charge for the request: the token cost at the agent's model price (15% service fee included; the sample above assumes `gpt-4.1`, so \$0.01219 of tokens), plus any image fees, plus the flat \$0.04 `auto_search` fee. The search fee is billed in the same charge as the tokens, after the run succeeds; a failed run isn't charged it.
 
 ## Cost Optimization
 
-Enabling `auto_search` costs a flat $0.04 (`search_cost`) once per request, however many searches the agent runs (including none), deducted from your account credits on top of normal token costs. Optimize usage with these strategies:
+Enabling `auto_search` costs a flat $0.04 (`search_cost`) once per request, however many searches the agent runs (including none), on top of normal token costs. It is charged together with the tokens only after a successful run, and is included in `usage.total_cost`. Optimize usage with these strategies:
 
 1. **Only enable search when needed**: Omit `tools_enabled` (or leave `auto_search` out of it) for tasks that don't require live web data — you'll skip the $0.04 fee entirely.
 2. **Cache research results**: Store responses for repeated similar queries instead of re-running search.

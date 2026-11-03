@@ -1,12 +1,12 @@
 ---
 title: "Night-Mode Pricing: 50% Off Overnight Batch Workflows"
-description: "Move batch swarms and overnight pipelines into the 8 PM – 6 AM Pacific window for a 50% discount on swarm-completion token costs. Includes scheduling recipes with cron and Airflow."
+description: "Move batch swarms and overnight pipelines into the 8 PM – 6 AM Pacific window for a 50% discount on swarm-completion token costs (paid plans). Includes scheduling recipes with cron and Airflow."
 ---
 
 
 ## What This Covers
 
-- The exact window the discount applies to (8 PM – 6 AM **America/Los_Angeles**) and what it covers
+- The exact window the discount applies to (8 PM – 6 AM **America/Los_Angeles**), who gets it (paid plans only), and what it covers
 - Realistic monthly savings: a team running 1,000 swarm jobs/day at daytime rates vs. overnight rates
 - A drop-in cron recipe for scheduling overnight batch swarms from any server
 - An Airflow DAG pattern for production-grade overnight orchestration
@@ -14,11 +14,11 @@ description: "Move batch swarms and overnight pipelines into the 8 PM – 6 AM P
 
 ## Why This Matters
 
-The single highest-ROI cost lever the Swarms API offers is its overnight discount: **swarm-completion input and output tokens are billed at 50% between 8 PM and 6 AM Pacific time**. For any workload that doesn't need sub-second turnaround — overnight reports, daily research digests, RAG-index refreshes, training-data generation, backfills, evaluation suites — this is free money you collect by changing *when* the job runs, not *what* the job runs. A team spending \$10,000/month on swarm jobs that could shift to the overnight window saves roughly **\$4,500/month** with zero code-quality tradeoff. This guide makes that shift mechanical.
+The single highest-ROI cost lever the Swarms API offers is its overnight discount: **for paid members, swarm-completion input and output tokens are billed at 50% between 8 PM and 6 AM Pacific time**. Paid means tier `pro`, `premium` or `ultra`, or an active subscription; free accounts pay the full token price at any hour. For any workload that doesn't need sub-second turnaround — overnight reports, daily research digests, RAG-index refreshes, training-data generation, backfills, evaluation suites — this is free money you collect by changing *when* the job runs, not *what* the job runs. A team spending \$10,000/month on swarm jobs that could shift to the overnight window saves roughly **\$4,500/month** with zero code-quality tradeoff. This guide makes that shift mechanical.
 
 ## How the Discount Works
 
-The discount is applied server-side, in `api/deductions_utils.py`. `is_night_time()` reads the wall-clock hour in the `PRICING_TIMEZONE` constant — `America/Los_Angeles` — and `charge_swarm_usage()` (called by the swarm-completions billing path) applies `pricing.night_time_discount` to the per-model token cost only when that check is true:
+The discount is applied server-side, in `api/deductions_utils.py`. `is_night_time()` reads the wall-clock hour in the `PRICING_TIMEZONE` constant — `America/Los_Angeles` — and `charge_swarm_usage()` (called by the swarm-completions billing path) applies `pricing.night_time_discount` to the per-model token cost only when that check is true **and** `is_paid_member()` confirms the account is on a paid plan:
 
 ```python
 # Excerpt from api/deductions_utils.py — the off-peak check
@@ -27,19 +27,23 @@ NIGHT_START_HOUR = 20
 NIGHT_END_HOUR = 6
 
 def is_night_time(now: Optional[datetime] = None) -> bool:
-    tz = pytz.timezone(PRICING_TIMEZONE)
+    tz = ZoneInfo(PRICING_TIMEZONE)
     if now is None:
         now = datetime.now(tz)
     elif now.tzinfo is not None:
         now = now.astimezone(tz)
     return now.hour >= NIGHT_START_HOUR or now.hour < NIGHT_END_HOUR
 
-# In charge_swarm_usage(), once night_time is resolved. Each agent's tokens
-# are priced at its own model's price, times the discount at night.
+# In charge_swarm_usage(). Each agent's tokens are priced at its own model's
+# price, times the discount at night for paid members only.
+night_time = is_night_time()
+# Paid = tier pro, ultra or premium, or an active subscription
+discounted = night_time and is_paid_member(api_key)
+
 agent_cost = number_of_agents * pricing.swarm_completions_agent_cost
 billing = price_token_usage(
     token_usage,
-    discount=pricing.night_time_discount if night_time else 1.0,  # 0.50 = 50% off
+    discount=pricing.night_time_discount if discounted else 1.0,  # 0.50 = 50% off
 )
 total_cost = agent_cost + billing["input_cost"] + billing["output_cost"]
 # agent_cost is outside the discount, so it is never discounted.
@@ -142,7 +146,7 @@ print(f"Discount percent:   {billing['discount_percentage']}%")
 print(f"Total cost (USD):   ${billing['total_cost']}")
 ```
 
-If `discount_active` is `False` on a job you scheduled for overnight, your cron or worker timezone is wrong — see the troubleshooting section below.
+If `discount_active` is `False` on a job you scheduled for overnight, check two things: that your account is on a paid plan (a free account gets `discount_active: false`, `discount_type: "none"` and `discount_percentage: 0` at any hour), and that your cron or worker timezone is right — see the troubleshooting section below.
 
 ---
 
@@ -293,7 +297,8 @@ def nightly_swarm_batch():
         if failures:
             raise RuntimeError(
                 f"Overnight discount did not apply to: {failures}. "
-                f"Check scheduler timezone (must run between 8 PM and 6 AM Pacific)."
+                f"Check scheduler timezone (must run between 8 PM and 6 AM Pacific) "
+                f"and that the account is on a paid plan."
             )
         return f"OK — all {len(batch_result)} runs got the 50% discount."
 
@@ -340,6 +345,7 @@ if not in_discount_window():
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
+| `discount_active: false` on every run, even inside the window | The account is on the free tier; the discount is for paid members only | Upgrade to a paid plan (tier `pro`, `premium` or `ultra`, or an active subscription) at [swarms.world/platform/account](https://swarms.world/platform/account) |
 | `discount_active: false` on a job you scheduled overnight | Scheduler ran in UTC/local-server-time, not Pacific | Set `CRON_TZ=America/Los_Angeles` or convert in your DAG |
 | Discount lands on some runs in the batch but not others | Long-running job crossed the 6 AM boundary | Start earlier; cap batch size so all runs finish before 5 AM PT |
 | Discount applied but bill barely changed | Agent fee dominates (heavy-swarm pattern with many agents) | Token costs are 50% off; the `$0.01 * num_agents` fee is not. Prune agents per the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) |

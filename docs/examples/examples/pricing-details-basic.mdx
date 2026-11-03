@@ -287,8 +287,8 @@ The endpoint returns a `usage_pricing` object plus a `timestamp`:
 | `fallback_output_cost_per_1m` | Output price per 1M tokens for a model with no price data, before the service fee (\$21.275 after it). |
 | `swarm_completions_agent_cost` | Fee per agent in the request, for swarm completions, graph workflows and batched grid workflows. |
 | `agent_completions_img_cost` | Fee per image on agent completions, counted across `img` and `imgs`. |
-| `search_cost` | Charged once per agent completion request that enables `auto_search` in `tools_enabled`, however many searches the agent runs, including none. |
-| `night_time_discount` | Multiplier on the token cost of swarm completions (including streaming and batch) from 8 PM to 6 AM Pacific. The per-agent fee is not discounted. |
+| `search_cost` | Charged once per agent completion request that enables `auto_search` in `tools_enabled`, however many searches the agent runs, including none. It is billed with the tokens after a successful run (a failed run isn't charged it) and is included in the response's `usage.total_cost`. |
+| `night_time_discount` | Multiplier on the token cost of swarm completions (including streaming and batch) from 8 PM to 6 AM Pacific, for paid members only (tier `pro`, `premium` or `ultra`, or an active subscription). Free accounts pay the full token price at any hour. The per-agent fee is not discounted. |
 
 <Warning>
 The flat token-rate fields (`swarm_completions_input_cost_per_1m`, `swarm_completions_output_cost_per_1m`, `agent_completions_input_cost_per_1m`, `agent_completions_output_cost_per_1m`) and the MCP and scrape fees (`agent_completions_mcp_cost`, `scrape_cost`) have been removed from this response. Code that reads them needs updating: get token prices per model, as shown below.

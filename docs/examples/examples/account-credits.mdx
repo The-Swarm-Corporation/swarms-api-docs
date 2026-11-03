@@ -1,14 +1,14 @@
 ---
 title: 'Get Credit Balance'
-description: 'Retrieve your current API credit balance including regular, free, and referral credits'
+description: 'Retrieve your API credit balance. Only purchased credit pays for API usage; free and referral credits are shown but never spent'
 ---
 
 
 
-Retrieve your current API credit balance from the `/v1/account/credits` endpoint. This endpoint provides detailed information about all credit types associated with your account, including regular credits, free credits, referral credits, and the total available balance.
+Retrieve your current API credit balance from the `/v1/account/credits` endpoint. It returns every credit type on your account: purchased credits, free credits and referral credits, plus `total_credits`, the spendable balance, which equals `credit`.
 
 <Info>
-Credits are automatically deducted after each API request completes, drawing down `free_credit` first, then `referral_credits`, then `credit` (regular/purchased). Check your balance regularly to ensure you have sufficient credits for your operations.
+Credits are automatically deducted after each API request completes, from `credit` (purchased) only. `free_credit` and `referral_credits` are never spent. Check your balance regularly and top up at [cloud.swarms.world/settings](https://cloud.swarms.world/settings).
 </Info>
 
 ## Quick Start
@@ -240,10 +240,10 @@ Credits are automatically deducted after each API request completes, drawing dow
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `credit` | `number` | Regular credit balance (purchased credits) |
-| `free_credit` | `number` | Free credit balance (promotional or welcome credits) |
-| `referral_credits` | `number` | Credits earned through the referral program |
-| `total_credits` | `number` | Total available credits (sum of all credit types) |
+| `credit` | `number` | Purchased credit balance. The only balance that pays for API usage |
+| `free_credit` | `number` | Free credit balance (promotional or welcome credits). Shown for reference only; never spent |
+| `referral_credits` | `number` | Credits earned through the referral program. Shown for reference only; never spent |
+| `total_credits` | `number` | Spendable balance, equal to `credit`. This is the balance checked against the \$1.00 minimum |
 
 ### Example Response
 
@@ -252,22 +252,22 @@ Credits are automatically deducted after each API request completes, drawing dow
   "credit": 50.00,
   "free_credit": 20.00,
   "referral_credits": 5.00,
-  "total_credits": 75.00
+  "total_credits": 50.00
 }
 ```
 
 ## Credit Usage Order
 
-Each charge is deducted from your account in this exact order (see `deduct_credits` in `api/database_ops.py`):
+Only purchased credit (`credit`) pays for API usage. Each charge is deducted from `credit`; `free_credit` and `referral_credits` are still returned by this endpoint but are never spent.
 
-1. **`free_credit`** - Spent first
-2. **`referral_credits`** - Spent next, once `free_credit` is exhausted
-3. **`credit`** (regular/purchased) - Spent last, once both of the above are exhausted
+A charge larger than your purchased balance fails with `402 Payment Required`:
 
-Each bucket is tracked and returned separately in the `CreditBalanceOutput` response — `referral_credits` is not merged into `credit`. This ensures you maximize the value of free and referral credits before drawing down your paid balance. A request fails with `402 Payment Required` if `credit + free_credit + referral_credits` is less than the charge.
+```text
+Insufficient credits. Only purchased credits pay for API usage; free and referral credits are no longer accepted. Top up your credits at https://cloud.swarms.world/settings to continue using the API.
+```
 
 <Note>
-Separately from the per-request charge check above, billable endpoints (`/v1/swarm/completions`, `/v1/chat/completions`, `/v1/agent/completions`, `/v1/agent/batch/completions`, and the other completion routes) require a **total credit balance greater than $1.00** (`credit + free_credit + referral_credits`) before the request is even accepted — this is a pre-flight guard in the API key middleware, independent of what the specific request ends up costing.
+Separately from the per-request charge check above, billable endpoints (`/v1/swarm/completions`, `/v1/chat/completions`, `/v1/agent/completions`, `/v1/agent/batch/completions`, and the other completion routes) require a **purchased credit balance greater than \$1.00** (`credit`, the same number as `total_credits`) before the request is even accepted. At or below \$1.00 they return `402` with `error.type` `insufficient_credits` and `error.upgrade_url` `https://cloud.swarms.world/settings`, even if the account holds free or referral credits. This is a pre-flight guard in the API key middleware, independent of what the specific request ends up costing.
 </Note>
 
 ## Use Cases
@@ -314,12 +314,12 @@ def track_credits(duration_minutes=60, interval_seconds=300):
 
 1. **Regular Monitoring**: Check your credit balance regularly, especially before large operations
 2. **Low Balance Alerts**: Set up alerts when credits fall below a threshold
-3. **Credit Types**: Understand which credit types you're using to optimize spending
-4. **Referral Program**: Earn additional credits by referring new users
+3. **Credit Types**: Only `credit` (purchased) pays for API usage; free and referral credits don't, so watch `credit` or `total_credits`
+4. **Top Up**: Buy credits at [cloud.swarms.world/settings](https://cloud.swarms.world/settings)
 
 ## Related Documentation
 
 - [Pricing Details](/docs/examples/examples/pricing-details-basic) - Understand API costs
 - [Pricing Cost Estimator](/docs/examples/examples/pricing-cost-estimator) - Estimate costs before running jobs
 - [Rate Limits](/docs/examples/api_examples/rate_limits) - Check rate limit status
-- [Account Management](https://swarms.world/platform/account) - Manage your account and add credits
+- [Credit Top-Up](https://cloud.swarms.world/settings) - Buy credits

@@ -20,12 +20,12 @@ The following examples:
   - Swarm completions (each agent's tokens at its own model's price + per‑agent fee)
   - Agent completions (input/output tokens at the agent's model price)
   - Images, and `auto_search`, which is charged once per request however many searches the agent runs
-  - **Night-time discount** multiplier, auto-detected the same way the API applies it
+  - **Night-time discount** multiplier, auto-detected the same way the API applies it: inside the window, and only for paid members
 
 Token cost is `tokens / 1,000,000 × listed price`. The prices from `/v1/models/pricing` already include the 15% service fee, so don't multiply by 1.15 again. Graph workflows and batched grid workflows are priced like a swarm (each agent at its own model, plus \$0.01 per agent) but get no night-time discount. MCP servers and the `web_scraper` tool add no fee.
 
 <Note>
-The night-time discount is not a client-side guess — it mirrors `is_night_time` in `api/deductions_utils.py`: off-peak is **8:00 PM through 5:59 AM in `America/Los_Angeles`** (`now.hour >= 20 or now.hour < 6`, after converting a timezone-aware time to Pacific), and the discount multiplies the swarm completion **token cost only** — the per-agent fee is always charged in full, at any hour. The API checks the time when it bills, after the run finishes.
+The night-time discount is not a client-side guess — it mirrors `is_night_time` in `api/deductions_utils.py`: off-peak is **8:00 PM through 5:59 AM in `America/Los_Angeles`** (`now.hour >= 20 or now.hour < 6`, after converting a timezone-aware time to Pacific), and the discount multiplies the swarm completion **token cost only** — the per-agent fee is always charged in full, at any hour. The API checks the time when it bills, after the run finishes. The discount is for **paid members only** (tier `pro`, `premium` or `ultra`, or an active subscription): free accounts pay the full token price at any hour. `GET /v1/rate/limits` reports `"tier": "premium"` for a paid account and `"free"` otherwise.
 </Note>
 
 <Tabs>
@@ -74,6 +74,16 @@ The night-time discount is not a client-side guess — it mirrors `is_night_time
         resp.raise_for_status()
         return resp.json()["usage_pricing"]
 
+    def is_paid_member() -> bool:
+        """Whether this key's account gets the night-time discount.
+
+        /v1/rate/limits reports tier "premium" for a paid plan (tier pro,
+        ultra or premium, or an active subscription) and "free" otherwise.
+        """
+        resp = requests.get(f"{BASE_URL}/v1/rate/limits", headers=headers)
+        resp.raise_for_status()
+        return resp.json()["tier"] == "premium"
+
     @lru_cache(maxsize=None)
     def get_model_price(model_name: str) -> tuple[float, float]:
         """Input and output price per 1M tokens, service fee included."""
@@ -96,7 +106,8 @@ The night-time discount is not a client-side guess — it mirrors `is_night_time
                       agent_model: Optional[str] = None,
                       agent_input_tokens: int = 0, agent_output_tokens: int = 0,
                       images: int = 0, auto_search: bool = False,
-                      night_time: Optional[bool] = None) -> float:
+                      night_time: Optional[bool] = None,
+                      paid_member: Optional[bool] = None) -> float:
         """Estimate one swarm completion plus one agent completion.
 
         ``swarm_agents`` has one ``(model_name, input_tokens, output_tokens)``
@@ -108,6 +119,9 @@ The night-time discount is not a client-side guess — it mirrors `is_night_time
         # caller overrides it (e.g. to price a job scheduled for later).
         if night_time is None:
             night_time = is_night_time()
+        # The discount is for paid members only; free accounts pay full price
+        if night_time and paid_member is None:
+            paid_member = is_paid_member()
 
         cost = 0.0
 
@@ -115,7 +129,7 @@ The night-time discount is not a client-side guess — it mirrors `is_night_time
         # night-time discount applies only to the token cost, not the
         # per-agent fee — see charge_swarm_usage in api/deductions_utils.py
         swarm_token_cost = sum(token_cost(*agent) for agent in swarm_agents)
-        if night_time:
+        if night_time and paid_member:
             swarm_token_cost *= up["night_time_discount"]
         cost += swarm_token_cost
         cost += len(swarm_agents) * up["swarm_completions_agent_cost"]
@@ -145,6 +159,7 @@ The night-time discount is not a client-side guess — it mirrors `is_night_time
             auto_search=True,
             # night_time=None (default) auto-detects via is_night_time();
             # pass True/False explicitly to price a different time window.
+            # paid_member=None looks the plan up via /v1/rate/limits.
         )
 
         print(f"💰 Estimated workload cost: ${est}")
@@ -245,7 +260,8 @@ The night-time discount is not a client-side guess — it mirrors `is_night_time
       let cost = 0
 
       // Swarm completions: each agent at its own model's price (the night-time
-      // discount applies only to the token cost, not the per-agent fee)
+      // discount applies only to the token cost, not the per-agent fee, and
+      // only on a paid plan: pass nightTime: true only for a paid account)
       let swarmTokenCost = 0
       for (const agent of swarmAgents) swarmTokenCost += tokenCost(prices, agent)
       if (nightTime) swarmTokenCost *= up.night_time_discount
@@ -307,6 +323,7 @@ The night-time discount is not a client-side guess — it mirrors `is_night_time
     const AGENT_RUN: (&str, u64, u64) = ("claude-sonnet-5", 250_000, 100_000);
     const IMAGES: u64 = 1;
     const AUTO_SEARCH: bool = true;
+    // Night-time discount: true only inside the window on a paid plan
     const NIGHT_TIME: bool = true;
 
     // Only the fields used here; serde skips the fallback rates
@@ -440,7 +457,7 @@ The night-time discount is not a client-side guess — it mirrors `is_night_time
         agentRun   = AgentUsage{"claude-sonnet-5", 250_000, 100_000}
         images     = int64(1)
         autoSearch = true
-        nightTime  = false
+        nightTime  = false // true only inside the window on a paid plan
     )
 
     func getJSON(apiKey, path string, out any) error {
@@ -529,7 +546,7 @@ The night-time discount is not a client-side guess — it mirrors `is_night_time
 
 ## Worked Example
 
-Every tab prices the same workload; the Python tab picks day or night from the current Pacific time. At the time of writing, `gpt-5.4` costs \$2.875 per 1M input tokens and \$17.25 per 1M output tokens, and `claude-sonnet-5` costs \$2.30 and \$11.50, service fee included. Look prices up rather than hard-coding them; they change with the providers'.
+Every tab prices the same workload; the Python tab picks day or night from the current Pacific time and checks your plan, since only paid members get the night-time discount. At the time of writing, `gpt-5.4` costs \$2.875 per 1M input tokens and \$17.25 per 1M output tokens, and `claude-sonnet-5` costs \$2.30 and \$11.50, service fee included. Look prices up rather than hard-coding them; they change with the providers'.
 
 | Item | Calculation | Cost |
 |---|---|---|
@@ -540,7 +557,7 @@ Every tab prices the same workload; the Python tab picks day or night from the c
 | Image | 1 × \$0.25 | \$0.25 |
 | `auto_search` | once per request | \$0.04 |
 | **Total, daytime** (TypeScript and Go tabs) | | **\$9.1075** |
-| **Total, 8 PM to 6 AM Pacific** (Rust tab) | swarm tokens \$7.0725 × 0.5 = \$3.53625 | **\$5.57125** |
+| **Total, 8 PM to 6 AM Pacific, paid plan** (Rust tab) | swarm tokens \$7.0725 × 0.5 = \$3.53625 | **\$5.57125** |
 
 <Note>
 These are estimates. The bill uses the token counts the model provider reports for the real run, summed over every LLM call each agent makes (loops, re-sent history, reasoning tokens), so the amount charged can differ. Swarm types that add agents of their own, such as the HierarchicalSwarm director, also bill those agents' tokens; the per-agent fee counts only the agents in your request.

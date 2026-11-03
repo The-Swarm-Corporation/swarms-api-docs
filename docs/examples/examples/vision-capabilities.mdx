@@ -331,13 +331,7 @@ Not all models support vision. Use these models for image analysis:
 
 ## Cost Considerations
 
-Each image you send in `img` or `imgs` is billed a flat $0.25 (reported as `usage.img_cost`). The model provider also counts each image as input tokens, roughly in line with its resolution, and the input tokens it reports are billed at the model's own price (see [Pricing](/docs/documentation/resources/pricing)):
-
-| Image Size | Approximate Tokens |
-|------------|-------------------|
-| 512x512 | ~85 tokens |
-| 1024x1024 | ~170 tokens |
-| 2048x2048 | ~340 tokens |
+Each image you send in `img` or `imgs` is billed a flat $0.25 (reported as `usage.img_cost`), whatever its size. The model provider also counts each image as input tokens (how many depends on the provider and the image's size), and the input tokens it reports are billed at the model's own price (see [Pricing](/docs/documentation/resources/pricing)). Read `usage.input_tokens` after a run to see what your images added. `usage.total_cost` is the token cost plus `img_cost`.
 
 ## Troubleshooting
 

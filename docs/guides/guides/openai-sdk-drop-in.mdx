@@ -143,6 +143,13 @@ for chunk in stream:
         print(delta, end="", flush=True)
 ```
 
+<Note>
+The same base-url swap covers two more SDK surfaces, both non-streaming and text only, with the same billing and rate limits as `/v1/chat/completions`:
+
+- **OpenAI Responses API:** `client.responses.create(...)` works against `POST /v1/responses`. See [Responses API](/docs/documentation/capabilities/responses-api).
+- **Anthropic SDK:** `anthropic.Anthropic(api_key=..., base_url="https://api.swarms.world")` works against `POST /v1/messages`, with any model the Swarms API supports. See [Anthropic-Compatible Messages API](/docs/documentation/capabilities/anthropic-compatible).
+</Note>
+
 ## The First Free Upgrade: `max_loops`
 
 The Swarms endpoint adds **one** non-OpenAI parameter you can pass through `extra_body`: `max_loops`. It tells the agent to iterate on its own output — think "self-review and refine" without you writing the orchestration. This is the first piece of multi-agent thinking you can adopt without leaving the `chat.completions` shape.
@@ -275,7 +282,7 @@ A pragmatic week-one migration for a team currently on OpenAI:
 2. **Day 2.** Move your *least-critical* chat.completions endpoint to `swarms_client`. Confirm logs, retries, token counting, and streaming all behave. Diff the response on a few hundred prompts against the OpenAI baseline.
 3. **Day 3.** Identify the **one** endpoint in your product that does the most prompt engineering — the long, multi-section system prompt with "first do X, then Y, then Z". This is the one that wants to be a swarm. Cut it over to `/v1/swarm/completions` with 3–5 agents.
 4. **Day 4.** Add the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) patterns to that swarm — tier the workers, compress the handoffs.
-5. **Day 5.** Schedule the batch / overnight pieces of your pipeline against the [Night-Mode discount](/docs/guides/guides/night-mode-pricing-strategy). Audit `discount_active` to confirm.
+5. **Day 5.** Schedule the batch / overnight pieces of your pipeline against the [Night-Mode discount](/docs/guides/guides/night-mode-pricing-strategy) (paid plans only, swarm completions). Audit `discount_active` to confirm.
 
 After that, the rest is per-endpoint at your pace. You don't have to migrate everything to claim the wins.
 
@@ -294,5 +301,7 @@ What you gain is an upgrade path that doesn't require a rewrite to take — you 
 ## Next Steps
 
 - [OpenAI-Compatible Chat Completions](/docs/examples/examples/openai-compatible) — full feature reference for the drop-in endpoint (streaming, vision, multi-turn, multi-loop) with TypeScript, Go, and Rust examples
+- [Responses API](/docs/documentation/capabilities/responses-api) — `client.responses.create` on `POST /v1/responses`
+- [Anthropic-Compatible Messages API](/docs/documentation/capabilities/anthropic-compatible) — the Anthropic SDK on `POST /v1/messages`
 - [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) — once you're on `/v1/swarm/completions`, this is the architecture that gets your bill down
-- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — 50% off tokens 8 PM – 6 AM Pacific, schedule your batches accordingly
+- [Night-Mode Pricing Strategy](/docs/guides/guides/night-mode-pricing-strategy) — 50% off swarm-completion tokens 8 PM – 6 AM Pacific on paid plans, schedule your batches accordingly

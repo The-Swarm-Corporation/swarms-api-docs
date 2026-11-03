@@ -6,14 +6,14 @@ description: "A HierarchicalSwarm that ingests sell-side PDFs from Goldman, JPM,
 ## What This Example Shows
 
 - A `HierarchicalSwarm` whose built-in director hands orders to four workers — a Research Director plus Rating Tracker, Price Target Tracker, and Key Driver Extractor — running in parallel against a single PDF note
-- OpenAI-format function tools for PDF parsing, ratings/target regex extraction, consensus lookup, and Slack delivery
+- OpenAI-format function tool schemas for PDF parsing, ratings/target regex extraction, consensus lookup, and Slack delivery, returned as tool calls that your code executes (the API doesn't run them)
 - A mixed-provider agent team: Claude Sonnet 4.5 directing, GPT-4.1 / GPT-4.1-mini for surgical extraction, Gemini 2.5 Pro for long-document grounding
 - A consensus-check step that flags every new target as above, in line with, or below the street
 - End-of-day batch processing across 150+ notes via `/v1/swarm/batch/completions`, scheduled at 4:30pm ET, output is a ranked delta sheet
 - The structured signal payload your OMS, EMS, or research database actually wants — not free-form text
 
 <Info>
-This pipeline processes a high volume of PDF documents per day. `/v1/swarm/batch/completions` (Step 5) is a **premium-only** endpoint (Pro, Ultra, Premium) — the Free tier caps you at 1,200 requests per day, which this end-of-day sweep across 150+ notes will exceed. Read the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) before turning the cron on, and upgrade at [https://cloud.swarms.world/settings](https://cloud.swarms.world/settings).
+This pipeline processes a high volume of PDF documents per day. `/v1/swarm/batch/completions` (Step 5) is a **premium-only** endpoint (Pro, Ultra, Premium): a free-tier key gets 403 on it. That, not the rate limit, is what blocks the Free tier here — 150 notes is well under the Free tier's 1,200 completions per day, and a swarm batch counts as one completion however many swarms it holds. Every paid plan has the same limits. Read the [Cost Optimization Playbook](/docs/guides/guides/cost-optimization-playbook) before turning the cron on, and upgrade at [https://swarms.world/platform/account](https://swarms.world/platform/account).
 </Info>
 
 ## Why This Matters

@@ -7,8 +7,18 @@ description: "Check current rate limit usage and configured limits with GET /v1/
 
 `GET /v1/rate/limits` returns your current request counts for the last minute, hour, and day, the configured limits for your subscription tier, and your tier (`free` or `premium`). Use it to build usage dashboards or to back off before you hit `429 Too Many Requests`.
 
+## What Counts Toward the Limits
+
+The counts are of **logged completions**, not HTTP requests:
+
+- Each completion request that finishes logs one row and counts once (agent, swarm, chat, reasoning-agent, graph-workflow, batched-grid-workflow and auto-agent-builder completions alike).
+- GET requests (including this one) and requests that fail don't count.
+- An agent batch (`/v1/agent/batch/completions`) of N items counts **N + 1**: one row per item that completes, plus one for the batch itself. A full 50-item batch counts 51. A swarm batch (`/v1/swarm/batch/completions`) counts once, however many swarms it holds.
+- The windows cover every API key on your account together, revoked keys included, so creating a new key doesn't reset them.
+- A request without an API key gets **401** `{"error": {"type": "authentication_error", "message": "Missing API key", ...}}` before any limit is checked. An unknown, revoked or malformed key is also **401**.
+
 <Info>
-Every authenticated response also carries live `X-RateLimit-*` headers (`X-RateLimit-Limit-Minute`, `X-RateLimit-Remaining-Minute`, `-Hour`, `-Day`, `X-RateLimit-Reset`, `X-RateLimit-Tier`), and a `429` response adds `Retry-After`. Reading those headers off any response is cheaper than calling this endpoint separately if you just need the current remaining count.
+Every response from a rate-limited route also carries live `X-RateLimit-*` headers (`X-RateLimit-Limit-Minute`, `X-RateLimit-Remaining-Minute`, `-Hour`, `-Day`, `X-RateLimit-Reset`, `X-RateLimit-Tier`), and a `429` response adds `Retry-After`. Reading those headers off a completion response is cheaper than calling this endpoint separately if you just need the current remaining count. A 401, 402 or 403 rejected before the rate limiter runs has no such headers, and neither do the static GETs that skip it (see [Rate Limit Headers](/docs/documentation/resources/rate-limit-headers)).
 </Info>
 
 ## Step 1: Installation
@@ -142,5 +152,5 @@ Default limits by tier (`api/schemas.py` `RateLimitsFreeTier` / `RateLimitsPremi
 | `free` | 100 | 350 | 1,200 (`50 * 24`) | 200,000 |
 | `premium` | 2,000 | 10,000 | 100,000 | 2,000,000 |
 
-A user is on the `premium` tier if their account has an active subscription or a `pro`/`ultra`/`premium` tier on file; otherwise they're on `free`. If the tier lookup fails internally, the API falls open to the free-tier limits rather than blocking the request.
+A user is on the `premium` tier if their account has an active subscription or a `pro`/`ultra`/`premium` tier on file; otherwise they're on `free`. Every paid plan gets the same `premium` limits, including the 2,000,000 tokens per agent. `tokens_per_agent` caps an agent's prompt (input) tokens; it is not a cap on `max_tokens`. If the tier lookup fails internally, the API falls open to the free-tier limits rather than blocking the request.
 </Note>

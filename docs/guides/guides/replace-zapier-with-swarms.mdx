@@ -21,7 +21,7 @@ Zapier prices per-task and breaks the moment you need conditional logic — ever
 
 A Zap or an n8n flow is an **if/then/else graph**. You decide every branch in advance. The platform fires each node in sequence, charges you per node, and falls over the second a payload looks different from what you anticipated.
 
-A Swarms agent is the opposite shape. You **describe the goal once**, give the agent a `tools_list_dictionary` of callable functions (Slack, CRM, webhook, search), and the model decides which tools to call, in what order, with what arguments. The branching is in the reasoning, not in the graph.
+A Swarms agent is the opposite shape. You **describe the goal once**, give the agent a `tools_list_dictionary` of callable functions (Slack, CRM, webhook), and the model decides which tools to call and with what arguments. The API returns those tool calls in the response without running them, and your code executes them. The branching is in the reasoning, not in the graph.
 
 | | Zapier / n8n | Swarms agent |
 | --- | --- | --- |
@@ -283,7 +283,7 @@ print("LinkedIn DM:",   drafts["linkedin_dm"])
 print("Follow-up:",     drafts["follow_up_email"])
 ```
 
-If you'd rather pass a function-tool than an MCP server, swap `mcp_url` for a `tools_list_dictionary` entry — `web_search(query: str) -> list[Result]` — and the model will call it the same way. Either way, the three drafts are written by the **same** agent in the **same** call, so they share the research and stay coherent. See [MCP Integration](/docs/documentation/capabilities/mcp_integration) for the server side.
+A `tools_list_dictionary` entry such as `web_search(query: str) -> list[Result]` is not a drop-in replacement for the MCP server here: the API returns the model's `web_search` call without executing it, so the agent never reads the results during the run. Without an MCP server, either fetch the research in your own code and put it in the `task`, or enable the built-in `auto_search` tool (`"tools_enabled": ["auto_search"]`, a flat \$0.04 per request), which does run on the server. Either way, the three drafts are written by the **same** agent in the **same** call, so they share the research and stay coherent. See [MCP Integration](/docs/documentation/capabilities/mcp_integration) for the server side.
 
 ---
 

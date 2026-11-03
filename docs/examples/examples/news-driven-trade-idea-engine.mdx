@@ -9,9 +9,9 @@ Two thousand articles cross the wire today. Eighty actually overlap your book. T
 
 - A `HierarchicalSwarm` with a News Director coordinating four per-sector workers — Tech, Energy, Healthcare, Financials — running in parallel on each article
 - A continuous webhook ingestion path that accepts Bloomberg, Reuters, and AP feeds straight into a FastAPI endpoint
-- Function tools that hit your portfolio database for entity-to-ticker resolution, position-size lookup, and the only-fire-when-relevant overlap gate
+- Function tool schemas for entity-to-ticker resolution, position-size lookup, and the only-fire-when-relevant overlap gate, returned as tool calls that your code runs against your portfolio database (the API doesn't execute them)
 - A cheap Python pre-filter that runs *before* the swarm so 96% of the firehose never costs a token
-- A Trade Idea Synthesizer that emits a structured thesis straight to Slack — ticker, position size, sentiment, suggested action, time horizon, confidence
+- A Trade Idea Synthesizer that emits a structured thesis for your code to post to Slack — ticker, position size, sentiment, suggested action, time horizon, confidence
 - Sustained high-volume throughput with the observability needed to track a missed-news SLA
 
 <Info>

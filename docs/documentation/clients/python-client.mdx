@@ -64,7 +64,7 @@ response = client.swarms.run(
             "agent_name": "Symptom Analyzer",
             "description": "Analyzes patient symptoms and identifies key indicators",
             "system_prompt": "You are a medical expert. Analyze symptoms and identify key medical indicators.",
-            "model_name": "groq/openai/gpt-oss-120b",
+            "model_name": "gpt-4.1",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 8192,
@@ -74,7 +74,7 @@ response = client.swarms.run(
             "agent_name": "ICD Code Specialist",
             "description": "Provides appropriate ICD codes based on symptom analysis",
             "system_prompt": "You are an ICD coding specialist. Provide accurate ICD codes with explanations.",
-            "model_name": "groq/openai/gpt-oss-120b",
+            "model_name": "gpt-4.1",
             "role": "worker",
             "max_loops": 1,
             "max_tokens": 8192,
@@ -178,9 +178,13 @@ SDK resource; call it directly with `requests` — see
 ### Model Information
 
 ```python
-# List available models
+# List available models — GET /v1/models/available
 models = client.models.list_available()
+# {"success": true, "count": ..., "models": [{"model_name": "gpt-4.1",
+#   "input_cost_per_1m": 2.3, "output_cost_per_1m": 9.2, "price_source": "litellm"}, ...]}
 ```
+
+Each entry is an object with the model id and its price per 1M input and output tokens, service fee included. A free-tier key's list leaves out the premium-only models: every `groq/*` model and the frontier models listed under [Premium-Only Models](/docs/documentation/resources/pricing#premium-only-models). Requesting one with a free-tier key returns **403**.
 
 ### Health and Status
 
@@ -355,7 +359,7 @@ content_swarm = client.swarms.run(
             "agent_name": "Research Agent",
             "description": "Researches current AI trends and statistics",
             "system_prompt": "You are a research specialist. Gather current information about AI trends.",
-            "model_name": "groq/openai/gpt-oss-120b",
+            "model_name": "gpt-4.1",
             "role": "researcher",
             "max_loops": 1,
             "max_tokens": 4096,
@@ -365,7 +369,7 @@ content_swarm = client.swarms.run(
             "agent_name": "Writer Agent",
             "description": "Writes engaging blog content based on research",
             "system_prompt": "You are a professional writer. Create engaging blog content.",
-            "model_name": "groq/openai/gpt-oss-120b",
+            "model_name": "gpt-4.1",
             "role": "writer",
             "max_loops": 1,
             "max_tokens": 8192,
@@ -388,7 +392,7 @@ analysis_pipeline = client.swarms.run(
             "agent_name": "Data Validator",
             "description": "Validates and cleans input data",
             "system_prompt": "You are a data validation expert. Check data quality and format.",
-            "model_name": "groq/openai/gpt-oss-120b",
+            "model_name": "gpt-4.1",
             "role": "validator",
             "max_loops": 1,
             "max_tokens": 4096,
@@ -398,7 +402,7 @@ analysis_pipeline = client.swarms.run(
             "agent_name": "Statistical Analyst",
             "description": "Performs statistical analysis on the data",
             "system_prompt": "You are a statistical analyst. Perform comprehensive data analysis.",
-            "model_name": "groq/openai/gpt-oss-120b",
+            "model_name": "gpt-4.1",
             "role": "analyst",
             "max_loops": 1,
             "max_tokens": 8192,
@@ -408,7 +412,7 @@ analysis_pipeline = client.swarms.run(
             "agent_name": "Insight Generator",
             "description": "Generates actionable insights from analysis",
             "system_prompt": "You are a business analyst. Generate actionable insights.",
-            "model_name": "groq/openai/gpt-oss-120b",
+            "model_name": "gpt-4.1",
             "role": "insights",
             "max_loops": 1,
             "max_tokens": 4096,
@@ -474,12 +478,14 @@ graph = requests.post(
 )
 
 # Batched grid workflow — POST /v1/batched-grid-workflow/completions (premium)
+# Agent i runs task i, so the two lists must be the same length (otherwise 400).
 grid = requests.post(
     f"{BASE_URL}/v1/batched-grid-workflow/completions",
     headers=HEADERS,
     json={
         "agent_completions": [
-            {"agent_name": "worker", "model_name": "gpt-4.1", "max_loops": 1}
+            {"agent_name": "summarizer-a", "model_name": "gpt-4.1", "max_loops": 1},
+            {"agent_name": "summarizer-b", "model_name": "gpt-4.1", "max_loops": 1},
         ],
         "tasks": ["Summarize article A", "Summarize article B"],
     },

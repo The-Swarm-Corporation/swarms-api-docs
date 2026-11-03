@@ -9,7 +9,7 @@ Every twelve seconds the largest wallets on four chains get classified — and a
 
 - An `AgentRearrange` flow that runs four per-chain monitors (ETH, BTC, SOL, Base) in parallel, then a classifier and an alerter in sequence — one swarm call per block, every block
 - MCP wiring for Alchemy / Infura / Helius RPC endpoints so each chain agent reads its native mempool and block stream directly
-- Function tools that classify every whale tx: CEX inflow/outflow, OTC, DEX swap, or bridge — with wallet-label enrichment
+- Function tool schemas the classifier returns calls to for every whale tx: CEX inflow/outflow, OTC, DEX swap, or bridge — with wallet-label enrichment that your code executes (the API doesn't run custom function tools)
 - Sustained polling rate-limit math: ETH block time of 12 seconds compounds to ~7,200 swarm calls/day, blowing through the Free tier's per-day cap after a few hours
 - Real-time alert routing into Slack and Discord with severity scoring, including programmatic muting on quiet hours
 
@@ -483,13 +483,13 @@ def persist_alerts(swarm_response: dict, path: str = "whale_alerts.jsonl") -> No
 
 | Stack | Monthly cost | What you actually get |
 | --- | --- | --- |
-| **This stack** (gpt-4.1-mini chains + xai/grok-4.3 classifier + sonnet-5 alerter, night-mode discount applied automatically 8pm–6am Pacific) | **~\$750/mo** (~\$25/day) | Programmable layer you own, four chains, custom whale list, structured outputs to your warehouse |
+| **This stack** (gpt-4.1-mini chains + xai/grok-4.3 classifier + sonnet-5 alerter, night-mode discount applied automatically 8pm–6am Pacific on a paid plan) | **~\$750/mo** (~\$25/day) | Programmable layer you own, four chains, custom whale list, structured outputs to your warehouse |
 | Retail whale-alert Twitter / Telegram services | \$50 – \$500/mo | Read-only Twitter feed, no classification, no programmatic access |
 | Nansen Alpha (single chain) | \$1,500/mo | Best-in-class labels, read-only dashboard, no programmable layer |
 | Arkham Intelligence Pro | \$1,000/mo | Strong labels, dashboard + alerts, no per-block classification |
 | Building this in-house with engineers | \$40,000+/mo | One mid backend + one ML engineer plus infra; what you would actually do without this |
 
-Night-mode tip: the API applies its off-peak token-cost discount automatically between 8pm and 6am Pacific (`America/Los_Angeles`) — no request changes needed. Separately, most chains are quieter in the early-UTC-morning hours; if you want to cut call volume too (not just get the automatic discount), drop the watcher to a 60-second cadence during that quiet window.
+Night-mode tip: on a paid plan (tier `pro`, `premium` or `ultra`, or an active subscription), the API applies its off-peak 50% token-cost discount to swarm completions automatically between 8pm and 6am Pacific (`America/Los_Angeles`) — no request changes needed. Free accounts pay the full token price at any hour. Separately, most chains are quieter in the early-UTC-morning hours; if you want to cut call volume too (not just get the automatic discount), drop the watcher to a 60-second cadence during that quiet window.
 
 The point is not that this is cheaper than a Twitter bot. The point is that a Twitter bot is read-only. This is a programmable layer with structured outputs that route into your own systems — execution, risk, research database — at whale-feed latency.
 

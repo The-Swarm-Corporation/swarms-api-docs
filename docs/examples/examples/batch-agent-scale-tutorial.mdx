@@ -107,19 +107,27 @@ batch_items = [lead_to_batch_item(lead) for lead in leads]
 
 `/v1/agent/batch/completions` enforces a **hard server-side cap of 50 items per request** — send more than 50 `AgentCompletion` objects in one call and you get back an HTTP 422 ("List should have at most 50 items after validation"). For 10,000 leads that means 200 chunked requests, so submit the chunks concurrently with a small thread pool instead of one at a time, or wall-clock time balloons.
 
+Rate limits count completions, not HTTP requests, and a batch of N items counts **N + 1** (one per item that completes, plus one for the batch). Each 50-item chunk therefore counts 51. On a paid plan (2,000 per minute, 10,000 per hour) that is about 39 chunks a minute and 196 chunks an hour, so the 200 chunks here (10,200 counted completions) can't all finish inside one hour. Keep the pool small and retry a `429` after its `Retry-After` header instead of letting `raise_for_status` stop the run.
+
 ```python
 import concurrent.futures
+import time
 
 CHUNK_SIZE = 50  # hard cap enforced by the server; larger chunks return HTTP 422
 
 
 def run_chunk(chunk: list[dict]) -> list[dict]:
-    response = requests.post(
-        f"{BASE_URL}/v1/agent/batch/completions",
-        headers=headers,
-        json=chunk,
-        timeout=120,
-    )
+    while True:
+        response = requests.post(
+            f"{BASE_URL}/v1/agent/batch/completions",
+            headers=headers,
+            json=chunk,
+            timeout=120,
+        )
+        if response.status_code != 429:
+            break
+        # Rate limited: wait until the exceeded window clears, then retry
+        time.sleep(int(response.headers.get("Retry-After", 60)))
     response.raise_for_status()
     # The endpoint returns an envelope, not a bare list:
     # {"batch_id", "total_requests", "results", "execution_time", "timestamp"}
@@ -132,7 +140,7 @@ chunks = [
 ]
 
 all_results: list[dict] = []
-with concurrent.futures.ThreadPoolExecutor(max_workers=25) as executor:
+with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
     for chunk_results in executor.map(run_chunk, chunks):
         all_results.extend(chunk_results)
 
@@ -140,7 +148,7 @@ print(f"Scored {len(all_results)} leads.")
 ```
 
 <Info>
-Each request is capped at 50 items, but the server processes those 50 concurrently, and Pro/Ultra/Premium keys allow up to 2,000 requests per minute — so a pool of 20-30 worker threads submitting 50-item chunks in parallel gets you back to job-like throughput without tripping the per-request limit or the per-minute rate limit.
+Each request is capped at 50 items, but the server processes those 50 concurrently. Every paid plan has the same limits: 2,000 completions per minute, 10,000 per hour and 100,000 per day, counted across all your keys. A 50-item chunk counts 51, so a pool of about 10 workers stays under the per-minute limit, and the hourly limit caps one account at about 196 chunks (9,800 leads) per rolling hour. A 10,000-lead job finishes its last chunks after the hourly window rolls over; split larger jobs across hours, or let the `429` retry above wait them out.
 </Info>
 
 ## Step 6: Aggregate and Route
@@ -186,7 +194,7 @@ Pricing varies by model and current token rates — these numbers are illustrati
 | --- | --- | --- | --- |
 | Human SDR scoring 10,000 leads | ~400 hours | \$20,000 at \$50/hr | \$30,000+ with overhead |
 | Single-agent endpoint, sequential | ~6 hours | ~\$30 | \$30 + 6 hours of your time |
-| **Batch endpoint, 200 chunks of 50 (25 concurrent workers)** | **~15-25 minutes** | **~\$30** | **\$30 + 15-25 minutes** |
+| **Batch endpoint, 200 chunks of 50 (10 concurrent workers)** | **~1 hour** (most chunks finish in minutes; the last few wait for the 10,000-per-hour limit to roll over) | **~\$30** | **\$30 + ~1 hour** |
 
 <Warning>
 **This batch costs roughly \$25-\$35 to run on gpt-4.1 with short outputs. A human SDR team would take ~400 hours at \$50/hour to produce the same triage — about \$20,000 in direct labor.** Run the same job nightly and you have replaced a full-time research desk with a recurring cron and an API key.

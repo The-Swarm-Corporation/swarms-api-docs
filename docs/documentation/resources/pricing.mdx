@@ -19,7 +19,7 @@ Flexible subscription plans that scale with your needs. Choose a plan for higher
 |-----------|---------------:|--------------------|-------------:|-------------------|-------------|----------------------|--------------------------|--------------|
 | Free      | \$0             | N/A                | \$0/year      | No                | 100/min, 350/hr, 1,200/day | Community           | Getting started          | Basic API, pay‑per‑use, community support, Marketplace access |
 | Pro       | \$19.99         | 15%                | \$203.90/year | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Professionals            | Premium models, Premium Endpoints access |
-| Ultra     | \$100           | 15%                | \$1,020/year  | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Teams & production       | Everything in Pro, with the same rate and token-per-agent limits; full Premium Endpoints |
+| Ultra     | \$99            | 15%                | \$1,009.80/year | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Teams & production       | Everything in Pro, with the same rate and token-per-agent limits; full Premium Endpoints |
 
 Prices shown are subscription fees; API usage is billed per operation (see Usage-based pricing below). Rate limits shown are those returned by `GET /v1/rate/limits` for any account with an active premium subscription (`pro`, `ultra`, or `premium` tier) — see [Rate Limits](/docs/documentation/resources/ratelimits) for how free vs. premium tiers are resolved.
 
@@ -61,7 +61,7 @@ Most popular. Perfect for professionals who need more power and features.
 ### Ultra
 Best for growing teams and production workloads that need higher limits and security.
 
-- \$100/month (save 15% with annual billing)
+- \$99/month (save 15% with annual billing)
 - Everything in Pro. Note: per `api/schemas.py` (`RateLimitsPremiumTier`), Pro and Ultra currently resolve to the same numeric rate limits and per-agent token limit — any account with an active subscription (`pro`, `ultra`, or `premium` tier) gets the same premium allowances.
 - Full access to Premium Endpoints
 - For compliance certifications and enhanced-security specifics, see [Security](/docs/documentation/resources/security)
@@ -128,6 +128,7 @@ How tokens are counted:
 - **Per agent, per model.** A swarm or workflow that mixes models bills each agent's tokens at its own model's price, then sums them.
 - **Fallback models.** If an agent falls back to another model (`fallback_models`), its tokens are priced at the model that actually answered.
 - **Cached and reasoning tokens.** Cached input tokens are billed at the model's normal input price, and reasoning tokens at its output price.
+- **Reasoning agents.** `AgentJudge` and `ReflexionAgent` bill the provider-reported tokens of every LLM call their internal agents make, every loop included. `self-consistency` and `consistency-agent` send the prompt once per sample, so they bill the API's count of the prompt (agent name, description, system prompt and task) × `num_samples` as input, plus the counted tokens of the returned `outputs`: `num_samples: 5` costs about five times the prompt. `num_samples` must be 1 to 2,000 (422 otherwise), and `output_type` is ignored.
 
 ### Flat fees
 
@@ -150,7 +151,7 @@ On OpenRouter free models the tokens and the agent cost are \$0, but the image a
 | Agent Completions, Chat Completions | Tokens at the agent's model, plus image and search fees. No per-agent fee. |
 | Graph Workflow | \$0.01 per agent (agents on free models excepted) plus each agent's tokens at its own model. No night-time discount. |
 | Batched Grid Workflow | \$0.01 per agent (agents on free models excepted) plus each agent's tokens at its own model. No night-time discount. |
-| Reasoning Agents | Tokens at the request's `model_name`. No per-agent fee. |
+| Reasoning Agents | Tokens at the request's `model_name`; `self-consistency` input is billed once per sample. No per-agent fee, no night-time discount. |
 | Auto Agent Builder | \$0.01 per request plus tokens at the builder's model. |
 | Decision Models | Tokens at each decision model's own price, listed by `GET /v1/decision/models`. See [Decision Models](/docs/documentation/capabilities/decision-models). |
 
@@ -309,5 +310,5 @@ Only purchased credit (`credit`) pays for API usage. `free_credit` and `referral
 | Minimum Balance                                                     | Billable completion endpoints require a purchased credit balance above \$1.00, checked before the request runs. Requests at or below this are rejected with a **402 Payment Required** error (`insufficient_credits`) before any work is done, even if the account holds free or referral credits. |
 | Credits Deduction                                                   | Credits are deducted automatically after each request completes.                              |
 | Credits Usage Order                                                 | Only purchased `credit` is deducted. A charge larger than the purchased balance returns **402**. |
-| Token Counting                                                      | Most endpoints bill the tokens the model provider reports. Reasoning agents bill their agents' provider-reported tokens and fall back to the API's own count when no usage is reported. The Auto Agent Builder bills the tokens the API counts on the request and the output. |
+| Token Counting                                                      | Most endpoints bill the tokens the model provider reports. `AgentJudge` and `ReflexionAgent` bill their agents' provider-reported tokens and fall back to the API's own count when no usage is reported. `self-consistency` and `consistency-agent` bill the API's count of the prompt × `num_samples` plus the returned outputs. The Auto Agent Builder bills the tokens the API counts on the request and the output. |
 | Pricing Updates                                                     | Provider prices change. Check `/v1/models/available` or `/v1/models/pricing` for current model prices, and `/v1/usage/costs` for the flat fees. |

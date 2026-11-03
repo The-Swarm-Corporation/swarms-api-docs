@@ -276,14 +276,21 @@ Each graph workflow runs as its own request, so the fan-out happens client-side 
 Procurement and IG reviews almost always ask the same two questions: who ran what, and what did it cost. Two endpoints answer both.
 
 ```python
-# Full request history with timestamps, endpoints, and execution metadata
+# Completion history, newest first: at most the 1000 newest rows, while "count" is the true total
 logs = requests.get(f"{BASE_URL}/v1/account/logs", headers=headers, timeout=60).json()
 
-# Current rate card (per-agent and search fees, fallback token rates); spend itself is in the logs
-usage = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers, timeout=60).json()
+# Spend: each row's data is the response body, so sum its usage.total_cost
+spend = sum(
+    row["data"].get("usage", {}).get("total_cost", 0)
+    for row in logs["logs"]
+    if isinstance(row.get("data"), dict)
+)
+
+# Current rate card (per-agent, image and search fees, fallback token rates): prices, not your spend
+rates = requests.get(f"{BASE_URL}/v1/usage/costs", headers=headers, timeout=60).json()
 ```
 
-Every swarm run is logged with its agent outputs, token counts, and the model used per agent (raw request inputs are not returned by the logs endpoint). This is the same trail your auditor will ask for during a contract review.
+Every graph workflow run is logged as a `completion` row with its `created_at` and the response body: `job_id`, the agent `outputs`, and `usage` with token counts and `total_cost`. The logs cover every API key on the account. They don't record the request you sent or the model each agent used, so keep your own copy of the packet and the workflow spec next to the `job_id`. Together that is the trail your auditor will ask for during a contract review.
 
 ## Cost vs. a Human Triage Cycle
 

@@ -150,7 +150,7 @@ Exactly five endpoints require a Pro, Ultra, or Premium subscription:
 | `POST /v1/batched-grid-workflow/completions` | Batched Grid Workflows |
 | `POST /v1/graph-workflow/completions` | Graph Workflows |
 
-Call `GET /v1/account/premium-endpoints` to fetch this list live, along with an upgrade link. All billable endpoints (including the free-tier ones above plus `/v1/swarm/completions`, `/v1/chat/completions`, and `/v1/agent/completions`) additionally require a total credit balance greater than \$1.00.
+Call `GET /v1/account/premium-endpoints` to fetch this list live, along with an upgrade link. All billable endpoints (the five above plus `/v1/agent/completions`, `/v1/swarm/completions`, `/v1/chat/completions`, `/v1/responses`, `/v1/messages` and `/v1/auto-agent-builder/completions`) additionally require a purchased credit balance above \$1.00. At or below \$1.00 they return **402** `insufficient_credits`; free and referral credits don't count.
 </Accordion>
 
 <Accordion title="How do I get started?">
@@ -297,7 +297,7 @@ Yes! The Swarms API is designed for production use with:
 **Model Selection Guidelines:**
 
 **For Complex Analysis:**
-- Use GPT-4 or Claude Sonnet 4 for tasks requiring deep reasoning
+- Use `gpt-5.4` or `claude-sonnet-5` for tasks requiring deep reasoning
 - Higher token limits for comprehensive analysis
 
 **For Fast Responses:**

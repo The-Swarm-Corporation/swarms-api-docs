@@ -14,7 +14,7 @@ This guide provides step-by-step instructions for obtaining and configuring your
 2. Complete the registration process by providing the required information
 3. Verify your email address to activate your account
 
-**Benefit**: New users automatically receive free API credits upon successful signup. Check `GET /v1/account/credits` (or the platform dashboard) for your current balance — billable endpoints require a total credit balance greater than \$1.00.
+**Benefit**: New users automatically receive free API credits upon successful signup. Check `GET /v1/account/credits` (or the platform dashboard) for your current balance. Free credits don't pay for API usage: billable endpoints require a purchased credit balance above \$1.00 and return **402** at or below it.
 
 #### Step 2: Generate Your API Key
 
@@ -80,7 +80,7 @@ A successful response returns your current credit balance, confirming the key is
 #### Credits
 
 * Only purchased credits pay for API usage. Free and referral credits still show in `GET /v1/account/credits`, but they are never spent
-* Billable endpoints (`/v1/agent/completions`, `/v1/swarm/completions`, `/v1/chat/completions`, `/v1/responses`, `/v1/messages`, `/v1/auto-agent-builder/completions`, and the Premium endpoints) require a purchased credit balance greater than \$1.00, or they return **402**
+* Billable endpoints (`/v1/agent/completions`, `/v1/swarm/completions`, `/v1/chat/completions`, `/v1/responses`, `/v1/messages`, `/v1/auto-agent-builder/completions`, and the Premium endpoints) require a purchased credit balance above \$1.00; at or below \$1.00 they return **402**
 * Buy credits at [cloud.swarms.world/settings](https://cloud.swarms.world/settings)
 * Check your current balance anytime with `GET /v1/account/credits`
 

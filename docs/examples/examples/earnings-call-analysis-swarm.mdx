@@ -6,7 +6,7 @@ description: "An AgentRearrange flow of four parallel specialist agents feeding 
 ## What This Example Shows
 
 - An `AgentRearrange` flow of four specialists — Transcript Analyzer, Guidance Tracker, Q&A Sentiment, Material Disclosure Detector — fanning out in parallel, then merged by a Synthesizer agent that receives all four outputs
-- Per-agent function tools in OpenAI schema (`tools_list_dictionary`): `score_tone`, `compare_guidance`, `detect_material_disclosure`, `extract_qa_red_flags`
+- Per-agent function tools in OpenAI schema (`tools_list_dictionary`): `score_tone`, `compare_guidance`, `detect_material_disclosure`, `extract_qa_red_flags`, used as structured output: the API returns each tool call's arguments and doesn't execute them
 - Mixed-provider model routing: Claude Sonnet 4.5 for analysis and synthesis, GPT-4.1 for guidance arithmetic, Claude Haiku 4.5 for cheap sentiment, Claude Opus 4.8 with `reasoning_effort: "high"` for the high-stakes disclosure check
 - How to scale a single call across the full earnings-season firehose using `/v1/swarm/batch/completions`
 - A cron pattern that fires at 5pm ET each day so the desk wakes up to a structured note on every transcript filed the day before

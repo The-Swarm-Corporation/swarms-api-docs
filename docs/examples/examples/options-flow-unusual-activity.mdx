@@ -8,7 +8,7 @@ Every 5 minutes during market hours, an unusual-activity watchlist lands in Slac
 ## What This Example Shows
 
 - An `AgentRearrange` flow whose first step runs three specialist agents — Flow Scanner, Greeks Analyzer, Vol Surface Watcher — in parallel on the same options snapshot
-- Per-agent `tools_list_dictionary` wired to live options market-data endpoints (Polygon / Tradier) and a Slack webhook
+- Per-agent `tools_list_dictionary` schemas for options market-data lookups (Polygon / Tradier) and a Slack webhook, returned as tool calls that your code executes (the API doesn't run them)
 - An intraday cron firing every 5 minutes (`*/5 9-16 * * 1-5`) that turns into ~80 swarm runs per session
 - The rate-limit math: a 5-minute cadence is 12 requests per hour, comfortably inside the Free tier's 350/hour cap — this workload doesn't require Premium on request volume alone
 - Model diversification across providers — `gpt-4.1-mini`, `gpt-4.1`, `claude-haiku-4-5`, `claude-sonnet-4-5` — each picked for what that node actually needs

@@ -8,7 +8,7 @@ description: "Reason the assumptions with Opus 4.8 at high effort, build the DCF
 - A reasoning agent on `claude-opus-4-8` with `reasoning_effort: "high"` setting the load-bearing inputs: revenue growth, margin trajectory, terminal growth, WACC
 - A four-stage `SequentialWorkflow` that turns the reasoned assumptions into an audited DCF, sensitivity grids, and an analyst-grade memo
 - Per-agent function tool schemas for pulling income statement, balance sheet, cash flow and consensus estimates and running the DCF math, which your code executes
-- A 50-name overnight refresh fired as one POST to `/v1/swarm/batch/completions`, scheduled in the night-mode window for a 50% discount
+- A 50-name overnight refresh fired as one POST to `/v1/swarm/batch/completions`, scheduled in the night-mode window for a 50% token discount (night-mode is for paid plans; the batch endpoint already requires one)
 - A structured one-pager memo per ticker — exec summary, fair value bands, sensitivity tables, key assumptions, risks — sitting in the database before 6am Pacific
 
 <Info>

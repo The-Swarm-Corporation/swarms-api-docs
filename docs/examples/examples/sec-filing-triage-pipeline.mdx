@@ -8,7 +8,7 @@ Every morning by 7am ET, every new 10-Q for every name in the book has a materia
 ## What This Example Shows
 
 - A `SequentialWorkflow` that pipes a single EDGAR accession number through classification, section extraction, diffing, scoring, and memo generation
-- Five OpenAI-format **function tools** wired into the agents: EDGAR fetch, MD&A parser, Risk Factors extractor, section differ, and a materiality scorer
+- Five OpenAI-format **function tool** schemas attached to the agents: EDGAR fetch, MD&A parser, Risk Factors extractor, section differ, and a materiality scorer. The API returns the agents' tool calls without executing them, so your code runs them
 - Real **EDGAR ingestion** including the SEC-mandated `User-Agent` header — no scraping, no hand-built parsers downstream
 - A **diff-against-prior** core: the pipeline only surfaces what changed versus the previous comparable filing (10-Q vs. prior 10-Q, 10-K vs. prior 10-K, 8-K vs. nothing)
 - A **materiality score** (0-100) attached to every delta so analysts read top-of-stack, not chronologically
