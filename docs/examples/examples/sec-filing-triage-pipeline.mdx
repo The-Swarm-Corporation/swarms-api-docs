@@ -84,7 +84,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Five OpenAI-format function tools. The agents decide when to call them; the swarm runtime carries arguments and return values between stages.
+Five OpenAI-format function tools. The agents decide when to call them, but the swarm does not execute the calls or carry their return values between stages. The API sends these schemas to the model and returns the model's tool calls in the output; it does not execute them, and there is no way to feed a tool result back in the middle of a run. Fetch the data the agents need in your own code and put it in the task, and execute the returned calls after the run.
 
 ```python
 FETCH_EDGAR_FILING = {

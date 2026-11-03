@@ -62,11 +62,13 @@ Prices are in USD per 1M tokens. `release_date` is always an empty string; it is
 `jev-latest` is an alias, and it is the default when you leave out `model_name`. The version behind it can change, so every completion's `model` field shows which version actually answered:
 
 ```json
-{"model_name": "jev-latest", "model": "jev-1.13.0"}
+{"model_name": "jev-latest", "model": "jev-1.14.0"}
 ```
 
+On 2026-11-03, `jev-latest` was answered by `jev-1.14.0`, a newer version than the pinned `jev-1.13.0` in the list. Only names in the list can be requested; any other returns `400`.
+
 - Use **`jev-latest`** to get new versions without changing your code.
-- Pin a version such as **`jev-1.13.0`** when answers must stay comparable over time, for example when you tuned routing thresholds on its probabilities.
+- Pin a listed version such as **`jev-1.13.0`** when answers must stay comparable over time, for example when you tuned routing thresholds on its probabilities.
 
 ## Step 3: Estimate a Request's Cost
 
@@ -90,7 +92,7 @@ print(estimate_cost("jev-latest", 400) * 10_000)
 0.1932
 ```
 
-The request in [Decision Model Completion](/docs/examples/examples/decision-model-completion) used 387 input and 71 output tokens: 387 × \$0.0483 / 1M = \$0.0000187, which matches its `usage.total_cost` of `1.86921e-05`. A job of 10,000 requests at about 400 input tokens each costs about \$0.19.
+A request with 387 input and 71 output tokens costs 387 × \$0.0483 / 1M = \$0.0000187, since output tokens are free. A job of 10,000 requests at about 400 input tokens each costs about \$0.19.
 
 <Note>
 The TypeSafe SDK's `client.models.list()` gets this same list from `GET /v1/models`, so code written against the TypeSafe SDK sees the Swarms prices without changes.
@@ -98,6 +100,6 @@ The TypeSafe SDK's `client.models.list()` gets this same list from `GET /v1/mode
 
 ## Next Steps
 
-- [Decision Models Reference](/docs/documentation/capabilities/decision-models): request fields, question types and errors
+- [Decision Models and SystemOne Reference](/docs/documentation/capabilities/decision-models): request fields, question types and errors
 - [Gate and Judge an Agent](/docs/examples/examples/decision-models-with-agents): what a decision call costs next to the agent call it gates
 - [Get Decision Models and Prices](/api-reference/decision-models/get-decision-models-and-prices): the endpoint's API reference

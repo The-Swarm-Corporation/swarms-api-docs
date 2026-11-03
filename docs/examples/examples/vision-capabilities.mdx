@@ -26,7 +26,7 @@ Keep your API key secure and never commit it to version control. Use environment
 
 ## Step 2: Prepare Your Image (Base64 Encoding)
 
-The Swarms API accepts images as base64-encoded strings. Here's how to convert an image to base64:
+The Swarms API accepts images as base64-encoded strings, `data:image/...` URIs, or `https://` URLs. Any other value, such as an `http://` URL or a file path, returns 422 `Images must be https:// URLs, data:image URIs or base64 image data.` Here's how to convert an image to base64:
 
 <Tabs>
   <Tab title="Python">
@@ -82,6 +82,8 @@ The Swarms API accepts images as base64-encoded strings. Here's how to convert a
     # View first 100 characters
     head -c 100 hongkong_base64.txt
     ```
+
+    GNU `base64` (Linux) wraps its output every 76 characters, and base64 with line breaks returns 422. Use `base64 -w 0` there to get a single line.
   </Tab>
 </Tabs>
 
@@ -309,7 +311,7 @@ The API supports common image formats:
 - **GIF**: Static GIFs (first frame)
 - **WebP**: Modern web image format
 
-All images must be base64-encoded strings. The API automatically detects the image format.
+Images must be base64-encoded strings, `data:image/...` URIs, or `https://` URLs. The API automatically detects the image format.
 
 ## Vision-Capable Models
 
@@ -317,7 +319,7 @@ Not all models support vision. Use these models for image analysis:
 
 - **gpt-4.1**: Best for complex visual analysis
 - **gpt-4.1-mini**: Cost-effective for basic vision tasks
-- **claude-sonnet-4-20250514**: High-quality vision understanding
+- **claude-sonnet-5**: High-quality vision understanding
 
 ## Best Practices
 
@@ -341,14 +343,14 @@ Each image you send in `img` or `imgs` is billed a flat $0.25 (reported as `usag
 
 ### Common Issues
 
-**Issue**: "Invalid image format"
-- **Solution**: Ensure your image is properly base64-encoded using `base64.b64encode()`
+**Issue**: 422 "Images must be https:// URLs, data:image URIs or base64 image data."
+- **Solution**: Ensure your image is properly base64-encoded using `base64.b64encode()` with no line breaks, or pass an `https://` URL or a `data:image/...` URI
 
 **Issue**: "Image too large"
 - **Solution**: Resize the image to under 4096x4096 pixels or reduce quality
 
 **Issue**: "Model doesn't support vision"
-- **Solution**: Use gpt-4.1, gpt-4.1-mini, or claude-sonnet-4-20250514
+- **Solution**: Use gpt-4.1, gpt-4.1-mini, or claude-sonnet-5
 
 **Issue**: "High token usage"
 - **Solution**: Reduce image resolution or use gpt-4.1-mini for basic tasks

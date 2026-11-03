@@ -5,7 +5,7 @@ description: "Build a software development team with HierarchicalSwarm"
 
 ## Software Development Team with Hierarchical Coordination
 
-This example demonstrates how to build a development team where a tech lead coordinates specialized engineers - perfect for complex projects requiring oversight and synthesis.
+This example demonstrates how to build a development team where a director hands specialized engineers their parts of a design - perfect for complex projects that split into independent workstreams.
 
 ### Step 1: Get Your API Key
 
@@ -50,7 +50,7 @@ def design_auth_system(requirements: str) -> dict:
             {
                 "agent_name": "Tech Lead",
                 "description": "Senior engineer coordinating the team",
-                "system_prompt": "You are a tech lead. Review all work from your team, make architectural decisions, identify gaps, and synthesize everything into a cohesive technical plan. Provide final recommendations.",
+                "system_prompt": "You are a tech lead. Make the architectural decisions: overall architecture, token strategy, technology choices, and how the components fit together. Provide final recommendations.",
                 "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.4
@@ -118,8 +118,10 @@ Design a user authentication system with these requirements:
 # Run the hierarchical team
 result = design_auth_system(requirements)
 
-# Display results
+# Display results, skipping the team roster, the director's orders and loop markers
 for output in result.get("output", []):
+    if output["role"] in ("System", "Director"):
+        continue
     print(f"\n{'='*60}")
     print(f"{output['role']}")
     print('='*60)
@@ -140,7 +142,7 @@ print(f"Execution time: {result['execution_time']:.1f}s")
 ============================================================
 Tech Lead
 ============================================================
-After reviewing all team inputs, here's our unified authentication system design:
+Architecture decisions for the authentication system:
 
 **Architecture Decision:** OAuth2 with JWT access tokens (15min) and refresh tokens (7 days)
 **Database:** PostgreSQL with proper indexing on email/user_id
@@ -148,7 +150,7 @@ After reviewing all team inputs, here's our unified authentication system design
 **API:** RESTful endpoints with /auth prefix
 **Testing:** 85% coverage target, load testing for 10k users
 
-[Detailed synthesis of all team inputs...]
+[Remaining architecture decisions...]
 
 ============================================================
 Backend Engineer
@@ -220,12 +222,12 @@ Execution time: 42.5s
 ```
 
 <Note>
-HierarchicalSwarm creates its own director agent (model set by `director_model_name`, default `gpt-5.4`) that plans the work, assigns it to the agents you supply, and synthesizes their outputs. Every agent in `agents` is a worker.
+HierarchicalSwarm creates its own director agent (model set by `director_model_name`, default `gpt-5.4`) that plans the work and assigns it to the agents you supply. Every agent in `agents` is a worker, and the workers run their orders in parallel without seeing each other's output, so the response is the workers' outputs rather than one merged plan. `output` also holds a `System` turn listing the team, a `Director` turn with the orders, and a closing `System` loop marker, which the loop above skips. If you need one agent to merge the others' work, use `AgentRearrange` with a flow such as `"Backend Engineer, Database Engineer, Security Engineer, QA Engineer -> Tech Lead"`.
 </Note>
 
 ### Step 5: Customize the Director
 
-Pass `director_model_name` to change which model runs the director, and `director_settings` for director-specific hyperparameters (`temperature`, `top_p`, `max_tokens`, etc.):
+Pass `director_model_name` to change which model runs the director, and `director_settings` to tune it. `director_settings` accepts only `agent_name`, `system_prompt`, `planning_system_prompt`, `temperature` (0 to 2), `top_p` and `max_tokens` (1 to 128000); any other key, including `model_name`, returns a `422`:
 
 ```python
 swarm_config = {

@@ -70,14 +70,17 @@ The Swarms API accepts model ids from multiple providers (OpenAI, Anthropic, Goo
 
 **Premium-only models** (rejected on the free tier, with a suggested free-tier alternative in the error response):
 - `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6`
-- `claude-fable-5`, `claude-opus-5`, `claude-opus-4-8`
-- `gemini-3.1-pro`, `gemini-3.1-deep-think`
+- `claude-fable-5`, `claude-fable-5-1`, `claude-opus-5`, `claude-opus-5-5`, `claude-opus-4-8`
+- `gemini-3.1-pro-preview`, `gemini-3.1-pro-preview-customtools`
 - `xai/grok-4.5`, `xai/grok-4.5-latest`
+- The same models on OpenRouter, e.g. `openrouter/openai/gpt-5.6-sol` or `openrouter/anthropic/claude-opus-4.8` (full list on the <a href="/docs/documentation/resources/pricing#premium-only-models">Pricing</a> page)
 - Any model id beginning with `groq/`
+
+The check also matches these ids behind another provider prefix or with a `:variant` suffix.
 
 Free-tier alternatives the API suggests in place of these: `claude-sonnet-5`, `gpt-5.5`, `gemini-3.5-flash` (and `claude-haiku-4-5`, `gpt-5.4-mini`, `gemini-3.5-flash-lite` for the `luna` tier). Every other model id, including `gpt-4.1`, is available on the free tier.
 
-For the complete, up-to-date list of supported models, call `GET /v1/models` (or `GET /v1/models/available` for each model's name and price per 1M tokens).
+For the complete, up-to-date list of models your key can use, call `GET /v1/models` (or `GET /v1/models/available` for each model's name and price per 1M tokens). Both leave premium-only models out of a free-tier key's list.
 </Accordion>
 
 <Accordion title="How much does it cost?">
@@ -86,16 +89,17 @@ The Swarms API uses a transparent, usage-based pricing model with per-model toke
 **Per-Model Token Pricing:**
 - **Input and output tokens** are billed at each model's own price per 1M tokens, plus a 15% service fee.
 - Prices come from OpenRouter for `openrouter/...` models and from LiteLLM's price data for every other model. A model with no price data is billed at fallback rates of \$6.50 per 1M input and \$18.50 per 1M output tokens before the fee.
+- OpenRouter free models (`openrouter/...` ids ending in `:free`, and `openrouter/openrouter/free`) cost \$0 per token.
 - Call `GET /v1/models/available` or `GET /v1/models/pricing?model_name=...` for current prices, service fee included. For example, at the time of writing `gpt-5.4` costs \$2.875 per 1M input and \$17.25 per 1M output tokens.
 
 | Item | Cost | Notes |
 |------|------|-------|
-| **Base cost per agent** | \$0.01 per agent | Charged for each agent in swarms and workflows |
+| **Base cost per agent** | \$0.01 per agent | Charged for each agent in swarms and workflows, except agents on an OpenRouter free model |
 | **Input tokens** | Model's price per 1M tokens + 15% | Each model has its own price |
 | **Output tokens** | Model's price per 1M tokens + 15% | Each model has its own price |
 | **Image cost** | \$0.25 per image | Charged for each image processed |
 | **Exa Search tool** | \$0.04 per request | Charged once per agent completion request that enables `auto_search`, however many searches run |
-| **Night-time discount** | 50% off token costs | 8 PM - 6 AM PT (Swarm Completions only) |
+| **Night-time discount** | 50% off token costs | 8 PM - 6 AM PT, Swarm Completions only, paid plans only |
 
 MCP servers and the `web_scraper` tool have no fee of their own; only the tokens are billed.
 
@@ -109,7 +113,7 @@ MCP servers and the `web_scraper` tool have no fee of their own; only the tokens
 - Decision Models (each decision model's own price, from `GET /v1/decision/models`)
 
 **Special Features:**
-- **Night Time Discount**: 50% off token costs for Swarm Completions during 8 PM - 6 AM Pacific Time
+- **Night Time Discount**: 50% off token costs for Swarm Completions during 8 PM - 6 AM Pacific Time, for paid members (Pro, Ultra or Premium, or an active subscription). Free accounts pay the full token price at any hour.
 
 For detailed pricing information, examples, and cost calculation formulas, see the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
 </Accordion>
@@ -225,7 +229,7 @@ Create specialized tools using OpenAPI-style function specifications for enhance
 **Model Availability:**
 - Check if your requested model is currently available
 - Have fallback models configured
-- Monitor model status through the health endpoint
+- Check `GET /v1/models/available` for the models your key can use (`GET /health` only reports `{"status": "ok"}`)
 </Accordion>
 
 <Accordion title="What security features are available?">

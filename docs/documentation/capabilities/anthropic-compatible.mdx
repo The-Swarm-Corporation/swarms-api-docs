@@ -1,0 +1,159 @@
+---
+title: 'Anthropic-Compatible Messages API'
+description: 'POST /v1/messages accepts the Anthropic Messages API shape, so code written for the Anthropic SDK runs on the Swarms API with only base_url and api_key changed. Non-streaming, text only.'
+---
+
+
+The Swarms API exposes an Anthropic Messages API-compatible `POST /v1/messages` endpoint. Code written for the Anthropic SDK's `client.messages.create(...)` works after changing the `base_url` and `api_key`, and it can call any model the Swarms API supports, not only Claude models.
+
+The endpoint is non-streaming and text-only. It runs through the same path as [`/v1/chat/completions`](/docs/documentation/capabilities/openai-compatible), so model routing, billing, rate limits and logging are the same.
+
+## Endpoint Information
+
+- **URL**: `/v1/messages`
+- **Method**: `POST`
+- **Authentication**: Required (`x-api-key` header, which the Anthropic SDK sends from `api_key`; `Authorization: Bearer <key>` also works). The `anthropic-version` header is accepted and ignored
+- **Rate Limiting**: Subject to tier-based rate limits
+- **API reference**: [Messages (Anthropic-compatible)](/api-reference/anthropic-compatible/messages-anthropic-compatible)
+
+---
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```bash
+    pip install anthropic
+    ```
+
+    ```python
+    import os
+    import anthropic
+
+    client = anthropic.Anthropic(
+        api_key=os.environ["SWARMS_API_KEY"],
+        base_url="https://api.swarms.world",
+    )
+
+    msg = client.messages.create(
+        model="gpt-5.4-mini",
+        max_tokens=20,
+        system="Answer with one word.",
+        messages=[{"role": "user", "content": "What is the capital of Italy?"}],
+    )
+    print(msg.content[0].text)                                         # Rome
+    print(msg.stop_reason, msg.usage.input_tokens, msg.usage.output_tokens)  # end_turn 22 4
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST https://api.swarms.world/v1/messages \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "gpt-5.4-mini",
+        "max_tokens": 20,
+        "system": "Answer with one word.",
+        "messages": [{"role": "user", "content": "What is the capital of Italy?"}]
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+The SDK's `base_url` is `https://api.swarms.world`, without `/v1`: the Anthropic SDK adds `/v1/messages` itself. The OpenAI SDK's `base_url` includes `/v1`.
+</Note>
+
+**Response:**
+
+```json
+{
+  "id": "msg_f1ef2e0a51354c84a249d0c7",
+  "type": "message",
+  "role": "assistant",
+  "model": "gpt-5.4-mini",
+  "content": [{"type": "text", "text": "Rome"}],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {"input_tokens": 22, "output_tokens": 4}
+}
+```
+
+---
+
+## Request Fields
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `model` | `string` | Yes | — | Model to use. See `GET /v1/models/available` for the models your key can use |
+| `max_tokens` | `integer` | Yes | — | Maximum tokens to generate, at least 1 |
+| `messages` | `List[object]` | Yes | — | `user` and `assistant` turns. `content` is a string or a list of `{"type": "text", "text": "..."}` blocks. The last turn must be a `user` turn |
+| `system` | `string` or `List[object]` | No | — | System prompt: a string or a list of text blocks |
+| `temperature` | `float` | No | — | Sampling temperature, 0 to 1. When omitted, the model's own default applies |
+| `top_p` | `float` | No | — | Nucleus sampling cutoff, 0 to 1 |
+
+### Not Supported Yet
+
+These return **400** with `"Not supported yet: <names>"`, or a message naming the problem:
+
+- `stream: true`
+- Image, document and any other non-`text` content blocks
+- `tools`
+- `thinking`
+- `stop_sequences`
+- Assistant prefill: `messages` that end on an `assistant` turn
+- Any other field not listed above, when set to a non-empty value
+
+---
+
+## Response Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Unique id, prefixed `msg_` |
+| `type` | `string` | Always `"message"` |
+| `role` | `string` | Always `"assistant"` |
+| `model` | `string` | The requested model |
+| `content` | `List[object]` | Always a single `text` block |
+| `stop_reason` | `string` | `end_turn` when the model finished, `max_tokens` when it hit the `max_tokens` limit |
+| `stop_sequence` | `null` | Always `null`; stop sequences are not supported |
+| `usage.input_tokens` | `integer` | Prompt tokens billed, system prompt included |
+| `usage.output_tokens` | `integer` | Tokens the model generated |
+
+---
+
+## Errors
+
+Errors from this endpoint use the Anthropic error shape, so the Anthropic SDK's exception classes work:
+
+```json
+{
+  "type": "error",
+  "error": {
+    "type": "invalid_request_error",
+    "message": "Not supported yet: stream"
+  }
+}
+```
+
+| HTTP Status | `error.type` | When |
+|---|---|---|
+| 400 | `invalid_request_error` | An unsupported field or content block (named in the message), messages that don't end on a `user` turn, or a request body that fails validation, e.g. a missing `max_tokens` |
+| 402 | `billing_error` | The charge for the run is larger than your purchased credit balance |
+| 403 | `permission_error` | A free-tier key asked for a premium-only model |
+| 404 | `not_found_error` | Unknown model |
+| 429 | `rate_limit_error` | Rate limit exceeded |
+| 500, 502 | `api_error` | Internal error, or the model provider failed (nothing is charged) |
+
+A missing or invalid API key (401), and a purchased credit balance at or below \$1.00 (402), are rejected by the authentication layer before the request reaches this endpoint. Those bodies use the Swarms shape instead, `{"error": {"type": "authentication_error" | "insufficient_credits", "message": ..., "detail": ..., "status_code": ...}}`. The Anthropic SDK still raises `AuthenticationError` or an `APIStatusError` for them by status code.
+
+---
+
+## Billing
+
+Billing, rate limits and the minimum balance are the same as [`/v1/chat/completions`](/docs/documentation/capabilities/openai-compatible#billing): the provider-reported input and output tokens at the model's price plus a 15% service fee, deducted after the run. The endpoint is billable, so it needs a purchased credit balance above \$1.00. See [Pricing](/docs/documentation/resources/pricing).
+
+## Related
+
+- [OpenAI-Compatible Endpoint](/docs/documentation/capabilities/openai-compatible) — `POST /v1/chat/completions`, with streaming and tool calling
+- [Responses API](/docs/documentation/capabilities/responses-api) — `POST /v1/responses` for the OpenAI SDK's `client.responses.create`

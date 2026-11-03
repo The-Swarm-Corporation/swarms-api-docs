@@ -46,7 +46,7 @@ EDGAR 13F feed (~5,000 CIKs)    │                                 │
                                     Postgres / Slack
 ```
 
-Per-fund parsing happens in parallel inside each filing's own GraphWorkflow. The batch dispatcher fans the workload out across the 5,000 filings. The synthesis is the cross-cutting layer that runs once across the batched outputs.
+Per-fund parsing happens in parallel inside each filing's own GraphWorkflow. The batch dispatcher fans the workload out across the 5,000 filings. Each `/v1/graph-workflow/completions` call is independent, so nothing on the API side aggregates across filings: the cross-fund synthesis is a separate step you run on the collected per-filing outputs.
 
 ## Step 1: Setup
 
@@ -75,7 +75,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Every tool the parser and aggregator nodes use is declared as an OpenAI-style function tool. The model calls them, the runtime resolves them on your side.
+Every tool the parser and aggregator nodes use is declared as an OpenAI-style function tool. The model returns calls to them, and your code executes those calls after the run: the API does not execute them or feed results back mid-run, so fetch the filings first and put them in the task.
 
 ```python
 FETCH_13F_FILING = {
@@ -377,7 +377,7 @@ print(f"Status: {result['status']}")
 ```
 
 <Note>
-The ThemeSynthesizer output for a single filing is just that one manager's contribution to the cross-fund picture. The real value emerges when you batch it across the full 5,000-fund universe in Step 5 — at that point the aggregator sees the entire flow and the themes pop.
+The ThemeSynthesizer output for a single filing is just that one manager's contribution to the cross-fund picture. Each GraphWorkflow call only sees its own filing, so running Step 5 across the full 5,000-fund universe does not by itself give any agent the entire flow. To produce the cross-fund brief, collect the per-filing ThemeSynthesizer outputs from Step 5 and send them (or a summary of them, to stay within the model's context) to one more agent or swarm request that writes the brief.
 </Note>
 
 ## Step 5: The Quarterly Burst — 5,000 Funds in One Night
@@ -457,7 +457,7 @@ A takeout dinner gets you the entire quarter's 13F coverage. Run four times a ye
 
 ## Step 6: The Theme Synthesizer Output
 
-A representative ThemeSynthesizer output for the cross-fund aggregate. This is the artifact your DB, Slack channel, and morning newsletter pull from.
+A representative cross-fund brief, written from the collected per-filing ThemeSynthesizer outputs (see the note in Step 4). This is the artifact your DB, Slack channel, and morning newsletter pull from.
 
 ```markdown
 # 13F Tracker — Q3 2024 Cross-Fund Brief

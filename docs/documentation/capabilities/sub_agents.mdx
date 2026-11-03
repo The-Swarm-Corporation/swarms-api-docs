@@ -252,12 +252,12 @@ payload = {
 ```
 
 <Note>
-The full list of available tools for autonomous agents: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. The `run_bash` tool is not permitted.
+The full list of available tools for autonomous agents: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_sub_agent`, `assign_task`. The shell and file tools (`run_bash`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`) are not permitted, and a request that lists them, or any unknown tool name, returns 422.
 </Note>
 
 ## Pre-Defined Sub-Agents with `handoffs`
 
-If you already know which specialists an agent needs, you can define them up front with the `handoffs` field on `agent_config` instead of having the coordinator create them at runtime. `handoffs` takes a list of full agent specifications (the same shape as `agent_config`); these agents are created with the request and the parent agent can hand tasks off to them during execution. Unlike `create_sub_agent`, this does not require `max_loops="auto"`.
+If you already know which specialists an agent needs, you can define them up front with the `handoffs` field on `agent_config` instead of having the coordinator create them at runtime. `handoffs` takes a list of full agent specifications (the same shape as `agent_config`); these agents are created with the request and the parent agent can hand tasks off to them during execution. Unlike `create_sub_agent`, this does not require `max_loops="auto"`. The list holds at most 2000 agents, and each one goes through the same model and premium checks as the parent. Each handoff agent's tokens are billed at its own model's price and included in the response's `usage`.
 
 ```python
 payload = {

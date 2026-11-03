@@ -440,6 +440,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "input_tokens": 35,
         "output_tokens": 2787,
         "total_tokens": 2822,
+        "total_cost": 0.065894,
         "billing_info": {
             "cost_breakdown": {
                 "agent_cost": 0.04,
@@ -451,7 +452,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 2822
                 },
                 "num_agents": 4,
-                "night_time_discount_applied": true
+                "night_time_discount_applied": true,
+                "flash_sale_applied": false
             },
             "total_cost": 0.065894,
             "discount_active": true,
@@ -464,7 +466,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Output Shape
 
-Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. For `ConcurrentWorkflow` specifically, each requested agent receives the same original `task` independently and runs on a thread pool — there is one turn per agent, but because the agents run in parallel rather than a fixed sequence, the order turns land in `output` reflects when each agent finished, not the order the agents appear in the request.
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. For `ConcurrentWorkflow` specifically, each requested agent receives the same original `task` independently and runs on a thread pool — there is one turn per agent. The agents run in parallel, but their turns are added to `output` in the order the agents appear in the request, not the order they finished.
+
+No agent sees another agent's output, so an agent you add as a "synthesizer" works from the raw task like the others and cannot combine their answers. For a real synthesis step, use `AgentRearrange` with a flow that ends at the synthesizer (e.g. `"A, B, C -> Synthesizer"`) or `SequentialWorkflow`.
+
+If one agent fails, the request still returns `200`. That agent's turn has the role `"<agent_name> (failed)"` and content `"Error: <message>"`, and the other agents' turns are returned as usual. Check `output` for a `(failed)` role before using the results.
 
 ## Best Practices
 

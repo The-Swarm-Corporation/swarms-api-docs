@@ -1,6 +1,6 @@
 ---
 title: 'Reasoning Agent Completions'
-description: 'Execute reasoning agents with specialized cognitive architectures — self-consistency, reasoning duo, iterative reflective expansion, and more — via /v1/reasoning-agent/completions'
+description: 'Execute reasoning agents with specialized cognitive architectures — self-consistency, Reflexion and an agent judge — via /v1/reasoning-agent/completions'
 ---
 
 The Reasoning Agent Completions endpoint (`/v1/reasoning-agent/completions`) runs a single task through a specialized reasoning architecture rather than a plain agent loop. Instead of one model call producing one answer, a reasoning agent decomposes, samples, critiques, or debates its way to a result — trading cost and latency for reliability on problems where a single pass is often wrong.
@@ -40,17 +40,16 @@ The request body is a single `ReasoningAgentSpec` object.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `task` | `string` | No* | `null` | The task to be completed by the reasoning agent. Not enforced by the schema, but the run has nothing to do without it — always send it |
+| `task` | `string` | No* | `null` | The task to be completed by the reasoning agent. Not enforced by the schema, but a missing or blank `task` returns `400` before anything runs — always send it |
 | `agent_name` | `string` | No | `"reasoning-agent"` | Unique name assigned to the reasoning agent |
 | `description` | `string` | No | `"A reasoning agent that can answer questions and help with tasks."` | Explanation of the agent's purpose and capabilities |
-| `model_name` | `string` | No | `"claude-sonnet-4-20250514"` | The AI model backing the reasoning agent |
+| `model_name` | `string` | No | `"claude-sonnet-5"` | The AI model backing the reasoning agent |
 | `system_prompt` | `string` | No | `null` | Initial instruction or context provided to the agent |
 | `max_loops` | `integer` | No | `1` | Maximum times the agent repeats its task. Between 1 and 50 |
-| `swarm_type` | `string` | No | `"reasoning_duo"` | The reasoning architecture to use — see [Reasoning Types](#reasoning-types) |
-| `num_samples` | `integer` | No | `1` | Number of samples to generate. Drives the vote count for consensus architectures |
-| `output_type` | `string` | No | `"dict-all-except-first"` | Output format — see [Output Types](#output-types) |
-| `num_knowledge_items` | `integer` | No | `null` | Number of knowledge items to use |
-| `memory_capacity` | `integer` | No | `null` | Memory capacity for the reasoning agent |
+| `swarm_type` | `string` | No | `"self-consistency"` | The reasoning architecture to use — see [Reasoning Types](#reasoning-types) |
+| `num_samples` | `integer` | No | `1` | How many independent answers `self-consistency` and `consistency-agent` generate before aggregating. Between 1 and 2000; `0`, a negative value, `null` or anything above 2000 returns `422`. Ignored by `AgentJudge` and `ReflexionAgent` |
+| `output_type` | `string` | No | `"dict-all-except-first"` | Accepted but ignored — see [Output Types](#output-types) |
+| `memory_capacity` | `integer` | No | `null` | Memory capacity for a `ReflexionAgent` |
 
 ### Reasoning Types
 
@@ -58,30 +57,18 @@ The request body is a single `ReasoningAgentSpec` object.
 
 | Value | Description |
 |-------|-------------|
-| `reasoning-duo` | Two internal agents per call: a reasoning/critique pass (fixed to `gpt-4o`) and a main answering pass on your requested `model_name` |
-| `reasoning-agent` | Alias for `reasoning-duo` — identical two-agent architecture |
-| `self-consistency` | Samples multiple independent answers (`num_samples`) and reconciles them into one result |
+| `self-consistency` | Samples `num_samples` independent answers in parallel, then an aggregation agent reconciles them into one result |
 | `consistency-agent` | Alias for `self-consistency` |
-| `ire` | Iterative Reflective Expansion — expands and revises a solution over repeated passes, driven by `num_samples` rather than `max_loops` |
-| `ire-agent` | Alias for `ire` |
-| `ReflexionAgent` | Attempts the task, evaluates its own output, and revises using a short/long-term memory of prior attempts |
-| `GKPAgent` | Generates supporting background knowledge first, then reasons from it to answer |
-| `AgentJudge` | Reviews and critiques a candidate output rather than generating a fresh answer from scratch |
+| `ReflexionAgent` | Attempts the task, evaluates its own output, and revises using a short/long-term memory of prior attempts. `max_loops` is the number of reflection iterations |
+| `AgentJudge` | Reviews and critiques a candidate output rather than generating a fresh answer from scratch. `max_loops` is the number of evaluation rounds |
 
 <Note>
-The default is `reasoning_duo` (underscore), while the enum lists `reasoning-duo` (hyphen). Pass one of the enumerated values explicitly rather than relying on the default. Call [`GET /v1/reasoning-agent/types`](/docs/examples/examples/reasoning-agent-types) for the live list.
+Any other value, including the removed `reasoning-duo`, `reasoning-agent`, `ire`, `ire-agent` and `GKPAgent`, returns `422` before any model call or charge. Call [`GET /v1/reasoning-agent/types`](/docs/examples/examples/reasoning-agent-types) for the live list.
 </Note>
-
-Two more implementation details, grounded in the `swarms` package's `ReasoningAgentRouter` (the router this endpoint delegates to) and not visible from the table above:
-
-- For `ire`/`ire-agent`, this endpoint does not forward `max_loops` to the router at all — that architecture uses `num_samples` as its loop count instead.
-- For `GKPAgent`, `max_loops` has no effect: its underlying implementation doesn't accept a loop count.
 
 ### Output Types
 
-`output_type` controls the shape of `outputs`: `list`, `dict`, `dictionary`, `string`, `str`, `final`, `last`, `json`, `all`, `yaml`, `xml`, `dict-all-except-first`, `str-all-except-first`, `basemodel`, `dict-final`, `list-final`.
-
-Use `final` or `last` when you want only the answer. Use the default `dict-all-except-first` when you want the reasoning trace alongside it.
+`output_type` is accepted for schema compatibility but **ignored by the server**: every run returns `outputs` in `dict-all-except-first` format. The field still validates against `list`, `dict`, `dictionary`, `string`, `str`, `final`, `last`, `json`, `all`, `yaml`, `dict-all-except-first`, `str-all-except-first`, `dict-final` and `list-final`; any other value returns `422`.
 
 ## Quick Start
 
@@ -110,7 +97,6 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
         "swarm_type": "self-consistency",
         "num_samples": 3,
         "max_loops": 1,
-        "output_type": "dict-all-except-first",
         "task": (
             "A SaaS company has $12M ARR growing 40% YoY, 80% gross margin, "
             "and burns $500K/month. At a 6x forward revenue multiple, what is "
@@ -158,7 +144,6 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
         swarm_type: "self-consistency",
         num_samples: 3,
         max_loops: 1,
-        output_type: "dict-all-except-first",
         task: "A SaaS company has $12M ARR growing 40% YoY, 80% gross margin, and burns $500K/month. At a 6x forward revenue multiple, what is the implied valuation, and how many months of runway remain on a $20M cash balance? Show your reasoning."
     };
 
@@ -194,7 +179,6 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
         "swarm_type": "self-consistency",
         "num_samples": 3,
         "max_loops": 1,
-        "output_type": "dict-all-except-first",
         "task": "A SaaS company has $12M ARR growing 40% YoY, 80% gross margin, and burns $500K/month. At a 6x forward revenue multiple, what is the implied valuation, and how many months of runway remain on a $20M cash balance? Show your reasoning."
       }'
     ```
@@ -210,18 +194,27 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
   "outputs": [
     {
       "role": "Valuation Reasoner",
-      "content": "Implied valuation: $12M ARR x 1.40 = $16.8M forward revenue, x 6 = $100.8M. Runway: $20M / $0.5M per month = 40 months."
+      "content": [
+        "Forward revenue: $12M x 1.40 = $16.8M. x 6 = $100.8M implied valuation. Runway: $20M / $0.5M = 40 months.",
+        "Implied valuation is $100.8M (6 x $16.8M forward revenue). $20M cash at $500K/month burn gives 40 months of runway.",
+        "$16.8M forward revenue x 6 = $100.8M. Runway = 20 / 0.5 = 40 months."
+      ]
+    },
+    {
+      "role": "Majority Voting Agent",
+      "content": "All three answers agree. Implied valuation: $100.8M. Runway: 40 months."
     }
   ],
   "timestamp": "2026-08-24T18:00:00.000000+00:00",
   "agent_name": "Valuation Reasoner",
   "agent_type": "self-consistency",
-  "agent_id": "agent-4d9e1f22",
+  "agent_id": "51636dfd-7f1e-453c-af8f-597b412db0bd",
   "usage": {
     "input_tokens": 180,
     "output_tokens": 940,
     "total_tokens": 1120,
-    "total_cost": 0.019345
+    "total_cost": 0.019345,
+    "flash_sale_applied": false
   }
 }
 ```
@@ -232,15 +225,15 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 |-------|------|-------------|
 | `job_id` | `string` | Unique identifier for the reasoning agent run |
 | `status` | `string` | Status of the run. Defaults to `"success"` |
-| `outputs` | `any` | The generated output. **Shape varies by reasoning type** and `output_type` |
+| `outputs` | `any` | The generated output. **Shape varies by reasoning type** |
 | `timestamp` | `string` | ISO-formatted timestamp of when the run executed |
 | `agent_name` | `string` | Name of the agent |
 | `agent_type` | `string` | The reasoning architecture that ran (the `swarm_type`) |
 | `agent_id` | `string` | Unique identifier for the agent instance |
-| `usage` | `object` | `input_tokens`, `output_tokens`, `total_tokens` (integers), plus `total_cost` (a float — the credits charged for this run) |
+| `usage` | `object` | `input_tokens`, `output_tokens`, `total_tokens` (integers, the billed totals), `total_cost` (a float — the credits charged for this run) and `flash_sale_applied` (boolean) |
 
 <Warning>
-`outputs` is deliberately untyped in the schema: a `self-consistency` run and a `reasoning-duo` run return different structures, and `output_type` changes it again. Do not assume a fixed shape — branch on `agent_type`, or pin `output_type` to `final` when you only need the answer string.
+`outputs` is deliberately untyped in the schema: each reasoning type returns a different structure. `self-consistency` and `consistency-agent` return a list of role/content entries: one whose `content` is the list of sample answers, then a `Majority Voting Agent` entry holding the reconciled answer. `ReflexionAgent` returns its best answer across iterations, and `AgentJudge` returns its conversation (your task followed by each evaluation round), both as strings. Do not assume a fixed shape — branch on `agent_type`.
 </Warning>
 
 ### Status Codes
@@ -248,15 +241,17 @@ Use `final` or `last` when you want only the answer. Use the default `dict-all-e
 | Code | Meaning |
 |------|---------|
 | `200` | Completion returned successfully |
-| `400` | API key present but not recognized — rejected before the request reaches the route handler |
-| `401` | Missing `x-api-key` (and no `Authorization: Bearer` fallback) |
+| `400` | Missing or blank `task`, an Ollama or Hugging Face `model_name`, or a prompt over your tier's token limit |
+| `401` | Missing, unknown or revoked API key |
 | `402` | Credit balance at or below $1.00 |
 | `403` | Free tier — premium subscription required |
-| `422` | Malformed request body (e.g. invalid `swarm_type`, or `max_loops` outside 1–50) |
+| `404` | `model_name` is not a model the API serves |
+| `422` | Malformed request body (e.g. invalid `swarm_type`, `num_samples` outside 1–2000, or `max_loops` outside 1–50) |
 | `429` | Rate limit exceeded |
+| `500` | The reasoning agent failed while running |
 
 <Note>
-This endpoint is both premium-only and billable, so a request is checked, in order, for: API key presence (401), API key validity (400), credit balance (402), and premium tier (403) — all before the reasoning agent runs. Every error from this pre-flight check is returned in the shape `{"error": {"type": ..., "message": ..., "detail": ..., "status_code": ...}}`.
+This endpoint is both premium-only and billable, so a request is checked, in order, for: API key presence (401), API key validity (401), credit balance (402), and premium tier (403) — all before the reasoning agent runs. Every error from this pre-flight check is returned in the shape `{"error": {"type": ..., "message": ..., "detail": ..., "status_code": ...}}`.
 </Note>
 
 ## When to Use a Reasoning Agent
@@ -270,7 +265,16 @@ Reasoning agents cost more than a plain agent call — multiple internal passes 
 | High-stakes classification where a wrong call is expensive | High-volume, low-stakes classification |
 | Problems where you want the reasoning trace as an artifact | Cases where only the final text matters |
 
-Raise `num_samples` to increase consensus strength on `self-consistency`; raise `max_loops` to give reflective architectures more revision rounds. Both multiply cost roughly linearly.
+Raise `num_samples` to increase consensus strength on `self-consistency`; raise `max_loops` to give `ReflexionAgent` more revision rounds. Both raise the cost.
+
+### Billing
+
+Tokens are billed at the model's per-token price, with no per-agent fee and no night-time discount. How the tokens are counted depends on the type:
+
+- **`self-consistency` and `consistency-agent`** bill the prompt (`agent_name`, `description`, `system_prompt` and `task`) once per sample, so input tokens are the counted prompt tokens × `num_samples`, and `num_samples: 5` costs about five times the prompt. Output tokens are counted from the returned `outputs`.
+- **`AgentJudge` and `ReflexionAgent`** bill the tokens their internal agents reported for every call they made. A `ReflexionAgent` calls its actor, evaluator and reflector on each iteration, so a higher `max_loops` bills more tokens.
+
+`usage` reports the billed totals.
 
 ## Related Resources
 

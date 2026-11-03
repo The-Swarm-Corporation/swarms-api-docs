@@ -1,0 +1,153 @@
+---
+title: 'Fetch a Completion by Job ID'
+description: 'Retrieve the stored result of a past completion by its job_id or batch_id'
+---
+
+
+The Job Lookup endpoint (`/v1/job/{job_id}`) returns the stored result of a completion you already ran, looked up by the `job_id` its response returned. If a response was lost to a crash, a timeout or a dropped connection, fetch it again here instead of re-running the job and paying for it twice.
+
+The same endpoint also takes the `batch_id` that [`/v1/agent/batch/completions`](/docs/documentation/capabilities/agent) returns (`agent-batch-...`) and returns the whole batch response.
+
+## Endpoint Information
+
+- **URL**: `/v1/job/{job_id}`
+- **Method**: `GET`
+- **Authentication**: Required (`x-api-key` header)
+- **Rate Limiting**: Subject to tier-based rate limits
+- **Cost**: Free. A lookup is not billed.
+
+## Path Parameter
+
+| Parameter | Type   | Description |
+| --------- | ------ | ----------- |
+| `job_id`  | string | The `job_id` a completion response returned (e.g. `agent-6f1c0d9e2b7a4c3f8e5d1a0b9c8d7e6f`), or the `batch_id` an agent batch response returned (e.g. `agent-batch-6f1c0d9e2b7a4c3f8e5d1a0b9c8d7e6f`). 1 to 128 characters of letters, digits, `-` and `_`. |
+
+## Response Format
+
+The body is the response the original endpoint returned, stored when the run finished, so its shape depends on that endpoint. For example, an agent completion comes back with `job_id`, `success`, `name`, `outputs`, `usage` and `timestamp`, a swarm completion with `job_id`, `status`, `swarm_type`, `output` and `usage`, and an agent batch with `batch_id`, `total_requests`, `execution_time`, `timestamp` and `results`.
+
+### Example Response
+
+`GET /v1/job/agent-5c9d985f92586b64b9499b2554718e3e`
+
+```json
+{
+  "job_id": "agent-5c9d985f92586b64b9499b2554718e3e",
+  "success": true,
+  "name": "Listing Tag Generator",
+  "description": "Generates marketplace tags from a listing name and description",
+  "temperature": 0.3,
+  "outputs": [
+    {
+      "role": "Listing Tag Generator",
+      "content": "documentation, developer-tools, coding-agent, ..."
+    }
+  ],
+  "usage": {
+    "input_tokens": 402,
+    "output_tokens": 49,
+    "total_tokens": 451,
+    "img_cost": 0.0,
+    "image_count": 0,
+    "total_cost": 0.0006,
+    "flash_sale_applied": false
+  },
+  "timestamp": "2026-11-03T16:07:37.214959+00:00"
+}
+```
+
+## Which Completions Can Be Fetched
+
+Every endpoint that returns a top-level `job_id` can be looked up:
+
+- `/v1/agent/completions`
+- `/v1/swarm/completions`
+- `/v1/graph-workflow/completions`
+- `/v1/batched-grid-workflow/completions`
+- `/v1/auto-agent-builder/completions`
+- `/v1/reasoning-agent/completions`
+- `/v1/decision/completions` and `/v1/systemone`
+
+Plus `/v1/agent/batch/completions`: fetch the whole batch by its `batch_id`, or one run in it by the `job_id` that run carries in `results`.
+
+These return no id this endpoint can find, so a lookup returns 404:
+
+- `/v1/chat/completions`, `/v1/responses` and `/v1/messages`, which return an OpenAI- or Anthropic-style `id`, not a `job_id`
+- `/v1/swarm/batch/completions`
+
+<Warning>
+A `stream: true` run is stored as a summary, not as the events you received. A streamed agent completion stores `job_id`, `agent_name`, the assembled `output`, `output_length`, `usage` and `stream: true`. A streamed swarm completion stores `job_id`, `status`, `swarm_name`, `usage`, `execution_time` and `timestamp`, but not the swarm's output, so a lookup cannot recover it.
+</Warning>
+
+## Who Can Fetch a Job
+
+Any API key on the account that ran the job can fetch it, including a job that was run with a key that has since been revoked. A job that belongs to another account returns the same 404 as an id that doesn't exist, so the endpoint does not reveal whether another account's id is real.
+
+## Status Codes
+
+| Status | Meaning |
+| ------ | ------- |
+| `200`  | The stored result. |
+| `401`  | Missing or invalid API key. |
+| `404`  | No completion with that id belongs to any API key on your account, or the id comes from an endpoint that isn't covered (see above). |
+| `422`  | The id is not 1 to 128 characters of letters, digits, `-` and `_`. |
+| `429`  | Rate limit exceeded. |
+| `503`  | The lookup failed. Retry in a few seconds. |
+
+A 404 looks like this:
+
+```json
+{
+  "detail": "Job not found: No job with job_id 'agent-doesnotexist000' was found for the provided API key. Please ensure the job ID is correct and that your account has access to this job."
+}
+```
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import json
+    import os
+    from typing import Any, Dict, Optional
+
+    import requests
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    BASE_URL = "https://api.swarms.world"
+
+    HEADERS = {
+        "x-api-key": os.getenv("SWARMS_API_KEY"),
+        "Content-Type": "application/json",
+    }
+
+    def get_job(job_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch a past completion's stored result by its job_id or batch_id"""
+        response = requests.get(f"{BASE_URL}/v1/job/{job_id}", headers=HEADERS)
+        if response.status_code == 404:
+            print(f"Job {job_id} not found")
+            return None
+        response.raise_for_status()
+        data = response.json()
+        print(json.dumps(data, indent=4))
+        return data
+
+    if __name__ == "__main__":
+        get_job("agent-5c9d985f92586b64b9499b2554718e3e")
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    #!/usr/bin/env bash
+
+    BASE_URL="https://api.swarms.world"
+
+    curl -X GET "${BASE_URL}/v1/job/agent-5c9d985f92586b64b9499b2554718e3e" \
+      -H "x-api-key: ${SWARMS_API_KEY}"
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+To browse your whole completion history rather than one job, use [`/v1/account/logs`](/docs/examples/examples/swarm-logs).
+</Note>

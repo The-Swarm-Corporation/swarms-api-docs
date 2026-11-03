@@ -54,9 +54,9 @@ Most PMs are drowning in a news firehose where 99% of articles are irrelevant to
                                │       ▼        ▼        ▼         ▼        │
                                │   ┌──────┐ ┌──────┐ ┌──────┐ ┌──────────┐  │
                                │   │ Tech │ │Energy│ │ HC   │ │Financials│  │
-                               │   └──┬───┘ └──┬───┘ └──┬───┘ └────┬─────┘  │
-                               │      └────┬───┴────┬───┴──────────┘        │
-                               │           ▼        ▼                        │
+                               │   └──────┘ └──────┘ └──────┘ └──────────┘  │
+                               │   (all five workers run their orders in    │
+                               │    parallel; none sees another's output)   │
                                │   ┌─────────────────────────────────────┐   │
                                │   │      Trade Idea Synthesizer         │   │
                                │   │    (claude-sonnet-5, output)      │   │
@@ -104,7 +104,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-The workers and the synthesizer share a toolbox that resolves entities to tickers, checks your actual book, scores sentiment, and posts the final thesis. Every tool follows the OpenAI function-call schema.
+The workers and the synthesizer share a toolbox for resolving entities to tickers, checking your actual book, scoring sentiment, and posting the final thesis. Every tool follows the OpenAI function-call schema. The API sends these schemas to the model and returns the model's tool calls in the output; it does not execute them, and there is no way to feed a tool result back in the middle of a run. Fetch the data the agents need in your own code and put it in the task, and execute the returned calls after the run.
 
 ```python
 EXTRACT_ENTITIES_TOOL = {
@@ -279,7 +279,7 @@ ALL_TOOLS = [
 
 ## Step 3: Define the Hierarchical Swarm
 
-`HierarchicalSwarm` supplies its own director agent — set via the SwarmSpec-level `director_model_name` field, not as an entry in `agents` — so every agent you list below is a worker the director can route to. The director runs on `claude-sonnet-5` because synthesizing multi-sector takes into a single coherent dispatch needs strong reasoning. The four sector workers run on `gpt-4.1-mini` — they are doing tight, scoped, per-sector reasoning over a single article, which is exactly the workload that cheap fast models eat for breakfast. The Trade Idea Synthesizer goes back to `claude-sonnet-5` because the final thesis is the artifact that lands in front of the PM.
+`HierarchicalSwarm` supplies its own director agent — set via the SwarmSpec-level `director_model_name` field, not as an entry in `agents` — so every agent you list below is a worker the director can route to. The director runs on `claude-sonnet-5` because splitting one article into clean per-sector orders needs strong reasoning. The four sector workers run on `gpt-4.1-mini` — they are doing tight, scoped, per-sector reasoning over a single article, which is exactly the workload that cheap fast models eat for breakfast. The Trade Idea Synthesizer goes back to `claude-sonnet-5` because the final thesis is the artifact that lands in front of the PM.
 
 ```python
 SECTOR_WORKER_PROMPT_TEMPLATE = (
@@ -292,8 +292,8 @@ SECTOR_WORKER_PROMPT_TEMPLATE = (
 )
 
 SYNTHESIZER_PROMPT = (
-    "You are the Trade Idea Synthesizer. Given the per-ticker takes from the sector "
-    "workers, produce one structured trade thesis per overlapping ticker and call "
+    "You are the Trade Idea Synthesizer. Given the article and the overlapping tickers "
+    "in your order, produce one structured trade thesis per overlapping ticker and call "
     "`post_trade_thesis_to_slack` exactly once for each. Each thesis is one line, "
     "ends with a clear HOLD / ADD / REDUCE / EXIT action, and includes the firm's "
     "current position size. Be decisive — the PM has 20 of these to read today."
@@ -314,9 +314,8 @@ def build_news_swarm(article_text: str, article_url: str, overlap: list[str]) ->
         "task": (
             "You are directing a multi-sector trading desk's response to a live news "
             "article. Route the article to the relevant sector workers (Tech, Energy, "
-            "Healthcare, Financials), collect their per-ticker takes, and hand a clean, "
-            "deduplicated package to the Trade Idea Synthesizer, which posts one trade "
-            "thesis per overlapping ticker to Slack.\n\n"
+            "Healthcare, Financials), and order the Trade Idea Synthesizer to post one "
+            "trade thesis per overlapping ticker to Slack.\n\n"
             f"Article URL: {article_url}\n"
             f"Overlapping book tickers: {', '.join(overlap)}\n\n"
             f"Article body:\n{article_text}\n\n"
@@ -401,6 +400,10 @@ def build_news_swarm(article_text: str, article_url: str, overlap: list[str]) ->
     }
 ```
 
+<Warning>
+In a `HierarchicalSwarm` the director hands out every order at once, and the workers, the Trade Idea Synthesizer included, run them in parallel. The Synthesizer works from the article and tickers in its own order, not from the sector workers' takes, and the response returns every worker's output. If the thesis must be built from the sector takes, use `AgentRearrange` with `"rearrange_flow": "Tech Sector Worker, Energy Sector Worker, Healthcare Sector Worker, Financials Sector Worker -> Trade Idea Synthesizer"` instead.
+</Warning>
+
 ## Step 4: The FastAPI Webhook Endpoint
 
 The vendor (Bloomberg, Reuters, AP) POSTs every article to `/webhook/news`. The webhook does the cheap work first: extract entities, resolve to tickers, intersect with the live book. **Only if the overlap is non-empty does the swarm fire.** This is the single most important cost lever in the entire pipeline.
@@ -479,7 +482,7 @@ The overlap gate is the cost-control layer. At a full feed of ~2,000 articles/da
 
 ## Step 5: The Per-Article Swarm Call
 
-When the gate passes, POST the article into the swarm. The `swarm_type` is `HierarchicalSwarm` — the News Director fans out to the four sector workers, collects their takes, and the Trade Idea Synthesizer calls `post_trade_thesis_to_slack` once per overlapping ticker.
+When the gate passes, POST the article into the swarm. The `swarm_type` is `HierarchicalSwarm` — the News Director gives an order to each sector worker and to the Trade Idea Synthesizer, they run in parallel, and the Synthesizer calls `post_trade_thesis_to_slack` once per overlapping ticker.
 
 ```python
 def fire_swarm(article_text: str, article_url: str, overlap: list[str]) -> int:
@@ -532,7 +535,7 @@ Every thesis the synthesizer posts to Slack is a structured object. This is what
 | Field | Type | Notes |
 | --- | --- | --- |
 | `ticker` | string | Must be a ticker currently in the book |
-| `position_size_usd` | int | Pulled live via `lookup_position_size` |
+| `position_size_usd` | int | From your portfolio database (the `lookup_position_size` call, executed by your code) |
 | `article_url` | string | Source link, always preserved for audit |
 | `sentiment` | float | `[-1.0, 1.0]` toward this specific ticker |
 | `suggested_action` | enum | `HOLD` / `ADD` / `REDUCE` / `EXIT` |

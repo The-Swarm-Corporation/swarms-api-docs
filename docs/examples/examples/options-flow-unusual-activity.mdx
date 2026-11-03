@@ -1,13 +1,13 @@
 ---
 title: "Options Flow Detector: Unusual Activity to Trade Ideas Intraday"
-description: "A ConcurrentWorkflow that scans options chains every 5 minutes, fans out flow, Greeks, and vol-surface analysis in parallel, and ships a ranked watchlist to Slack before the next print."
+description: "An AgentRearrange flow that scans options chains every 5 minutes, fans out flow, Greeks, and vol-surface analysis in parallel, and ships a ranked watchlist to Slack before the next print."
 ---
 
 Every 5 minutes during market hours, an unusual-activity watchlist lands in Slack — and the engineer who built it goes back to actually trading.
 
 ## What This Example Shows
 
-- A `ConcurrentWorkflow` of three specialist agents — Flow Scanner, Greeks Analyzer, Vol Surface Watcher — fanning out in parallel on the same options snapshot
+- An `AgentRearrange` flow whose first step runs three specialist agents — Flow Scanner, Greeks Analyzer, Vol Surface Watcher — in parallel on the same options snapshot
 - Per-agent `tools_list_dictionary` wired to live options market-data endpoints (Polygon / Tradier) and a Slack webhook
 - An intraday cron firing every 5 minutes (`*/5 9-16 * * 1-5`) that turns into ~80 swarm runs per session
 - The rate-limit math: a 5-minute cadence is 12 requests per hour, comfortably inside the Free tier's 350/hour cap — this workload doesn't require Premium on request volume alone
@@ -38,7 +38,7 @@ Unusual options activity has historically led equity returns by 10 to 30 minutes
                                         │
                                         ▼
                     ┌─────────────────────────────────────────┐
-                    │           ConcurrentWorkflow             │
+                    │      AgentRearrange (parallel step)      │
                     │ ┌─────────────┐ ┌──────────┐ ┌────────┐ │
                     │ │ Flow Scanner│ │ Greeks   │ │ Vol    │ │
                     │ │ gpt-4.1-mini│ │ Analyzer │ │ Surface│ │
@@ -88,7 +88,7 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Function Tools
 
-Tools are OpenAI function-call schemas attached per-agent via `tools_list_dictionary`. The agents decide when to call them — your backend executes them against Polygon / Tradier / Slack and feeds results back into the loop.
+Tools are OpenAI function-call schemas attached per-agent via `tools_list_dictionary`. The API sends these schemas to the model and returns the model's tool calls in the output; it does not execute them, and there is no way to feed a tool result back in the middle of a run. Fetch the data the agents need in your own code and put it in the task, and execute the returned calls (Polygon / Tradier / Slack) after the run.
 
 ```python
 FETCH_OPTIONS_CHAIN = {
@@ -260,8 +260,12 @@ TRADE_IDEA_PROMPT = (
 def build_options_flow_swarm(universe: list[str]) -> dict:
     return {
         "name": "Options Flow Detector",
-        "description": "ConcurrentWorkflow scanning unusual options activity intraday.",
-        "swarm_type": "ConcurrentWorkflow",
+        "description": "AgentRearrange flow scanning unusual options activity intraday.",
+        "swarm_type": "AgentRearrange",
+        "rearrange_flow": (
+            "Flow Scanner, Greeks Analyzer, Vol Surface Watcher "
+            "-> Trade Idea Generator"
+        ),
         "max_loops": 1,
         "task": (
             "Scan the following universe for unusual options activity in the "
@@ -316,6 +320,10 @@ def build_options_flow_swarm(universe: list[str]) -> dict:
         ],
     }
 ```
+
+<Note>
+The flow is `AgentRearrange`, not `ConcurrentWorkflow`, because the Trade Idea Generator has to read the three briefs. A `ConcurrentWorkflow` gives every agent only the raw task, so a merging agent in it never sees the other outputs. The comma-separated step runs the three specialists in parallel, and `->` hands their briefs to the Trade Idea Generator.
+</Note>
 
 <Note>
 The cheapest model (`gpt-4.1-mini`) does the widest pass because flow scanning is mostly pattern recognition over structured data — Greeks reasoning and final ranking is where the smarter models earn their tokens. Diversifying providers across OpenAI and Anthropic also means if one provider has a 5-minute outage, three out of four agents still ship.

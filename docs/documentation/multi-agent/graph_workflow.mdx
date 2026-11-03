@@ -47,13 +47,13 @@ headers = {
 |-----------|------|----------|---------|-------------|
 | `name` | `string` | No | `null` | Unique identifier for the workflow |
 | `description` | `string` | No | `null` | Detailed description of the workflow's purpose |
-| `agents` | `List[AgentSpec]` | Yes | - | List of agent specifications to use as nodes in the workflow graph |
+| `agents` | `List[AgentSpec]` | Yes | - | List of agent specifications to use as nodes in the workflow graph, up to 2,000. More returns 422 |
 | `edges` | `List[EdgeSpec\|dict]` | No | `null` | List of edges connecting nodes. Can be EdgeSpec objects or dictionaries |
 | `entry_points` | `List[string]` | No | `null` | List of node IDs (agent names) that serve as starting points |
 | `end_points` | `List[string]` | No | `null` | List of node IDs (agent names) that serve as ending points |
 | `max_loops` | `integer` | No | `1` | Maximum number of execution loops for the workflow |
-| `task` | `string` | No | `null` | The task to be executed by the workflow |
-| `img` | `string` | No | `null` | Optional image path/URL for vision-enabled agents |
+| `task` | `string` | Yes | - | The task to be executed by the workflow. A missing or blank task returns 400 |
+| `img` | `string` | No | `null` | Optional `https://` image URL or base64-encoded image for vision-enabled agents |
 | `auto_compile` | `boolean` | No | `true` | Whether to automatically compile the workflow for optimization |
 | `verbose` | `boolean` | No | `false` | Whether to enable detailed logging |
 
@@ -64,19 +64,19 @@ headers = {
 | `agent_name` | `string` | Yes | - | Unique name identifying the agent (used as node ID) |
 | `description` | `string` | No | `null` | Description of the agent's purpose and capabilities |
 | `system_prompt` | `string` | No | `null` | Initial instruction or context provided to the agent |
-| `model_name` | `string` | No | `"claude-sonnet-5"` | AI model to use (e.g., "gpt-4.1", "gpt-4.1-mini", "claude-sonnet-4-20250514") |
+| `model_name` | `string` | No | `"claude-sonnet-5"` | AI model to use (e.g., "gpt-5.4", "gpt-5.4-mini", "claude-sonnet-5") |
 | `max_tokens` | `integer` | No | `16000` | Maximum number of tokens the agent can generate. Values below 1 are rejected with a 422 validation error |
 | `temperature` | `float` | No | `null` | Randomness control (lower = more deterministic). If omitted, the provider's own default applies |
 | `role` | `string` | No | `"worker"` | Agent's role within the swarm |
 | `max_loops` | `integer \| string` | No | `1` | Maximum number of times the agent can repeat its task, or `"auto"`. Integer values below 1 are rejected with a 422 validation error |
 | `tools_list_dictionary` | `List[dict]` | No | `null` | List of tools the agent can use |
-| `selected_tools` | `string \| List[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. `run_bash` is not permitted |
+| `selected_tools` | `string \| List[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_sub_agent`, `assign_task`. `run_bash` and the file tools (`create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`) return 422 |
 | `mcp_url` | `string` | No | `null` | URL of MCP server for the agent |
 | `streaming_on` | `boolean` | No | `false` | Whether the agent should stream its output |
 | `llm_args` | `dict` | No | `null` | Additional LLM arguments (top_p, frequency_penalty, etc.) |
 | `dynamic_temperature_enabled` | `boolean` | No | `false` | Whether to dynamically adjust temperature |
 | `mcp_config` | `MCPConnection` | No | `null` | MCP connection configuration |
-| `mcp_configs` | `MultipleMCPConnections` | No | `null` | Multiple MCP connections configuration |
+| `mcp_configs` | `List[MCPConnection]` | No | `null` | A plain list of MCP connections. A `{"connections": [...]}` object returns 422 |
 | `tool_call_summary` | `boolean` | No | `true` | Whether to summarize tool calls |
 | `reasoning_effort` | `string` | No | `null` (unset) | Reasoning effort level: `"none"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"ultra"`, or `"max"`. At `"xhigh"` and above, pair with a large `max_tokens` so the model has room to think and answer |
 | `thinking_tokens` | `integer` | No | `null` | Number of tokens for thinking |
@@ -90,10 +90,10 @@ headers = {
 | `target` | `string` | Yes | - | Target node ID (agent name) |
 | `metadata` | `dict` | No | `null` | Optional metadata for the edge (custom key-value pairs) |
 
-**Edge Format Options:**
-- Dictionary: `{"source": "Agent1", "target": "Agent2", "metadata": {...}}`
-- Tuple: `("Agent1", "Agent2")` or `("Agent1", "Agent2", {"metadata": {...}})`
-- EdgeSpec object: Pydantic EdgeSpec instance
+**Edge Format:**
+- Each edge is an object: `{"source": "Agent1", "target": "Agent2", "metadata": {...}}`. `metadata` is optional.
+- A JSON array edge such as `["Agent1", "Agent2"]` returns 422.
+- An edge object without both `source` and `target` (e.g. `{"from": ..., "to": ...}`), or one naming an agent that isn't in `agents`, returns 400.
 
 ## Output Parameters
 
@@ -104,8 +104,8 @@ headers = {
 | `job_id` | `string` | Unique identifier for the workflow execution job |
 | `name` | `string` | Workflow name from input |
 | `description` | `string` | Workflow description from input |
-| `status` | `string` | Execution status ("success" if completed) |
-| `outputs` | `dict` | Results from all nodes in the workflow, keyed by agent name |
+| `status` | `string` | `"success"` when at least one node answered |
+| `outputs` | `dict` | Results from all nodes in the workflow, keyed by agent name. When `max_loops` is above 1, it also has a `{agent_name}_loop_{n}` key for every node in every loop (`n` starts at 1); the plain keys hold the final loop. A node that failed holds an `"[ERROR] Agent <name> failed: ..."` string |
 | `usage` | `Usage` | Usage statistics including tokens and costs |
 | `timestamp` | `string` | ISO8601 UTC timestamp when job finished |
 
@@ -117,20 +117,34 @@ headers = {
 | `output_tokens` | `integer` | Total number of output tokens generated |
 | `total_tokens` | `integer` | Sum of input and output tokens |
 | `total_cost` | `float` | Total credits charged for the run: input and output token costs plus `cost_per_agent` |
-| `cost_per_agent` | `float` | Cost per agent (0.01 * number_of_agents) |
+| `cost_per_agent` | `float` | Agent fee: 0.01 × the number of agents whose node answered |
+| `flash_sale_applied` | `boolean` | Whether the tokens were billed at the flash sale price |
 
 ## Cost Calculation
 
 Graph Workflow bills $0.01 per agent plus each agent's provider-reported tokens, priced at that agent's own model plus a 15% service fee. No night-time discount applies. For detailed pricing information, see the <a href="/docs/documentation/resources/pricing">Pricing</a> page.
 
+Only nodes that answered are billed. A node that fails pays no agent fee, and its `[ERROR]` text isn't counted as output tokens. The other nodes still run, and the request returns `200` with the failed node's `[ERROR]` string in `outputs`, so check `outputs` for values that start with `[ERROR]`. If every node fails, the request returns an error and nothing is charged (see below).
+
 ## Error Responses
 
 | Status Code | Description |
 |-------------|-------------|
-| `400` | Bad Request - Invalid workflow configuration |
+| `400` | Bad Request - No `agents`, a missing or blank `task`, an invalid edge, or the workflow failed to build or run |
 | `401` | Unauthorized - Invalid or missing API key |
+| `402` | Payment Required - Purchased credit balance of $1.00 or less |
+| `403` | Forbidden - Free-tier key; this endpoint is premium-only |
+| `422` | Validation Error - The request body failed schema validation (e.g. a JSON array edge, more than 2,000 agents) |
 | `429` | Too Many Requests - Rate limit exceeded |
-| `500` | Internal Server Error - Workflow execution failed |
+
+If no node produces output, the request fails with the provider's error instead of a `200`, and nothing is charged. The detail ends with "Nothing was charged.":
+
+| Status Code | Description |
+|-------------|-------------|
+| `404` | The provider doesn't serve the requested model |
+| `400` | The provider rejected the request |
+| `429` | The provider is rate limiting |
+| `502` | Any other provider failure, or no node produced output |
 
 ## Examples
 
@@ -879,13 +893,13 @@ if __name__ == "__main__":
    - Medium workflows: 600 seconds (10 minutes)
    - Complex workflows: 900+ seconds (15+ minutes)
 
-5. **Error Handling:** Always check response status codes and handle errors appropriately. Use try-except blocks for network errors.
+5. **Error Handling:** Always check response status codes and handle errors appropriately. Use try-except blocks for network errors. A `200` can still contain a failed node, so check `outputs` for values that start with `[ERROR]`.
 
 6. **Token Management:** Monitor token usage through the `usage` field in responses to optimize costs and stay within limits.
 
 7. **Model Selection:** Choose appropriate models based on task requirements:
    - For vision tasks: Use vision-capable models like `gpt-4.1`
-   - For complex reasoning: Use models like `claude-sonnet-4-20250514`
+   - For complex reasoning: Use models like `claude-sonnet-5`
    - For cost efficiency: Use `gpt-4.1-mini` for simpler tasks
 
 8. **Workflow Compilation:** Keep `auto_compile` enabled (default) for optimal performance, unless you need to debug workflow structure.

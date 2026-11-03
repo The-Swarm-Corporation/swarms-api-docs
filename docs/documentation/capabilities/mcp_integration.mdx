@@ -30,6 +30,10 @@ MCP servers are free to attach: there is no MCP fee, only the agent's tokens are
 | `mcp_config` | `MCPConnection` object | One server that needs auth, custom transport, or timeouts |
 | `mcp_configs` | `array` of `MCPConnection` objects | Several servers, each with its own auth/transport/timeouts |
 
+<Warning>
+Every server must be a publicly reachable `https://` URL: the agent runs on the API's servers, not on your machine. An `http://` URL (including `localhost`), a `stdio` server (`transport: "stdio"` or a `command`), or an entry with no URL returns 422 `MCP servers must be https:// URLs; stdio servers are not accepted`.
+</Warning>
+
 ### 1. `mcp_url` — a URL string or connection object
 
 For an unauthenticated server, a plain URL string is enough:
@@ -48,7 +52,7 @@ For an unauthenticated server, a plain URL string is enough:
     "type": "mcp",
     "url": "https://your-mcp-server.com/financial-data",
     "transport": "streamable_http",
-    "authorization_token": "env:MCP_SERVER_TOKEN",
+    "authorization_token": "your-mcp-server-token",
     "timeout": 10
   }
 }
@@ -65,7 +69,7 @@ For an unauthenticated server, a plain URL string is enough:
     {
       "type": "mcp",
       "url": "https://your-mcp-server.com/market-news",
-      "authorization_token": "env:NEWS_MCP_TOKEN"
+      "authorization_token": "your-news-mcp-token"
     }
   ]
 }
@@ -81,7 +85,7 @@ Use `mcp_config` instead of `mcp_url` when you want the connection shape to be e
     "type": "mcp",
     "url": "https://your-mcp-server.com/financial-data",
     "transport": "streamable_http",
-    "authorization_token": "env:MCP_SERVER_TOKEN",
+    "authorization_token": "your-mcp-server-token",
     "headers": {"X-Custom-Header": "value"},
     "timeout": 10
   }
@@ -96,7 +100,7 @@ Use `mcp_config` instead of `mcp_url` when you want the connection shape to be e
 {
   "mcp_configs": [
     {"type": "mcp", "url": "https://your-mcp-server.com/financial-data"},
-    {"type": "mcp", "url": "https://your-mcp-server.com/market-news", "authorization_token": "env:NEWS_MCP_TOKEN"}
+    {"type": "mcp", "url": "https://your-mcp-server.com/market-news", "authorization_token": "your-news-mcp-token"}
   ]
 }
 ```
@@ -108,7 +112,7 @@ All four fields above accept objects shaped like `MCPConnection`:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `type` | `string` | `"mcp"` | Connection type, currently always `"mcp"`. |
-| `url` | `string` | `"http://localhost:8000/mcp"` | The MCP server endpoint. For the `stdio` transport this can instead be a `"command arg1 arg2"` string. |
+| `url` | `string` | — | The `https://` URL of the MCP server. Required in practice: the schema default `"http://localhost:8000/mcp"` is rejected with 422. |
 | `name` | `string` | — | Human-readable name for the server, used in logs and tool routing. |
 | `tool_configurations` | `object` | — | Per-tool configuration overrides. |
 | `authorization_token` | `string` | — | Bearer token for the server. Sent as `Authorization: Bearer <token>` unless `api_key`/`headers` already set that header. |
@@ -117,23 +121,22 @@ All four fields above accept objects shaped like `MCPConnection`:
 | `api_key_prefix` | `string` | `"Bearer"` | Prefix prepended to the `api_key` value. Set to `null`/`""` for a raw key. |
 | `auth_type` | `string` | — | Explicit auth mode override (`"oauth"`, `"api_key"`, `"bearer"`, `"custom"`, `"none"`). Inferred from the other fields when omitted — see [Auth modes](#auth-modes). |
 | `oauth` | [`MCPOAuthConfig`](#mcpoauthconfig-fields) | — | OAuth 2.1 configuration for this server. |
-| `transport` | `string` | `"streamable_http"` | One of `"streamable_http"`, `"sse"`, `"stdio"`, `"auto"`. |
-| `headers` | `object` | — | Extra headers sent to the MCP server verbatim (not env-resolved). |
+| `transport` | `string` | `"auto"` | One of `"streamable_http"`, `"sse"`, `"auto"`. See [Transports](#transports). `"stdio"` returns 422. |
+| `headers` | `object` | — | Extra headers sent to the MCP server verbatim. |
 | `timeout` | `integer` | `30` | Request timeout for the MCP server, in seconds. |
 | `sse_read_timeout` | `integer` | `300` | How long to wait for streamed events before giving up, in seconds. |
 | `tool_timeout` | `integer` | `120` | How long a single tool call may run before timing out, in seconds. Separate from `timeout`, which bounds HTTP requests. |
-| `command` | `string` | — | Executable to launch for the `stdio` transport. |
-| `args` | `array<string>` | — | Arguments passed to the `stdio` command. |
-| `env` | `object` | — | Environment variables for the `stdio` command. Values may use the `env:VAR` / `${VAR}` syntax below. |
+| `command`, `args`, `env` | — | — | Settings for the `stdio` transport, which the API does not accept. A connection with a `command` returns 422. |
 
 ## Transports
 
 Set `transport` on the connection object:
 
-- `streamable_http` (default) — HTTP-based MCP transport, used for most remote servers.
+- `auto` (default) — SSE for URLs ending in `/sse`, streamable HTTP for any other URL.
+- `streamable_http` — HTTP-based MCP transport, used for most remote servers.
 - `sse` — Server-sent events transport.
-- `stdio` — Launches a local process (`command` + `args`) and speaks MCP over stdin/stdout.
-- `auto` — Let the client negotiate the transport with the server.
+
+The `stdio` transport, which launches a local process, is not accepted and returns 422.
 
 ## Auth modes
 
@@ -171,29 +174,22 @@ Set `oauth` on the connection to use OAuth 2.1 instead of a static token or API 
 | `open_browser` | `boolean` | `true` | Open the system browser for the authorization step. When `false`, the URL is logged instead. |
 | `callback_timeout` | `integer` | `300` | Seconds to wait for the user to complete the browser flow. |
 
-## Secrets via environment variables
+## Credentials
 
-Rather than hardcoding a token in the request body, secret-bearing fields accept an indirection syntax: `"env:MY_VAR"` or `"${MY_VAR}"` reads the value from an environment variable on the server at connection time instead of the literal string.
+Send tokens, API keys and OAuth secrets as literal values in the request. A string anywhere in an MCP entry that starts with `env:` or `${` (an environment variable reference such as `"env:MY_VAR"` or `"${MY_VAR}"`) returns 422, because it would be read from the API server's environment, not yours:
 
-This applies to:
-
-- `MCPConnection.api_key`
-- `MCPConnection.authorization_token`
-- `MCPConnection.env` values (for the `stdio` transport)
-- `MCPOAuthConfig.access_token`, `client_id`, `client_secret`, and `token_url`
+```
+MCP credentials must be sent as values; env:NAME and ${NAME} references are not accepted
+```
 
 ```json
 {
   "mcp_config": {
     "url": "https://your-mcp-server.com/financial-data",
-    "authorization_token": "env:MCP_SERVER_TOKEN"
+    "authorization_token": "your-mcp-server-token"
   }
 }
 ```
-
-<Note>
-`headers` values are sent as-is and are **not** resolved through `env:`/`${...}` — only the fields listed above are.
-</Note>
 
 ## Billing
 
@@ -233,7 +229,7 @@ def create_quant_agent_with_mcp():
             "mcp_config": {
                 "type": "mcp",
                 "url": "https://your-mcp-server.com/financial-data",
-                "authorization_token": "env:MCP_SERVER_TOKEN",
+                "authorization_token": "your-mcp-server-token",
                 "timeout": 10,
             },
             "streaming_on": False
@@ -279,7 +275,7 @@ if __name__ == "__main__":
 <Card title="Agent Completions" icon="robot" href="/docs/documentation/capabilities/agent">
 Full `AgentSpec` field reference
 </Card>
-<Card title="Swarms API Tools" icon="wrench" href="/docs/documentation/capabilities/swarms_api_tools">
+<Card title="Tools" icon="wrench" href="/docs/documentation/capabilities/tools">
 Built-in `auto_search`/`web_scraper` tools and autonomous looper tools
 </Card>
 </CardGroup>

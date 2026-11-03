@@ -19,10 +19,10 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `agent_config` | `AgentSpec` | Yes | The configuration of the agent to be completed |
-| `task` | `string` | No | The task to be completed by the agent |
+| `task` | `string` | No | The task to be completed by the agent. Required unless `history` is given: a missing or blank `task` with no `history` returns 400 `No task provided. Pass a non-empty task, or history to continue from.` |
 | `history` | `Union[Dict, List[Dict]]` | No | The history of the agent's previous tasks and responses. Can be either a dictionary or a list of message objects |
-| `img` | `string` | No | A base64 encoded image for the agent to process. Encode your image file to base64 and pass it here |
-| `imgs` | `List[string]` | No | A list of base64 encoded images for the agent to process. Encode your image files to base64 and pass them here |
+| `img` | `string` | No | An image for the agent to process: base64 image data, a `data:image/...` URI, or an `https://` URL. Any other value (an `http://` URL, a file path) returns 422 `Images must be https:// URLs, data:image URIs or base64 image data.` |
+| `imgs` | `List[string]` | No | A list of images for the agent to process, each in one of the forms accepted by `img` |
 | `tools_enabled` | `List[string]` | No | Built-in tools for the agent. Supported values: `auto_search` (web search) and `web_scraper` (web scraping). Both may be listed together, in which case the agent receives both tools. `auto_search` is billed a flat search fee once per request, regardless of how many times the agent searches; `web_scraper` is free (only tokens are billed) |
 
 ### AgentSpec Object
@@ -33,8 +33,8 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `description` | `string` | No | - | A detailed explanation of the agent's purpose, capabilities, and any specific tasks it is designed to perform |
 | `system_prompt` | `string` | No | - | The initial instruction or context provided to the agent, guiding its behavior and responses during execution |
 | `marketplace_prompt_id` | `string` | No | - | The ID of a prompt from the Swarms marketplace to use as the system prompt. If provided, the prompt will be automatically retrieved from the marketplace |
-| `model_name` | `string` | No | `"claude-sonnet-5"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. For example: gpt-4o, gpt-4.1, openai/o3-mini |
-| `fallback_models` | `List[string]` | No | - | An ordered list of models to try if the primary model errors: the request is retried with the next model on failure. **If `model_name` is omitted, the first entry of `fallback_models` becomes the primary model.** Each entry is subject to the same free-tier model restrictions as `model_name`. Example: `["gpt-4.1", "gpt-5.4"]` |
+| `model_name` | `string` | No | `"claude-sonnet-5"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. For example: `gpt-5.4`, `claude-sonnet-5`, `openrouter/moonshotai/kimi-k3` |
+| `fallback_models` | `List[string]` | No | - | An ordered list of models to try if the primary model errors: the request is retried with the next model on failure. `model_name` defaults to `claude-sonnet-5`, so omitting it still runs `claude-sonnet-5` first and the fallbacks are tried only after it fails. Each entry is subject to the same free-tier model restrictions as `model_name`. Example: `["gpt-4.1", "gpt-5.4"]` |
 | `fallback_model_name` | `string` | No | - | A single fallback model to try, after any `fallback_models` have been exhausted |
 | `auto_generate_prompt` | `boolean` | No | `false` | A flag indicating whether the agent should automatically create prompts based on the task requirements |
 | `max_tokens` | `integer` | No | `16000` | The maximum number of tokens that the agent is allowed to generate in its responses, limiting output length. Values below 1 are rejected with a 422 validation error |
@@ -42,27 +42,27 @@ The Agent Completions endpoint (`/v1/agent/completions`) enables you to execute 
 | `role` | `string` | No | `"worker"` | The designated role of the agent within the swarm, which influences its behavior and interaction with other agents |
 | `max_loops` | `int \| "auto"` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer from 1 to 50 for a fixed count, or `"auto"` to let the agent decide when it's done. Integer values below 1 are rejected with a 422 validation error |
 | `tools_list_dictionary` | `List[Dict]` | No | - | A list of OpenAI function-calling-style JSON schemas the agent can call |
-| `selected_tools` | `string \| List[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Pass a list of tool names to restrict which tools the agent can use (e.g. `["think", "create_plan"]`). Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. `run_bash` is never permitted, even if you pass it explicitly |
-| `mcp_url` | `string \| MCPConnection` | No | - | A single MCP server the agent can use: a bare URL string for an unauthenticated server, or an [`MCPConnection`](#mcp-connections) object for auth/transport control. See [MCP Connections](#mcp-connections) |
+| `selected_tools` | `string \| List[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Pass one tool name or a list of tool names to restrict which tools the agent can use (e.g. `["think", "create_plan"]`), or `"all"` (or omit it) for every available tool. Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_sub_agent`, `assign_task`. An unknown name returns 422. The shell and file tools `run_bash`, `create_file`, `update_file`, `read_file`, `list_directory` and `delete_file` are not permitted and return 422 |
+| `mcp_url` | `string \| MCPConnection` | No | - | A single MCP server the agent can use: a bare `https://` URL string for an unauthenticated server, or an [`MCPConnection`](#mcp-connections) object for auth/transport control. See [MCP Connections](#mcp-connections) |
 | `streaming_on` | `boolean` | No | `false` | A flag indicating whether the agent should stream its output over SSE. See [Streaming](#streaming) |
-| `llm_args` | `Dict` | No | - | Additional arguments to pass to the LLM such as `top_p`, `frequency_penalty`, `presence_penalty`, etc. |
+| `llm_args` | `Dict` | No | - | Sampling arguments to pass to the LLM. Accepted keys: `top_p`, `top_k`, `frequency_penalty`, `presence_penalty`, `stop`, `seed`, `logit_bias` and `response_format`. Any other key (for example `temperature`, `max_tokens` or `api_base`) returns 422; set `temperature` and `max_tokens` as `agent_config` fields instead |
 | `top_p` | `float` | No | - | Nucleus sampling parameter passed to the LLM. Equivalent to putting `top_p` inside `llm_args` |
 | `dynamic_temperature_enabled` | `boolean` | No | `false` | A flag indicating whether the agent should dynamically adjust its temperature based on the task. Forced to `false` whenever `temperature` is omitted |
 | `mcp_config` | `MCPConnection` | No | - | A single MCP connection object for the agent (like `mcp_url`, but always a full object, never a bare string) |
 | `mcp_configs` | `List[MCPConnection]` | No | - | Several MCP connection objects for the agent. Tools from every server are combined |
-| `mcp_urls` | `List[string \| MCPConnection]` | No | - | Several MCP servers for the agent. Each entry is a URL string for an unauthenticated server, or an `MCPConnection` object. Tools from every server are combined |
+| `mcp_urls` | `List[string \| MCPConnection]` | No | - | Several MCP servers for the agent. Each entry is an `https://` URL string for an unauthenticated server, or an `MCPConnection` object. Tools from every server are combined |
 | `tool_call_summary` | `boolean` | No | `true` | A parameter enabling an agent to summarize tool calls |
 | `reasoning_effort` | `string` | No | - (unset) | How much effort the agent puts into reasoning. Accepted values: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `ultra`, `max` (`max` is the deepest tier and needs no beta header; at `xhigh` and above, pair with a large `max_tokens`). **On Claude 5-family models** (any `claude-sonnet-5`, `claude-opus-5`, `claude-haiku-5`, or `claude-fable-5` id, including point releases like `claude-sonnet-5.5`, but not 4.x ids like `claude-opus-4-8`) the API currently cannot send extended-thinking parameters to the provider: `reasoning_effort`, `reasoning_enabled`, and `thinking_tokens` are all dropped with a server-side warning, and the agent runs without extended thinking |
 | `thinking_tokens` | `integer` | No | - | The number of tokens to use for thinking. Dropped on Claude 5-family models — see `reasoning_effort` above |
 | `reasoning_enabled` | `boolean` | No | `false` | A parameter enabling an agent to use reasoning. Dropped on Claude 5-family models — see `reasoning_effort` above |
-| `publish_to_marketplace` | `boolean` | No | `false` | A flag indicating whether to publish this agent to the Swarms marketplace |
-| `use_cases` | `List[Dict[str, str]]` | No | - | A list of use case dictionaries with 'title' and 'description' keys. Required when publish_to_marketplace is True |
+| `publish_to_marketplace` | `boolean` | No | `false` | A flag indicating whether to publish this agent to the Swarms marketplace, under the account of the API key that sent the request |
+| `use_cases` | `List[Dict[str, str]]` | No | - | A list of use case dictionaries with 'title' and 'description' keys, shown on the marketplace listing when `publish_to_marketplace` is true |
 | `tags` | `List[string]` | No | - | A list of searchable tags/keywords for the marketplace (e.g., ['finance', 'analysis']) |
 | `capabilities` | `List[string]` | No | - | A list of agent capabilities or features (e.g., ['trend-analysis', 'risk-assessment']) |
 | `category` | `string` | No | - | The marketplace category for the agent (e.g., 'research', 'content', 'coding', 'finance', 'healthcare', 'education', 'legal') |
 | `is_free` | `boolean` | No | `true` | A flag indicating whether the agent is free to use in the marketplace |
 | `price_usd` | `float` | No | - | The price in USD for using this agent in the marketplace (if not free) |
-| `handoffs` | `List[AgentSpec]` | No | - | A list of agent specifications that this agent can hand off tasks to. These agents will be created and passed to the agent's handoffs parameter |
+| `handoffs` | `List[AgentSpec]` | No | - | A list of agent specifications that this agent can hand off tasks to, at most 2000. These agents will be created and passed to the agent's handoffs parameter. Each handoff agent goes through the same model and premium checks as the main agent, and its tokens are billed at its own model's price and included in `usage` |
 
 ## MCP Connections
 
@@ -71,8 +71,10 @@ Four `AgentSpec` fields attach MCP (Model Context Protocol) servers to an agent 
 For an unauthenticated server, a bare URL string is enough:
 
 ```json
-{ "mcp_url": "http://localhost:8000/mcp" }
+{ "mcp_url": "https://mcp.example.com/mcp" }
 ```
+
+Every server must be a publicly reachable `https://` URL. An `http://` URL, a `stdio` server (`transport: "stdio"` or a `command`), or an entry with no URL returns 422 `MCP servers must be https:// URLs; stdio servers are not accepted`.
 
 For anything that needs authentication, a custom transport, or non-default timeouts, pass an `MCPConnection` object instead.
 
@@ -81,7 +83,7 @@ For anything that needs authentication, a custom transport, or non-default timeo
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `type` | `string` | `"mcp"` | The type of connection |
-| `url` | `string` | `"http://localhost:8000/mcp"` | The URL endpoint for the MCP server |
+| `url` | `string` | - | The `https://` URL of the MCP server. Required in practice: the schema default `"http://localhost:8000/mcp"` is rejected with 422 |
 | `name` | `string` | - | Human readable name for the server, used in logs and tool routing |
 | `tool_configurations` | `Dict` | - | Per-tool configuration settings |
 | `authorization_token` | `string` | - | Bearer token for accessing the MCP server |
@@ -90,14 +92,12 @@ For anything that needs authentication, a custom transport, or non-default timeo
 | `api_key_prefix` | `string` | `"Bearer"` | Prefix prepended to the API key value. Set to `null`/`""` for a raw key |
 | `auth_type` | `string` | - | Explicit auth mode. Inferred from the other fields when omitted |
 | `oauth` | `MCPOAuthConfig` | - | OAuth 2.1 configuration for this server — see below |
-| `transport` | `string` | `"streamable_http"` | Transport protocol: `"streamable_http"`, `"sse"`, `"stdio"`, or `"auto"` |
+| `transport` | `string` | `"auto"` | Transport protocol: `"streamable_http"`, `"sse"`, or `"auto"`. `"auto"` uses SSE for URLs ending in `/sse` and streamable HTTP otherwise. `"stdio"` returns 422 |
 | `headers` | `Dict` | - | Extra headers to send to the MCP server |
 | `timeout` | `integer` | `30` | Request timeout (seconds) for the MCP server |
 | `sse_read_timeout` | `integer` | `300` | How long to wait for streamed events before giving up |
 | `tool_timeout` | `integer` | `120` | How long a single tool call may run before timing out. Separate from `timeout`, which bounds HTTP requests |
-| `command` | `string` | - | Executable to launch for the `"stdio"` transport |
-| `args` | `List[string]` | - | Arguments passed to the `"stdio"` command |
-| `env` | `Dict` | - | Environment variables for the `"stdio"` command |
+| `command`, `args`, `env` | - | - | Settings for the `"stdio"` transport, which the API does not accept. A connection with a `command` returns 422 |
 
 ### MCPOAuthConfig Object
 
@@ -125,13 +125,13 @@ Set `oauth` on an `MCPConnection` to authenticate against a server that requires
 | `open_browser` | `boolean` | `true` | Open the system browser for the authorization step. When `false`, the URL is logged instead |
 | `callback_timeout` | `integer` | `300` | Seconds to wait for the user to complete the browser flow |
 
-Any string field on `MCPOAuthConfig` (and `api_key`/`authorization_token` on `MCPConnection`) may reference an environment variable instead of a literal secret, using `"env:MY_VAR"` or `"${MY_VAR}"`. This keeps credentials out of request bodies and logs:
+Send credentials as literal values. A string anywhere in an MCP entry that starts with `env:` or `${` (an environment variable reference such as `"env:MY_VAR"` or `"${MY_VAR}"`) returns 422 `MCP credentials must be sent as values; env:NAME and ${NAME} references are not accepted`, because it would be read from the API server's environment, not yours:
 
 ```json
 {
   "mcp_url": {
     "url": "https://mcp.example.com/mcp",
-    "api_key": "env:EXAMPLE_MCP_API_KEY",
+    "api_key": "your-mcp-api-key",
     "api_key_header": "X-API-Key",
     "api_key_prefix": ""
   }
@@ -146,8 +146,8 @@ Client-credentials OAuth example:
     "url": "https://mcp.example.com/mcp",
     "oauth": {
       "grant_type": "client_credentials",
-      "client_id": "env:EXAMPLE_MCP_CLIENT_ID",
-      "client_secret": "env:EXAMPLE_MCP_CLIENT_SECRET",
+      "client_id": "your-client-id",
+      "client_secret": "your-client-secret",
       "scopes": ["mcp:tools"]
     }
   }
@@ -185,12 +185,13 @@ The response includes detailed usage metrics. For example, a `claude-sonnet-5` a
     "total_tokens": 450,
     "image_count": 1,
     "img_cost": 0.25,
+    "flash_sale_applied": false,
     "total_cost": 0.253795
   }
 }
 ```
 
-`image_count` is the number of images in the request, counted across `img` and `imgs`, and `img_cost` is $0.25 per image. `total_cost` is the token cost, priced at the agent's own model plus the 15% service fee, plus `img_cost`. The `auto_search` fee is charged separately and is not included in `total_cost`. See the [Pricing](/docs/documentation/resources/pricing) page for per-model prices and flat fees.
+`image_count` is the number of images in the request, counted across `img` and `imgs`, and `img_cost` is $0.25 per image. `total_cost` is the token cost, priced at the agent's own model plus the 15% service fee, plus `img_cost`, plus the flat `auto_search` fee when `auto_search` is in `tools_enabled`. The token counts and cost include any [`handoffs`](#agentspec-object) agents, each priced at its own model. `flash_sale_applied` is `true` only when a flash sale discount priced the tokens. See the [Pricing](/docs/documentation/resources/pricing) page for per-model prices and flat fees.
 
 ## Streaming
 
@@ -205,7 +206,16 @@ Events are emitted in this order:
 5. `event: end` — `data: {"job_id": ..., "usage": {...}, "timestamp": ..., "complete": true}`
 6. `event: done` — `data: {"message": "Agent processing complete"}`
 
-If the run fails at any point, the stream instead emits a single `event: error` frame — `data: {"error": "AgentCompletionError: ...", "timestamp": "..."}` — and closes without a `done` event.
+If the run fails, the stream instead emits a single `event: error` frame and closes without `usage`, `end` or `done` events. Because the HTTP status is sent when the stream opens, these errors arrive inside a `200` response:
+
+- **The model provider rejected or failed the call** (see [Provider errors](#provider-errors)): the frame carries the status code the non-streaming request would have returned, and nothing is charged.
+  ```
+  event: error
+  data: {"error": "The provider rejected the request for model 'gpt-5.4': <provider reason>. Nothing was charged.", "status_code": 400, "timestamp": "..."}
+  ```
+- **Any other failure**, including request validation that runs after the stream opens (an unknown model, a premium model on a free-tier key, a missing `task`): `data: {"error": "AgentCompletionError: <status>: <detail>", "timestamp": "..."}`.
+
+Check for an `error` event rather than relying on the HTTP status when streaming.
 
 <Tabs>
 <Tab title="Python">
@@ -298,7 +308,7 @@ while (true) {
 
 ### 1. Multi-Model Support
 - **OpenAI Models**: gpt-4.1, gpt-4.1-mini, gpt-4o
-- **Anthropic Models**: claude-sonnet-4-20250514
+- **Anthropic Models**: claude-sonnet-5, claude-opus-5
 - **Custom Models**: Any model supported by LiteLLM
 - **Vision Models**: Support for image analysis with gpt-4.1 and compatible models
 
@@ -570,7 +580,7 @@ let payload = json!({
 
 ### Agent with MCP Integration
 
-Integrate Model Context Protocol (MCP) servers to extend your agent's capabilities. This example shows how to connect an agent to an unauthenticated MCP server for additional tools and resources. For authenticated servers, multiple servers, and OAuth, see [MCP Connections](#mcp-connections).
+Integrate Model Context Protocol (MCP) servers to extend your agent's capabilities. This example shows how to connect an agent to an unauthenticated MCP server for additional tools and resources. The server must be reachable at a public `https://` URL. For authenticated servers, multiple servers, and OAuth, see [MCP Connections](#mcp-connections).
 
 <Tabs>
 <Tab title="Python">
@@ -583,7 +593,7 @@ payload = {
         "system_prompt": "You are a data analyst with access to databases.",
         "model_name": "gpt-4.1-mini",
         "max_tokens": 8192,
-        "mcp_url": "http://github.com/mcp"
+        "mcp_url": "https://your-mcp-server.com/mcp"
     },
     "task": "Query the customer database for recent orders"
 }
@@ -600,7 +610,7 @@ const payload = {
         system_prompt: "You are a data analyst with access to databases.",
         model_name: "gpt-4.1-mini",
         max_tokens: 8192,
-        mcp_url: "http://github.com/mcp"
+        mcp_url: "https://your-mcp-server.com/mcp"
     },
     task: "Query the customer database for recent orders"
 };
@@ -619,7 +629,7 @@ let payload = json!({
         "system_prompt": "You are a data analyst with access to databases.",
         "model_name": "gpt-4.1-mini",
         "max_tokens": 8192,
-        "mcp_url": "http://github.com/mcp"
+        "mcp_url": "https://your-mcp-server.com/mcp"
     },
     "task": "Query the customer database for recent orders"
 });
@@ -1023,7 +1033,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Agent with Image Analysis
 
-Enable vision capabilities by providing base64-encoded images to your agent. The agent can analyze single or multiple images and answer questions about visual content. Use the `img` parameter for a single image or `imgs` for multiple images.
+Enable vision capabilities by providing images to your agent as base64 data, `data:image/...` URIs, or `https://` URLs. The agent can analyze single or multiple images and answer questions about visual content. Use the `img` parameter for a single image or `imgs` for multiple images.
 
 <Tabs>
 <Tab title="Python">
@@ -1155,7 +1165,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 **Supported Models**: Only vision-capable models support image analysis:
 - `gpt-4.1`: Best for detailed visual analysis
 - `gpt-4.1-mini`: Cost-effective for basic vision tasks
-- `claude-sonnet-4-20250514`: High-quality vision understanding
+- `claude-sonnet-5`: High-quality vision understanding
 
 **Image Billing**: Each image in `img` or `imgs` is billed a flat $0.25, and the input tokens the model provider reports for the request, images included, are billed at the model's own price. See the [Vision Capabilities](/docs/examples/examples/vision-capabilities) guide for detailed information on image encoding and best practices.
 
@@ -1285,17 +1295,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 </Tab>
 </Tabs>
 
+**Response**: the batch returns `200` with one entry in `results` per request, in request order, even when some of them fail. A successful entry is a normal [`AgentCompletionOutput`](#agentcompletionoutput-object); a failed entry carries the error the single-agent endpoint would have returned, and is not charged:
+
+```json
+{
+  "batch_id": "agent-batch-...",
+  "total_requests": 2,
+  "execution_time": 4.21,
+  "timestamp": "2026-11-03T12:00:00+00:00",
+  "results": [
+    {"job_id": "agent-...", "success": true, "name": "Analyst 1", "outputs": "...", "usage": {"...": "..."}},
+    {"success": false, "name": "Analyst 2", "detail": "The model 'gpt-4o-mini-typo' does not exist or is no longer available. See https://api.swarms.world/v1/models/available for the models you can use.", "status_code": 404}
+  ]
+}
+```
+
+A batch of more than 50 requests returns 422, and a free-tier key gets 403 `premium_access_required`.
+
 ## Error Handling
 
 The API returns appropriate HTTP status codes and error messages:
 
-- **400 Bad Request**: Invalid input parameters or validation failures
+- **400 Bad Request**: Invalid input parameters or validation failures, including a missing or blank `task` with no `history`
 - **401 Unauthorized**: Missing or invalid API key
-- **422 Unprocessable Entity**: Schema validation failures (e.g. a non-positive `max_loops` or `max_tokens`)
+- **402 Payment Required**: `insufficient_credits`, when the account's purchased credit balance is $1.00 or less
+- **403 Forbidden**: `Premium model access required`, when a free-tier key requests a premium-only model (in `model_name`, `fallback_models`, `fallback_model_name` or any `handoffs` agent)
+- **404 Not Found**: The model does not exist or is no longer available: `The model '<name>' does not exist or is no longer available. See https://api.swarms.world/v1/models/available for the models you can use.`
+- **422 Unprocessable Entity**: Schema validation failures, for example a non-positive `max_loops` or `max_tokens`, a blocked or unknown `selected_tools` name, an `llm_args` key outside the accepted list, a non-`https://` or `stdio` MCP server, an `env:`/`${...}` MCP credential, or an image that is not base64, a `data:image` URI or an `https://` URL
 - **429 Too Many Requests**: Rate limit exceeded
 - **500 Internal Server Error**: Server-side processing errors
+- **503 Service Unavailable**: `Unable to verify your subscription status. Retry in a few seconds.`, when a premium-only model is requested and the subscription lookup fails. Retry; it is not a tier answer
 
-If an agent run produces no output for the given task, the API returns **HTTP 400** with a detail message like `Agent '<name>' produced no output for this task. Nothing was charged...` instead of a success response. Callers should treat this as a retryable, client-visible error — nothing is billed for it.
+The 4xx and 503 errors above are returned before the agent runs, so nothing is charged. A `422` from schema validation has this shape:
+
+```json
+{
+  "detail": [
+    {
+      "type": "value_error",
+      "loc": ["body", "agent_config", "llm_args"],
+      "msg": "Value error, llm_args does not accept api_base, temperature; accepted keys: frequency_penalty, logit_bias, presence_penalty, response_format, seed, stop, top_k, top_p"
+    }
+  ]
+}
+```
+
+### Provider errors
+
+When the model provider fails the call, the API returns the provider's reason instead of an empty result. Nothing is charged:
+
+| Status | When | Message |
+|--------|------|---------|
+| `404` | The provider does not serve the model | `The provider does not serve model '<model>': <provider reason>. Nothing was charged.` |
+| `400` | The provider rejected the request (decommissioned model, unsupported parameter, context too long) | `The provider rejected the request for model '<model>': <provider reason>. Nothing was charged.` |
+| `429` | The provider is rate limiting the model | `The provider is rate limiting model '<model>'. Retry shortly. Nothing was charged.` |
+| `502` | Any other provider failure (outage, timeout) | `The provider for model '<model>' failed (<ErrorType>). Retry, or use another model. Nothing was charged.` |
+
+The `429` and `502` are safe to retry. If a run returns no output and the provider reported no error, the API returns **HTTP 400** with a detail message like `Agent '<name>' produced no output for this task. Nothing was charged...` instead of a success response.
 
 ## Rate Limits
 

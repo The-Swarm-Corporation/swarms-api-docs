@@ -1,11 +1,11 @@
 ---
 title: "Build an AI Hedge Fund Research Pipeline"
-description: "A HierarchicalSwarm of a Portfolio Manager directing Fundamentals, Technicals, and Macro analysts — then scaled overnight across a full watchlist with batch completions."
+description: "A HierarchicalSwarm that routes a ticker to a Portfolio Manager and Fundamentals, Technicals, and Macro analysts — then scaled overnight across a full watchlist with batch completions."
 ---
 
 ## What This Example Shows
 
-- A `HierarchicalSwarm` with a Portfolio Manager (director) coordinating three worker analysts: Fundamentals, Technicals, and Macro
+- A `HierarchicalSwarm` whose built-in director hands orders to four workers: a Portfolio Manager and Fundamentals, Technicals, and Macro analysts
 - How to produce a structured buy/sell/hold call with a key signal for a single ticker
 - How to scale the same swarm across a 20-ticker watchlist using `/v1/swarm/batch/completions`
 - A realistic cost comparison against staffing a junior analyst team
@@ -45,6 +45,10 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 ## Step 2: Define the Analyst Team
 
 The Portfolio Manager owns the final call. Each analyst owns a single lens — fundamentals, technicals, or macro — and writes a tight brief the PM can act on.
+
+<Warning>
+`HierarchicalSwarm` creates its own director (model set by `director_model_name`, default `gpt-5.4`) that plans the work and hands out orders. Every agent in `agents`, the Portfolio Manager included, is a worker: `role: "coordinator"` has no effect, and the workers run their orders in parallel without seeing each other's output. The Portfolio Manager therefore answers its own order from the task; it does not read the analyst briefs. If the call must be built from the three briefs, use `AgentRearrange` with `"rearrange_flow": "Fundamentals Analyst, Technicals Analyst, Macro Analyst -> Portfolio Manager"` instead.
+</Warning>
 
 ```python
 PORTFOLIO_MANAGER_PROMPT = (
@@ -94,7 +98,7 @@ def build_swarm_for_ticker(ticker: str) -> dict:
         "agents": [
             {
                 "agent_name": "Portfolio Manager",
-                "description": "Director — synthesizes analyst briefs into a single call.",
+                "description": "Issues the buy/sell/hold call and key signal.",
                 "system_prompt": PORTFOLIO_MANAGER_PROMPT,
                 "model_name": "gpt-4.1",
                 "role": "coordinator",
@@ -169,7 +173,7 @@ print(f"Execution time: {result['execution_time']:.1f}s")
 ```
 
 <Note>
-The Portfolio Manager's final output is the one you persist to your research database. The three analyst briefs are the audit trail that justifies the call — every PM signoff is fully reproducible from the inputs.
+The Portfolio Manager's output is the call you persist to your research database, with the three analyst briefs alongside it. Because the PM works in parallel with the analysts rather than after them, review the briefs against the call before acting on it, or switch to the `AgentRearrange` flow above to have the PM read them first.
 </Note>
 
 ## Step 4: Scale Across the Watchlist with Batch Completions

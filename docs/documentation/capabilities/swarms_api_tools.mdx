@@ -1371,7 +1371,7 @@ Yes. Set `llm_args.response_format` for the output format and `tools_list_dictio
 
 `tools_enabled` (on the request body, alongside `agent_config`) turns on the API's two built-in tools, `auto_search` and `web_scraper`, which the API executes for you.
 
-`selected_tools` (in `agent_config`) restricts the autonomous execution loop's own tool set (planning, file, and sub-agent tools), and only applies when `agent_config.max_loops` is `"auto"`.
+`selected_tools` (in `agent_config`) restricts the autonomous execution loop's own tool set (planning and sub-agent tools), and only applies when `agent_config.max_loops` is `"auto"`.
 
 All three can be combined on the same request. See the [Tools](/docs/documentation/capabilities/tools) page for the built-in and autonomous-loop mechanisms.
 </Accordion>

@@ -11,7 +11,7 @@ The **autonomous agent mode** (`max_loops="auto"`) lets an agent **plan, execute
 When `max_loops="auto"`, the agent:
 
 - **Plans** the work as a set of structured subtasks
-- **Executes** each subtask using tools (search, file I/O, etc.)
+- **Executes** each subtask using tools (planning, search, sub-agents, etc.)
 - **Summarizes** the results into a clear final answer
 
 This page walks through a **fully autonomous medical diagnosis agent** that analyzes blood work results using the Swarms Python client.
@@ -55,7 +55,7 @@ flowchart TD
 For each subtask, the agent loops through:
 
 1. **Think**: Optional short reasoning step (e.g., with a `think` tool)
-2. **Act**: Calls tools (search, file, APIs, etc.)
+2. **Act**: Calls tools (search, sub-agents, MCP servers, etc.)
 3. **Observe**: Reads tool outputs and updates its plan state
 4. **Complete**: Marks the subtask done when satisfied (e.g., via `subtask_done`)
 
@@ -79,15 +79,15 @@ payload = {
         "agent_name": "My Agent",
         "model_name": "gpt-4.1",
         "max_loops": "auto",
-        "selected_tools": ["create_plan", "think", "subtask_done", "complete_task", "read_file"],
+        "selected_tools": ["create_plan", "think", "subtask_done", "complete_task"],
     },
     "task": "Your task here",
 }
 ```
 
-Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`.
+Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_sub_agent`, `assign_task`. `selected_tools` also accepts a single tool name, and an unknown name returns 422.
 
-<Note>`run_bash` is not available via the API for security reasons.</Note>
+<Note>The shell and file tools (`run_bash`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`) are not available via the API for security reasons. Listing any of them in `selected_tools` returns 422.</Note>
 
 ## Complete Example: Autonomous Medical Diagnosis Agent
 
@@ -175,10 +175,9 @@ pip install swarms-client python-dotenv
           description: 'Creates comprehensive research reports',
           system_prompt:
             'You are an expert research analyst. ' +
-            'Create detailed, well-structured reports and save work to files when appropriate.',
+            'Create detailed, well-structured reports.',
           model_name: 'gpt-4.1',
           max_loops: 'auto', // enable autonomous loop mode
-          dynamic_temperature_enabled: true,
         },
         task: `
           Create a comprehensive research report on quantum computing:
@@ -229,10 +228,9 @@ pip install swarms-client python-dotenv
                 "agent_name": "Research-Report-Agent",
                 "description": "Creates comprehensive research reports",
                 "system_prompt": "You are an expert research analyst. \
-                    Create detailed, well-structured reports and save work to files when appropriate.",
+                    Create detailed, well-structured reports.",
                 "model_name": "gpt-4.1",
-                "max_loops": "auto",
-                "dynamic_temperature_enabled": true
+                "max_loops": "auto"
             },
             "task": "\
                 Create a comprehensive research report on quantum computing:\n\

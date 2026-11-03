@@ -36,9 +36,9 @@ headers = {
 ### Step 3: Configure the Evaluation Request
 
 <Warning>
-`CouncilAsAJudge` does not take a custom `agents` roster — the API's `SwarmRouter` never forwards your `agents` list to it, so any agents you supply are silently ignored. The council always runs its own fixed panel: one judge per evaluation dimension (`accuracy`, `helpfulness`, `harmlessness`, `coherence`, `conciseness`, `instruction_adherence`, named `<dimension>_judge` in the output, e.g. `accuracy_judge`), then a fixed `aggregator_agent` that synthesizes all six into one report. Pass `agents: []` (or omit the field).
+`CouncilAsAJudge` does not take a custom `agents` roster — the API's `SwarmRouter` never forwards your `agents` list to it, so any agents you supply are never run. The council always runs its own fixed panel: one judge per evaluation dimension (`accuracy`, `helpfulness`, `harmlessness`, `coherence`, `conciseness`, `instruction_adherence`, named `<dimension>_judge` in the output, e.g. `accuracy_judge`), then a fixed `aggregator_agent` that synthesizes all six into one report. The request must still include one placeholder agent: `agents: []` or omitting the field returns `400` "A list of agents is required". The placeholder is billed the per-agent fee but never executed.
 
-The only swarm-type-specific field is `council_judge_model_name` (`SwarmSpec`, default `gpt-5.4`, listed under `parameters` for `CouncilAsAJudge` by `GET /v1/swarms/available`).
+The only swarm-type-specific field is `council_judge_model_name` (`SwarmSpec`, default `gpt-5.4`, listed under `parameters` for `CouncilAsAJudge` by `GET /v1/swarms/available`). It sets the model of the six dimension judges; the aggregator always runs on `gpt-5.4`.
 </Warning>
 
 Each dimension judge and the aggregator run with the framework's own fixed prompts - you only supply the task and the response to evaluate:
@@ -56,7 +56,14 @@ def evaluate_response(task: str, response_to_evaluate: str) -> dict:
 ORIGINAL TASK: {task}
 
 RESPONSE TO EVALUATE: {response_to_evaluate}""",
-        "agents": [],
+        "agents": [
+            {
+                "agent_name": "placeholder",
+                "description": "Required by the API but not executed by CouncilAsAJudge",
+                "model_name": "gpt-5.4-mini",
+                "max_loops": 1
+            }
+        ],
         "council_judge_model_name": "gpt-5.4",
         "max_loops": 1
     }
@@ -248,5 +255,5 @@ comparison = compare_model_responses(task, responses)
 ```
 
 <Note>
-CouncilAsAJudge evaluates responses across 6 fixed dimensions in parallel: accuracy, helpfulness, harmlessness, coherence, conciseness, and instruction adherence. Each dimension judge works independently, then `aggregator_agent` synthesizes all evaluations into a single comprehensive report with prioritized recommendations. Neither the dimensions, the judges' prompts, nor the agent roster are configurable - only `council_judge_model_name` (and the standard `name`/`description`/`task`/`max_loops`) tune this swarm type.
+CouncilAsAJudge evaluates responses across 6 fixed dimensions in parallel: accuracy, helpfulness, harmlessness, coherence, conciseness, and instruction adherence. Each dimension judge works independently, then `aggregator_agent` synthesizes all evaluations into a single comprehensive report with prioritized recommendations. Neither the dimensions, the judges' prompts, nor the agent roster are configurable - only `council_judge_model_name` (and the standard `name`/`description`/`task`) tune this swarm type; the swarm-level `max_loops` is not passed to it.
 </Note>

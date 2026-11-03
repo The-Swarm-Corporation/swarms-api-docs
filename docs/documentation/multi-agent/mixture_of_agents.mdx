@@ -22,12 +22,16 @@ flowchart LR
     T["Task"] --> A["Specialist A"]
     T --> B["Specialist B"]
     T --> C["Specialist C"]
-    A --> S["Combined solution"]
+    A --> S["Aggregator (last agent in agents)"]
     B --> S
     C --> S
 ```
 
-Every specialist sees the same task, and their perspectives are combined into one answer.
+Every specialist sees the same task, and the last agent in `agents` acts as the aggregator that combines their perspectives into one answer.
+
+<Note>
+The **last agent you list in `agents` is the aggregator**. It does not answer the task as a specialist; it reads the specialists' outputs and writes the final answer. Put your synthesizer last. The swarm-level `max_loops` sets the number of specialist layers: on each layer after the first, the specialists answer again with the previous layer's outputs in context, and the aggregator runs once at the end.
+</Note>
 
 ## Use Cases
 
@@ -431,7 +435,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         },
         {
             "role": "Policy Expert",
-            "content": "Policy-wise, governments worldwide are implementing various incentives and regulations to accelerate EV adoption..."
+            "content": "Synthesizing the three perspectives: battery innovation and falling costs make EVs increasingly competitive, while lifecycle benefits depend on grid mix. From a policy standpoint, incentives and emissions rules will keep accelerating adoption..."
         }
     ],
     "number_of_agents": 4,
@@ -440,6 +444,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "input_tokens": 40,
         "output_tokens": 2800,
         "total_tokens": 2840,
+        "total_cost": 0.06603,
         "billing_info": {
             "cost_breakdown": {
                 "agent_cost": 0.04,
@@ -451,7 +456,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 2840
                 },
                 "num_agents": 4,
-                "night_time_discount_applied": true
+                "night_time_discount_applied": true,
+                "flash_sale_applied": false
             },
             "total_cost": 0.06603,
             "discount_active": true,
@@ -464,7 +470,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Output Shape
 
-Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `MixtureOfAgents` runs the requested `agents` in parallel as specialists, then an internal aggregator agent synthesizes their outputs into a consolidated answer. A full run's `output` therefore typically contains one turn per specialist plus a final aggregator/synthesis turn (the abbreviated example above shows only the specialist turns); `number_of_agents` in the response still reflects only the specialists you supplied in `agents`, since the aggregator is not part of that roster.
+Every swarm run is executed through a `SwarmRouter` with `output_type` forced to `"dict"` server-side (see `api/swarm_completions.py`), so `output` is a list of `{"role": ..., "content": ...}` conversation turns rather than a single string. `MixtureOfAgents` runs every agent in `agents` except the last in parallel as specialists, then the last agent, the aggregator, synthesizes their outputs into a consolidated answer. `output` contains one turn per specialist per layer, followed by the aggregator's turn; in the example above, Policy Expert is the aggregator. When `max_loops` is above 1, specialist turns are labelled with their layer, e.g. `"Technology Analyst (layer 1/2)"`. `number_of_agents` counts every agent you supplied, including the aggregator.
 
 ## Best Practices
 

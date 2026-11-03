@@ -8,14 +8,14 @@ description: 'API reference for reporting on your Swarms API usage: current pric
 There is no dedicated endpoint that returns a historical, day-by-day breakdown of your spend. Instead, the Swarms API exposes three complementary pieces: the **current pricing model** (`/v1/usage/costs`), your **raw request logs** (`/v1/account/logs`), and an **at-a-glance metrics summary** (`/v1/account/metrics/summary`). Combine these client-side for a custom usage report — see each section below.
 </Info>
 
-The Usage endpoint returns the flat fees the API charges (per-agent, image and search), the fallback token rates for models with no price data, and the night-time discount. Tokens are billed at each model's own price plus a 15% service fee, so per-model token prices are not in this response: get them from `GET /v1/models/available` or `GET /v1/models/pricing?model_name=...`. Use both to compute expected costs before you run a request, or to keep your own cost estimates in sync with the live pricing. See [Pricing](/docs/documentation/resources/pricing) for how a charge is calculated.
+The Usage endpoint returns the flat fees the API charges (per-agent, image and search), the fallback token rates for models with no price data, the night-time discount and the flash sale settings. Tokens are billed at each model's own price plus a 15% service fee, so per-model token prices are not in this response: get them from `GET /v1/models/available` or `GET /v1/models/pricing?model_name=...`. Use both to compute expected costs before you run a request, or to keep your own cost estimates in sync with the live pricing. See [Pricing](/docs/documentation/resources/pricing) for how a charge is calculated.
 
 ## Endpoint Information
 
 - **URL**: `/v1/usage/costs`
 - **Method**: `GET`
 - **Authentication**: Required (`x-api-key` header)
-- **Rate Limiting**: Subject to tier-based rate limits
+- **Rate Limiting**: None. This endpoint never returns 429 and its responses carry no `X-RateLimit-*` headers
 
 ---
 
@@ -96,7 +96,7 @@ None. This endpoint always returns the current pricing model in effect.
 
 | Field | Type | Description |
 |---|---|---|
-| `usage_pricing` | `object` | Flat fees, fallback token rates and the night-time discount. Per-model token prices come from `GET /v1/models/available` |
+| `usage_pricing` | `object` | Flat fees, fallback token rates, the night-time discount and the flash sale settings. Per-model token prices come from `GET /v1/models/available` |
 | `timestamp` | `string` | ISO timestamp when the pricing information was retrieved |
 
 ### usage_pricing Object
@@ -108,7 +108,9 @@ None. This endpoint always returns the current pricing model in effect.
 | `swarm_completions_agent_cost` | `number` | Cost per agent in the request for swarm completions, graph workflow and batched grid workflow (USD) |
 | `agent_completions_img_cost` | `number` | Cost per image for agent completions (USD) |
 | `search_cost` | `number` | Cost per agent completion request that enables `auto_search`, however many searches run (USD) |
-| `night_time_discount` | `number` | Discount multiplier applied to swarm completion token costs, 8 PM - 6 AM PT (0.5 = 50% off) |
+| `night_time_discount` | `number` | Discount multiplier applied to swarm completion token costs, 8 PM - 6 AM PT, for paid plans only (0.5 = 50% off) |
+| `flash_sale_active` | `boolean` | Whether a flash sale is on. `false` by default |
+| `flash_sale_discount` | `number` | Share of the provider token price charged while `flash_sale_active` is `true`, with the 15% service fee added on top (0.5 = 50% off). The night-time discount applies instead when it is cheaper. No effect while `flash_sale_active` is `false` |
 
 <Note>
 MCP servers and the `web_scraper` tool have no fee of their own; only the tokens are billed. The old `swarm_completions_*_cost_per_1m`, `agent_completions_*_cost_per_1m`, `agent_completions_mcp_cost` and `scrape_cost` fields are no longer returned.
@@ -124,9 +126,11 @@ MCP servers and the `web_scraper` tool have no fee of their own; only the tokens
     "swarm_completions_agent_cost": 0.01,
     "agent_completions_img_cost": 0.25,
     "search_cost": 0.04,
-    "night_time_discount": 0.5
+    "night_time_discount": 0.5,
+    "flash_sale_active": false,
+    "flash_sale_discount": 0.5
   },
-  "timestamp": "2026-10-12T19:01:46.180153+00:00"
+  "timestamp": "2026-11-03T16:16:28.402797+00:00"
 }
 ```
 
@@ -137,14 +141,13 @@ MCP servers and the `web_scraper` tool have no fee of their own; only the tokens
 | HTTP Status | Cause |
 |---|---|
 | 401 | Missing or invalid API key |
-| 429 | Rate limit exceeded |
 | 500 | Internal error retrieving pricing information |
 
 ---
 
 ## Request Logs
 
-`GET /v1/account/logs` returns your account's full API request history — every logged request across all of your API keys (including revoked ones), excluding client IP information.
+`GET /v1/account/logs` returns the completions your account has run, newest first and at most the 1000 newest, across all of your API keys (including revoked ones). Only rows logged as `completion` are returned, and rows containing client IP information are left out. Each row holds the completion's response body, not the prompt you sent.
 
 <Note>
 `GET /v1/swarm/logs` is a **deprecated alias** for the same endpoint, kept only for backwards compatibility. Use `/v1/account/logs` in new integrations.
@@ -161,7 +164,7 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
 |---|---|---|
 | `status` | `string` | Status of the request |
 | `count` | `integer` | Exact total number of matching log entries across every API key on the account, including revoked ones. This is **not** `len(logs)` — `logs` is capped at the 1000 newest entries, so `count` exceeds it once your account passes 1000 requests |
-| `logs` | `array` | Log entries with timestamps, endpoints, and status (capped at the 1000 newest) |
+| `logs` | `array` | Completion rows, newest first (capped at the 1000 newest). Each has `id`, `created_at`, `api_key` (only its last 4 characters), `category` and `data`, the response body |
 | `timestamp` | `string` | ISO timestamp when the response was generated |
 
 ```json
@@ -170,9 +173,15 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
   "count": 1284,
   "logs": [
     {
-      "endpoint": "/v1/agent/completions",
-      "status": "success",
-      "timestamp": "2026-09-14T09:12:03+00:00"
+      "id": 912345,
+      "created_at": "2026-09-14T09:12:03+00:00",
+      "api_key": "...f578",
+      "category": "completion",
+      "data": {
+        "job_id": "...",
+        "status": "success",
+        "usage": { "...": "..." }
+      }
     }
   ],
   "timestamp": "2026-09-14T12:00:00+00:00"
@@ -230,7 +239,7 @@ For other account-level usage and spend tracking, use:
 | Current rate limit usage | `GET /v1/rate/limits` | Requests used/remaining per minute, hour, and day |
 
 <Note>
-Billable completion endpoints require your `total_credits` balance to be above \$1.00. This is checked before the request runs — if the balance is at or below the minimum, the API returns a **402 Payment Required** error without doing any work. Use `GET /v1/account/credits` to monitor your balance.
+Billable completion endpoints require your purchased credit balance (`credit`, which `total_credits` equals) to be above \$1.00. Free and referral credits don't count and are never spent. This is checked before the request runs — if the balance is at or below the minimum, the API returns a **402 Payment Required** error without doing any work. Use `GET /v1/account/credits` to monitor your balance, and top up at [cloud.swarms.world/settings](https://cloud.swarms.world/settings).
 </Note>
 
 ---

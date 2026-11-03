@@ -35,7 +35,7 @@ headers = {
 
 ### Step 3: Define the Review Board
 
-Create an odd number of reviewers — each with a distinct focus area — so votes always produce a clear majority:
+Create a panel of reviewers, each with a distinct focus area, so the consensus agent has clearly different verdicts to weigh:
 
 ```python
 def run_code_review(code: str, context: str = "") -> dict:
@@ -323,5 +323,5 @@ batch_code_review(snippets)
 ```
 
 <Note>
-MajorityVoting runs all agents independently in parallel, then a separate `Consensus-Agent` (always model `gpt-5.4` - not configurable through `SwarmSpec`) tallies the votes and synthesizes the reasoning into a final verdict. Use an odd number of agents (3, 5, 7) to guarantee a clear majority and avoid ties. Each agent should have a distinct evaluation focus and clear voting instructions in their system prompt.
+MajorityVoting runs all agents independently in parallel, then a separate `Consensus-Agent` (always model `gpt-5.4` - not configurable through `SwarmSpec`) reads every vote and writes the final verdict. It does not count votes, so an odd number of agents is not needed to break ties; the verdict follows its evaluation of each agent's reasoning. Each agent should have a distinct evaluation focus and clear voting instructions in their system prompt.
 </Note>

@@ -171,5 +171,5 @@ for output in deep_result.get("output", []):
 ```
 
 <Note>
-DebateWithJudge requires exactly 3 agents in order: Pro (argues in favor), Con (argues against), and Judge (evaluates and synthesizes). Increasing `max_loops` enables progressive refinement — each round produces stronger arguments as debaters respond to the judge's feedback from the previous round.
+DebateWithJudge requires exactly 3 agents in order: Pro (argues in favor), Con (argues against), and Judge (evaluates and synthesizes); any other count returns `400`. Increasing `max_loops` enables progressive refinement — each round produces stronger arguments as debaters respond to the judge's feedback from the previous round.
 </Note>

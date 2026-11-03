@@ -1,13 +1,13 @@
 ---
 title: "Real Estate Investment Memo Swarm"
-description: "A HierarchicalSwarm that turns a property address and ask price into a one-page institutional investment memo — comps, market context, and financing — directed by an Investment Director."
+description: "A HierarchicalSwarm that turns a property address and ask price into a one-page institutional investment memo — comps, market context, and financing — written up by an Investment Director agent."
 ---
 
 ## What This Example Shows
 
-- A `HierarchicalSwarm` with an Investment Director coordinating three worker analysts: Comps, Macro, and Financing
+- A `HierarchicalSwarm` whose built-in director hands orders to four workers: an Investment Director and Comps, Macro, and Financing analysts
 - How to feed a property address plus an ask price as the swarm task
-- How to extract the Director's final memo as the deliverable
+- How to extract the Investment Director's memo as the deliverable
 - A real cost comparison against a broker's analyst writing the same memo
 
 <Info>
@@ -42,7 +42,11 @@ headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
 
 ## Step 2: Define the Memo Team
 
-The Director writes the final one-pager. The three workers each produce one section the Director will weave together.
+The Investment Director writes the final one-pager. The three analysts each produce one section of supporting analysis.
+
+<Warning>
+`HierarchicalSwarm` creates its own director (model set by `director_model_name`, default `gpt-5.4`) that plans the work and hands out orders. Every agent in `agents`, the Investment Director included, is a worker: `role: "coordinator"` has no effect, and the workers run their orders in parallel without seeing each other's output. The Investment Director therefore writes its memo from the task and its own order; it does not read the Comps, Macro, and Financing briefs. If the memo must be built from the three briefs, use `AgentRearrange` with `"rearrange_flow": "Comps Analyst, Macro Analyst, Financing Analyst -> Investment Director"` instead.
+</Warning>
 
 ```python
 INVESTMENT_DIRECTOR_PROMPT = (
@@ -102,7 +106,7 @@ def build_memo_swarm(address: str, ask_price: int, property_type: str) -> dict:
         "agents": [
             {
                 "agent_name": "Investment Director",
-                "description": "Director — writes the final one-page memo.",
+                "description": "Writes the one-page investment memo.",
                 "system_prompt": INVESTMENT_DIRECTOR_PROMPT,
                 "model_name": "gpt-4.1",
                 "role": "coordinator",
@@ -182,13 +186,13 @@ print(f"Execution time: {result['execution_time']:.1f}s")
 
 ## Step 4: Extract Just the Final Memo
 
-For your acquisitions pipeline you only want the Director's one-pager — the analyst briefs are the audit trail.
+For your acquisitions pipeline you only want the Investment Director's one-pager — the analyst briefs are the supporting detail. Match the role exactly: `output` also contains a `Director` turn from the built-in director, holding its orders.
 
 ```python
 def extract_director_memo(result: dict) -> str:
     for output in result.get("output", []):
         role = output.get("role", "")
-        if "Investment Director" in role or "Director" in role:
+        if role == "Investment Director":
             content = output["content"]
             if isinstance(content, list):
                 content = " ".join(str(c) for c in content)

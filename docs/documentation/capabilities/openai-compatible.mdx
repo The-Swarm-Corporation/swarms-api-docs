@@ -8,6 +8,10 @@ The Swarms API exposes an OpenAI-compatible `POST /v1/chat/completions` endpoint
 
 Under the hood, every request is routed through the full Swarms agent infrastructure: model routing, token counting, billing, and logging all apply exactly as they do for the native `/v1/agent/completions` endpoint.
 
+<Info>
+Code written for OpenAI's Responses API (`client.responses.create`) can use [`POST /v1/responses`](/docs/documentation/capabilities/responses-api), and code written for the Anthropic SDK can use [`POST /v1/messages`](/docs/documentation/capabilities/anthropic-compatible).
+</Info>
+
 ## Endpoint Information
 
 - **URL**: `/v1/chat/completions`
@@ -49,8 +53,11 @@ Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platfo
 | `top_p` | `float` | No | — | Nucleus sampling parameter. An alternative to temperature sampling |
 | `presence_penalty` | `float` | No | — | Penalize tokens based on whether they have appeared in the text so far |
 | `frequency_penalty` | `float` | No | — | Penalize tokens based on how frequently they appear in the text so far |
+| `stop` | `string` or `List[string]` | No | — | Up to 4 sequences where the model stops generating. A list of 5 or more is rejected with 400. Passed to the model; if the model doesn't accept `stop`, the request fails with 400 and nothing is charged |
+| `tools` | `List[object]` | No | — | Function definitions in the OpenAI function-calling schema. See [Tool Calling](#tool-calling) |
+| `tool_choice` | `string` or `object` | No | — | `"auto"`, `"none"`, `"required"`, or `{"type": "function", "function": {"name": "..."}}`. Sending it without `tools` returns 400 |
 | `n` | `integer` | No | `1` | Number of completions to generate. Only `1` is supported — requests with `n > 1` are rejected |
-| `user` | `string` | No | — | A unique identifier for the end-user, used for tracking |
+| `user` | `string` | No | — | Accepted for compatibility and ignored |
 | `max_loops` | `integer` | No | `1` | *Swarms extension.* Maximum number of agent reasoning loops, 1 to 50. `1` = single pass (default). Higher values let the agent iterate on its own output. Pass via `extra_body` in the OpenAI SDK |
 
 ### ChatMessage Object
@@ -59,9 +66,11 @@ Each message in the `messages` array:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `role` | `string` | Yes | One of `system`, `user`, or `assistant` |
+| `role` | `string` | Yes | One of `system`, `developer`, `user`, `assistant`, or `tool`. Messages with any other role are dropped. All `system` and `developer` messages are joined, in order, into the system prompt |
 | `content` | `string` or `List[ContentPart]` | No | Text content, or an array of content parts for multimodal input. Defaults to `null` |
 | `name` | `string` | No | An optional name for the participant |
+| `tool_calls` | `List[object]` | No | On an `assistant` message, the tool calls the model asked for, sent back as they were returned |
+| `tool_call_id` | `string` | No | On a `tool` message, the `id` of the call this result answers |
 
 #### ContentPart (Multimodal)
 
@@ -79,11 +88,17 @@ When `content` is an array, each element is a content part:
 
 The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:image/png;base64,...`).
 
+Image parts from every message are attached to the run, including images in earlier turns, and each one is billed \$0.25 on every request. Resending a chat history that contains images bills those images again.
+
 ### Validation Rules
 
 - At least one message with `role: "user"` is required
 - `n` must be `1` — multiple completions per request are not supported (send separate requests instead)
 - Requests with zero messages or only system messages are rejected
+- `stop` takes at most 4 sequences
+- `tool_choice` requires `tools`
+
+A request that breaks one of these rules gets a 400 `invalid_request_error`.
 
 ### Example Request Body
 
@@ -121,15 +136,15 @@ The `url` field accepts both HTTPS URLs and base64-encoded data URIs (`data:imag
 | Field | Type | Description |
 |---|---|---|
 | `index` | `integer` | Always `0` (single-choice responses) |
-| `message` | `ChatMessage` | The assistant's response with `role: "assistant"` |
-| `finish_reason` | `string` | Why the model stopped generating — `"stop"` for normal completion |
+| `message` | `ChatMessage` | The assistant's response with `role: "assistant"`. When the model calls a tool, `content` is `null` and `tool_calls` holds the calls |
+| `finish_reason` | `string` | Why the model stopped generating: `"stop"` for a normal completion, `"tool_calls"` when the model called a tool, `"length"` when it reached `max_tokens` / `max_completion_tokens` |
 
 ### CompletionUsage Object
 
 | Field | Type | Description |
 |---|---|---|
-| `prompt_tokens` | `integer` | Number of tokens in the input (system prompt + history + task) |
-| `completion_tokens` | `integer` | Number of tokens in the generated response |
+| `prompt_tokens` | `integer` | Input tokens the model provider reported, summed over every model call the agent made |
+| `completion_tokens` | `integer` | Output tokens the model provider reported, summed the same way |
 | `total_tokens` | `integer` | Sum of `prompt_tokens` and `completion_tokens` |
 
 ### Example Response
@@ -180,7 +195,7 @@ When `stream: true` is set, the response is returned as Server-Sent Events (SSE)
 |---|---|---|
 | `index` | `integer` | Always `0` |
 | `delta` | `object` | Incremental content — see stream sequence below |
-| `finish_reason` | `string` or `null` | `null` during streaming, `"stop"` on the final chunk |
+| `finish_reason` | `string` or `null` | `null` during streaming. On the final chunk, `"stop"`, `"tool_calls"` or `"length"`, as in the non-streaming [Choice Object](#choice-object) |
 
 ### Stream Sequence
 
@@ -188,7 +203,8 @@ When `stream: true` is set, the response is returned as Server-Sent Events (SSE)
 |---|---|---|---|
 | First chunk | `{"role": "assistant"}` | `null` | Role declaration |
 | Content chunks | `{"content": "..."}` | `null` | Incremental text content |
-| Final chunk | `{}` | `"stop"` | Signals completion |
+| Tool call chunk | `{"tool_calls": [...]}` | `null` | Only when the model called a tool: every call in one delta, after the content chunks |
+| Final chunk | `{}` | `"stop"`, `"tool_calls"` or `"length"` | Signals completion |
 | Terminator | `data: [DONE]` | — | SSE stream end marker |
 
 ### Example Stream
@@ -205,6 +221,18 @@ data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1711300
 data: [DONE]
 ```
 
+### Errors During a Stream
+
+Only an unknown model is rejected before the stream opens, with a 404 (see [Error Types](#error-types)). Any error after that, including a premium-only model on a free-tier key or a provider failure, arrives on the open HTTP 200 stream as an `error` event, followed by `[DONE]`:
+
+```
+data: {"error": {"message": "...", "type": "server_error", "code": "internal_error"}}
+
+data: [DONE]
+```
+
+Check each parsed chunk for an `error` key before reading `choices`. Raw-HTTP clients see it directly; check what your SDK does with such an event before relying on it to raise.
+
 ---
 
 ## Error Response Schema
@@ -220,15 +248,22 @@ Errors are returned in the standard OpenAI error format so the OpenAI SDK's buil
 | `error.code` | `string` or `null` | Machine-readable error code |
 | `error.param` | `string` or `null` | The parameter that caused the error |
 
+Errors raised by the authentication layer, before the request reaches this endpoint (a missing or invalid key, or too little credit), use the Swarms shape instead: `error.type`, `error.message`, `error.detail` and `error.status_code`, with no `code` or `param`. A 402 also carries `current_balance`, `minimum_required` and `upgrade_url`.
+
 ### Error Types
 
 | HTTP Status | `type` | When |
 |---|---|---|
-| 400 | `invalid_request_error` | Malformed request, validation failure, missing required fields |
-| 401 | `authentication_error` | Missing or invalid API key |
-| 403 | `permission_error` | Insufficient permissions or subscription tier |
+| 400 | `invalid_request_error` | Malformed request, validation failure, missing required fields, a parameter the model rejects, or `"Model 'X' produced no output for this request. Nothing was charged."` |
+| 401 | `authentication_error` | Missing or invalid API key (Swarms shape, see above) |
+| 402 | `insufficient_credits` | Purchased credit balance at or below \$1.00 (Swarms shape, see above) |
+| 403 | `invalid_request_error` | A free-tier key asked for a premium-only model. `code` is `null` |
+| 404 | `invalid_request_error` | Unknown model. `code` is `"model_not_found"` |
 | 429 | `rate_limit_error` | Rate limit exceeded |
 | 500 | `server_error` | Internal error during agent execution |
+| 502 | `server_error` | The model provider failed. Nothing was charged |
+
+When the provider itself rejects the request, doesn't serve the model, or rate limits it, the response is a 400, 404 or 429 with `type: "invalid_request_error"` and a message that names the provider's reason and ends "Nothing was charged."
 
 All request-body validation failures on this endpoint — including out-of-range Swarms extension fields passed via `extra_body` (e.g. `max_loops: 0`, which violates `1 <= max_loops <= 50`) — are caught by a dedicated handler and returned as `400 invalid_request_error` in the OpenAI error shape above, not the raw FastAPI/Pydantic `{"detail": [...]}` shape used elsewhere in the Swarms API.
 
@@ -237,7 +272,7 @@ All request-body validation failures on this endpoint — including out-of-range
 ```json
 {
   "error": {
-    "message": "At least one message with role 'user' is required.",
+    "message": "body: Value error, At least one message with role 'user' is required.",
     "type": "invalid_request_error",
     "code": "invalid_request",
     "param": null
@@ -729,9 +764,9 @@ All request-body validation failures on this endpoint — including out-of-range
         )
         print(response.choices[0].message.content)
     except AuthenticationError:
-        print("Missing API key (401)")
+        print("Missing or invalid API key (401)")
     except PermissionDeniedError:
-        print("Invalid API key or insufficient permissions (403)")
+        print("Premium-only model on a free-tier key (403)")
     except BadRequestError as e:
         print(f"Validation error (400): {e.message}")
     except RateLimitError:
@@ -757,9 +792,9 @@ All request-body validation failures on this endpoint — including out-of-range
       console.log(response.choices[0].message.content);
     } catch (error) {
       if (error instanceof OpenAI.AuthenticationError) {
-        console.error("Missing API key (401)");
+        console.error("Missing or invalid API key (401)");
       } else if (error instanceof OpenAI.PermissionDeniedError) {
-        console.error("Invalid API key or insufficient permissions (403)");
+        console.error("Premium-only model on a free-tier key (403)");
       } else if (error instanceof OpenAI.BadRequestError) {
         console.error(`Validation error (400): ${error.message}`);
       } else if (error instanceof OpenAI.RateLimitError) {
@@ -804,9 +839,9 @@ All request-body validation failures on this endpoint — including out-of-range
             if errors.As(err, &apiErr) {
                 switch apiErr.StatusCode {
                 case http.StatusUnauthorized:
-                    log.Fatal("Missing API key (401)")
+                    log.Fatal("Missing or invalid API key (401)")
                 case http.StatusForbidden:
-                    log.Fatal("Invalid API key or insufficient permissions (403)")
+                    log.Fatal("Premium-only model on a free-tier key (403)")
                 case http.StatusBadRequest:
                     log.Fatalf("Validation error (400): %s", apiErr.Message)
                 case http.StatusTooManyRequests:
@@ -873,6 +908,84 @@ All request-body validation failures on this endpoint — including out-of-range
     ```
   </Tab>
 </Tabs>
+
+---
+
+## Tool Calling
+
+Pass function definitions in `tools`, in the OpenAI function-calling schema. When the model calls a function, the response has `finish_reason: "tool_calls"`, `message.content: null` and the calls in `message.tool_calls`. Run the function yourself, then send the conversation back with the assistant turn (including its `tool_calls`) and one `tool` message per result, and the model answers from them.
+
+```python
+import json
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="your-swarms-api-key",
+    base_url="https://api.swarms.world/v1",
+)
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get the weather for a city",
+            "parameters": {
+                "type": "object",
+                "properties": {"city": {"type": "string"}},
+                "required": ["city"],
+            },
+        },
+    }
+]
+
+messages = [{"role": "user", "content": "What is the weather in Paris?"}]
+response = client.chat.completions.create(
+    model="gpt-5.4-mini", messages=messages, tools=tools
+)
+message = response.choices[0].message
+print(response.choices[0].finish_reason)  # tool_calls
+
+messages.append(message.model_dump(exclude_none=True))
+for call in message.tool_calls:
+    args = json.loads(call.function.arguments)  # {"city": "Paris"}
+    result = {"temp_c": 18, "sky": "sunny"}  # your function's output
+    messages.append(
+        {"role": "tool", "tool_call_id": call.id, "content": json.dumps(result)}
+    )
+
+final = client.chat.completions.create(
+    model="gpt-5.4-mini", messages=messages, tools=tools
+)
+print(final.choices[0].message.content)
+# The weather in Paris is sunny with a temperature of 18°C.
+```
+
+A tool call in the response:
+
+```json
+{
+  "index": 0,
+  "message": {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+      {
+        "id": "call_lkmjfxCoQiKrzgYWeVtpOp0N",
+        "type": "function",
+        "index": 0,
+        "function": {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}
+      }
+    ]
+  },
+  "finish_reason": "tool_calls"
+}
+```
+
+- **`tool_choice`**: `"auto"`, `"none"`, `"required"`, or `{"type": "function", "function": {"name": "get_weather"}}` to force one function. It needs `tools`.
+- **Streaming**: with `stream: true`, the calls arrive in a single `delta.tool_calls` chunk after the content chunks, then the final chunk has `finish_reason: "tool_calls"`. The content chunks before it can carry a text rendering of the call (e.g. `[tool call] get_weather {"city":"Paris"}`), so read the call from `delta.tool_calls`, not from the streamed text.
+- **`parallel_tool_calls`** is not a recognized field and is ignored.
+- The functions run on your side. To have the agent run tools itself, use [`/v1/agent/completions`](/docs/documentation/capabilities/agent).
 
 ---
 
@@ -957,15 +1070,18 @@ For users already familiar with the native Swarms API, here is how the OpenAI re
 | OpenAI Field | Swarms Equivalent | Notes |
 |---|---|---|
 | `model` | `AgentSpec.model_name` | Passed through as-is |
-| `messages` (system) | `AgentSpec.system_prompt` | Defaults to "You are a helpful assistant." if absent |
+| `messages` (system, developer) | `AgentSpec.system_prompt` | All of them, joined in order. Defaults to "You are a helpful assistant." if absent |
 | `messages` (last user) | `AgentCompletion.task` | The actual prompt the agent runs on |
-| `messages` (prior turns) | `AgentCompletion.history` | User and assistant messages before the final user message |
-| `messages` (image_url parts) | `AgentCompletion.img` / `imgs` | Extracted from multimodal content parts |
+| `messages` (prior turns) | `AgentCompletion.history` | Every user, assistant and tool message except the final user message. An assistant turn's `tool_calls` and a tool result are rendered as text |
+| `messages` (image_url parts) | `AgentCompletion.img` / `imgs` | Extracted from the content parts of every message: `img` for one image, `imgs` for several |
 | `temperature` | `AgentSpec.temperature` | Defaults to 0.5 |
 | `max_tokens` / `max_completion_tokens` | `AgentSpec.max_tokens` | `max_completion_tokens` takes precedence; defaults to 8192 |
 | `top_p` | `AgentSpec.llm_args.top_p` | Passed through to the underlying LLM |
 | `presence_penalty` | `AgentSpec.llm_args.presence_penalty` | Passed through to the underlying LLM |
 | `frequency_penalty` | `AgentSpec.llm_args.frequency_penalty` | Passed through to the underlying LLM |
+| `stop` | `AgentSpec.llm_args.stop` | Passed through to the underlying LLM |
+| `tools` | `AgentSpec.tools_list_dictionary` | The model returns the calls instead of running them |
+| `tool_choice` | The agent's LLM `tool_choice` | Applied only when `tools` is set |
 | `max_loops` | `AgentSpec.max_loops` | Defaults to 1. Higher values enable multi-loop reasoning |
 | `stream` | Route dispatch | `true` returns `StreamingResponse` with SSE; `false` returns JSON |
 
@@ -981,7 +1097,9 @@ The `model` field accepts any model supported by the Swarms API. Common options:
 |---|---|
 | OpenAI | `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o3-mini` |
 | Anthropic | `claude-sonnet-4-20250514`, `claude-3-7-sonnet-20250219` |
-| Groq | `groq/llama-3.3-70b-versatile`, `groq/openai/gpt-oss-120b` |
+| Groq | `groq/llama-3.3-70b-versatile`, `groq/openai/gpt-oss-120b` (every `groq/*` model is premium-only) |
+
+A free-tier key gets 403 for a premium-only model; see [Premium-Only Models](/docs/documentation/resources/pricing#premium-only-models).
 
 For the full list, call `GET /v1/models` (standard OpenAI list format — works with `client.models.list()` in the OpenAI SDK) or `GET /v1/models/available` (Swarms format with a `count` field, one object per model with its `model_name` and price) with your API key. Both return the same catalog, filtered by your subscription tier:
 
@@ -1024,7 +1142,9 @@ To price a single model, call `GET /v1/models/pricing?model_name=<model>`. See [
 | Behavior | OpenAI API | Swarms API |
 |---|---|---|
 | `n > 1` | Returns multiple choices | Rejected with error — send separate requests |
-| Tool calling / function calling | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with `tools_list_dictionary` |
+| Tool calling / function calling | Supported | Supported with `tools` and `tool_choice`; see [Tool Calling](#tool-calling). Streamed calls arrive in one delta, not incrementally |
+| `parallel_tool_calls` | Supported | Ignored |
+| Deprecated `functions` / `function_call` | Supported | Ignored. Use `tools` / `tool_choice` |
 | `logprobs` | Supported | Not supported |
 | Response format (`json_object`) | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with structured output |
 | Streaming | True token-by-token streaming | True token-by-token streaming — tokens are forwarded live via a callback as the agent generates them, not chunked after the fact |
@@ -1038,8 +1158,9 @@ Usage is metered and billed identically to the native `/v1/agent/completions` en
 
 - **Tokens** are the input and output tokens the model provider reports, summed over every model call the agent makes (every loop, re-sent conversation history, and reasoning tokens)
 - **Price** is the requested model's own price per 1M input and output tokens plus a 15% service fee. Look it up with `GET /v1/models/pricing?model_name=<model>` or in the `pricing` object on `GET /v1/models`; see [Pricing](/docs/documentation/resources/pricing)
+- **Images** cost \$0.25 each, counted across every message in the request, earlier turns included, so resending a history with images bills them again
 - **Credits are deducted** automatically after each completion
-- The `usage` field in the response shows the exact token counts
-- `/v1/chat/completions` is billable: it requires a total credit balance greater than $1.00, or the request is rejected before the agent runs
+- The `usage` field in the response shows the provider-reported tokens that were billed. Image fees are not in `usage`
+- `/v1/chat/completions` is billable: it requires a purchased credit balance greater than \$1.00, or the request is rejected with 402 before the agent runs
 
 Check your balance anytime with `GET /v1/account/credits`.

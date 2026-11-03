@@ -27,7 +27,7 @@ headers = {
 Create multiple experts who will all analyze the same startup from different perspectives.
 
 <Warning>
-The API always reuses the **last** agent in `agents` as MixtureOfAgents' aggregator (in addition to running it as a normal worker on layer 1): it re-invokes that agent with every other agent's output appended to the task and records the synthesis under that same agent's name. `max_loops` sets the number of worker layers (`layers`), so with the default `max_loops: 1` each worker (including the last one) runs once, then the last agent runs a second time to aggregate. Put a dedicated synthesis agent last if you don't want a domain-specialist prompt reused for aggregation.
+The API always uses the **last** agent in `agents` as MixtureOfAgents' aggregator: it does not run as a worker, and runs once at the end with every other agent's output in context, recording the synthesis under its own name. `max_loops` sets the number of worker layers (`layers`), so with the default `max_loops: 1` each worker runs once, then the last agent aggregates. Put a dedicated synthesis agent last, since a domain-specialist prompt placed last would be used only for aggregation.
 </Warning>
 
 ```python
@@ -169,8 +169,7 @@ for output in result.get("output", []):
     content = output["content"]
 
     if role == CHAIR_NAME:
-        # Two entries can carry this name (an uninformed layer-1 pass, then
-        # the real aggregation) - the later one in the list is the synthesis.
+        # The aggregator runs once, after every worker layer.
         chair_synthesis = content
         continue
 
@@ -233,5 +232,5 @@ Total cost: $0.1523
 ```
 
 <Note>
-MixtureOfAgents gives you multiple expert perspectives on the same input, then synthesizes them via the last agent in `agents`. Each worker sees identical information on layer 1 and analyzes through their specialized lens; on later layers (`max_loops > 1`) each worker also sees the previous layer's combined output. `agents[-1]` runs both as a normal worker and, again, as the aggregator that reads every other agent's answer.
+MixtureOfAgents gives you multiple expert perspectives on the same input, then synthesizes them via the last agent in `agents`. Each worker sees identical information on layer 1 and analyzes through their specialized lens; on later layers (`max_loops > 1`) each worker also sees the previous layer's combined output. `agents[-1]` runs only as the aggregator that reads every other agent's answer.
 </Note>

@@ -5,10 +5,12 @@ description: 'Access and analyze your API request logs and swarm execution histo
 
 
 
-Access comprehensive logs of all your API requests and swarm executions. The `/v1/account/logs` endpoint provides detailed information about your API usage history, including request timestamps, status codes, and execution details. (The older `/v1/swarm/logs` path is a deprecated alias for the same endpoint.)
+Access comprehensive logs of all your API requests and swarm executions. The `/v1/account/logs` endpoint returns your completion history, newest first: each entry holds the stored response of one completion and when it was created. (The older `/v1/swarm/logs` path is a deprecated alias for the same endpoint.)
+
+To fetch one past result instead of the whole history, use [`GET /v1/job/{job_id}`](/docs/documentation/capabilities/job_lookup).
 
 <Info>
-Logs are filtered to exclude any entries containing client IP addresses for privacy protection. Access is limited to logs associated with your API key.
+Logs are filtered to exclude any entries containing client IP addresses for privacy protection. The endpoint returns the logs of every API key on your account, including revoked keys, and nothing from other accounts.
 </Info>
 
 ## Quick Start
@@ -162,7 +164,7 @@ The logs endpoint returns structured information about your API usage. Each log 
 ```
 
 <Note>
-The top-level `count` is the exact total number of matching log entries across every API key on the account, including revoked ones. It is not `len(logs)`: the `logs` array is capped at the 1000 newest entries, so `count` exceeds it once an account passes 1000 requests. Each entry's `api_key` is redacted to its last 4 characters. The shape of `data` depends on what was logged: agent completions carry `usage.total_cost`, while swarm completions carry `usage.billing_info.total_cost`, `swarm_name`, and `execution_time`. Entries containing client IP data, telemetry, and raw request inputs are excluded.
+The top-level `count` is the exact total number of matching log entries across every API key on the account, including revoked ones. It is not `len(logs)`: the `logs` array is capped at the 1000 newest entries, so `count` exceeds it once an account passes 1000 requests. Each entry's `api_key` is redacted to its last 4 characters. The shape of `data` depends on what was logged: agent completions carry `usage.total_cost`, while swarm completions carry `usage.total_cost` plus a `usage.billing_info` breakdown, `swarm_name`, and `execution_time`. Entries containing client IP data, telemetry, and raw request inputs are excluded.
 </Note>
 
 ## Log Analysis and Filtering
@@ -803,7 +805,7 @@ The top-level `count` is the exact total number of matching log entries across e
 - **IP Address Filtering**: All client IP addresses are automatically filtered from logs
 - **PII Protection**: Personal identifiable information is not logged
 - **Secure Storage**: Logs are stored securely with encryption at rest
-- **Access Control**: Only accessible via your API key
+- **Access Control**: Only accessible with an API key on your account
 
 ### Compliance
 - **GDPR Compliant**: Adheres to data protection regulations

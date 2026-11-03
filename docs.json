@@ -61,7 +61,15 @@
             "pages": [
               "docs/documentation/capabilities/agent",
               "docs/documentation/capabilities/openai-compatible",
-              "docs/documentation/capabilities/reasoning_agent",
+              "docs/documentation/capabilities/responses-api",
+              "docs/documentation/capabilities/anthropic-compatible",
+              "docs/documentation/capabilities/reasoning_agent"
+            ]
+          },
+          {
+            "group": "Decision Models",
+            "pages": [
+              "docs/documentation/capabilities/decision-models-quickstart",
               "docs/documentation/capabilities/decision-models"
             ]
           },
@@ -108,6 +116,7 @@
               "docs/documentation/capabilities/tools",
               "docs/documentation/capabilities/agents_list",
               "docs/documentation/capabilities/metrics_summary",
+              "docs/documentation/capabilities/job_lookup",
               "docs/documentation/capabilities/premium_endpoints_api"
             ]
           },
@@ -262,6 +271,7 @@
             "pages": [
               "docs/examples/examples/decision-model-completion",
               "docs/examples/examples/decision-model-list-models",
+              "docs/examples/examples/decision-model-systemone",
               "docs/examples/examples/decision-models-with-agents",
               "docs/examples/examples/decision-models-with-swarms"
             ]
@@ -365,8 +375,7 @@
               "docs/examples/api_examples/rate_limits",
               "docs/examples/examples/pricing-details-basic",
               "docs/examples/examples/pricing-cost-estimator",
-              "docs/examples/examples/account-credits",
-              "docs/examples/examples/usage-report"
+              "docs/examples/examples/account-credits"
             ]
           },
           {

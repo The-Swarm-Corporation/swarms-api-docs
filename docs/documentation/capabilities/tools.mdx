@@ -12,7 +12,7 @@ The Swarms API gives an agent access to tools through three independent mechanis
 | Mechanism | Field | Where | What it gives the agent |
 |-----------|-------|-------|--------------------------|
 | Built-in tools | `tools_enabled` | Top level of the `/v1/agent/completions` request body | Search the web (`auto_search`) and scrape a page (`web_scraper`) |
-| Autonomous looper tools | `selected_tools` | `agent_config` (only used when `agent_config.max_loops` is `"auto"`) | Planning, file, and sub-agent tools for the autonomous execution loop |
+| Autonomous looper tools | `selected_tools` | `agent_config` (only used when `agent_config.max_loops` is `"auto"`) | Planning and sub-agent tools for the autonomous execution loop |
 | Custom function tools | `tools_list_dictionary` | `agent_config` | Your own function-calling tools, defined with an OpenAI-style JSON schema |
 
 Custom function tools (`tools_list_dictionary`) and structured JSON output (`llm_args.response_format`) are documented in full, with worked examples and response parsing, on the [Structured Outputs & Function Calling](/docs/documentation/capabilities/swarms_api_tools) page. This page covers the other two mechanisms: built-in tools and the autonomous looper's tools.
@@ -148,14 +148,14 @@ curl -X POST "https://api.swarms.world/v1/agent/completions" \
 | `web_scraper` | Free (only tokens are billed) |
 
 <Warning>
-`auto_search` is charged **once per agent completion request** that lists it in `tools_enabled`, at the moment the request is set up — not per individual search the agent performs during its run, and regardless of whether the agent ends up searching at all while completing the task. Only enable it for requests that actually need it. `web_scraper` has no fee; the content it fetches is billed as ordinary tokens at the agent's model price.
+`auto_search` is charged **once per agent completion request** that lists it in `tools_enabled` — not per individual search the agent performs during its run, and regardless of whether the agent ends up searching at all while completing the task. The fee is charged together with the tokens after the run succeeds and is included in `usage.total_cost`; a run that fails is not charged it. Only enable it for requests that actually need it. `web_scraper` has no fee; the content it fetches is billed as ordinary tokens at the agent's model price.
 </Warning>
 
 The current search price is also available from [`GET /v1/usage/costs`](/docs/documentation/resources/pricing) (`usage_pricing.search_cost`) rather than hardcoding it, since it can change.
 
 ## Autonomous looper tools (`selected_tools`)
 
-When `agent_config.max_loops` is set to `"auto"`, the agent runs in an autonomous execution loop backed by its own internal tool set — separate from `tools_enabled` and `tools_list_dictionary`. Use `agent_config.selected_tools` to restrict which of these tools are available; omit it (or pass `"all"`) to allow every tool in the list below.
+When `agent_config.max_loops` is set to `"auto"`, the agent runs in an autonomous execution loop backed by its own internal tool set — separate from `tools_enabled` and `tools_list_dictionary`. Use `agent_config.selected_tools` to restrict which of these tools are available: pass one tool name or a list of names. Omit it (or pass `"all"`) to allow every tool in the list below.
 
 ```json
 {
@@ -169,7 +169,7 @@ When `agent_config.max_loops` is set to `"auto"`, the agent runs in an autonomou
 }
 ```
 
-The full set of 12 tools the autonomous loop can use:
+The full set of 7 tools the autonomous loop can use:
 
 | Tool | Description |
 |------|--------------|
@@ -178,16 +178,21 @@ The full set of 12 tools the autonomous loop can use:
 | `subtask_done` | Mark a subtask as completed and move to the next step in the plan. |
 | `complete_task` | Mark the main task as complete and provide a comprehensive summary. |
 | `respond_to_user` | Send a message or response to the user — for status updates, questions, or important information. |
-| `create_file` | Create a new file with specified content in the agent's workspace. |
-| `update_file` | Update an existing file, replacing its contents or appending to it. |
-| `read_file` | Read the contents of a file. |
-| `list_directory` | List files and directories at a given path. |
-| `delete_file` | Delete a file. Irreversible — use with caution. |
 | `create_sub_agent` | Create one or more specialized sub-agents, cached for reuse across task assignments. |
 | `assign_task` | Assign a task to one or more previously created sub-agents; they run asynchronously. |
 
 <Warning>
-`run_bash` is **not** permitted. There is no arbitrary shell-execution tool available through the autonomous loop, regardless of what `selected_tools` requests — the API filters the tool list down to the 12 above before the agent runs.
+The shell and file tools `run_bash`, `create_file`, `update_file`, `read_file`, `list_directory` and `delete_file` are **not** permitted. A request whose `selected_tools` includes any of them returns 422:
+
+```
+selected_tools cannot include read_file, run_bash: shell and file tools are not permitted on this API
+```
+
+Any other name outside the 7 tools above also returns 422, naming the unknown tools and listing the allowed ones:
+
+```
+selected_tools has unknown tools: create_plna. Use 'all' or any of: create_plan, think, subtask_done, complete_task, respond_to_user, create_sub_agent, assign_task
+```
 </Warning>
 
 `create_sub_agent` and `assign_task` power dynamic sub-agent delegation — see [Sub-Agent Delegation](/docs/documentation/capabilities/sub_agents) for a full walkthrough, including how sub-agents inherit the coordinator's model and tools.

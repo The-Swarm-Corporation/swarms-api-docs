@@ -37,7 +37,7 @@ The batch variant, [`/v1/swarm/batch/completions`](/docs/examples/examples/batch
 
 ## Request Body: SwarmSpec
 
-Every field is optional at the schema level, but a request with no `task` (or `tasks`/`messages`) and no `agents` has nothing to run. In practice you always send `agents`, `swarm_type`, and a task.
+Every field is optional at the schema level, but the server rejects a request without `swarm_type`, without `agents` (except for `HeavySwarm`), or without a `task`, `tasks` or `messages` with a `400`. In practice you always send `agents`, `swarm_type`, and a task.
 
 ### Core Parameters
 
@@ -45,16 +45,16 @@ Every field is optional at the schema level, but a request with no `task` (or `t
 |-----------|------|---------|-------------|-------------|
 | `name` | `string \| null` | — | max 100 chars | Identifier for the group of agents and their collective task |
 | `description` | `string \| null` | — | — | Description of the swarm's objectives, capabilities, and intended outcomes |
-| `agents` | `array[AgentSpec] \| null` | — | **max 2000 items** | The agents participating in the swarm. See [AgentSpec](#agentspec) |
-| `swarm_type` | `string \| null` | — | enum, see [Swarm Types](#swarm-types) | The architecture that coordinates the agents |
+| `agents` | `array[AgentSpec] \| null` | — | **max 2000 items** | The agents participating in the swarm. `GroupChat` needs at least 2, and `DebateWithJudge` exactly 3 in the order pro, con, judge. See [AgentSpec](#agentspec) |
+| `swarm_type` | `string \| null` | — | enum, see [Swarm Types](#swarm-types) | The architecture that coordinates the agents. **Required**: leaving it out returns a `400` |
 | `max_loops` | `integer \| null` | `1` | **max 50** | Maximum execution loops for the swarm |
 | `task` | `string \| null` | — | — | The specific task the swarm is designed to accomplish |
-| `tasks` | `array[string] \| null` | — | — | A list of tasks. Used by architectures that consume multiple tasks, such as `BatchedGridWorkflow` |
+| `tasks` | `array[string] \| null` | — | no blank entries | A list of tasks, run one after another, each through the whole swarm. Cannot be combined with `task` or `messages` (`400`) |
 | `messages` | `array[object] \| object \| null` | — | — | Message history for conversational workflows such as `GroupChat` |
-| `img` | `string \| null` | — | — | Optional image URL associated with the task, for vision-enabled agents |
+| `img` | `string \| null` | — | `https://` URL, `data:image` URI or base64 | Optional image for the task, for vision-enabled agents. `CouncilAsAJudge`, `MultiAgentRouter`, `LLMCouncil`, `DebateWithJudge` and `GroupChat` don't take an image and currently fail with a `500` when it is set |
 | `stream` | `boolean \| null` | `false` | — | Stream the swarm's output instead of buffering it |
-| `multi_agent_collab_prompt` | `boolean \| null` | `true` | — | Inject the multi-agent collaboration prompt so agents coordinate. Set `false` to disable |
-| `list_all_agents` | `boolean \| null` | `false` | — | Show every agent's name and description to the others, so each is aware of the roster |
+| `multi_agent_collab_prompt` | `boolean \| null` | `true` | — | Inject the multi-agent collaboration prompt so agents coordinate. Set `false` to disable. Only `SequentialWorkflow` and `AgentRearrange` use it |
+| `list_all_agents` | `boolean \| null` | `false` | — | Show every agent's name and description to the others, so each is aware of the roster. Only `SequentialWorkflow` and `AgentRearrange` use it |
 
 <Warning>
 `agents` accepts up to **2000** entries and `max_loops` is capped at **50**. Exceeding either returns a `422` validation error before any work is billed.
@@ -66,15 +66,15 @@ These only take effect for their corresponding `swarm_type`. Sending them with a
 
 | Parameter | Type | Default | Applies to | Description |
 |-----------|------|---------|-----------|-------------|
-| `rearrange_flow` | `string \| null` | — | `AgentRearrange` | How tasks flow between agents. `->` is a handoff, a comma runs agents in parallel within a step. **Required** for this type |
+| `rearrange_flow` | `string \| null` | — | `AgentRearrange` | How tasks flow between agents. `->` is a handoff, a comma runs agents in parallel within a step. **Required** for this type, and every name must be the `agent_name` of one of the agents; otherwise `400` |
 | `heavy_swarm_question_agent_model_name` | `string \| null` | `"gpt-5.4"` | `HeavySwarm` | Model backing the question-generation agent |
 | `heavy_swarm_worker_model_name` | `string \| null` | `"claude-sonnet-4-20250514"` | `HeavySwarm` | Model backing the four worker agents |
-| `heavy_swarm_max_loops` | `integer \| null` | `1` | `HeavySwarm` | Maximum loops each agent in the heavy swarm may run |
+| `heavy_swarm_max_loops` | `integer \| null` | `1` | `HeavySwarm` | How many times the whole HeavySwarm pipeline runs |
 | `heavy_swarm_variant` | `string \| null` | `"default"` | `HeavySwarm` | Agent variant to run. One of `"default"`, `"medium"`, `"heavy"` |
-| `council_judge_model_name` | `string \| null` | `"gpt-5.4"` | `CouncilAsAJudge` | Model used by the judge that delivers the final ruling |
+| `council_judge_model_name` | `string \| null` | `"gpt-5.4"` | `CouncilAsAJudge` | Model used by the dimension judges. The aggregator that writes the final ruling always runs on `gpt-5.4` |
 | `chairman_model` | `string \| null` | `"gpt-5.1"` | `LLMCouncil` | Model used by the chairman that synthesizes the council's responses |
 | `director_model_name` | `string \| null` | `"gpt-5.4"` | `HierarchicalSwarm` | Model used by the director/overseer that decomposes and delegates |
-| `director_settings` | `object \| null` | — | `HierarchicalSwarm` | Hyperparameters for the director agent — `temperature`, `top_p`, `max_tokens`, and similar |
+| `director_settings` | `object \| null` | `{}` | `HierarchicalSwarm` | Settings for the director agent. Accepts only `agent_name`, `system_prompt`, `planning_system_prompt`, `temperature` (0 to 2), `top_p` and `max_tokens` (1 to 128000). Any other key returns a `422` |
 
 ### Swarm Types
 
@@ -88,7 +88,7 @@ These only take effect for their corresponding `swarm_type`. Sending them with a
 | `ConcurrentWorkflow` | All agents run in parallel on independent work | [Docs](/docs/documentation/multi-agent/concurrent_workflow) |
 | `GroupChat` | Shared conversation between agents | [Docs](/docs/documentation/multi-agent/group_chat) |
 | `MultiAgentRouter` | Dispatcher routes the task to the best-suited agent | [Docs](/docs/documentation/multi-agent/multi_agent_router) |
-| `HierarchicalSwarm` | Director delegates to workers, then reviews | [Docs](/docs/documentation/multi-agent/hierarchical_swarm) |
+| `HierarchicalSwarm` | Director plans and hands out orders, workers run them in parallel | [Docs](/docs/documentation/multi-agent/hierarchical_swarm) |
 | `MajorityVoting` | Independent votes reconciled by majority | [Docs](/docs/documentation/multi-agent/majority_voting) |
 | `CouncilAsAJudge` | A council evaluates and a judge rules | [Docs](/docs/documentation/multi-agent/council_as_a_judge) |
 | `HeavySwarm` | Question decomposition, worker agents, synthesis | [Docs](/docs/documentation/multi-agent/heavy_swarm) |
@@ -98,7 +98,7 @@ These only take effect for their corresponding `swarm_type`. Sending them with a
 | `PlannerWorkerSwarm` | Planner decomposes, workers pull from a shared queue | [Docs](/docs/documentation/multi-agent/planner_worker_swarm) |
 
 <Note>
-`"auto"` and `"SpreadSheetSwarm"` are rejected with a `400` ("not supported currently") even though older documentation may reference them. `BatchedGridWorkflow` and `GraphWorkflow` are **not** `swarm_type` values at all — they are separate, premium-only endpoints: [`/v1/batched-grid-workflow/completions`](/docs/documentation/multi-agent/batched_grid_workflow) and [`/v1/graph-workflow/completions`](/docs/documentation/multi-agent/graph_workflow).
+`"auto"` and `"SpreadSheetSwarm"` are not in the enum and are rejected with a `422` (`literal_error`) even though older documentation may reference them. `BatchedGridWorkflow` and `GraphWorkflow` are **not** `swarm_type` values at all — they are separate, premium-only endpoints: [`/v1/batched-grid-workflow/completions`](/docs/documentation/multi-agent/batched_grid_workflow) and [`/v1/graph-workflow/completions`](/docs/documentation/multi-agent/graph_workflow).
 </Note>
 
 ---
@@ -115,7 +115,7 @@ Each entry in `agents` is an `AgentSpec`. Every field is optional.
 | `description` | `string \| null` | — | Explanation of the agent's purpose and capabilities |
 | `system_prompt` | `string \| null` | — | Initial instruction guiding the agent's behavior |
 | `marketplace_prompt_id` | `string \| null` | — | ID of a [marketplace prompt](/docs/marketplace/prompts-api) to use as the system prompt, retrieved automatically |
-| `model_name` | `string \| null` | `"claude-sonnet-5"` | The model the agent uses. For example `gpt-4o`, `gpt-4.1`, `openai/o3-mini` |
+| `model_name` | `string \| null` | `"claude-sonnet-5"` | The model the agent uses. For example `gpt-5.4`, `claude-sonnet-5`, `openrouter/moonshotai/kimi-k3`. An unknown model returns a `404` |
 | `fallback_models` | `array[string] \| null` | — | Ordered list of models to retry on failure. If set while `model_name` is omitted, the first entry becomes the primary model |
 | `fallback_model_name` | `string \| null` | — | A single fallback model, tried **after** any `fallback_models` |
 | `role` | `string \| null` | `"worker"` | The agent's designated role, which influences behavior and interaction |
@@ -127,7 +127,7 @@ Each entry in `agents` is an `AgentSpec`. Every field is optional.
 | `max_tokens` | `integer \| null` | `16000` | **min 1** | Maximum tokens the agent may generate |
 | `temperature` | `number \| null` | — | **0 to 2** | Randomness control. If omitted, no temperature is sent and the provider's default applies |
 | `top_p` | `number \| null` | — | — | The `top_p` value passed to the model |
-| `llm_args` | `object \| null` | — | — | Additional model arguments such as `frequency_penalty` and `presence_penalty` |
+| `llm_args` | `object \| null` | — | listed keys only | Sampling arguments: `top_p`, `top_k`, `frequency_penalty`, `presence_penalty`, `stop`, `seed`, `logit_bias`, `response_format`. Any other key returns a `422` |
 | `dynamic_temperature_enabled` | `boolean \| null` | `false` | — | Let the agent adjust its own temperature based on the task |
 | `auto_generate_prompt` | `boolean \| null` | `false` | — | Have the agent write its own prompt from the task requirements |
 | `streaming_on` | `boolean \| null` | `false` | — | Stream this agent's output |
@@ -140,14 +140,14 @@ Each entry in `agents` is an `AgentSpec`. Every field is optional.
 | `tools_list_dictionary` | `array[object] \| null` | — | Tool definitions the agent can call |
 | `selected_tools` | `string \| array[string] \| null` | all safe defaults | Restricts which tools the autonomous looper may use when `max_loops="auto"` |
 | `tool_call_summary` | `boolean \| null` | `true` | Have the agent summarize its tool calls |
-| `mcp_url` | `string \| MCPConnection \| null` | — | A single MCP server: a URL string for an unauthenticated server, or a connection object for auth/transport |
+| `mcp_url` | `string \| MCPConnection \| null` | — | A single MCP server: an `https://` URL string for an unauthenticated server, or a connection object for auth/transport |
 | `mcp_config` | `MCPConnection \| null` | — | A single MCP connection. See [MCPConnection](#mcpconnection) |
-| `mcp_configs` | `array[MCPConnection] \| null` | — | Several MCP connections at once |
-| `mcp_urls` | `array[string \| MCPConnection] \| null` | — | Several MCP servers. Each entry is a URL string or a connection object; tools from every server are combined |
-| `handoffs` | `array[AgentSpec] \| null` | — | Agents this agent can hand tasks to. These are created and attached as its handoff targets |
+| `mcp_configs` | `array[MCPConnection] \| null` | — | Several MCP connections at once, as a plain list. A `{"connections": [...]}` object returns a `422` |
+| `mcp_urls` | `array[string \| MCPConnection] \| null` | — | Several MCP servers. Each entry is an `https://` URL string or a connection object; tools from every server are combined |
+| `handoffs` | `array[AgentSpec] \| null` | — | Agents this agent can hand tasks to, at most 2000. These are created and attached as its handoff targets |
 
 <Note>
-`selected_tools` accepts: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. **`run_bash` is not permitted.**
+`selected_tools` accepts: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_sub_agent`, `assign_task`. An unknown name returns a `422`. **Shell and file tools (`run_bash`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`) are not permitted** and return a `422`.
 </Note>
 
 ### Reasoning
@@ -180,14 +180,14 @@ Set when you want the agent listed on the [Swarms Marketplace](/docs/marketplace
 
 ## MCPConnection
 
-Passed as `mcp_config` on an `AgentSpec`. Accepts additional properties beyond those listed.
+Passed as `mcp_config` on an `AgentSpec`, or as an entry of `mcp_configs` or `mcp_urls`. Accepts additional properties beyond those listed. The server `url` must start with `https://`; anything else returns a `422`.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `type` | `string \| null` | `"mcp"` | Connection type |
-| `url` | `string \| null` | `"http://localhost:8000/mcp"` | The MCP server endpoint |
+| `url` | `string` | None (required) | The MCP server endpoint. Must start with `https://`, otherwise `422`. Omitting it leaves the framework default `http://localhost:8000/mcp`, which is rejected |
 | `name` | `string \| null` | — | Human-readable server name, used in logs and tool routing |
-| `transport` | `string \| null` | `"streamable_http"` | One of `streamable_http`, `sse`, `stdio`, `auto` |
+| `transport` | `string \| null` | `"auto"` | One of `streamable_http`, `sse`, `auto`. `stdio` returns a `422` |
 | `tool_configurations` | `object \| null` | — | Configuration settings for MCP tools |
 | `headers` | `object \| null` | — | Headers sent to the MCP server |
 | `timeout` | `integer \| null` | `30` | Request timeout in seconds |
@@ -205,21 +205,9 @@ Passed as `mcp_config` on an `AgentSpec`. Accepts additional properties beyond t
 | `api_key_prefix` | `string \| null` | `"Bearer"` | Prefix prepended to the key. Set to `null` or `""` for raw keys |
 | `oauth` | `MCPOAuthConfig \| null` | — | OAuth 2.1 configuration. See [MCPOAuthConfig](#mcpoauthconfig) |
 
-### stdio Transport
-
-Only used when `transport` is `"stdio"`.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `command` | `string \| null` | Executable to launch |
-| `args` | `array[string] \| null` | Arguments passed to the command |
-| `env` | `object \| null` | Environment variables for the command |
-
-### MultipleMCPConnections
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `connections` | `array[MCPConnection]` | Yes | List of MCP connections |
+<Note>
+stdio servers are not accepted: a connection with `transport: "stdio"` or a `command` returns a `422`. Use an `https://` server.
+</Note>
 
 ### MCPOAuthConfig
 
@@ -243,15 +231,15 @@ Three flavors are supported: the interactive `authorization_code` browser flow (
 | `open_browser` | `boolean` | `true` | Open the system browser. When `false`, the URL is logged instead |
 | `callback_timeout` | `integer` | `300` | Seconds to wait for the user to complete the browser flow |
 
-<Tip>
-Any string field accepts `"env:MY_VAR"` or `"${MY_VAR}"` to read the value from the environment instead of hardcoding a secret.
-</Tip>
+<Warning>
+Send MCP credentials as values. A field set to an `"env:MY_VAR"` or `"${MY_VAR}"` reference returns a `422`, because the server's environment is not yours to read.
+</Warning>
 
 ---
 
 ## Response: SwarmCompletion
 
-The first nine fields below are always present in a successful response. `tasks` and `messages` are **conditionally present**: the server echoes each one back only if the request supplied it — `tasks` appears when the request's `tasks` array was not null, and `messages` appears when the request's `messages` field was not null. Neither key is present at all on a plain `task`-only request.
+Every field below is always present in a successful response. `tasks` and `messages` echo the request's own values back, and are `null` when the request did not supply them, as on a plain `task`-only request.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -263,9 +251,9 @@ The first nine fields below are always present in a successful response. `tasks`
 | `output` | `any` | The swarm's output. **Shape varies by `swarm_type`** — a string, array, or object |
 | `number_of_agents` | `integer \| null` | Number of agents in the swarm. Counted from the request's `agents` array (`0` for architectures such as `HeavySwarm` that can build their own team) |
 | `execution_time` | `number \| null` | Wall-clock execution time in seconds |
-| `usage` | `object \| null` | Token counts and cost breakdown |
-| `tasks` | `array[string] \| null` | Present only when the request set `tasks`. Echoes the batch of tasks the request carried, so a caller can match results to what it sent |
-| `messages` | `array[object] \| object \| null` | Present only when the request set `messages`. Echoes the message history the request carried |
+| `usage` | `object \| null` | Token counts, `total_cost`, and a `billing_info` cost breakdown |
+| `tasks` | `array[string] \| null` | Echoes the batch of tasks the request carried, so a caller can match results to what it sent. `null` when the request did not set `tasks` |
+| `messages` | `array[object] \| object \| null` | Echoes the message history the request carried. `null` when the request did not set `messages` |
 
 ```json
 {
@@ -290,20 +278,33 @@ The first nine fields below are always present in a successful response. `tasks`
     "input_tokens": 420,
     "output_tokens": 1850,
     "total_tokens": 2270,
+    "total_cost": 0.0385,
     "billing_info": {
       "cost_breakdown": {
         "agent_cost": 0.02,
         "input_token_cost": 0.00137,
         "output_token_cost": 0.01713,
-        "num_agents": 2
+        "token_counts": {
+          "total_input_tokens": 420,
+          "total_output_tokens": 1850,
+          "total_tokens": 2270
+        },
+        "num_agents": 2,
+        "night_time_discount_applied": false,
+        "flash_sale_applied": false
       },
-      "total_cost": 0.0385
+      "total_cost": 0.0385,
+      "discount_active": false,
+      "discount_type": "none",
+      "discount_percentage": 0
     }
-  }
+  },
+  "tasks": null,
+  "messages": null
 }
 ```
 
-`tasks` and `messages` appear only when the request supplied them, for example a batch-style run that sets `tasks` (an array of task strings, run via `SwarmRouter.batch_run`) instead of a single `task`:
+A run that sets `tasks` (an array of task strings, run one after another via `SwarmRouter.batch_run`) instead of a single `task` echoes them back:
 
 ```json
 {
@@ -315,8 +316,9 @@ The first nine fields below are always present in a successful response. `tasks`
   "output": ["...", "..."],
   "number_of_agents": 2,
   "execution_time": 12.1,
-  "usage": { "input_tokens": 210, "output_tokens": 900, "total_tokens": 1110 },
-  "tasks": ["Summarize Q1 earnings", "Summarize Q2 earnings"]
+  "usage": { "input_tokens": 210, "output_tokens": 900, "total_tokens": 1110, "total_cost": 0.0254, "billing_info": { "...": "..." } },
+  "tasks": ["Summarize Q1 earnings", "Summarize Q2 earnings"],
+  "messages": null
 }
 ```
 
@@ -331,12 +333,15 @@ The first nine fields below are always present in a successful response. `tasks`
 | Code | Meaning |
 |------|---------|
 | `200` | Completion returned successfully |
+| `400` | The request can't run: no `swarm_type`, no `agents`, no `task`/`tasks`/`messages`, `max_loops` below 1, `tasks` combined with `task` or `messages`, a blank `tasks` entry, `GroupChat` with fewer than 2 agents, `DebateWithJudge` without exactly 3 agents, or `AgentRearrange` without a valid `rearrange_flow` |
 | `401` | Missing or invalid `x-api-key` |
 | `402` | Credit balance too low to run the request |
 | `403` | Model or feature restricted to premium tiers |
+| `404` | An agent's `model_name` is not a model the API serves |
 | `422` | Validation error — see below |
 | `429` | Rate limit exceeded |
 | `500` | Internal server error |
+| `502` | `HierarchicalSwarm` only: the director returned no valid orders, so no agent ran. Nothing is charged |
 
 ### HTTPValidationError
 
@@ -347,8 +352,8 @@ A `422` returns a `detail` array with one `ValidationError` per offending field:
 | `loc` | `array[string \| integer]` | Path to the offending field |
 | `msg` | `string` | Human-readable message |
 | `type` | `string` | Error type identifier |
-| `input` | `any` | The value that failed validation |
-| `ctx` | `object` | Additional context, such as the violated constraint |
+
+The API strips Pydantic's `input`, `ctx` and `url` keys, so the submitted value is never echoed back.
 
 ```json
 {
@@ -356,15 +361,13 @@ A `422` returns a `detail` array with one `ValidationError` per offending field:
     {
       "loc": ["body", "max_loops"],
       "msg": "Input should be less than or equal to 50",
-      "type": "less_than_equal",
-      "input": 100,
-      "ctx": { "le": 50 }
+      "type": "less_than_equal"
     }
   ]
 }
 ```
 
-Common causes: `max_loops` above 50, `agents` longer than 2000, `max_tokens` below 1, `temperature` outside 0–2, a `swarm_type` outside the enum, or `AgentRearrange` without `rearrange_flow`.
+Common causes: `max_loops` above 50, `agents` longer than 2000, `max_tokens` below 1, `temperature` outside 0–2, a `swarm_type` outside the enum, or a `director_settings` key outside the allowed list. `AgentRearrange` without `rearrange_flow` returns a `400`, not a `422`.
 
 ---
 
@@ -535,7 +538,6 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
     "temperature": 0.2,
     "max_tokens": 8000
   },
-  "list_all_agents": true,
   "agents": [
     { "agent_name": "Market Researcher", "role": "worker", "model_name": "claude-sonnet-5" },
     { "agent_name": "Pricing Analyst",   "role": "worker", "model_name": "claude-sonnet-5" },
@@ -567,7 +569,7 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
   "heavy_swarm_variant": "heavy",
   "heavy_swarm_max_loops": 2,
   "heavy_swarm_question_agent_model_name": "gpt-5.4",
-  "heavy_swarm_worker_model_name": "claude-sonnet-4-20250514"
+  "heavy_swarm_worker_model_name": "gpt-5.4"
 }
 ```
 

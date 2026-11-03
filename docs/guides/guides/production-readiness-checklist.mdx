@@ -19,7 +19,7 @@ The first 80% of any API integration is happy-path code. The last 20% — the pa
 
 ### Rate Limits
 
-- [ ] Read the `X-RateLimit-Remaining-Minute` and `X-RateLimit-Remaining-Day` headers on **every** response and log them
+- [ ] Read the `X-RateLimit-Remaining-Minute` and `X-RateLimit-Remaining-Day` headers on every rate-limited response and log them. `GET /v1/usage/costs`, `/v1/models/pricing`, `/v1/swarms/available`, `/v1/reasoning-agent/types` and `/v1/tools/available` aren't rate limited and carry none
 - [ ] On `429`, honor the `Retry-After` header verbatim — don't substitute your own value
 - [ ] Throttle proactively when `Remaining-Minute / Limit-Minute < 0.1` rather than waiting for the 429
 - [ ] If you're hitting limits regularly, upgrade to premium (2,000/min, 100,000/day) before re-engineering
@@ -49,9 +49,9 @@ The first 80% of any API integration is happy-path code. The last 20% — the pa
 
 - [ ] Before any batch run, call `/v1/account/credits` and refuse to submit if `total_credits < estimated_cost * 1.5`
 - [ ] After every run, persist `result["usage"]["billing_info"]["total_cost"]` to your warehouse keyed by request ID
-- [ ] Run a daily cron against `/v1/usage/costs` and alert on day-over-day cost > 2x the trailing 7-day mean
+- [ ] Run a daily cron that sums the `usage` cost in `/v1/account/logs` (or your own persisted costs) and alert on day-over-day cost > 2x the trailing 7-day mean. `/v1/usage/costs` returns prices, not spend
 - [ ] Set hard budget caps in your wrapper — a runaway loop should fail fast, not bleed credits
-- [ ] Reference: [Production Observability](/docs/guides/guides/production-observability), [Usage Report](/docs/examples/examples/usage-report), [Get Credit Balance](/docs/examples/examples/account-credits)
+- [ ] Reference: [Production Observability](/docs/guides/guides/production-observability), [Usage Report](/docs/documentation/resources/usage-report), [Get Credit Balance](/docs/examples/examples/account-credits)
 
 ### Batch Endpoints for Offline Workloads
 
@@ -65,7 +65,7 @@ Upgrade to premium when **any** of these are true. The premium tier is \$100/mon
 
 - [ ] You hit a `429` more than once per day in production
 - [ ] You need to run more than 1,200 requests per day
-- [ ] Any single agent needs `max_tokens > 200,000`
+- [ ] Any single agent's prompt (system prompt, task and history) needs more than 200,000 input tokens. The tier limit caps input tokens, not `max_tokens`
 - [ ] Reference: [Premium Endpoints](/docs/documentation/resources/premium-endpoints)
 
 ### Audit and Compliance

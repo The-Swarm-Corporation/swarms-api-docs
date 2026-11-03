@@ -1,19 +1,19 @@
 ---
 title: "AgentRearrange"
-description: "Dynamic swarm architecture that can reorganize agent roles and responsibilities based on task requirements and performance"
+description: "Swarm architecture that runs agents in an order you define with rearrange_flow, mixing sequential handoffs and parallel steps"
 ---
 
 **Swarm Type**: `AgentRearrange`
 
 ## Overview
 
-The AgentRearrange swarm type implements a dynamic architecture where agents can be reassigned to different roles and responsibilities based on task requirements, performance metrics, or changing circumstances. This flexibility allows the swarm to adapt to different scenarios and optimize performance through intelligent role reallocation.
+The AgentRearrange swarm type runs your agents in the order you define with `rearrange_flow`. You can reorganize how agents pass work to one another, mixing sequential handoffs and parallel steps, without changing the agents themselves. The flow is fixed for the request: nothing reassigns roles or adapts the order while the swarm runs.
 
 Key features:
-- **Dynamic Role Assignment**: Agents can switch roles based on task needs
-- **Performance-Based Reorganization**: Roles adjusted based on agent performance
-- **Adaptive Architecture**: Swarm structure evolves with changing requirements
-- **Flexible Resource Allocation**: Optimal use of agent capabilities
+- **Explicit Flow Control**: `rearrange_flow` sets exactly which agents run, in which order
+- **Sequential and Parallel Steps**: `->` hands work to the next step, and a comma runs agents in parallel within a step
+- **Reorganize Without Rewriting**: Change the pipeline by editing the flow string, not the agents
+- **Real Synthesis Steps**: An agent at the end of the flow receives the earlier agents' outputs
 
 ## Architecture
 
@@ -39,7 +39,7 @@ handoff to the next step, and a comma runs agents in parallel within the same st
 ## API Usage
 
 <Note>
-The `AgentRearrange` swarm type **requires** the `rearrange_flow` parameter. It is a string that defines how tasks flow between agents by `agent_name`: use `->` for sequential handoffs and commas for agents that run in parallel within the same step (e.g. `"Researcher -> Writer, Editor"`). Requests without `rearrange_flow` are rejected with a `400` error.
+The `AgentRearrange` swarm type **requires** the `rearrange_flow` parameter. It is a string that defines how tasks flow between agents by `agent_name`: use `->` for sequential handoffs and commas for agents that run in parallel within the same step (e.g. `"Researcher -> Writer, Editor"`). Requests without `rearrange_flow` are rejected with a `400` error, and so is a flow that names an agent that isn't in `agents`: every name in the flow must be the exact `agent_name` of one of the agents (e.g. `400` "rearrange_flow names ['Reviewer'], which match no agent_name in 'agents'").
 </Note>
 
 ### Basic AgentRearrange Example
@@ -446,6 +446,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "input_tokens": 45,
         "output_tokens": 2800,
         "total_tokens": 2845,
+        "total_cost": 0.066046,
         "billing_info": {
             "cost_breakdown": {
                 "agent_cost": 0.04,
@@ -457,7 +458,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 2845
                 },
                 "num_agents": 4,
-                "night_time_discount_applied": true
+                "night_time_discount_applied": true,
+                "flash_sale_applied": false
             },
             "total_cost": 0.066046,
             "discount_active": true,
@@ -470,8 +472,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Best Practices
 
-- Design agents with flexible, transferable skills
-- Use for projects with evolving requirements
-- Ensure agents can adapt to different roles effectively
-- Ideal for dynamic workflows and adaptive systems
+- Spell every name in `rearrange_flow` exactly as the agent's `agent_name`
+- Put agents that can work independently in the same step, separated by commas
+- End the flow at a synthesizer agent when you want one combined answer
+- Ideal for custom pipelines mixing sequential and parallel stages
 

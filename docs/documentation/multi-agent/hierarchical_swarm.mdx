@@ -12,7 +12,7 @@ The HierarchicalSwarm implements a multi-level organizational structure where su
 Key features:
 - **Multi-Level Structure**: Supervisor and worker agent hierarchy
 - **Task Decomposition**: Complex tasks broken down into manageable subtasks
-- **Quality Control**: Supervisors oversee and validate worker outputs
+- **Parallel Execution**: Workers run their orders at the same time
 - **Resource Coordination**: Efficient allocation and management of agent resources
 
 ## Architecture
@@ -23,17 +23,19 @@ flowchart TD
     S --> W1["Worker 1"]
     S --> W2["Worker 2"]
     S --> W3["Worker 3"]
-    W1 --> V["Supervisor reviews and synthesizes"]
-    W2 --> V
-    W3 --> V
-    V --> O["Result"]
+    W1 --> O["Result: the workers' outputs"]
+    W2 --> O
+    W3 --> O
 ```
 
-The supervisor splits the task, hands pieces to workers, then validates and merges what
-comes back.
+The supervisor plans the task and hands an order to each worker it picks. The workers run
+their orders in parallel, and the swarm returns their outputs. There is no review or
+synthesis step: the API doesn't enable the director's feedback pass, so no agent reads the
+others' work within a loop. With `max_loops` above 1, each later loop gives the director the
+previous loop's results to plan from.
 
 <Note>
-The "Supervisor" in the diagram is a director agent that `HierarchicalSwarm` creates for you automatically — it is not one of the entries in `agents`. Every agent you list in `agents` runs as a worker the director can delegate to, even if you name one of them "coordinator." Tune the director itself with the top-level `director_model_name` and `director_settings` fields (see [Configuring the Director](#configuring-the-director) below).
+The "Supervisor" in the diagram is a director agent that `HierarchicalSwarm` creates for you automatically — it is not one of the entries in `agents`. Every agent you list in `agents` runs as a worker the director can delegate to, even if you name one of them "coordinator" or set its `role`. To have one agent merge the others' work, use `AgentRearrange` with a flow that ends at that agent (e.g. `"a, b, c -> synthesizer"`), `SequentialWorkflow`, or a [Graph Workflow](/docs/documentation/multi-agent/graph_workflow). Tune the director itself with the top-level `director_model_name` and `director_settings` fields (see [Configuring the Director](#configuring-the-director) below).
 </Note>
 
 ## Use Cases
@@ -61,8 +63,8 @@ curl -X POST "https://api.swarms.world/v1/swarm/completions" \
     "agents": [
       {
         "agent_name": "Research Coordinator",
-        "description": "Worker agent that synthesizes the team's findings into a final report",
-        "system_prompt": "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+        "description": "Worker agent that writes the report's overview section",
+        "system_prompt": "You are the lead researcher on the team. Write a concise overview of AI's impact on healthcare that frames the specialists' sections.",
         "model_name": "gpt-4.1",
         "max_loops": 1,
         "temperature": 0.3
@@ -126,8 +128,8 @@ swarm_config = {
     "agents": [
         {
             "agent_name": "Research Coordinator",
-            "description": "Worker agent that synthesizes the team's findings into a final report",
-            "system_prompt": "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+            "description": "Worker agent that writes the report's overview section",
+            "system_prompt": "You are the lead researcher on the team. Write a concise overview of AI's impact on healthcare that frames the specialists' sections.",
             "model_name": "gpt-4.1",
             "max_loops": 1,
             "temperature": 0.3
@@ -203,8 +205,8 @@ const swarmConfig = {
     agents: [
         {
             agent_name: "Research Coordinator",
-            description: "Worker agent that synthesizes the team's findings into a final report",
-            system_prompt: "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+            description: "Worker agent that writes the report's overview section",
+            system_prompt: "You are the lead researcher on the team. Write a concise overview of AI's impact on healthcare that frames the specialists' sections.",
             model_name: "gpt-4.1",
             max_loops: 1,
             temperature: 0.3
@@ -305,8 +307,8 @@ func main() {
         Agents: []Agent{
             {
                 AgentName:    "Research Coordinator",
-                Description:  "Worker agent that synthesizes the team's findings into a final report",
-                SystemPrompt: "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+                Description:  "Worker agent that writes the report's overview section",
+                SystemPrompt: "You are the lead researcher on the team. Write a concise overview of AI's impact on healthcare that frames the specialists' sections.",
                 ModelName:    "gpt-4.1",
                 MaxLoops:     1,
                 Temperature:  0.3,
@@ -386,8 +388,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "agents": [
             {
                 "agent_name": "Research Coordinator",
-                "description": "Worker agent that synthesizes the team's findings into a final report",
-                "system_prompt": "You are the lead researcher on the team. Once the other specialists have contributed their findings, synthesize them into a comprehensive, well-organized report.",
+                "description": "Worker agent that writes the report's overview section",
+                "system_prompt": "You are the lead researcher on the team. Write a concise overview of AI's impact on healthcare that frames the specialists' sections.",
                 "model_name": "gpt-4.1",
                 "max_loops": 1,
                 "temperature": 0.3
@@ -461,8 +463,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     "swarm_type": "HierarchicalSwarm",
     "output": [
         {
+            "role": "System",
+            "content": "These are the agents in your team. Each agent has a specific role and expertise to contribute to the team's objectives.\nTotal Agents: 5\n..."
+        },
+        {
+            "role": "Director",
+            "content": "[function: arguments: \"{\"orders\":[{\"agent_name\":\"Research Coordinator\",\"task\":\"...\"}, ...]}\"\nname: \"OrderBatch\" ...]"
+        },
+        {
             "role": "Research Coordinator",
-            "content": "As the lead researcher, I have synthesized the findings from our specialized research team into a comprehensive report on AI's impact on healthcare..."
+            "content": "Overview: AI is reshaping healthcare across diagnostics, operations, and patient care. The sections below cover technology, economics, ethics, and future trends..."
         },
         {
             "role": "Technology Researcher",
@@ -479,6 +489,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         {
             "role": "Future Trends Analyst",
             "content": "Future trends indicate rapid adoption of AI in preventive care, remote monitoring, and personalized treatment plans, with full integration expected within 5-10 years..."
+        },
+        {
+            "role": "System",
+            "content": "--- Loop 1/1 completed ---"
         }
     ],
     "number_of_agents": 5,
@@ -487,6 +501,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "input_tokens": 55,
         "output_tokens": 3200,
         "total_tokens": 3255,
+        "total_cost": 0.079779,
         "billing_info": {
             "cost_breakdown": {
                 "agent_cost": 0.05,
@@ -498,16 +513,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 3255
                 },
                 "num_agents": 5,
-                "night_time_discount_applied": true
+                "night_time_discount_applied": true,
+                "flash_sale_applied": false
             },
             "total_cost": 0.079779,
             "discount_active": true,
             "discount_type": "night_time",
             "discount_percentage": 50
         }
-    }
+    },
+    "tasks": null,
+    "messages": null
 }
 ```
+
+`output` always starts with a `System` turn listing the team and a `Director` turn holding the director's orders, and each loop ends with a `System` turn such as `--- Loop 1/1 completed ---`. The worker turns in between are the actual answers. The director's turn is named after `director_settings.agent_name` when you set it.
 
 ## Configuring the Director
 
@@ -516,7 +536,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `director_model_name` | `string` | `"gpt-5.4"` | The model the director uses to plan and delegate. |
-| `director_settings` | `object` | `{}` | Sampling and generation settings for the director, such as `temperature`, `top_p`, and `max_tokens`. |
+| `director_settings` | `object` | `{}` | Settings for the director. Accepts only the keys below; any other key returns a `422`. |
+
+`director_settings` keys:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `agent_name` | `string` | The director's name, used as the `role` of its turn in `output`. |
+| `system_prompt` | `string` | Replaces the director's system prompt for writing orders. |
+| `planning_system_prompt` | `string` | The system prompt for the director's planning pass. Accepted, but the API doesn't turn the planning pass on, so it currently has no effect. |
+| `temperature` | `number` | 0 to 2. |
+| `top_p` | `number` | The director's `top_p`. |
+| `max_tokens` | `integer` | 1 to 128000. |
+
+To pick the director's model, use `director_model_name`; `model_name` is not accepted inside `director_settings`:
+
+```json
+{
+  "detail": [
+    {
+      "type": "extra_forbidden",
+      "loc": ["body", "director_settings", "model_name"],
+      "msg": "Extra inputs are not permitted"
+    }
+  ]
+}
+```
 
 <Tabs>
 <Tab title="Shell (curl)">
@@ -579,10 +624,20 @@ print(response.json())
 A lower `temperature` on the director produces more consistent task decomposition and delegation, while worker agents can keep a higher temperature for creative output.
 </Tip>
 
+## Errors
+
+Besides the errors every swarm can return (see the [Swarm Completions Reference](/docs/documentation/multi-agent/swarm_completions#errors)), a `HierarchicalSwarm` returns **`502`** when the director doesn't produce valid orders, for example because its `max_tokens` is too small for the order list. No worker runs and nothing is charged:
+
+```json
+{
+  "detail": "The director of swarm 'Research Project Coordinator' did not return valid orders, so no agent ran. Nothing was charged. Check director_model_name and director_settings and try again."
+}
+```
+
 ## Best Practices
 
 - Design clear supervisor-worker relationships
-- Ensure supervisors can effectively coordinate and synthesize results
+- Give each worker a self-contained responsibility, since workers don't see each other's output
 - Use a capable `director_model_name` — the director's plan determines how well the workers perform
 - Lower the director's `temperature` for more deterministic task decomposition
 - Use for complex projects requiring oversight and coordination

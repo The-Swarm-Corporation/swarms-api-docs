@@ -6,9 +6,17 @@ description: 'Retrieve all agents you have created via the API'
 
 The List Agents endpoint (`/v1/agents/list`) allows you to retrieve all agent configurations you have previously created through the Swarms API. This endpoint provides a comprehensive view of your agent inventory, including their names, descriptions, system prompts, model configurations, and other settings.
 
-When you create agents using the Swarms API (via the `/v1/agent/completions` endpoint or other agent creation methods), each agent configuration is stored in your account. The List Agents endpoint enables you to:
+Every `agent_config` you send to `/v1/agent/completions` is logged to your account. The list is built from those logs:
 
-- **View all your agents**: Retrieve a complete list of all agent configurations associated with your API key
+- Only configs that have an `agent_name` are listed, one entry per name, holding the most recent config sent under that name.
+- Configs sent with any API key on your account are included.
+- Agents inside swarm, graph workflow and other multi-agent requests are not included, and neither are configs sent through `/v1/agent/batch/completions`.
+- `/v1/chat/completions` requests are logged the same way and appear under the name `openai-compat-agent`.
+- Each entry gets a `last_used` timestamp, and entries are sorted by `last_used`, most recent first.
+
+The List Agents endpoint enables you to:
+
+- **View all your agents**: Retrieve the agent configurations used across your account
 - **Manage your agent library**: Keep track of different agent configurations you've created for various use cases
 - **Reuse agent configurations**: Access previously created agent settings to reuse them in new tasks or workflows
 - **Audit and organize**: Review your agent inventory to understand what agents you have available and their configurations
@@ -33,6 +41,7 @@ The endpoint returns a JSON object containing:
   - Tool configurations
   - MCP integrations
   - Other agent-specific settings
+  - `last_used`: when a request last used that agent name
 - **`timestamp`**: An ISO 8601 UTC timestamp indicating when the list was generated
 
 ## Use Cases

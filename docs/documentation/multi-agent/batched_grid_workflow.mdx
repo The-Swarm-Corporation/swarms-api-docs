@@ -434,9 +434,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "output_tokens": 2100,
         "total_tokens": 2550,
         "total_cost": 0.06765,
-        "cost_per_agent": 0.03
+        "cost_per_agent": 0.03,
+        "flash_sale_applied": false
     },
-    "timestamp": "2026-09-14T10:30:45.123456Z"
+    "timestamp": "2026-09-14T10:30:45.123456+00:00"
 }
 ```
 
@@ -531,21 +532,21 @@ To refine several *different* topics in parallel, issue one request per topic (l
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | No | The name of the batched grid workflow |
-| `description` | string | No | A description of what the workflow does |
-| `agent_completions` | array | No | List of agent configurations (see AgentSpec below). Paired 1:1 by index with `tasks`. At most 50 entries |
-| `tasks` | array | No | List of task strings, one per agent, matched by index to `agent_completions`. At most 50 entries. Must be the same length as `agent_completions` — a mismatch returns a `400` before any agent runs |
+| `name` | string | No | The name of the batched grid workflow. Echoed in the response, as `null` when omitted |
+| `description` | string | No | A description of what the workflow does. Echoed in the response, as `null` when omitted |
+| `agent_completions` | array | Yes | List of agent configurations (see AgentSpec below). Paired 1:1 by index with `tasks`. At most 50 entries |
+| `tasks` | array | Yes | List of task strings, one per agent, matched by index to `agent_completions`. At most 50 entries. Must be the same length as `agent_completions` — a mismatch returns a `400` before any agent runs |
 | `max_loops` | integer | No | Number of times to rerun the same agent/task pairs, reusing the same agent instances (default: 1). Must be between 1 and 50 — values outside that range are rejected with a `422` validation error |
-| `imgs` | array | No | Accepted for forward compatibility, but not currently used in execution — passing images here has no effect on the run |
+| `imgs` | array | No | Not supported: the grid runs every agent without images. Omit it, or send `null` or `[]`; a non-empty list returns `422` before any agent runs |
 
 ### AgentSpec
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `agent_name` | string | No | Unique name for the agent |
+| `agent_name` | string | Yes | Unique name for the agent; keys this agent's entry in `outputs`. Omitting it (without a `marketplace_prompt_id`) returns `400` "Missing agent_name or marketplace_prompt_id" |
 | `description` | string | No | Description of the agent's role |
 | `system_prompt` | string | No | System prompt defining agent behavior |
-| `model_name` | string | No | Model to use (e.g., "gpt-4.1", "claude-sonnet-4-20250514"); defaults to `claude-sonnet-5` |
+| `model_name` | string | No | Model to use (e.g., "gpt-5.4", "gpt-5.4-mini"); defaults to `claude-sonnet-5` |
 | `max_loops` | integer or string | No | Max internal loops for this single agent's own run, or `"auto"` (default: 1). Independent of the workflow-level `max_loops` above |
 | `max_tokens` | integer | No | Maximum tokens the agent can generate (default: 16000); values below 1 are rejected with a 422 validation error |
 | `temperature` | float | No | Sampling temperature; if omitted, the provider's own default applies |
@@ -558,10 +559,10 @@ To refine several *different* topics in parallel, issue one request per topic (l
 | Field | Type | Description |
 |-------|------|-------------|
 | `job_id` | string | Unique identifier for the workflow execution |
-| `name` | string | Name of the workflow |
-| `description` | string | Description of the workflow |
-| `status` | string | Execution status ("success"; a failed run returns a `400` instead of a `status: "error"` body — see Error Handling) |
-| `outputs` | array | One entry per loop (length == `max_loops`); each entry maps every agent's name to its output for that loop |
+| `name` | string or null | Name of the workflow; `null` when the request omitted it |
+| `description` | string or null | Description of the workflow; `null` when the request omitted it |
+| `status` | string | `"success"` when every agent ran; `"partial"` when at least one agent failed and its slot in `outputs` holds an error object. A run where every agent fails returns `502` instead — see Partial Failures |
+| `outputs` | array | One entry per loop (length == `max_loops`); each entry maps every agent's name to its output for that loop, or to `{"error": "<ExceptionType>: <message>"}` if that agent failed |
 | `usage` | object | Token usage and cost information |
 | `timestamp` | string | ISO 8601 timestamp of completion |
 
@@ -573,7 +574,8 @@ To refine several *different* topics in parallel, issue one request per topic (l
 | `output_tokens` | integer | Total output tokens across all loops and agents |
 | `total_tokens` | integer | Sum of input and output tokens |
 | `total_cost` | float | Total credits charged for the run: token costs plus `cost_per_agent` |
-| `cost_per_agent` | float | `0.01` credits per agent in `agent_completions` (charged once per request, not per loop) |
+| `cost_per_agent` | float | `0.01` credits per agent in `agent_completions`, including any agent that failed (charged once per request, not per loop) |
+| `flash_sale_applied` | boolean | Whether the tokens were billed at the flash sale price |
 
 ## Pricing
 
@@ -581,13 +583,33 @@ BatchedGridWorkflow bills $0.01 per agent plus each agent's provider-reported to
 
 ## Partial Failures
 
-This endpoint does **not** report partial failures the way `/v1/agent/batch/completions` and `/v1/swarm/batch/completions` do. Those two return `200` with per-item `success`/`status` fields even when some items fail. BatchedGridWorkflow is all-or-nothing at the request level:
+A failed agent is reported in place. The other agents' outputs are still returned:
 
-- If `agent_completions` and `tasks` differ in length, or agent construction fails, the whole request fails with a single `400` and no `outputs` are returned.
-- If the workflow run itself raises, the whole request fails with a `400` whose `detail` starts with `"BatchedGridWorkflowCompletionError: "` followed by the underlying error.
-- Nothing is charged for a request that fails outright — billing only happens after a successful run.
+- If one or more agents fail (e.g. a provider error), the response is a `200` with `status: "partial"`, and each failed agent's slot in `outputs` is `{"error": "<ExceptionType>: <message>"}` instead of its output. The run is billed as usual: every agent's tokens plus `cost_per_agent` for every agent, including the failed ones.
+- If every agent fails, the request returns `502` and nothing is charged.
+- If `agent_completions` or `tasks` is missing, the two differ in length, or agent construction fails, the whole request fails with a single `400` before any agent runs, and nothing is charged. The `detail` of a run-time error starts with `"BatchedGridWorkflowCompletionError: "`.
 
-Because of this, don't rely on this endpoint for large fan-outs where you expect some items to fail independently — use `/v1/agent/batch/completions` for that instead, and reserve BatchedGridWorkflow for cases where you want index-paired agents/tasks with shared, memory-carrying refinement loops.
+One of two agents failed:
+```json
+{
+    "status": "partial",
+    "outputs": [
+        {
+            "Analyst": "...",
+            "Broken": {"error": "RateLimitError: litellm.RateLimitError: rate limited"}
+        }
+    ]
+}
+```
+
+Every agent failed (HTTP 502):
+```json
+{
+    "detail": "Every agent in the batched grid workflow failed, so nothing was charged. First error: RateLimitError: litellm.RateLimitError: rate limited"
+}
+```
+
+Check `status` (or each slot for an `error` key) before using `outputs`.
 
 ## Best Practices
 
@@ -596,11 +618,11 @@ Because of this, don't rely on this endpoint for large fan-outs where you expect
 - **Multi-perspective analysis**: several specialist agents reviewing the same input (repeat the task string per agent)
 - **Iterative refinement**: `max_loops > 1` when an agent should revise its own answer using memory of earlier loops
 - **A/B testing**: comparing different agent configurations against identical input
-- **Paired dispatch**: N independent agent/task jobs in one request, when you don't need per-item failure isolation
+- **Paired dispatch**: N independent agent/task jobs in one request
 
 ### When to Use Other Endpoints
 
-- **Independent jobs where some may fail**: use [Batch Agent Completions](/docs/examples/examples/batch-processing) — failures are reported per item instead of failing the whole request
+- **Independent jobs that each need their own configuration and billing record**: use [Batch Agent Completions](/docs/examples/examples/batch-processing)
 - **Sequential dependencies**: use [SequentialWorkflow](/docs/documentation/multi-agent/sequential_workflow)
 - **Independent parallel tasks within one swarm**: use [ConcurrentWorkflow](/docs/documentation/multi-agent/concurrent_workflow)
 - **Task routing**: use [MultiAgentRouter](/docs/documentation/multi-agent/multi_agent_router)
@@ -617,7 +639,7 @@ Because of this, don't rely on this endpoint for large fan-outs where you expect
 ### Cost Optimization
 
 - Start with a small agent/task pair count to test your workflow before scaling to 50
-- Use appropriate models (`claude-sonnet-4-20250514` or `gpt-4.1` for quality, a smaller model for cost-sensitive runs)
+- Use appropriate models (`claude-sonnet-5` or `gpt-5.4` for quality, a smaller model such as `gpt-5.4-mini` for cost-sensitive runs)
 - Monitor token usage and adjust prompt verbosity
 - Remember `max_loops` multiplies output tokens roughly linearly — a `max_loops=3` run costs about 3x the output tokens of `max_loops=1`
 
@@ -625,12 +647,13 @@ Because of this, don't rely on this endpoint for large fan-outs where you expect
 
 The API returns standard HTTP status codes:
 
-- **200**: Success
-- **400**: Bad request — `agent_completions`/`tasks` length mismatch, invalid agent configuration, or a failure during workflow execution
+- **200**: Success; `status` is `"partial"` if some agents failed
+- **400**: Bad request — `agent_completions` or `tasks` missing, a length mismatch, invalid agent configuration (e.g. a missing `agent_name`), or a failure during workflow execution
 - **401**: Unauthorized (invalid API key)
 - **402**: Payment required (insufficient credits)
 - **403**: Forbidden (account is not on a premium tier)
-- **422**: Validation error — `agent_completions` or `tasks` has more than 50 entries, or `max_loops` is outside 1-50
+- **422**: Validation error — `agent_completions` or `tasks` has more than 50 entries, `max_loops` is outside 1-50, or `imgs` is a non-empty list
+- **502**: Every agent failed; nothing was charged
 - **500**: Server error
 
 Example error response for a length mismatch:
@@ -642,7 +665,7 @@ Example error response for a length mismatch:
 
 ## Related Workflows
 
-- [Batch Agent Completions](/docs/examples/examples/batch-processing) - For independent jobs with per-item failure reporting
+- [Batch Agent Completions](/docs/examples/examples/batch-processing) - For independent jobs, each with its own configuration
 - [SequentialWorkflow](/docs/documentation/multi-agent/sequential_workflow) - For step-by-step processing
 - [ConcurrentWorkflow](/docs/documentation/multi-agent/concurrent_workflow) - For parallel independent tasks
 - [MixtureOfAgents](/docs/documentation/multi-agent/mixture_of_agents) - For combining diverse specialists

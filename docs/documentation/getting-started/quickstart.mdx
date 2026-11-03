@@ -48,7 +48,7 @@ npm install axios dotenv
 
 #### Authentication
 
-The API uses API key authentication through the `x-api-key` header. For OpenAI SDK compatibility, the `Authorization: Bearer <your-api-key>` header is also accepted. Store your API key securely as an environment variable.
+The API uses API key authentication through the `x-api-key` header. For OpenAI SDK compatibility, the `Authorization: Bearer <your-api-key>` header is also accepted. The OpenAI SDK works against [`/v1/chat/completions`](/docs/documentation/capabilities/openai-compatible) and [`/v1/responses`](/docs/documentation/capabilities/responses-api), and the Anthropic SDK against [`/v1/messages`](/docs/documentation/capabilities/anthropic-compatible). Store your API key securely as an environment variable.
 
 **Base URL:**
 
@@ -574,7 +574,7 @@ When creating tools for your agents:
 Choose the appropriate model based on your use case requirements:
 
 <Note>
-If `model_name` is omitted, the agent uses the default model, **claude-sonnet-5**. A specific set of frontier models are premium-only: `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6`, `claude-fable-5`, `claude-opus-5`, `claude-opus-4-8`, `gemini-3.1-pro`, `gemini-3.1-deep-think`, `xai/grok-4.5`, `xai/grok-4.5-latest`, and any model id beginning with `groq/`. Every other model id, including `gpt-4.1`, is available on the free tier. Free-tier requests for a premium-only model are rejected with a 403 and a suggested alternative such as `claude-sonnet-5`.
+If `model_name` is omitted, the agent uses the default model, **claude-sonnet-5**. A specific set of frontier models are premium-only: `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6`, `claude-fable-5`, `claude-fable-5-1`, `claude-opus-5`, `claude-opus-5-5`, `claude-opus-4-8`, `gemini-3.1-pro-preview`, `gemini-3.1-pro-preview-customtools`, `xai/grok-4.5`, `xai/grok-4.5-latest`, the same models on OpenRouter (e.g. `openrouter/openai/gpt-5.6-sol`; full list on the [Pricing](/docs/documentation/resources/pricing#premium-only-models) page), and any model id beginning with `groq/`. Every other model id, including `gpt-4.1`, is available on the free tier. Free-tier requests for a premium-only model are rejected with a 403 and a suggested alternative such as `claude-sonnet-5`.
 </Note>
 
 #### OpenAI Models
@@ -614,6 +614,8 @@ If `model_name` is omitted, the agent uses the default model, **claude-sonnet-5*
 | `POST` | `/v1/reasoning-agent/completions` | Reasoning agent completions (premium) |
 | `GET` | `/v1/reasoning-agent/types` | List available reasoning agent types |
 | `POST` | `/v1/chat/completions` | OpenAI-compatible chat completions |
+| `POST` | `/v1/responses` | OpenAI Responses API-compatible responses (non-streaming, text only) |
+| `POST` | `/v1/messages` | Anthropic Messages API-compatible messages (non-streaming, text only) |
 | `POST` | `/v1/batched-grid-workflow/completions` | Batched grid workflow (premium) |
 | `POST` | `/v1/graph-workflow/completions` | Graph workflow (premium) |
 | `POST` | `/v1/auto-agent-builder/completions` | Generate agent configurations from a task |
@@ -718,7 +720,7 @@ def validate_payload(payload):
 
 * Check if your requested model is currently available
 * Have fallback models configured
-* Monitor model status through the health endpoint
+* Check `GET /v1/models/available` for the models your key can use (`GET /health` only reports `{"status": "ok"}`)
 
 **Payload Validation:**
 

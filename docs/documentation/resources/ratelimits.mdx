@@ -14,7 +14,25 @@ description: 'The Swarms API implements a comprehensive rate limiting system tha
 | **Tokens per Agent** | 200,000 | 2,000,000 | Per request | Maximum tokens per agent |
 | **Prompt Length** | 200,000 | 2,000,000 | Per request | Maximum input tokens per request (same limit as tokens per agent) |
 | **Batch Size** | 50 | 50 | Per request | Maximum tasks per agent batch request (`/v1/agent/batch/completions`) |
-| **IP-based Fallback** | 100 | 100 | 60 seconds | For requests without API keys |
+
+Pro, Ultra, Premium and any active subscription all get the premium limits. There is no IP-based limit: a request without an API key gets **401**.
+
+### What counts toward the limits
+
+- Only completed runs count: each is logged as a `completion` row. GET requests and requests that fail don't count.
+- Every key on your account counts together, revoked keys included, so deleting a key doesn't reset your usage.
+- An agent batch of N tasks counts N+1: one row per task plus one for the batch.
+
+### Endpoints without rate limiting
+
+These endpoints never return 429. `/v1/rate/limits` still reports your usage in `X-RateLimit-*` headers; the others carry none:
+
+- `GET /`, `GET /health`
+- `GET /v1/rate/limits`
+- `GET /v1/usage/costs`, `GET /v1/models/pricing`
+- `GET /v1/swarms/available`, `GET /v1/reasoning-agent/types`, `GET /v1/tools/available`
+
+Every other `/v1` endpoint is rate limited.
 
 ## Detailed Rate Limit Explanations
 
@@ -26,15 +44,15 @@ These limits control how many API calls you can make within specific time window
 
 | Tier         | Requests per Minute | Reset Interval         | Enforced On        |
 |--------------|--------------------|------------------------|--------------------|
-| Free         | 100                | Every minute (sliding) | All API endpoints (only completed billable requests count) |
-| Premium      | 2,000              | Every minute (sliding) | All API endpoints (only completed billable requests count) |
+| Free         | 100                | Every minute (sliding) | Every rate-limited endpoint (only completed billable requests count) |
+| Premium      | 2,000              | Every minute (sliding) | Every rate-limited endpoint (only completed billable requests count) |
 
 #### **Per-Hour Limit**
 
 - **Free Tier**: 350 requests per hour
 - **Premium Tier**: 10,000 requests per hour
 - **Reset**: Every hour (sliding window)
-- **Enforced on**: All API endpoints (only completed billable requests count)
+- **Enforced on**: Every rate-limited endpoint (only completed billable requests count)
 
 #### **Per-Day Limit**
 
@@ -44,7 +62,7 @@ These limits control how many API calls you can make within specific time window
 
 - **Reset**: Every 24 hours (sliding window)
 
-- **Enforced on**: All API endpoints (only completed billable requests count)
+- **Enforced on**: Every rate-limited endpoint (only completed billable requests count)
 
 ### 2. **Token Limits**
 
@@ -59,6 +77,8 @@ These limits control the amount of text processing allowed per request.
 - **Applies to**: Individual agent configurations
 
 - **Includes**: System prompts, task descriptions, and agent names
+
+- **Input only**: this caps the prompt (input) tokens. `max_tokens`, the output length, has no tier cap
 
 #### **Prompt Length Limit**
 
@@ -95,7 +115,9 @@ The system uses a database-based approach for API key requests:
 1. **Request Logging**: Completed billable work is logged to the `swarms_api_logs` table with the `completion` category
 2. **Time Window Queries**: The system counts `completion` rows in the last minute, hour, and day. Telemetry and input rows are deliberately excluded, so GET endpoints and work that never completed do not increment your counters — each completed swarm, agent, or workflow run counts exactly once
 3. **Limit Comparison**: Current counts are compared against configured limits
-4. **Request Blocking**: Requests are blocked if any limit is exceeded — the limits are enforced on all endpoints, even though only completed billable requests count toward them
+4. **Request Blocking**: Requests are blocked if any limit is exceeded — the limits are enforced on every rate-limited endpoint (all but the ones listed in [Endpoints without rate limiting](#endpoints-without-rate-limiting)), even though only completed billable requests count toward them
+
+Your tier is cached for up to 30 seconds per server worker, so after an upgrade or a downgrade the new limits can take up to 30 seconds to apply.
 
 ### Sliding Windows
 

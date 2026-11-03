@@ -19,7 +19,7 @@ Flexible subscription plans that scale with your needs. Choose a plan for higher
 |-----------|---------------:|--------------------|-------------:|-------------------|-------------|----------------------|--------------------------|--------------|
 | Free      | \$0             | N/A                | \$0/year      | No                | 100/min, 350/hr, 1,200/day | Community           | Getting started          | Basic API, pay‑per‑use, community support, Marketplace access |
 | Pro       | \$19.99         | 15%                | \$203.90/year | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Professionals            | Premium models, Premium Endpoints access |
-| Ultra     | \$100           | 15%                | \$1,020/year  | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Teams & production       | Everything in Pro, higher token-per-agent limit, full Premium Endpoints |
+| Ultra     | \$100           | 15%                | \$1,020/year  | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Teams & production       | Everything in Pro, with the same rate and token-per-agent limits; full Premium Endpoints |
 
 Prices shown are subscription fees; API usage is billed per operation (see Usage-based pricing below). Rate limits shown are those returned by `GET /v1/rate/limits` for any account with an active premium subscription (`pro`, `ultra`, or `premium` tier) — see [Rate Limits](/docs/documentation/resources/ratelimits) for how free vs. premium tiers are resolved.
 
@@ -36,7 +36,7 @@ Some plan-comparison items you may see elsewhere (e.g. SOC 2 certification, dedi
 ### Free
 Get started with AI. No monthly fees — pay only for usage.
 
-- Sign-up bonus credits
+- Sign-up bonus credits (shown as `free_credit`; they don't pay for API usage, see [Checking Your Credit Balance](#checking-your-credit-balance))
 - Basic API access
 - Pay-per-use pricing
 - Community support
@@ -70,20 +70,15 @@ Best for growing teams and production workloads that need higher limits and secu
 
 Free tier accounts are blocked from requesting the following models on any endpoint (including `/v1/agent/completions` and `/v1/swarm/completions`), regardless of available credits. Any active Pro or Ultra subscription unlocks all of them — there is no separate model tier between Pro and Ultra:
 
-- `gpt-5.6-sol`
-- `gpt-5.6-terra`
-- `gpt-5.6-luna`
-- `gpt-5.6`
-- `claude-fable-5`
-- `claude-opus-5`
-- `claude-opus-4-8`
-- `gemini-3.1-pro`
-- `gemini-3.1-deep-think`
-- `xai/grok-4.5`
-- `xai/grok-4.5-latest`
+- `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6`
+- `claude-fable-5`, `claude-fable-5-1`
+- `claude-opus-5`, `claude-opus-5-5`, `claude-opus-4-8`
+- `gemini-3.1-pro-preview`, `gemini-3.1-pro-preview-customtools`
+- `xai/grok-4.5`, `xai/grok-4.5-latest`
+- The OpenRouter ids `openrouter/openai/gpt-5.6-sol`, `openrouter/openai/gpt-5.6-terra`, `openrouter/openai/gpt-5.6-luna`, `openrouter/anthropic/claude-fable-5`, `openrouter/anthropic/claude-fable-5.1`, `openrouter/anthropic/claude-opus-5`, `openrouter/anthropic/claude-opus-5.5`, `openrouter/anthropic/claude-opus-4.8`, `openrouter/google/gemini-3.1-pro-preview`, `openrouter/google/gemini-3.1-pro-preview-customtools` and `openrouter/x-ai/grok-4.5`
 - Any `groq/*` model
 
-Requesting one of these models on the free tier returns a 403 error with suggested free-tier alternatives.
+The check also matches a listed id behind another provider prefix or with a `:variant` suffix, e.g. `deepinfra/anthropic/claude-fable-5` or `openrouter/openai/gpt-5.6-sol:batch`. Requesting one of these models on the free tier returns a 403 error with suggested free-tier alternatives. `GET /v1/models/available` leaves them out of a free-tier key's list.
 
 ### Enterprise
 Critical support, compliance, and control for large-scale enterprises.
@@ -110,7 +105,8 @@ The model price comes from:
 
 | Model | Price source |
 |-------|--------------|
-| `openrouter/...` models, e.g. `openrouter/moonshotai/kimi-k3` | OpenRouter's published price, refreshed about hourly |
+| OpenRouter free models: `openrouter/...` ids ending in `:free`, and `openrouter/openrouter/free` | \$0, reported with `price_source` `openrouter` |
+| Other `openrouter/...` models, e.g. `openrouter/moonshotai/kimi-k3` | OpenRouter's published price, refreshed about hourly |
 | Every other model, e.g. `gpt-5.4` or `claude-sonnet-5` | LiteLLM's price data for that model |
 | A model with no price data | Fallback rates: \$6.50 per 1M input tokens and \$18.50 per 1M output tokens before the fee (\$7.475 / \$21.275 with it) |
 
@@ -137,21 +133,23 @@ How tokens are counted:
 
 | Fee | Price | Applies to |
 |-----|-------|------------|
-| **Agent cost** | \$0.01 per agent in the request | Swarm completions (including streaming and batch), graph workflow, batched grid workflow |
+| **Agent cost** | \$0.01 per agent in the request, except agents on an OpenRouter free model | Swarm completions (including streaming and batch), graph workflow, batched grid workflow |
 | **Auto Agent Builder** | \$0.01 per request, however many agents it generates | Auto Agent Builder |
 | **Image** | \$0.25 per image, counted across `img` and `imgs` | Agent completions |
 | **Exa Search tool** | \$0.04 per request that enables `auto_search`, however many searches the agent runs | Agent completions |
 
 MCP servers and the `web_scraper` tool have no fee: only the tokens the agent uses are billed.
 
+On OpenRouter free models the tokens and the agent cost are \$0, but the image and search fees still apply, and so does the Auto Agent Builder's \$0.01. A run that costs \$0 deducts nothing, but it still counts toward your rate limits, and the \$1.00 minimum balance is still checked.
+
 ### By endpoint
 
 | Endpoint | What is billed |
 |----------|----------------|
-| Swarm Completions | \$0.01 per agent plus each agent's tokens at its own model. Night-time discount applies to the token cost. |
+| Swarm Completions | \$0.01 per agent plus each agent's tokens at its own model. Night-time discount applies to the token cost for paid plans. |
 | Agent Completions, Chat Completions | Tokens at the agent's model, plus image and search fees. No per-agent fee. |
-| Graph Workflow | \$0.01 per agent plus each agent's tokens at its own model. No night-time discount. |
-| Batched Grid Workflow | \$0.01 per agent plus each agent's tokens at its own model. No night-time discount. |
+| Graph Workflow | \$0.01 per agent (agents on free models excepted) plus each agent's tokens at its own model. No night-time discount. |
+| Batched Grid Workflow | \$0.01 per agent (agents on free models excepted) plus each agent's tokens at its own model. No night-time discount. |
 | Reasoning Agents | Tokens at the request's `model_name`. No per-agent fee. |
 | Auto Agent Builder | \$0.01 per request plus tokens at the builder's model. |
 | Decision Models | Tokens at each decision model's own price, listed by `GET /v1/decision/models`. See [Decision Models](/docs/documentation/capabilities/decision-models). |
@@ -160,7 +158,7 @@ Some swarm types build agents of their own: the HierarchicalSwarm director, the 
 
 ### Discounts
 
-**Night-time discount**: swarm completions get 50% off the token cost from 8 PM to 6 AM Pacific Time, judged when the run is billed, after it finishes. The \$0.01 agent cost is not discounted, and no other endpoint gets the discount.
+**Night-time discount**: for paid members (tier `pro`, `premium` or `ultra`, or an active subscription), swarm completions get 50% off the token cost from 8 PM to 6 AM Pacific Time, judged when the run is billed, after it finishes. Free accounts pay the full token price at any hour. The \$0.01 agent cost is not discounted, and no other endpoint gets the discount.
 
 ### Worked examples
 
@@ -175,7 +173,7 @@ claude-sonnet-5   = (0.2 × $2.00 + 0.3 × $10.00) × 1.15       = $3.91
 Total                                                         = $7.0925
 ```
 
-At night the two token costs are halved: \$0.02 + \$1.58125 + \$1.955 = \$3.55625.
+At night on a paid plan the two token costs are halved: \$0.02 + \$1.58125 + \$1.955 = \$3.55625.
 
 **Agent completion with an image.** A `claude-sonnet-5` agent with 250,000 input and 100,000 output tokens and one image:
 
@@ -215,7 +213,7 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
 }
 ```
 
-`GET /v1/models/pricing` prices one model. Any model name gets a price; a name with no price data comes back with `"price_source": "fallback"` and the fallback rates, which is what a run on it is billed at.
+`GET /v1/models/pricing` prices one model. Any model name gets a price; a name with no price data comes back with `"price_source": "fallback"` and the fallback rates, which is what a run on it is billed at. An OpenRouter free model comes back at \$0 with `"price_source": "openrouter"`.
 
 ```bash
 curl -G https://api.swarms.world/v1/models/pricing \
@@ -238,7 +236,7 @@ These prices already include the service fee, so a run's token cost is `tokens /
 
 ### Retrieving the pricing configuration
 
-`GET /v1/usage/costs` returns the flat fees, the night-time discount and the fallback rates:
+`GET /v1/usage/costs` returns the flat fees, the night-time discount, the flash sale settings and the fallback rates:
 
 ```bash
 curl -H "x-api-key: $SWARMS_API_KEY" \
@@ -254,13 +252,17 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
     "swarm_completions_agent_cost": 0.01,
     "agent_completions_img_cost": 0.25,
     "search_cost": 0.04,
-    "night_time_discount": 0.5
+    "night_time_discount": 0.5,
+    "flash_sale_active": false,
+    "flash_sale_discount": 0.5
   },
-  "timestamp": "2026-10-12T19:01:46.180153+00:00"
+  "timestamp": "2026-11-03T16:16:28.402797+00:00"
 }
 ```
 
 The fallback rates apply only to models with no price data, and are before the service fee. For a specific model's price, use `GET /v1/models/pricing`.
+
+`flash_sale_active` says whether a flash sale is on. While it is `true`, tokens cost `flash_sale_discount` of the provider price plus the 15% service fee (0.5 + 0.15 = 0.65 of the provider price), unless the night-time discount is cheaper; the two never stack. While it is `false`, `flash_sale_discount` has no effect.
 
 ### What the response reports
 
@@ -273,11 +275,12 @@ Every billed response reports the tokens and the amount charged in its `usage` b
   "total_tokens": 16000,
   "image_count": 0,
   "img_cost": 0.0,
+  "flash_sale_applied": false,
   "total_cost": 0.1035
 }
 ```
 
-The \$0.04 `auto_search` fee is deducted as a separate charge and is not included in `total_cost`.
+`total_cost` includes the image fee and the \$0.04 `auto_search` fee when they apply. `flash_sale_applied` is `true` only when the run was billed at the flash sale price.
 
 ### Checking Your Credit Balance
 
@@ -291,20 +294,20 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
 ```json
 {
   "credit": 12.50,
-  "free_credit": 3.00,
+  "free_credit": 5.00,
   "referral_credits": 20.00,
-  "total_credits": 35.50
+  "total_credits": 12.50
 }
 ```
 
-`total_credits` is the sum of `credit`, `free_credit`, and `referral_credits` — this is the number checked against the \$1.00 minimum for billable routes.
+Only purchased credit (`credit`) pays for API usage. `free_credit` and `referral_credits` are still returned, but they are never spent and don't count toward the \$1.00 minimum. `total_credits` equals `credit`, and it is the number checked against the \$1.00 minimum for billable routes. Top up at [cloud.swarms.world/settings](https://cloud.swarms.world/settings).
 
 ### Important Notes
 
 | Important Note                                                      | Description                                                                                  |
 |---------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
-| Minimum Balance                                                     | Billable completion endpoints require a total credit balance above \$1.00, checked before the request runs. Requests below this are rejected with a **402 Payment Required** error before any work is done. |
+| Minimum Balance                                                     | Billable completion endpoints require a purchased credit balance above \$1.00, checked before the request runs. Requests at or below this are rejected with a **402 Payment Required** error (`insufficient_credits`) before any work is done, even if the account holds free or referral credits. |
 | Credits Deduction                                                   | Credits are deducted automatically after each request completes.                              |
-| Credits Usage Order                                                 | Deducted in this order: `free_credit` first, then `referral_credits`, then regular `credit`. |
-| Token Counting                                                      | Most endpoints bill the tokens the model provider reports. Reasoning agents and the Auto Agent Builder bill the tokens the API counts on the request and the output. |
+| Credits Usage Order                                                 | Only purchased `credit` is deducted. A charge larger than the purchased balance returns **402**. |
+| Token Counting                                                      | Most endpoints bill the tokens the model provider reports. Reasoning agents bill their agents' provider-reported tokens and fall back to the API's own count when no usage is reported. The Auto Agent Builder bills the tokens the API counts on the request and the output. |
 | Pricing Updates                                                     | Provider prices change. Check `/v1/models/available` or `/v1/models/pricing` for current model prices, and `/v1/usage/costs` for the flat fees. |

@@ -1,0 +1,145 @@
+---
+title: "Decision Models Quickstart"
+sidebarTitle: "Quickstart"
+description: "Send your first decision model request, read a yes/no probability, a pick and a score, and check what it cost, in five minutes."
+---
+
+This quickstart sends one request to `POST /v1/decision/completions` that asks three questions about a support ticket, then reads the answers and the cost. Every request and response on this page was run against production.
+
+## 1. Get an API Key
+
+Create a key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys) and export it. Your account needs more than \$1.00 of purchased credit.
+
+```bash
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## 2. Ask One Question
+
+A `noul` question returns the probability that a statement is true. `model_name` defaults to `jev-latest`, so it can be left out.
+
+<Tabs>
+  <Tab title="cURL">
+    ```bash
+    curl -X POST "https://api.swarms.world/v1/decision/completions" \
+      -H "x-api-key: $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "state": "I was charged twice for my order. Please refund one.",
+        "questions": {
+          "billing": {"type": "noul", "instructions": "Is this about billing?"}
+        }
+      }'
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+
+    import requests
+
+    response = requests.post(
+        "https://api.swarms.world/v1/decision/completions",
+        headers={"x-api-key": os.environ["SWARMS_API_KEY"]},
+        json={
+            "state": "I was charged twice for my order. Please refund one.",
+            "questions": {
+                "billing": {"type": "noul", "instructions": "Is this about billing?"},
+            },
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+    print(response.json()["answers"]["billing"]["noul"])
+    ```
+  </Tab>
+</Tabs>
+
+```json
+{"billing": {"type": "noul", "noul": 0.98}}
+```
+
+`noul` is 0.98: almost certainly a billing ticket. Branch on it with a threshold, such as `> 0.5`.
+
+## 3. Ask Three Kinds of Question at Once
+
+Add a `choice` question to pick a team and a `score` question to rate severity. All three are answered in one request, and the ticket's tokens are billed once.
+
+```python
+import os
+
+import requests
+
+response = requests.post(
+    "https://api.swarms.world/v1/decision/completions",
+    headers={"x-api-key": os.environ["SWARMS_API_KEY"]},
+    json={
+        "model_name": "jev-latest",
+        "state": "Checkout has been failing for every customer since 9am. We are losing orders.",
+        "questions": {
+            "is_urgent": {"type": "noul", "instructions": "Is this urgent?"},
+            "team": {
+                "type": "choice",
+                "instructions": "Which team should handle this?",
+                "criteria": {
+                    "payments": "Checkout, billing, refunds",
+                    "infra": "Outages, latency, servers",
+                    "support": None,
+                },
+            },
+            "severity": {
+                "type": "score",
+                "instructions": "How severe is the impact?",
+                "criteria": ["No impact", "Minor", "Major", "Critical"],
+            },
+        },
+    },
+    timeout=60,
+)
+response.raise_for_status()
+result = response.json()
+answers = result["answers"]
+
+print("Urgent:", answers["is_urgent"]["noul"])
+print("Team:", answers["team"]["choice"], "confidence", answers["team"]["confidence"])
+print("Severity:", answers["severity"]["legend"][str(round(answers["severity"]["score"]))])
+print("Answered by:", result["model"])
+print("Cost:", result["usage"]["total_cost"])
+```
+
+```text
+Urgent: 0.97
+Team: payments confidence 0.88
+Severity: Critical
+Answered by: jev-1.14.0
+Cost: 1.89819e-05
+```
+
+- **`choice`** is the most likely option, and `probabilities` holds all of them: `payments` 0.92, `infra` 0.07, `support` 0.01.
+- **`score`** is 2.99 on levels numbered from 0, so `legend["3"]` names it: Critical.
+- **`model`** is the version that answered the `jev-latest` alias.
+
+## 4. Check the Cost
+
+The request used 393 input tokens at \$0.0483 per 1M, and output tokens are free:
+
+393 × \$0.0483 / 1,000,000 = \$0.0000190, the `usage.total_cost` above. The same charge is in the `x-swarms-total-cost` response header. At that rate 10,000 tickets cost about \$0.19. Prices come from `GET /v1/decision/models`.
+
+## 5. Already Using TypeSafe?
+
+`POST /v1/systemone` takes and returns the TypeSafe API's exact format, so point TypeSafe code at `https://api.swarms.world` with your Swarms key:
+
+```bash
+curl -X POST "https://api.swarms.world/v1/systemone" \
+  -H "Authorization: Bearer $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "jev-latest", "state": "I was charged twice.", "questions": {"billing": {"type": "noul", "instructions": "Is this about billing?"}}}'
+```
+
+## Next Steps
+
+- [Decision Models and SystemOne Reference](/docs/documentation/capabilities/decision-models): every field, answer type, header, price and error
+- [Decision Model Completion](/docs/examples/examples/decision-model-completion): the three-question request in cURL and Python, answer by answer
+- [Gate and Judge an Agent](/docs/examples/examples/decision-models-with-agents): skip agent calls you don't need, and grade the ones you run
+- [Pick a Swarm and the Best Draft](/docs/examples/examples/decision-models-with-swarms): choose a `swarm_type` and the winning output
+- [SystemOne: Use the TypeSafe Format](/docs/examples/examples/decision-model-systemone): Bearer auth, headers and the TypeSafe model list

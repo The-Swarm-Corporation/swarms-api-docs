@@ -159,7 +159,7 @@ The models endpoint returns every model available to your subscription tier, eac
 |-------|------|--------------|
 | `success` | boolean | Whether the request succeeded |
 | `count` | integer | Number of models in the `models` list |
-| `models` | array of objects | Every available model with its price, filtered by your subscription tier (free tier accounts won't see premium or Groq models) |
+| `models` | array of objects | Every available model with its price, filtered by your subscription tier (free tier accounts won't see [premium-only](/docs/documentation/resources/pricing#premium-only-models) or Groq models) |
 
 Each entry in `models` has these fields:
 
@@ -168,7 +168,7 @@ Each entry in `models` has these fields:
 | `model_name` | string | The model identifier to pass as `model_name` |
 | `input_cost_per_1m` | number | Price per 1M input tokens (USD), including the 15% service fee |
 | `output_cost_per_1m` | number | Price per 1M output tokens (USD), including the 15% service fee |
-| `price_source` | string | Where the price came from: `openrouter` for `openrouter/...` models, `litellm` for the rest, or `fallback` when there is no price data for the model |
+| `price_source` | string | Where the price came from: `openrouter` for `openrouter/...` models, `litellm` for the rest, or `fallback` when there is no price data for the model. OpenRouter free models (ids ending in `:free`, and `openrouter/openrouter/free`) are \$0 with `price_source` `openrouter` |
 
 <Warning>
 `models` used to be a list of strings. It is now a list of objects, so read each name from `model_name`: use `[m["model_name"] for m in data["models"]]` instead of `data["models"]`, and `"gpt-5.4" in {m["model_name"] for m in data["models"]}` for membership checks.
@@ -450,6 +450,10 @@ Each entry has `id` (the model identifier you pass as `model_name` or `model`), 
 </Tabs>
 
 ## Model Performance Comparison
+
+<Note>
+Every `groq/*` model is premium-only: a free-tier key gets 403 for the `groq/...` ids on this page. See [Premium-Only Models](/docs/documentation/resources/pricing#premium-only-models).
+</Note>
 
 | Model | Context Window | Best For | Speed | Cost |
 |-------|---------------|----------|-------|------|

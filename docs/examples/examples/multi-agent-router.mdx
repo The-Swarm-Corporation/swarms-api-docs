@@ -110,7 +110,8 @@ tickets = [
 for subject, description in tickets:
     result = route_support_ticket(subject, description)
 
-    output = result.get("output", [{}])[0]
+    # output[0] is the ticket as a "user" turn; the last turn is the selected agent's reply
+    output = (result.get("output") or [{}])[-1]
     routed_to = output.get("role", "Unknown")
     response_preview = output.get("content", "")[:200]
 

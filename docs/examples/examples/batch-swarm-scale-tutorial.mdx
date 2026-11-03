@@ -33,6 +33,10 @@ export SWARMS_API_KEY="your-api-key-here"
 
 Every swarm in the batch is a full `SwarmSpec`. We define one template (a four-agent `HierarchicalSwarm`) and stamp it out per company.
 
+<Warning>
+`HierarchicalSwarm` creates its own director (model set by `director_model_name`, default `gpt-5.4`) that plans the work and hands out orders. Every agent in `agents`, the DD Director included, is a worker: `role: "coordinator"` has no effect, and the workers run their orders in parallel without seeing each other's output. The DD Director therefore writes its memo from the task and its own order, not from the specialists' analyses. If the memo must be synthesized from their work, use `AgentRearrange` with a `rearrange_flow` that lists the three specialists, separated by commas, then `-> DD Director`.
+</Warning>
+
 ```python
 import json
 import os
@@ -64,7 +68,7 @@ def due_diligence_swarm(company: str, ticker: str) -> dict:
         "agents": [
             {
                 "agent_name": "DD Director",
-                "description": "Coordinates specialists and writes the final memo.",
+                "description": "Writes the due diligence memo and recommendation.",
                 "system_prompt": (
                     "You are a senior due diligence director at a tier-1 investment firm. "
                     "Synthesize specialist analyses into a board-ready memo with a clear "

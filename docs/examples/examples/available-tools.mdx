@@ -142,7 +142,7 @@ Enable a tool on an agent by adding its name to the top-level `tools_enabled` fi
 
 | Tool | Description | Billed As |
 |------|-------------|-----------|
-| `auto_search` | Web search powered by Exa, used to ground agent responses in current information | `agent-completions-tool-usage-exa-search` (once per request) |
+| `auto_search` | Web search powered by Exa, used to ground agent responses in current information | $0.04 once per request, included in the run's `usage.total_cost` |
 | `web_scraper` | Fetches and formats the content of a URL for the agent to read | Free (only tokens are billed) |
 
 <Note>

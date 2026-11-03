@@ -49,6 +49,8 @@ The DebateWithJudge architecture requires exactly **3 agents** in a specific ord
 2. **Con Agent** — argues against the proposition
 3. **Judge Agent** — evaluates both sides and provides synthesis
 
+Any other number of agents returns `400`: "DebateWithJudge takes exactly 3 agents, in this order: pro, con, judge."
+
 <Tabs>
 <Tab title="Shell (curl)">
 ```bash
@@ -398,6 +400,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "input_tokens": 38,
         "output_tokens": 1800,
         "total_tokens": 1838,
+        "total_cost": 0.063547,
         "billing_info": {
             "cost_breakdown": {
                 "agent_cost": 0.03,
@@ -409,7 +412,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 1838
                 },
                 "num_agents": 3,
-                "night_time_discount_applied": false
+                "night_time_discount_applied": false,
+                "flash_sale_applied": false
             },
             "total_cost": 0.063547,
             "discount_active": false

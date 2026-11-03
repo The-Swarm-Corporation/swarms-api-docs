@@ -1,6 +1,7 @@
 ---
-title: "Decision Models"
-description: "Ask typed questions about any content and get calibrated probabilities back instead of generated text, for about $0.00002 per request."
+title: "Decision Models and SystemOne Reference"
+sidebarTitle: "Reference"
+description: "Every endpoint, request field, question type, response field, header, price and error for decision model completions and the SystemOne (TypeSafe API) format."
 ---
 
 A decision model answers typed questions about a piece of content, the `state`, and returns calibrated probabilities instead of generated text. One request can ask several questions, and each answer comes back as a number or a pick you can branch on directly, with no parsing and no prompt to coax a format out of an LLM.
@@ -12,46 +13,52 @@ Use a decision model instead of an LLM agent when the output is a decision, not 
 - **Gating:** whether a task needs an expensive agent call at all
 - **Grading:** how good an answer is before it ships
 
-A request costs a few hundredths of a cent, so you can put a decision model in front of or behind every agent call.
+A request costs a few hundredths of a cent, so you can put a decision model in front of or behind every agent call. New to decision models? Start with the [Quickstart](/docs/documentation/capabilities/decision-models-quickstart).
 
 ## Endpoints
 
 | Method | Path | What it does |
 | --- | --- | --- |
 | `POST` | `/v1/decision/completions` | Ask questions about a state, in the Swarms format |
-| `POST` | `/v1/systemone` | The same completion in the TypeSafe API's request and response format |
+| `POST` | `/v1/systemone` | The same completion in the TypeSafe API's request and response format (see [SystemOne](#systemone-typesafe-api-format)) |
 | `GET` | `/v1/decision/models` | The available decision models and their prices |
+| `GET` | `/v1/models` with an `X-TypeSafe-SDK` header | The same list as `/v1/decision/models`, for the TypeSafe SDKs |
 
-All three take your API key in the `x-api-key` header.
+### Authentication
+
+Send your API key as `x-api-key: <key>` or `Authorization: Bearer <key>`. A missing, unknown, revoked or malformed key returns `401`. Get a key at [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys).
 
 ## Request
+
+`POST /v1/decision/completions` takes:
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `model_name` | string | No | The decision model that answers. Defaults to `jev-latest`. Also accepted as `model`. |
-| `state` | string, object or list | Yes | The content every question is asked about. |
-| `questions` | object | Yes | Questions keyed by a name you choose. The answers come back under the same names. |
+| `state` | string, object or list | Yes | The content every question is asked about: text, a JSON object or a list. |
+| `questions` | object | Yes | At least one question, keyed by a name you choose. The answers come back under the same names. |
 
-Several questions go in one request, and the state's tokens are billed once, so asking three questions about a ticket costs about the same as asking one.
+Several questions go in one request and the state's tokens are billed once, so asking three questions about a ticket costs about the same as asking one.
 
 ## Question Types
 
-Every question has a `type`, optional `instructions` saying what to decide, and `criteria`.
+Every question has a `type`, optional `instructions` saying what to decide, and `criteria`. `instructions` and the descriptions inside `criteria` can be a string, an object or a list.
 
 | Type | `criteria` | Answer fields |
 | --- | --- | --- |
-| `noul` | Optional `{"true": ..., "false": ...}` saying what counts as yes and as no | `noul`, the probability from 0 to 1 that the statement is true |
-| `choice` | An object mapping each option to a description, or to `null` to go by the name alone | `choice`, `confidence`, `probabilities` |
-| `score` | Levels ordered from lowest to highest | `score`, `confidence`, `legend`, `probabilities` |
-
-- `choice` is the most likely option and `probabilities` holds every option's probability.
-- `score` is an expected value where the first level is 0. With four levels, a `score` of 2.99 means almost certainly the fourth level. `legend` maps each level's position to its description.
-- `confidence` is how sure the model is of a `choice` or `score` answer, from 0 to 1. Send low-confidence answers to a person.
+| `noul` | Optional. An object with only `true` and `false`, saying what counts as yes and as no. Any other key returns `422`. A `noul` needs `instructions`, `criteria` or both; with neither, the provider returns `400`. | `noul`: the probability from 0 to 1 that the statement is true |
+| `choice` | Required. An object mapping each option's name to a description of when it applies, or to `null` to go by the name alone. | `choice`, `confidence`, `probabilities` |
+| `score` | Required. A list of at least one level, ordered from lowest to highest. A level's position is its score, starting at 0. | `score`, `confidence`, `legend`, `probabilities` |
 
 ```json
 {
   "questions": {
     "is_urgent": {"type": "noul", "instructions": "Is this urgent?"},
+    "is_refund": {
+      "type": "noul",
+      "instructions": "Is the customer asking for a refund?",
+      "criteria": {"true": "They want money back", "false": "Anything else"}
+    },
     "team": {
       "type": "choice",
       "instructions": "Which team should handle this?",
@@ -66,52 +73,149 @@ Every question has a `type`, optional `instructions` saying what to decide, and 
 }
 ```
 
+## Answers
+
+Every answer includes its question's `type`, plus:
+
+| Field | In | Description |
+| --- | --- | --- |
+| `noul` | `noul` | Probability from 0 to 1 that the statement is true |
+| `choice` | `choice` | The most likely option's name |
+| `probabilities` | `choice`, `score` | Every option's probability, keyed by option name for `choice` and by level position (`"0"`, `"1"`, ...) for `score` |
+| `confidence` | `choice`, `score` | How sure the model is of the answer, from 0 to 1. Send low-confidence answers to a person. |
+| `score` | `score` | The expected level, where the first level is 0. With four levels, 2.99 means almost certainly the fourth. |
+| `legend` | `score` | Each level's position mapped to its description, so `legend[str(round(score))]` names the level |
+
 ## Response
 
 `POST /v1/decision/completions` returns:
 
-| Field | Description |
+| Field | Type | Description |
+| --- | --- | --- |
+| `job_id` | string | Unique identifier for this completion, starting `decision-model-` |
+| `status` | string | `success` when the completion finished |
+| `model_name` | string | The model you asked for, such as `jev-latest` |
+| `model` | string | The version that answered, such as `jev-1.14.0` |
+| `answers` | object | Answers keyed by question name, with the fields above |
+| `usage` | object | `input_tokens`, `output_tokens`, `total_tokens`, and `input_cost`, `output_cost`, `total_cost` in USD |
+| `timestamp` | string | ISO 8601 time the completion finished |
+
+A live response from production:
+
+```json
+{
+  "job_id": "decision-model-6e0f13815e3cf07560e0db639b9d1969",
+  "status": "success",
+  "model_name": "jev-latest",
+  "model": "jev-1.14.0",
+  "answers": {
+    "is_urgent": {"type": "noul", "noul": 0.97},
+    "team": {"type": "choice", "choice": "payments", "confidence": 0.88,
+             "probabilities": {"payments": 0.92, "infra": 0.07, "support": 0.01}},
+    "severity": {"type": "score", "score": 2.99, "confidence": 0.99,
+                 "legend": {"0": "No impact", "1": "Minor", "2": "Major", "3": "Critical"},
+                 "probabilities": {"0": 0.0, "1": 0.0, "2": 0.01, "3": 0.99}}
+  },
+  "usage": {"input_tokens": 393, "output_tokens": 71, "total_tokens": 464,
+            "input_cost": 1.89819e-05, "output_cost": 0.0, "total_cost": 1.89819e-05},
+  "timestamp": "2026-11-03T16:13:05.159225+00:00"
+}
+```
+
+`usage.total_cost` is the amount charged for the request.
+
+### Response Headers
+
+Both completion endpoints set:
+
+| Header | Value |
 | --- | --- |
-| `job_id` | Unique identifier for this completion |
-| `status` | `success` when the completion finished |
-| `model_name` | The model you asked for, such as `jev-latest` |
-| `model` | The version that answered, such as `jev-1.13.0` |
-| `answers` | Answers keyed by question name, with the fields from the table above |
-| `usage` | `input_tokens`, `output_tokens`, `total_tokens`, `input_cost`, `output_cost` and `total_cost` in USD |
-| `timestamp` | ISO 8601 time the completion finished |
+| `x-typesafe-request-id` | The completion's `job_id` |
+| `x-swarms-total-cost` | The amount charged in USD, the same as `usage.total_cost` |
 
-`usage.total_cost` is the amount charged for the request. See [Decision Model Completion](/docs/examples/examples/decision-model-completion) for a full request and response.
+## SystemOne (TypeSafe API Format)
 
-## TypeSafe API Format
+`POST /v1/systemone` takes and returns exactly what the TypeSafe API's `POST /v1/systemone` does, so code and SDKs written for TypeSafe work with the base URL set to `https://api.swarms.world` and a Swarms API key. It runs the same models at the same prices as `/v1/decision/completions`.
 
-`POST /v1/systemone` takes and returns exactly what the TypeSafe API does, so the TypeSafe SDKs work with `base_url` set to `https://api.swarms.world` and a Swarms API key.
+| | `/v1/decision/completions` | `/v1/systemone` |
+| --- | --- | --- |
+| Model field | `model_name` (or `model`), optional, default `jev-latest` | `model`, required |
+| `state`, `questions` | Same | Same |
+| Response | `job_id`, `status`, `model_name`, `model`, `answers`, `usage` with costs, `timestamp` | `model`, `answers`, and `usage` with `input_tokens` and `output_tokens` only |
+| Job ID and cost | In the body and the headers | In the `x-typesafe-request-id` and `x-swarms-total-cost` headers only |
 
-- `model` is required.
-- The response has only `model`, `answers` and `usage` with `input_tokens` and `output_tokens`.
-- The job ID is in the `x-typesafe-request-id` response header, and the amount charged in `x-swarms-total-cost`.
+```bash
+curl -i -X POST "https://api.swarms.world/v1/systemone" \
+  -H "Authorization: Bearer $SWARMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "jev-latest",
+    "state": "I was charged twice for my order. Please refund one.",
+    "questions": {"billing": {"type": "noul", "instructions": "Is this about billing?"}}
+  }'
+```
+
+The headers and body from production:
+
+```text
+x-typesafe-request-id: decision-model-02917d0dfa13c712ff585e5e26b4bc64
+x-swarms-total-cost: 1.36689e-05
+
+{"model": "jev-1.14.0", "answers": {"billing": {"type": "noul", "noul": 0.98}}, "usage": {"input_tokens": 283, "output_tokens": 20}}
+```
+
+The TypeSafe SDKs list models with `GET /v1/models` and send an `X-TypeSafe-SDK` header. With that header, `/v1/models` returns the decision model list in the same shape as `GET /v1/decision/models` instead of the OpenAI-style model list. See [SystemOne: Use the TypeSafe Format](/docs/examples/examples/decision-model-systemone) for a worked example.
 
 ## Models and Pricing
 
-Decision models are billed per token at the model's price. Call `GET /v1/decision/models` for the current models and their `input_cost_per_1m` and `output_cost_per_1m` in USD, and see [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models) for estimating a request's cost from them.
+`GET /v1/decision/models` returns every model this API can run:
 
-- The same \$1.00 minimum balance as the other completion endpoints applies.
-- Nothing is charged when a request fails.
+| Field | Description |
+| --- | --- |
+| `name` | The value to send as `model_name` or `model` |
+| `description` | The provider and price, as text |
+| `provider` | The provider that runs the model, such as `typesafe` |
+| `input_cost_per_1m`, `output_cost_per_1m` | Price in USD per 1M tokens, including the 15% service fee |
+| `release_date` | Always an empty string; kept for TypeSafe SDK compatibility |
+
+On 2026-11-03 the TypeSafe models were `jev-latest`, `jev-preview` and the pinned `jev-1.13.0`, each at \$0.0483 per 1M input tokens with output tokens free. Read prices from the endpoint rather than copying them into code, because the list changes as versions ship.
+
+- `jev-latest` is an alias. The `model` field of every response shows the version that answered, which can be newer than the pinned versions in the list. Pin a listed version when answers must stay comparable over time.
+- A name that isn't in the list returns `400` (`Unknown model`).
+
+### Billing
+
+- A request costs `input_tokens × input_cost_per_1m / 1,000,000`, plus the same for output tokens. No night-time or other discount applies.
+- You're charged only after the model answers. A request that fails, including an unknown model or a provider error, is not charged.
+- Your purchased credit balance must be above the \$1.00 minimum, as on the other completion endpoints.
+- Decision completions count toward your [rate limits](/docs/documentation/resources/ratelimits) like other completions.
 
 ## Errors
 
-| Status | When |
-| --- | --- |
-| `400` | Unknown model, or the provider rejected the questions |
-| `401` | Missing or invalid API key |
-| `402` | Credit balance at or below the \$1.00 minimum |
-| `422` | Invalid request body, such as an unknown question `type` or a `score` question with no levels |
-| `429` | Rate limit exceeded |
-| `502` | The decision model provider is unavailable. Retry shortly. |
+| Status | When | Body |
+| --- | --- | --- |
+| `400` | Unknown model | `{"detail": {"error_type": "api_usage_error", "message": "Unknown model: <name>"}}` |
+| `400` or another `4xx` | The provider rejected the questions | The provider's own status and error detail, for example `{"detail": "Noul question must have criteria or instructions: billing"}` |
+| `401` | Missing, unknown, revoked or malformed API key | |
+| `402` | Purchased credit balance at or below the \$1.00 minimum | |
+| `422` | Invalid request body | Validation errors: for example an unknown question `type`, empty `questions`, a `score` with no levels, a `noul` `criteria` key other than `true` or `false`, or `/v1/systemone` without `model` |
+| `429` | Rate limit exceeded | |
+| `502` | The decision model provider is unavailable | Retry shortly |
+
+A `422` for an unknown question type, from production:
+
+```json
+{"detail": [{"type": "union_tag_invalid", "loc": ["body", "questions", "q"],
+             "msg": "Input tag 'yesno' found using 'type' does not match any of the expected tags: 'choice', 'score', 'noul'"}]}
+```
 
 ## Related
 
+- [Decision Models Quickstart](/docs/documentation/capabilities/decision-models-quickstart): your first request in five minutes
 - API reference: [Execute Decision Model Completion](/api-reference/decision-models/execute-decision-model-completion), [Execute Decision Model Completion (TypeSafe API)](/api-reference/decision-models/execute-decision-model-completion-typesafe-api), [Get Decision Models and Prices](/api-reference/decision-models/get-decision-models-and-prices)
-- [Decision Model Completion](/docs/examples/examples/decision-model-completion): one request with a `noul`, a `choice` and a `score` question
-- [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models): prices, pinned versions and cost math
-- [Gate and Judge an Agent](/docs/examples/examples/decision-models-with-agents): decide whether to run an agent, then grade its answer
-- [Pick a Swarm and the Best Draft](/docs/examples/examples/decision-models-with-swarms): choose the swarm type, then the best output
+- Examples:
+  - [Decision Model Completion](/docs/examples/examples/decision-model-completion): one request with a `noul`, a `choice` and a `score` question
+  - [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models): prices, pinned versions and cost math
+  - [SystemOne: Use the TypeSafe Format](/docs/examples/examples/decision-model-systemone): Bearer auth, headers and the TypeSafe model list
+  - [Gate and Judge an Agent](/docs/examples/examples/decision-models-with-agents): decide whether to run an agent, then grade its answer
+  - [Pick a Swarm and the Best Draft](/docs/examples/examples/decision-models-with-swarms): choose the swarm type, then the best output

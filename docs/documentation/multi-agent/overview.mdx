@@ -32,25 +32,25 @@ The request body uses the `SwarmSpec` schema. All parameters are organized in th
 |-----------|------|----------|---------|-------------|
 | `name` | `string` | No | - | The name of the swarm, which serves as an identifier for the group of agents and their collective task. Maximum length: 100 characters. |
 | `description` | `string` | No | - | A comprehensive description of the swarm's objectives, capabilities, and intended outcomes. |
-| `swarm_type` | `string` | No | - | The classification of the swarm, indicating its operational style and methodology. One of 14 values — see [Available Architectures](/docs/documentation/multi-agent/available-architectures). |
+| `swarm_type` | `string` | Yes | - | The classification of the swarm, indicating its operational style and methodology. One of 14 values — see [Available Architectures](/docs/documentation/multi-agent/available-architectures). Leaving it out returns a `400`; any other value returns a `422`. |
 | `max_loops` | `integer` | No | `1` | The maximum number of execution loops allowed for the swarm, enabling repeated processing if needed. **At most 50** — exceeding it returns a `422`. |
 | `task` | `string` | No | - | The specific task or objective that the swarm is designed to accomplish. At least one of `task`, `tasks`, or `messages` is required. |
-| `tasks` | `array[string]` | No | - | A list of tasks that the swarm should complete. Used for workflows that handle multiple tasks. |
-| `agents` | `array[AgentSpec]` | No | - | A list of agents or specifications that define the agents participating in the swarm. **At most 2000** — exceeding it returns a `422`. Required for every `swarm_type` except `HeavySwarm`, which can build its own team. See Agent Configuration table below. |
-| `rearrange_flow` | `string` | No | - | Instructions on how to rearrange the flow of tasks among agents, if applicable. Used with `AgentRearrange` swarm type. |
+| `tasks` | `array[string]` | No | - | A list of tasks that the swarm should complete. The tasks run one after another, each through the whole swarm. Cannot be combined with `task` or `messages`, and every entry must contain text; either mistake returns a `400`. |
+| `agents` | `array[AgentSpec]` | No | - | A list of agents or specifications that define the agents participating in the swarm. **At most 2000** — exceeding it returns a `422`. Required for every `swarm_type` except `HeavySwarm`, which can build its own team. `GroupChat` needs at least 2 agents, and `DebateWithJudge` exactly 3 in the order pro, con, judge; otherwise the request returns a `400`. See Agent Configuration table below. |
+| `rearrange_flow` | `string` | No | - | Required for `AgentRearrange`: agent names joined by `->` for sequential steps and `,` for concurrent ones. Every name must be the `agent_name` of one of the agents. A missing flow, or a name that matches no agent, returns a `400`. |
 | `messages` | `array[object] \| object` | No | - | A list of messages or a message object that the swarm should process. Used for conversational workflows like `GroupChat`. |
-| `img` | `string` | No | - | An optional image URL that may be associated with the swarm's task or representation. |
+| `img` | `string` | No | - | An optional `https://` image URL, `data:image` URI or base64 encoded image for the swarm's task. Anything else returns a `422`. `CouncilAsAJudge`, `MultiAgentRouter`, `LLMCouncil`, `DebateWithJudge` and `GroupChat` don't take an image, and currently fail with a `500` when `img` is set. |
 | `stream` | `boolean` | No | `false` | A flag indicating whether the swarm should stream its output in real-time. |
-| `multi_agent_collab_prompt` | `boolean` | No | `true` | Inject the multi-agent collaboration prompt so agents coordinate with one another. Set to `false` to disable. |
-| `list_all_agents` | `boolean` | No | `false` | Whether to list all agents and their descriptions to one another so each agent is aware of the others. |
+| `multi_agent_collab_prompt` | `boolean` | No | `true` | Inject the multi-agent collaboration prompt so agents coordinate with one another. Set to `false` to disable. Only `SequentialWorkflow` and `AgentRearrange` use it; every other swarm type ignores it. |
+| `list_all_agents` | `boolean` | No | `false` | Whether to list all agents and their descriptions to one another so each agent is aware of the others. Only `SequentialWorkflow` and `AgentRearrange` use it; every other swarm type ignores it. |
 | `heavy_swarm_question_agent_model_name` | `string` | No | `"gpt-5.4"` | For `HeavySwarm`: the model name to use for the question agent. |
 | `heavy_swarm_worker_model_name` | `string` | No | `"claude-sonnet-4-20250514"` | For `HeavySwarm`: the model name to use for the worker agent. |
-| `heavy_swarm_max_loops` | `integer` | No | `1` | For `HeavySwarm`: the maximum number of loops each agent in the heavy swarm may run. |
+| `heavy_swarm_max_loops` | `integer` | No | `1` | For `HeavySwarm`: how many times the whole HeavySwarm pipeline runs. |
 | `heavy_swarm_variant` | `string` | No | `"default"` | For `HeavySwarm`: which agent variant to run. One of `"default"`, `"medium"`, or `"heavy"`. |
-| `council_judge_model_name` | `string` | No | `"gpt-5.4"` | For `CouncilAsAJudge`: the model name used by the judge that delivers the final ruling. |
+| `council_judge_model_name` | `string` | No | `"gpt-5.4"` | For `CouncilAsAJudge`: the model used by the dimension judges. The aggregator that writes the final ruling always runs on `gpt-5.4`. |
 | `chairman_model` | `string` | No | `"gpt-5.1"` | For `LLMCouncil`: the model name used by the chairman that synthesizes the council's responses. |
 | `director_model_name` | `string` | No | `"gpt-5.4"` | The model name used by the director/overseer agent. For `HierarchicalSwarm`, this is the model that decomposes the task and delegates to workers. |
-| `director_settings` | `object` | No | `{}` | Optional settings for the director agent, such as `temperature`, `top_p`, and `max_tokens`. For `HierarchicalSwarm`, these tune the director's planning behavior. |
+| `director_settings` | `object` | No | `{}` | For `HierarchicalSwarm`: settings for the director agent. Accepts only `agent_name`, `system_prompt`, `planning_system_prompt`, `temperature` (0 to 2), `top_p` and `max_tokens` (1 to 128000). Any other key returns a `422`. |
 
 #### Agent Configuration Parameters (AgentSpec)
 
@@ -62,19 +62,23 @@ Each agent in the `agents` array can be configured with the following parameters
 | `description` | `string` | No | - | A detailed explanation of the agent's purpose, capabilities, and any specific tasks it is designed to perform. |
 | `system_prompt` | `string` | No | - | The initial instruction or context provided to the agent, guiding its behavior and responses during execution. |
 | `marketplace_prompt_id` | `string` | No | - | The ID of a prompt from the Swarms marketplace to use as the system prompt. If provided, the prompt will be automatically retrieved from the marketplace. |
-| `model_name` | `string` | No | `"claude-sonnet-5"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. Examples: `gpt-4o`, `gpt-4.1`, `openai/o3-mini`, `claude-sonnet-4-20250514`. |
+| `model_name` | `string` | No | `"claude-sonnet-5"` | The name of the AI model that the agent will utilize for processing tasks and generating outputs. Examples: `gpt-5.4`, `claude-sonnet-5`, `openrouter/moonshotai/kimi-k3`. An unknown model returns a `404`. |
+| `fallback_models` | `array[string]` | No | - | An ordered list of models to try if the primary model errors: the request is retried with the next model on failure. If set while `model_name` is omitted, the first entry becomes the primary model. |
+| `fallback_model_name` | `string` | No | - | A single fallback model to try if the primary model fails, tried after any `fallback_models`. |
 | `auto_generate_prompt` | `boolean` | No | `false` | A flag indicating whether the agent should automatically create prompts based on the task requirements. |
 | `max_tokens` | `integer` | No | `16000` | The maximum number of tokens that the agent is allowed to generate in its responses, limiting output length. Values below 1 are rejected with a 422 validation error. |
 | `temperature` | `number` | No | - | A parameter that controls the randomness of the agent's output; lower values result in more deterministic responses. If omitted, no temperature is sent to the model and the provider's own default applies. |
 | `role` | `string` | No | `"worker"` | The designated role of the agent within the swarm, which influences its behavior and interaction with other agents. |
-| `max_loops` | `integer \| string` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer of 1 or greater for a fixed count, or `'auto'` to allow the system to determine the necessary number based on the task's complexity. Integer values below 1 are rejected with a 422 validation error. |
+| `max_loops` | `integer \| string` | No | `1` | Maximum number of iterations the agent can perform for its task. Accepts an integer from 1 to 50 for a fixed count, or `'auto'` to allow the system to determine the necessary number based on the task's complexity. Integer values below 1 or above 50 are rejected with a 422 validation error. |
 | `tools_list_dictionary` | `array[object]` | No | - | A dictionary of tools that the agent can use to complete its task. |
-| `selected_tools` | `string \| array[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Pass a list of tool names to restrict which tools the agent can use (e.g. `["think", "create_plan"]`). Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`, `create_sub_agent`, `assign_task`. Note: `run_bash` is not permitted for security reasons. |
-| `mcp_url` | `string` | No | - | The URL of the MCP server that the agent can use to complete its task. |
+| `selected_tools` | `string \| array[string]` | No | All safe tools | Tools to enable for the autonomous looper when `max_loops="auto"`. Pass a list of tool names to restrict which tools the agent can use (e.g. `["think", "create_plan"]`). Available tools: `create_plan`, `think`, `subtask_done`, `complete_task`, `respond_to_user`, `create_sub_agent`, `assign_task`. An unknown name returns a 422. Shell and file tools (`run_bash`, `create_file`, `update_file`, `read_file`, `list_directory`, `delete_file`) are not permitted and return a 422. |
+| `mcp_url` | `string \| object` | No | - | The MCP server the agent can use to complete its task: an `https://` URL string for an unauthenticated server, or a connection object (see MCP Connection Configuration below). |
 | `mcp_config` | `object` | No | - | The MCP connection configuration to use for the agent. See MCP Connection Configuration table below. |
-| `mcp_configs` | `object` | No | - | Multiple MCP connections to use for the agent. This is a list of MCP connections. See Multiple MCP Connections below. |
+| `mcp_configs` | `array[object]` | No | - | A plain list of MCP connections, each following the MCP Connection Configuration table below. An object such as `{"connections": [...]}` returns a 422. |
+| `mcp_urls` | `array[string \| object]` | No | - | Several MCP servers for the agent. Each entry is an `https://` URL string or a connection object. Tools from every server are combined. |
 | `streaming_on` | `boolean` | No | `false` | A flag indicating whether the agent should stream its output. |
-| `llm_args` | `object` | No | - | Additional arguments to pass to the LLM such as `top_p`, `frequency_penalty`, `presence_penalty`, etc. |
+| `llm_args` | `object` | No | - | Sampling arguments to pass to the LLM. Accepted keys: `top_p`, `top_k`, `frequency_penalty`, `presence_penalty`, `stop`, `seed`, `logit_bias` and `response_format`. Any other key returns a 422. |
+| `top_p` | `number` | No | - | The `top_p` parameter to pass to the LLM. |
 | `dynamic_temperature_enabled` | `boolean` | No | `false` | A flag indicating whether the agent should dynamically adjust its temperature based on the task. |
 | `tool_call_summary` | `boolean` | No | `true` | A parameter enabling an agent to summarize tool calls. |
 | `reasoning_effort` | `string` | No | - (unset) | The effort to put into reasoning, tracking the reasoning levels the installed litellm advertises. Options: `'minimal'`, `'low'`, `'medium'`, `'high'`, `'none'`, `'xhigh'`, `'ultra'`, `'max'`. `'max'` is the deepest tier and needs no beta header. At `'xhigh'` and above, pair with a large `max_tokens` so the model has room to think and answer. |
@@ -87,25 +91,21 @@ Each agent in the `agents` array can be configured with the following parameters
 | `category` | `string` | No | - | The marketplace category for the agent (e.g., `'research'`, `'content'`, `'coding'`, `'finance'`, `'healthcare'`, `'education'`, `'legal'`). |
 | `is_free` | `boolean` | No | `true` | A flag indicating whether the agent is free to use in the marketplace. |
 | `price_usd` | `number` | No | - | The price in USD for using this agent in the marketplace (if not free). |
-| `handoffs` | `array[AgentSpec]` | No | - | A list of agent specifications that this agent can hand off tasks to. These agents will be created and passed to the agent's handoffs parameter. |
+| `handoffs` | `array[AgentSpec]` | No | - | A list of agent specifications that this agent can hand off tasks to. These agents will be created and passed to the agent's handoffs parameter. At most 2000. |
 
 #### MCP Connection Configuration Parameters
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `type` | `string` | No | `"mcp"` | The type of connection, defaults to `'mcp'`. |
-| `url` | `string` | No | `"http://localhost:8000/mcp"` | The URL endpoint for the MCP server. |
+| `url` | `string` | Yes | None | The URL endpoint for the MCP server. Must start with `https://`; any other URL returns a 422. Omitting it leaves the framework default `http://localhost:8000/mcp`, which is rejected, so always set it. |
 | `tool_configurations` | `object` | No | - | Dictionary containing configuration settings for MCP tools. |
 | `authorization_token` | `string` | No | - | Authentication token for accessing the MCP server. |
-| `transport` | `string` | No | `"streamable_http"` | The transport protocol to use for the MCP server. |
+| `transport` | `string` | No | `"auto"` | The transport protocol to use for the MCP server: `"streamable_http"`, `"sse"` or `"auto"`. `"stdio"` is not accepted. |
 | `headers` | `object` | No | - | Headers to send to the MCP server. |
 | `timeout` | `integer` | No | `30` | Request timeout for the MCP server, in seconds. |
 
-#### Multiple MCP Connections
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `connections` | `array[MCPConnection]` | Yes | - | List of MCP connections. Each connection follows the MCP Connection Configuration schema above. |
+Every MCP server must be an `https://` URL; other URLs and stdio servers return a 422. Send credentials as values: `env:NAME` and `${NAME}` references are rejected with a 422.
 
 ### Output Parameters
 
@@ -121,9 +121,9 @@ The endpoint returns a `SwarmCompletion` object with the following parameters:
 | `output` | `any` | The output of the swarm. Can be a string, array, or object depending on the swarm type — every architecture runs through a `SwarmRouter` with `output_type` forced to `"dict"` server-side, so in practice `output` is typically a list of `{"role": ..., "content": ...}` turns. |
 | `number_of_agents` | `integer` | The number of agents in the swarm, counted from the request's `agents` array (`0` for `HeavySwarm` runs that supply no agents). |
 | `execution_time` | `number` | The execution time of the swarm in seconds. |
-| `usage` | `object` | Usage statistics including token counts and costs. |
-| `tasks` | `array[string]` | Present only when the request set `tasks` — echoes it back so results can be matched to what was sent. Absent otherwise. |
-| `messages` | `array[object] \| object` | Present only when the request set `messages` — echoes it back. Absent otherwise. |
+| `usage` | `object` | Usage statistics: `input_tokens`, `output_tokens`, `total_tokens`, `total_cost` and a `billing_info` cost breakdown. |
+| `tasks` | `array[string] \| null` | Echoes the request's `tasks` back so results can be matched to what was sent. Always present, `null` when the request did not set `tasks`. |
+| `messages` | `array[object] \| object \| null` | Echoes the request's `messages` back. Always present, `null` when the request did not set `messages`. |
 
 ## Swarm Architectures
 
@@ -147,7 +147,7 @@ Each multi-agent architecture type is designed for specific use cases and can be
 | `PlannerWorkerSwarm` | Separates planning from execution: planner agents break the task into sub-tasks that worker agents pull from a shared queue | [Learn More](/docs/documentation/multi-agent/planner_worker_swarm) |
 
 <Note>
-`BatchedGridWorkflow` and `GraphWorkflow` are **not** `swarm_type` values — each has its own dedicated, premium-only endpoint (`/v1/batched-grid-workflow/completions` and `/v1/graph-workflow/completions`). `"auto"` and `"SpreadSheetSwarm"` are rejected with a `400` error if sent as `swarm_type`. See [Available Architectures](/docs/documentation/multi-agent/available-architectures) for details.
+`BatchedGridWorkflow` and `GraphWorkflow` are **not** `swarm_type` values — each has its own dedicated, premium-only endpoint (`/v1/batched-grid-workflow/completions` and `/v1/graph-workflow/completions`). `"auto"` and `"SpreadSheetSwarm"` are not `swarm_type` values and are rejected with a `422` (`literal_error`). See [Available Architectures](/docs/documentation/multi-agent/available-architectures) for details.
 </Note>
 
 ## Best Practices
@@ -178,7 +178,7 @@ Avoid common anti-patterns that can compromise your system's reliability and sec
 
 ### Error Handling
 
-The API returns standard HTTP status codes. `401` means a missing or invalid `x-api-key` — rotate and store keys securely. `402` means your credit balance is below the required minimum. `403` means the request used a model or endpoint gated to premium accounts. `422` is a validation error — the response body's `detail` array names the offending field and constraint (see the [Errors reference](/docs/documentation/multi-agent/swarm_completions#errors)); validate `max_loops` (≤ 50), `agents` length (≤ 2000), and `temperature` (0–2) client-side before sending. `429` means you exceeded a rate-limit window — back off using the `Retry-After` header. `500` is a server-side failure — retry with backoff.
+The API returns standard HTTP status codes. `400` means the request is incomplete: no `swarm_type`, no `agents`, no `task`/`tasks`/`messages`, `max_loops` below 1, `tasks` combined with `task` or `messages`, a blank `tasks` entry, or a per-type rule broken (`GroupChat` with fewer than 2 agents, `DebateWithJudge` without exactly 3, `AgentRearrange` without a valid `rearrange_flow`). `404` means an agent's `model_name` is not a model the API serves. `401` means a missing or invalid `x-api-key` — rotate and store keys securely. `402` means your credit balance is below the required minimum. `403` means the request used a model or endpoint gated to premium accounts. `422` is a validation error — the response body's `detail` array names the offending field and constraint (see the [Errors reference](/docs/documentation/multi-agent/swarm_completions#errors)); validate `max_loops` (≤ 50), `agents` length (≤ 2000), and `temperature` (0–2) client-side before sending. `429` means you exceeded a rate-limit window — back off using the `Retry-After` header. `502` from a `HierarchicalSwarm` means the director returned no valid orders, so no agent ran and nothing was charged. `500` is a server-side failure — retry with backoff.
 
 ## Example Usage
 

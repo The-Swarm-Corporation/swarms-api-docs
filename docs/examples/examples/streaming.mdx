@@ -171,10 +171,10 @@ event: chunk
 data: {"content": ", in a workshop filled with", "timestamp": "2026-02-05T00:58:15.250000+00:00"}
 
 event: usage
-data: {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "img_cost": 0.0, "total_cost": 0.000241}
+data: {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "image_count": 0, "img_cost": 0.0, "flash_sale_applied": false, "total_cost": 0.000241}
 
 event: end
-data: {"job_id": "abc123", "usage": {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "img_cost": 0.0, "total_cost": 0.000241}, "timestamp": "2026-02-05T00:58:16.000000+00:00", "complete": true}
+data: {"job_id": "abc123", "usage": {"input_tokens": 45, "output_tokens": 120, "total_tokens": 165, "image_count": 0, "img_cost": 0.0, "flash_sale_applied": false, "total_cost": 0.000241}, "timestamp": "2026-02-05T00:58:16.000000+00:00", "complete": true}
 
 event: done
 data: {"message": "Agent processing complete"}
@@ -183,6 +183,20 @@ data: {"message": "Agent processing complete"}
 <Note>
 The first frame (initial metadata) is sent without an `event:` line, so it arrives as a default `message` event. Only `content` chunks include the `content` key, which is what the example consumer code above checks for.
 </Note>
+
+### Errors
+
+The HTTP status (`200`) is sent when the stream opens, so a failed run is reported inside the stream: a single `event: error` frame, with no `usage`, `end` or `done` events after it. This includes request validation that runs after the stream has opened, such as an unknown model, a premium model on a free-tier key, or a missing `task`.
+
+```
+event: start
+data: {"message": "Starting agent processing..."}
+
+event: error
+data: {"error": "The provider rejected the request for model 'gpt-5.4': <provider reason>. Nothing was charged.", "status_code": 400, "timestamp": "2026-02-05T00:58:15.300000+00:00"}
+```
+
+When the model provider fails the call, the frame carries the `status_code` the non-streaming request would have returned (400, 404, 429 or 502) and nothing is charged. Any other failure sends `{"error": "AgentCompletionError: <status>: <detail>", "timestamp": "..."}`. Watch for the `error` event in your consumer instead of relying on the HTTP status. See [Error Handling](/docs/documentation/capabilities/agent#error-handling) for the status codes.
 
 ## Key Benefits
 

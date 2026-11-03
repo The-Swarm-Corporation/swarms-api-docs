@@ -34,7 +34,7 @@ export SWARMS_API_KEY="your-api-key-here"
       -H "x-api-key: $SWARMS_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{
-        "state": "Checkout has been failing for every customer for an hour.",
+        "state": "Checkout has been failing for every customer since 9am. We are losing orders.",
         "questions": {
           "is_urgent": {"type": "noul", "instructions": "Is this urgent?"},
           "team": {"type": "choice", "instructions": "Which team should handle this?",
@@ -55,7 +55,7 @@ export SWARMS_API_KEY="your-api-key-here"
         "https://api.swarms.world/v1/decision/completions",
         headers={"x-api-key": os.environ["SWARMS_API_KEY"]},
         json={
-            "state": "Checkout has been failing for every customer for an hour.",
+            "state": "Checkout has been failing for every customer since 9am. We are losing orders.",
             "questions": {
                 "is_urgent": {"type": "noul", "instructions": "Is this urgent?"},
                 "team": {
@@ -88,28 +88,28 @@ The live response from production:
 
 ```json
 {
-  "job_id": "decision-model-3220301f6c373951e3e9734f79e6c98b",
+  "job_id": "decision-model-6e0f13815e3cf07560e0db639b9d1969",
   "status": "success",
   "model_name": "jev-latest",
-  "model": "jev-1.13.0",
+  "model": "jev-1.14.0",
   "answers": {
     "is_urgent": {"type": "noul", "noul": 0.97},
-    "team": {"type": "choice", "choice": "payments", "confidence": 0.75,
-             "probabilities": {"payments": 0.84, "infra": 0.15, "support": 0.01}},
+    "team": {"type": "choice", "choice": "payments", "confidence": 0.88,
+             "probabilities": {"payments": 0.92, "infra": 0.07, "support": 0.01}},
     "severity": {"type": "score", "score": 2.99, "confidence": 0.99,
                  "legend": {"0": "No impact", "1": "Minor", "2": "Major", "3": "Critical"},
                  "probabilities": {"0": 0.0, "1": 0.0, "2": 0.01, "3": 0.99}}
   },
-  "usage": {"input_tokens": 387, "output_tokens": 71, "total_tokens": 458,
-            "input_cost": 1.86921e-05, "output_cost": 0.0, "total_cost": 1.86921e-05},
-  "timestamp": "2026-10-08T17:50:58.907402+00:00"
+  "usage": {"input_tokens": 393, "output_tokens": 71, "total_tokens": 464,
+            "input_cost": 1.89819e-05, "output_cost": 0.0, "total_cost": 1.89819e-05},
+  "timestamp": "2026-11-03T16:13:05.159225+00:00"
 }
 ```
 
 - **`noul`** is the probability that the statement is true: 0.97 that this is urgent.
-- **`choice`** is the most likely option. `probabilities` holds every option, so you can see that `infra` was the runner-up at 0.15, and `confidence` tells you when to send the ticket to a person instead.
+- **`choice`** is the most likely option. `probabilities` holds every option, so you can see that `infra` was the runner-up at 0.07, and `confidence` tells you when to send the ticket to a person instead.
 - **`score`** is an expected value where the first level is 0. 2.99 sits next to level 3, and `legend` names it: Critical.
-- **`model`** is the version that answered: `jev-latest` resolved to `jev-1.13.0`.
+- **`model`** is the version that answered: `jev-latest` resolved to `jev-1.14.0`.
 
 ```python
 answers = result["answers"]
@@ -123,21 +123,22 @@ print("Cost:", result["usage"]["total_cost"])
 
 ```text
 Urgent: True
-Team: payments 0.75
+Team: payments 0.88
 Severity: Critical
-Cost: 1.86921e-05
+Cost: 1.89819e-05
 ```
 
 ## Cost
 
-The request used 387 input tokens at `jev-latest`'s \$0.0483 per 1M input tokens, with output free:
+The request used 393 input tokens at `jev-latest`'s \$0.0483 per 1M input tokens, with output free:
 
-387 × \$0.0483 / 1,000,000 = \$0.0000187, which is the `usage.total_cost` above. Three questions cost the same as one would have, because the state's tokens are billed once. At that rate, 10,000 tickets cost about \$0.19.
+393 × \$0.0483 / 1,000,000 = \$0.0000190, which is the `usage.total_cost` above. Three questions cost the same as one would have, because the state's tokens are billed once. At that rate, 10,000 tickets cost about \$0.19.
 
 Prices come from `GET /v1/decision/models`; see [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models).
 
 ## Next Steps
 
-- [Decision Models Reference](/docs/documentation/capabilities/decision-models): question types, errors and the TypeSafe API format
+- [Decision Models and SystemOne Reference](/docs/documentation/capabilities/decision-models): question types, errors and the TypeSafe API format
+- [SystemOne: Use the TypeSafe Format](/docs/examples/examples/decision-model-systemone): the same request in the TypeSafe API's format
 - [Gate and Judge an Agent](/docs/examples/examples/decision-models-with-agents): put a decision model on either side of an agent call
 - [Pick a Swarm and the Best Draft](/docs/examples/examples/decision-models-with-swarms): let a decision model choose the swarm type and the winning output

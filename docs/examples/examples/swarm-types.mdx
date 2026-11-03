@@ -98,7 +98,7 @@ Different swarm types are optimized for different workflows - choose the right a
     # documentation_url; see "Understanding the Response" below):
     # {
     #   "status": true,
-    #   "timestamp": "2026-07-13T19:37:41.821232",
+    #   "timestamp": "2026-07-13T19:37:41.821232+00:00",
     #   "swarm_types": [
     #     "AgentRearrange",
     #     "MixtureOfAgents",
@@ -137,7 +137,7 @@ Different swarm types are optimized for different workflows - choose the right a
 </Tabs>
 
 <Note>
-`swarm_types` is a flat list of the 14 identifiers you pass as `swarm_type` in a `SwarmSpec`. `swarm_types_metadata` carries the same 14 types with rich metadata: `name`, `description`, `category` (`workflow`, `collaboration`, `routing`, `judgment`, or `auto`), `best_for` (representative use cases), `parameters` (swarm-type-specific `SwarmSpec` fields beyond the common `agents`/`task`/`max_loops`), and `documentation_url` (`null` for types without a dedicated docs page).
+`swarm_types` is a flat list of the 14 identifiers you pass as `swarm_type` in a `SwarmSpec`. `swarm_types_metadata` carries the same 14 types with rich metadata: `name`, `description`, `category` (`workflow`, `collaboration`, `routing`, `judgment`, or `auto`), `best_for` (representative use cases), `parameters` (swarm-type-specific `SwarmSpec` fields beyond the common `agents`/`task`/`max_loops`), and `documentation_url` (a link to the type's docs page, or `null`; it is currently `null` for `CouncilAsAJudge`, `LLMCouncil` and `PlannerWorkerSwarm`, whose pages are linked from [Available Architectures](/docs/documentation/multi-agent/available-architectures)).
 </Note>
 
 ## Swarm Type Selection Guide
@@ -198,7 +198,8 @@ Different swarm types are optimized for different workflows - choose the right a
   </Tab>
   <Tab title="Parallel Processing">
     ```python
-    # Use ConcurrentWorkflow for independent tasks
+    # Use ConcurrentWorkflow to run every agent on the same task at once.
+    # With "tasks", the tasks run one after another, and every agent handles every task.
     swarm_config = {
         "name": "Data Processing Swarm",
         "description": "Parallel data analysis",
@@ -271,7 +272,7 @@ The `/v1/swarms/available` endpoint currently returns 14 swarm types (the `swarm
 | **PlannerWorkerSwarm** | collaboration | Tasks that benefit from explicit planning before execution | — |
 
 <Warning>
-`swarm_type: "auto"` and `swarm_type: "SpreadSheetSwarm"` are rejected with a 400 error ("...are not supported currently") by `/v1/swarm/completions` — always pass one of the 14 types above.
+`swarm_type: "auto"` and `swarm_type: "SpreadSheetSwarm"` are not in the `swarm_type` enum, so `/v1/swarm/completions` rejects them with a 422 validation error — always pass one of the 14 types above.
 </Warning>
 
 ## Advanced Swarm Configuration
@@ -359,7 +360,8 @@ The `/v1/swarms/available` endpoint currently returns 14 swarm types (the `swarm
         resource_count = len(available_resources)
 
         if task_count > resource_count * 2:
-            # High load - run every task in parallel via the "tasks" list
+            # High load - batch the tasks in one request via the "tasks" list
+            # (they run one after another, each through the whole swarm)
             return {
                 "swarm_type": "ConcurrentWorkflow",
                 "tasks": tasks
@@ -410,8 +412,8 @@ The `/v1/swarms/available` endpoint currently returns 14 swarm types (the `swarm
     def optimize_swarm_for_quality(requirements):
         """Optimize swarm for maximum quality"""
         if requirements.get("consensus_required"):
-            # Use an odd number of agents in the payload's "agents" list
-            # so MajorityVoting can always reach a decision
+            # MajorityVoting doesn't tally votes: a Consensus-Agent reads
+            # every agent's answer and writes the final one
             return {
                 "swarm_type": "MajorityVoting"
             }

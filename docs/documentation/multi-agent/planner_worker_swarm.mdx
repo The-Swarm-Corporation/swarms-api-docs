@@ -203,10 +203,6 @@ fetch(`${API_BASE_URL}/v1/swarm/completions`, {
     "swarm_type": "PlannerWorkerSwarm",
     "output": [
         {
-            "role": "User",
-            "content": "Produce a competitive landscape report for AI code-review tools, covering at least 4 competitors, their pricing, and their key differentiators."
-        },
-        {
             "role": "Planner",
             "content": "Plan: 1) Research GitHub Copilot, CodeRabbit, Codacy, and SonarQube's pricing and positioning. 2) Draft a comparison table. 3) Write a summary of key differentiators."
         },
@@ -229,6 +225,7 @@ fetch(`${API_BASE_URL}/v1/swarm/completions`, {
         "input_tokens": 64,
         "output_tokens": 3600,
         "total_tokens": 3664,
+        "total_cost": 0.087016,
         "billing_info": {
             "cost_breakdown": {
                 "agent_cost": 0.02,
@@ -240,7 +237,8 @@ fetch(`${API_BASE_URL}/v1/swarm/completions`, {
                     "total_tokens": 3664
                 },
                 "num_agents": 2,
-                "night_time_discount_applied": false
+                "night_time_discount_applied": false,
+                "flash_sale_applied": false
             },
             "total_cost": 0.087016,
             "discount_active": false,

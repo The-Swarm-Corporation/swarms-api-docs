@@ -58,7 +58,7 @@ Since HeavySwarm manages its own agents, it uses dedicated parameters at the swa
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `heavy_swarm_max_loops` | `integer` | `1` | Number of execution loops per agent. Higher values enable iterative refinement for deeper analysis. |
+| `heavy_swarm_max_loops` | `integer` | `1` | Number of times the whole pipeline (question generation, parallel workers, synthesis) runs. Each iteration after the first builds on the previous one's results. |
 | `heavy_swarm_question_agent_model_name` | `string` | `"gpt-5.4"` | Model used for the question generation phase. This agent decomposes the task into specialized questions. |
 | `heavy_swarm_worker_model_name` | `string` | `"claude-sonnet-4-20250514"` | Model used for all five specialized worker agents (Research, Analysis, Alternatives, Verification, Synthesis). |
 | `heavy_swarm_variant` | `string` | `"default"` | Which agent variant to run. One of `"default"`, `"medium"`, or `"heavy"`. |
@@ -543,6 +543,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "input_tokens": 85,
         "output_tokens": 5400,
         "total_tokens": 5485,
+        "total_cost": 0.100453,
         "billing_info": {
             "cost_breakdown": {
                 "agent_cost": 0.0,
@@ -554,7 +555,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "total_tokens": 5485
                 },
                 "num_agents": 0,
-                "night_time_discount_applied": false
+                "night_time_discount_applied": false,
+                "flash_sale_applied": false
             },
             "total_cost": 0.100453,
             "discount_active": false,
@@ -566,7 +568,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 ```
 
 <Note>
-Because the request's `agents` array stays empty, `number_of_agents` in the response — and the flat per-agent billing fee that scales with it — is `0` for HeavySwarm, regardless of how many workers the chosen `heavy_swarm_variant` actually runs internally. You are still billed for the input and output tokens all of those internal agents consume, priced at `heavy_swarm_worker_model_name` plus the 15% service fee.
+Because the request's `agents` array stays empty, `number_of_agents` in the response — and the flat per-agent billing fee that scales with it — is `0` for HeavySwarm, regardless of how many workers the chosen `heavy_swarm_variant` actually runs internally. You are still billed for the input and output tokens the internal worker and synthesis agents report, across every `heavy_swarm_max_loops` iteration, priced at `heavy_swarm_worker_model_name` plus the 15% service fee.
 </Note>
 
 ## Best Practices
@@ -576,5 +578,5 @@ Because the request's `agents` array stays empty, `number_of_agents` in the resp
 - Choose the question agent model carefully — it determines the quality of task decomposition which drives the entire workflow
 - Use a capable worker model (e.g., `claude-sonnet-4-20250514`) for the specialized agents to get high-quality research, analysis, and verification
 - HeavySwarm requires an empty `agents` array (`"agents": []`) in the request — the worker team is created and managed internally, sized by `heavy_swarm_variant`
-- For time-sensitive tasks, keep `max_loops` at 1; increase for comprehensive research where thoroughness is prioritized over speed
+- For time-sensitive tasks, keep `heavy_swarm_max_loops` at 1; increase it for comprehensive research where thoroughness is prioritized over speed. The swarm-level `max_loops` is not passed to HeavySwarm and has no effect
 - Schedule non-urgent deep analysis during off-peak hours (8 PM - 6 AM PT) for cost savings

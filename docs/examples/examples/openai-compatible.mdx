@@ -12,6 +12,7 @@ description: 'Drop-in usage of the Swarms API with the OpenAI SDK — basic comp
 - Sending images (multimodal / vision)
 - Multi-loop agent reasoning via `max_loops`
 - Discovering available models with `client.models.list()` (`GET /v1/models`)
+- The Responses API with `client.responses.create()` (`POST /v1/responses`)
 - Error handling with SDK-native exception classes
 - Working examples in Python, TypeScript, Go, and Rust
 
@@ -636,7 +637,7 @@ Build a conversational chatbot by accumulating messages across turns.
 
 ## 4. Vision (Image Input)
 
-Send an image alongside your prompt using the multimodal content format.
+Send an image alongside your prompt using the multimodal content format. Each image costs \$0.25 per request, and images in earlier turns are attached and billed again whenever you resend the history.
 
 <Tabs>
   <Tab title="Python">
@@ -1041,6 +1042,34 @@ ask("Based on what you've told me, which of these challengers has the strongest 
 
 ---
 
+## 8. Responses API
+
+Code written for OpenAI's Responses API works with the same two config values. `POST /v1/responses` is non-streaming and text-only; see [Responses API](/docs/documentation/capabilities/responses-api) for the supported fields.
+
+```python
+import os
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+
+client = OpenAI(
+    api_key=os.environ["SWARMS_API_KEY"],
+    base_url="https://api.swarms.world/v1",
+)
+
+resp = client.responses.create(
+    model="gpt-5.4-mini",
+    instructions="Answer with one word.",
+    input="What is the capital of Italy?",
+    max_output_tokens=20,
+)
+print(resp.output_text)                       # Rome
+print(resp.status, resp.usage.total_tokens)   # completed 26
+```
+
+---
+
 ## Environment Setup
 
 Create a `.env` file in your project directory:
@@ -1052,6 +1081,8 @@ SWARMS_API_KEY=your_api_key_here
 ## Next Steps
 
 - [API Reference](/docs/documentation/capabilities/openai-compatible) — full request/response schema and field documentation
+- [Responses API](/docs/documentation/capabilities/responses-api) — `POST /v1/responses` for `client.responses.create`
+- [Anthropic-Compatible Messages API](/docs/documentation/capabilities/anthropic-compatible) — `POST /v1/messages` for the Anthropic SDK
 - [Agent Completions](/docs/documentation/capabilities/agent) — the native Swarms endpoint with tools, MCP, and multi-loop support
 - [Streaming](/docs/examples/examples/streaming) — streaming with the native Swarms agent endpoint
 - [Vision](/docs/examples/examples/vision-capabilities) — more image/multimodal examples

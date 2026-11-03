@@ -82,7 +82,7 @@ The economic calendar (release_id, scheduled time ET, release window) can be sou
 
 ## Step 2: Define the Function Tools
 
-Seven tools cover the entire pipeline: four data fetchers, two lookups, one notifier. All in OpenAI function format so any agent in the swarm can call them.
+Seven tools cover the entire pipeline: four data fetchers, two lookups, one notifier. All in OpenAI function format so any agent in the swarm can return calls to them. The API sends these schemas to the model and returns the model's tool calls in the output; it does not execute them, and there is no way to feed a tool result back in the middle of a run. Fetch the data the agents need in your own code and put it in the task, and execute the returned calls after the run.
 
 ```python
 FETCH_BLS_CPI = {

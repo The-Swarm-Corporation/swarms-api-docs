@@ -1,0 +1,130 @@
+---
+title: "SystemOne: Use the TypeSafe Format"
+description: "Send decision model requests in the TypeSafe API's exact format to POST /v1/systemone, with Bearer auth, the job ID and cost headers, and the TypeSafe model list."
+---
+
+## What This Example Shows
+
+- A `POST /v1/systemone` request in the TypeSafe API's exact request and response format
+- `Authorization: Bearer` authentication with a Swarms API key
+- Reading the job ID and the amount charged from the `x-typesafe-request-id` and `x-swarms-total-cost` headers
+- Listing models the way the TypeSafe SDKs do, with `GET /v1/models` and an `X-TypeSafe-SDK` header
+
+## Why This Matters
+
+If your code already talks to the TypeSafe API, you don't have to rewrite it to run on Swarms. `/v1/systemone` accepts the same body and returns the same body, so the only changes are the base URL and the key. Charges come out of your Swarms credits, at the prices listed by `GET /v1/decision/models`.
+
+## Step 1: Setup
+
+```bash
+pip install requests
+export SWARMS_API_KEY="your-api-key-here"
+```
+
+## Step 2: Send a SystemOne Request
+
+`model` is required here, unlike `model_name` on `/v1/decision/completions`.
+
+<Tabs>
+  <Tab title="cURL">
+    ```bash
+    curl -i -X POST "https://api.swarms.world/v1/systemone" \
+      -H "Authorization: Bearer $SWARMS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "jev-latest",
+        "state": "I was charged twice for my order. Please refund one.",
+        "questions": {
+          "billing": {"type": "noul", "instructions": "Is this about billing?"}
+        }
+      }'
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+
+    import requests
+
+    BASE_URL = "https://api.swarms.world"
+    HEADERS = {"Authorization": f"Bearer {os.environ['SWARMS_API_KEY']}"}
+
+    response = requests.post(
+        f"{BASE_URL}/v1/systemone",
+        headers=HEADERS,
+        json={
+            "model": "jev-latest",
+            "state": "I was charged twice for my order. Please refund one.",
+            "questions": {
+                "billing": {"type": "noul", "instructions": "Is this about billing?"},
+            },
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+
+    print(response.json())
+    print("Job:", response.headers["x-typesafe-request-id"])
+    print("Cost:", response.headers["x-swarms-total-cost"])
+    ```
+  </Tab>
+</Tabs>
+
+## Step 3: Read the Response
+
+The live response from production:
+
+```text
+x-typesafe-request-id: decision-model-02917d0dfa13c712ff585e5e26b4bc64
+x-swarms-total-cost: 1.36689e-05
+```
+
+```json
+{
+  "model": "jev-1.14.0",
+  "answers": {"billing": {"type": "noul", "noul": 0.98}},
+  "usage": {"input_tokens": 283, "output_tokens": 20}
+}
+```
+
+- The body has only `model`, `answers` and `usage` token counts, exactly as TypeSafe returns them.
+- `model` is the version that answered the `jev-latest` alias.
+- There is no `job_id` or cost in the body. Read them from the headers: 283 input tokens × \$0.0483 / 1M = \$0.0000137, the `x-swarms-total-cost` value.
+
+## Step 4: List Models Like a TypeSafe SDK
+
+The TypeSafe SDKs list models with `GET /v1/models` and send an `X-TypeSafe-SDK` header. With that header, Swarms returns the decision models in the same shape as `GET /v1/decision/models`; without it, `/v1/models` returns the OpenAI-style list of agent models.
+
+```bash
+curl "https://api.swarms.world/v1/models" \
+  -H "Authorization: Bearer $SWARMS_API_KEY" \
+  -H "X-TypeSafe-SDK: python"
+```
+
+```json
+{
+  "status": "success",
+  "models": [
+    {"name": "jev-latest", "description": "TypeSafe decision model. $0.0483 per 1M input tokens, $0.0 per 1M output tokens.",
+     "release_date": "", "provider": "typesafe", "input_cost_per_1m": 0.0483, "output_cost_per_1m": 0.0}
+  ]
+}
+```
+
+The list above is shortened to one model; the full list is every model `GET /v1/decision/models` returns.
+
+## Differences From `/v1/decision/completions`
+
+| | `/v1/systemone` | `/v1/decision/completions` |
+| --- | --- | --- |
+| Model field | `model`, required | `model_name` or `model`, default `jev-latest` |
+| Body returned | `model`, `answers`, `usage` token counts | Also `job_id`, `status`, `model_name`, costs in `usage`, `timestamp` |
+| Job ID and cost | Headers only | Body and headers |
+
+Both use the same models, prices, question types, credit checks and [errors](/docs/documentation/capabilities/decision-models#errors). A request missing `model` returns `422`.
+
+## Next Steps
+
+- [Decision Models and SystemOne Reference](/docs/documentation/capabilities/decision-models): every field, header, price and error
+- [Decision Models Quickstart](/docs/documentation/capabilities/decision-models-quickstart): the Swarms-format request
+- [List Decision Models and Estimate Costs](/docs/examples/examples/decision-model-list-models): budget a job from the model prices

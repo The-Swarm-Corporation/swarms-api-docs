@@ -108,13 +108,13 @@ curl -X POST "https://api.swarms.world/v1/agent/completions" \
 
 ## Adding Live Market Data via MCP
 
-To give the agent access to real-time market data, attach an MCP server URL. Any OKX/Binance/CoinGecko MCP server works as long as it exposes the right tools.
+To give the agent access to real-time market data, attach an MCP server URL. Any OKX/Binance/CoinGecko MCP server works as long as it exposes the right tools and is reachable at a public `https://` URL; `http://` URLs return 422.
 
 ```python
 payload = {
     "agent_config": {
         # ...existing fields...
-        "mcp_url": "http://your-okx-mcp:8001/sse",
+        "mcp_url": "https://your-okx-mcp.example.com/sse",
     },
     "task": task,
 }

@@ -11,6 +11,10 @@ The Swarms API supports Model Context Protocol (MCP) integration, allowing agent
 MCP integration enables agents to access external databases, APIs, and tools through standardized server connections.
 </Info>
 
+<Warning>
+The agent runs on the API's servers, so each MCP server must be reachable at a public `https://` URL. `http://` and `localhost` URLs, `stdio` servers, and `env:NAME` or `${NAME}` credential references return 422. See [MCP Integration](/docs/documentation/capabilities/mcp_integration) for the full rules.
+</Warning>
+
 ## Quick Start
 
 <Tabs>
@@ -35,7 +39,7 @@ MCP integration enables agents to access external databases, APIs, and tools thr
             "model_name": "gpt-4.1",
             "max_tokens": 4096,
             "temperature": 0.5,
-            "mcp_url": "https://github.com/mcp"  # Your MCP server URL
+            "mcp_url": "https://your-mcp-server.com/mcp"  # Your MCP server URL (must be https://)
         },
         "task": "Query the customer database and provide insights on recent sales trends."
     }
@@ -97,7 +101,7 @@ MCP integration enables agents to access external databases, APIs, and tools thr
           "model_name": "gpt-4.1",
           "max_tokens": 4096,
           "temperature": 0.5,
-          "mcp_url": "http://localhost:8001/sse"
+          "mcp_url": "https://your-mcp-server.com/sse"
         },
         "task": "Query the customer database and provide insights on recent sales trends."
       }'
@@ -107,7 +111,9 @@ MCP integration enables agents to access external databases, APIs, and tools thr
 
 ## MCP Server Setup
 
-### Local MCP Server
+### Example MCP Server
+
+Deploy the server behind HTTPS at a public URL before pointing an agent at it; the API cannot reach a server that only runs on your machine.
 
 ```python
 # Example MCP server setup (server.py)
@@ -168,8 +174,8 @@ payload = {
         "model_name": "gpt-4.1",
         "max_tokens": 8192,
         "mcp_urls": [
-            "http://localhost:8001/sse",
-            "http://localhost:8002/sse"
+            "https://your-mcp-server.com/customers/sse",
+            "https://your-mcp-server.com/market/sse"
         ]
     },
     "task": "Combine customer data with market trends to provide business insights."
@@ -191,10 +197,10 @@ payload = {
         "model_name": "gpt-4.1",
         "max_tokens": 4096,
         "mcp_config": {
-            "url": "http://localhost:8001/sse",
+            "url": "https://your-mcp-server.com/sse",
             "timeout": 30,
             "authorization_token": "your-token",
-            "transport": "streamable_http"
+            "transport": "sse"
         }
     },
     "task": "Perform complex data analysis using the MCP server tools."
@@ -211,7 +217,7 @@ payload = {
         "description": "SQL database integration specialist",
         "system_prompt": "You can query databases and analyze structured data.",
         "model_name": "gpt-4.1",
-        "mcp_url": "http://localhost:8001/sse"
+        "mcp_url": "https://your-mcp-server.com/sse"
     },
     "task": "Analyze sales data from the past quarter and identify top performing products."
 }
@@ -239,7 +245,7 @@ payload = {
         "description": "External API integration specialist",
         "system_prompt": "You can call external APIs and integrate third-party services.",
         "model_name": "gpt-4.1",
-        "mcp_url": "http://localhost:8003/sse"
+        "mcp_url": "https://your-mcp-server.com/weather/sse"
     },
     "task": "Fetch weather data and provide travel recommendations based on current conditions."
 }
