@@ -1,6 +1,6 @@
 ---
 title: "Build an Agent CLI over MCP (TypeScript)"
-description: "Go from an empty folder to a working multi-turn agent CLI in about ten minutes, talking to the hosted Swarms MCP server at mcp.swarms.world with the official TypeScript SDK."
+description: "Go from an empty folder to a working multi-turn agent CLI in about ten minutes, talking to the hosted Swarms MCP server at api.swarms.world with the official TypeScript SDK."
 ---
 
 ## What This Tutorial Builds
@@ -18,7 +18,7 @@ A command-line tool you can run as `npm start "your question here"` that:
 You can call `https://api.swarms.world/v1/agent/completions` with `fetch` and it works. MCP earns its place when the same client also needs to *discover* what is available, or when the client is itself an agent choosing tools at runtime. Over MCP you get a typed tool list, a uniform result envelope, and one transport that any other MCP-aware program can reuse. The credential also lives on the transport rather than in your request bodies, so it never travels as a tool argument.
 
 <Note>
-**No installation required.** The Swarms MCP server is hosted at `https://mcp.swarms.world/mcp`. You need an API key from the [API Keys page](https://swarms.world/platform/api-keys) and nothing else.
+**No installation required.** The Swarms MCP server is hosted at `https://api.swarms.world/mcp`. You need an API key from the [API Keys page](https://swarms.world/platform/api-keys) and nothing else.
 </Note>
 
 ## Step 1: Create the Project
@@ -56,7 +56,7 @@ Create `client.ts`. This is the only file that knows about transports and creden
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-const SERVER_URL = "https://mcp.swarms.world/mcp";
+const SERVER_URL = "https://api.swarms.world/mcp";
 
 export async function connect(): Promise<Client> {
   const apiKey = process.env.SWARMS_API_KEY;

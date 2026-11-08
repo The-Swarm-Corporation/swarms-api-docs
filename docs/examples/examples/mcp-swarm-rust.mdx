@@ -17,7 +17,7 @@ A `cargo run` binary that sends one research question to a **swarm of three agen
 A single agent with a long prompt tends to agree with itself. Asking one model to "research this, then critique your own research, then edit it" produces a fluent answer that has never actually been challenged. A swarm makes the critique a *separate* call with a *separate* system prompt and no stake in the earlier output. `SequentialWorkflow` passes each agent's output to the next, so the skeptic sees the research and the editor sees both.
 
 <Note>
-**No installation required.** The Swarms MCP server is hosted at `https://mcp.swarms.world/mcp`. You need an API key from the [API Keys page](https://swarms.world/platform/api-keys).
+**No installation required.** The Swarms MCP server is hosted at `https://api.swarms.world/mcp`. You need an API key from the [API Keys page](https://swarms.world/platform/api-keys).
 </Note>
 
 ## Step 1: Create the Project
@@ -71,7 +71,7 @@ use rmcp::transport::{
 };
 use rmcp::ServiceExt;
 
-const SERVER_URL: &str = "https://mcp.swarms.world/mcp";
+const SERVER_URL: &str = "https://api.swarms.world/mcp";
 
 async fn connect() -> Result<impl std::ops::Deref, Box<dyn std::error::Error>> {
     let api_key = std::env::var("SWARMS_API_KEY")?;
@@ -235,7 +235,7 @@ use rmcp::ServiceExt;
 use serde::Deserialize;
 use serde_json::json;
 
-const SERVER_URL: &str = "https://mcp.swarms.world/mcp";
+const SERVER_URL: &str = "https://api.swarms.world/mcp";
 
 #[derive(Debug, Deserialize)]
 struct SwarmResult {

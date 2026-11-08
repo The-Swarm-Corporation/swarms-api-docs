@@ -1,17 +1,17 @@
 ---
 title: 'Swarms API MCP Server'
-description: 'Connect any MCP-compatible agent to the Swarms API through the hosted remote MCP server at mcp.swarms.world. Run agents, orchestrate swarms, and process batches over a standard Streamable HTTP transport.'
+description: 'Connect any MCP-compatible agent to the Swarms API through the hosted remote MCP server at api.swarms.world. Run agents, orchestrate swarms, and process batches over a standard Streamable HTTP transport.'
 ---
 
 The Swarms API MCP Server is a **hosted remote server** that exposes the entire Swarms API as Model Context Protocol tools. There is nothing to install and nothing to run locally — point your MCP client at one URL, send your API key as a header, and your agent can execute agents, orchestrate multi-agent swarms, run reasoning workflows, and process batches.
 
-**MCP Server URL:** `https://mcp.swarms.world/mcp`
+**MCP Server URL:** `https://api.swarms.world/mcp`
 
 ## Overview
 
 | Property | Value |
 |----------|-------|
-| **URL** | `https://mcp.swarms.world/mcp` |
+| **URL** | `https://api.swarms.world/mcp` |
 | **Transport** | Streamable HTTP |
 | **Protocol version** | `2025-06-18` |
 | **Session handling** | Stateless — no `Mcp-Session-Id` to track |
@@ -42,7 +42,7 @@ with your MCP request.
 ### Claude Code
 
 ```bash
-claude mcp add --transport http swarms https://mcp.swarms.world/mcp \
+claude mcp add --transport http swarms https://api.swarms.world/mcp \
     --header "x-api-key: your_api_key_here"
 ```
 
@@ -54,7 +54,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 {
   "mcpServers": {
     "swarms": {
-      "url": "https://mcp.swarms.world/mcp",
+      "url": "https://api.swarms.world/mcp",
       "headers": {
         "x-api-key": "your_api_key_here"
       }
@@ -71,7 +71,7 @@ Add to **Cursor Settings → MCP**, or to your project-level `.cursor/mcp.json`:
 {
   "mcpServers": {
     "swarms": {
-      "url": "https://mcp.swarms.world/mcp",
+      "url": "https://api.swarms.world/mcp",
       "headers": {
         "x-api-key": "your_api_key_here"
       }
@@ -88,7 +88,7 @@ Any client that supports remote MCP servers over Streamable HTTP works with the 
 {
   "mcpServers": {
     "swarms": {
-      "url": "https://mcp.swarms.world/mcp",
+      "url": "https://api.swarms.world/mcp",
       "headers": {
         "x-api-key": "your_api_key_here"
       }
@@ -257,7 +257,7 @@ if (!apiKey) throw new Error("set SWARMS_API_KEY");
 
 // The credential is a transport header. No tool takes it as an argument.
 const transport = new StreamableHTTPClientTransport(
-  new URL("https://mcp.swarms.world/mcp"),
+  new URL("https://api.swarms.world/mcp"),
   { requestInit: { headers: { "x-api-key": apiKey } } },
 );
 
@@ -297,7 +297,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 const transport = new StreamableHTTPClientTransport(
-  new URL("https://mcp.swarms.world/mcp"),
+  new URL("https://api.swarms.world/mcp"),
   { requestInit: { headers: { "x-api-key": process.env.SWARMS_API_KEY! } } },
 );
 
@@ -392,7 +392,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     headers.insert("x-api-key".parse()?, api_key.parse()?);
 
     let transport = StreamableHttpClientTransport::from_config(
-        StreamableHttpClientTransportConfig::with_uri("https://mcp.swarms.world/mcp")
+        StreamableHttpClientTransportConfig::with_uri("https://api.swarms.world/mcp")
             .custom_headers(headers),
     );
 
@@ -453,7 +453,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     headers.insert("x-api-key".parse()?, api_key.parse()?);
 
     let transport = StreamableHttpClientTransport::from_config(
-        StreamableHttpClientTransportConfig::with_uri("https://mcp.swarms.world/mcp")
+        StreamableHttpClientTransportConfig::with_uri("https://api.swarms.world/mcp")
             .custom_headers(headers),
     );
 
@@ -534,7 +534,7 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-SERVER = "https://mcp.swarms.world/mcp"
+SERVER = "https://api.swarms.world/mcp"
 
 
 async def main() -> None:
@@ -580,7 +580,7 @@ if __name__ == "__main__":
 The server speaks plain JSON-RPC over HTTP POST, so you can exercise it without any SDK:
 
 ```bash
-curl -sS -X POST https://mcp.swarms.world/mcp \
+curl -sS -X POST https://api.swarms.world/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -H "x-api-key: $SWARMS_API_KEY" \
@@ -640,14 +640,14 @@ If you need to run the bridge yourself — for network-isolated environments or 
 ```
 
 <Warning>
-The local package exposes a different, smaller tool set with different tool names (`run_agent`, `run_swarms`, and so on) than the hosted server documented above. Code written against one will not run unchanged against the other. The hosted server at `mcp.swarms.world` is the recommended path.
+The local package exposes a different, smaller tool set with different tool names (`run_agent`, `run_swarms`, and so on) than the hosted server documented above. Code written against one will not run unchanged against the other. The hosted server at `api.swarms.world` is the recommended path.
 </Warning>
 
 ## Resources
 
 | Resource | Link |
 |----------|------|
-| **MCP Server URL** | `https://mcp.swarms.world/mcp` |
+| **MCP Server URL** | `https://api.swarms.world/mcp` |
 | **Get an API key** | [swarms.world/platform/api-keys](https://swarms.world/platform/api-keys) |
 | **API Reference** | [docs.swarms.ai/api-reference](https://docs.swarms.ai/api-reference) |
 | **Docs MCP Server** | [Docs MCP and LLMs txt](/docs/documentation/clients/swarms-docs-mcp) |
