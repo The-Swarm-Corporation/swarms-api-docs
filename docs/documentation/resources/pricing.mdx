@@ -136,7 +136,7 @@ How tokens are counted:
 |-----|-------|------------|
 | **Agent cost** | \$0.01 per agent in the request, except agents on an OpenRouter free model | Swarm completions (including streaming and batch), graph workflow, batched grid workflow |
 | **Auto Agent Builder** | \$0.01 per request, however many agents it generates | Auto Agent Builder |
-| **Image** | \$0.25 per image, counted across `img` and `imgs` | Agent completions |
+| **Image** | \$0.02 per image, counted across `img` and `imgs` | Agent completions |
 | **Exa Search tool** | \$0.04 per request that enables `auto_search`, however many searches the agent runs | Agent completions |
 
 MCP servers and the `web_scraper` tool have no fee: only the tokens the agent uses are billed.
@@ -180,8 +180,8 @@ At night on a paid plan the two token costs are halved: \$0.02 + \$1.58125 + \$1
 
 ```
 Tokens = (0.25 × $2.00 + 0.1 × $10.00) × 1.15 = $1.725
-Image  = $0.25
-Total  = $1.975
+Image  = $0.02
+Total  = $1.745
 ```
 
 **Unpriced model.** 1,000,000 input and 500,000 output tokens on a model with no price data:
@@ -251,7 +251,7 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
     "fallback_input_cost_per_1m": 6.5,
     "fallback_output_cost_per_1m": 18.5,
     "swarm_completions_agent_cost": 0.01,
-    "agent_completions_img_cost": 0.25,
+    "agent_completions_img_cost": 0.02,
     "search_cost": 0.04,
     "night_time_discount": 0.5,
     "flash_sale_active": false,

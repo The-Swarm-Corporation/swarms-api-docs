@@ -554,10 +554,10 @@ Every tab prices the same workload; the Python tab picks day or night from the c
 | Swarm agent on `claude-sonnet-5`, 200K in / 300K out | 0.2 × \$2.30 + 0.3 × \$11.50 | \$3.91 |
 | Per-agent fee | 2 × \$0.01 | \$0.02 |
 | Agent completion on `claude-sonnet-5`, 250K in / 100K out | 0.25 × \$2.30 + 0.1 × \$11.50 | \$1.725 |
-| Image | 1 × \$0.25 | \$0.25 |
+| Image | 1 × \$0.02 | \$0.02 |
 | `auto_search` | once per request | \$0.04 |
-| **Total, daytime** (TypeScript and Go tabs) | | **\$9.1075** |
-| **Total, 8 PM to 6 AM Pacific, paid plan** (Rust tab) | swarm tokens \$7.0725 × 0.5 = \$3.53625 | **\$5.57125** |
+| **Total, daytime** (TypeScript and Go tabs) | | **\$8.8775** |
+| **Total, 8 PM to 6 AM Pacific, paid plan** (Rust tab) | swarm tokens \$7.0725 × 0.5 = \$3.53625 | **\$5.34125** |
 
 <Note>
 These are estimates. The bill uses the token counts the model provider reports for the real run, summed over every LLM call each agent makes (loops, re-sent history, reasoning tokens), so the amount charged can differ. Swarm types that add agents of their own, such as the HierarchicalSwarm director, also bill those agents' tokens; the per-agent fee counts only the agents in your request.
