@@ -184,14 +184,14 @@ The response includes detailed usage metrics. For example, a `claude-sonnet-5` a
     "output_tokens": 300,
     "total_tokens": 450,
     "image_count": 1,
-    "img_cost": 0.25,
+    "img_cost": 0.02,
     "flash_sale_applied": false,
-    "total_cost": 0.253795
+    "total_cost": 0.023795
   }
 }
 ```
 
-`image_count` is the number of images in the request, counted across `img` and `imgs`, and `img_cost` is $0.25 per image. `total_cost` is the token cost, priced at the agent's own model plus the 15% service fee, plus `img_cost`, plus the flat `auto_search` fee when `auto_search` is in `tools_enabled`. The token counts and cost include any [`handoffs`](#agentspec-object) agents, each priced at its own model. `flash_sale_applied` is `true` only when a flash sale discount priced the tokens. See the [Pricing](/docs/documentation/resources/pricing) page for per-model prices and flat fees.
+`image_count` is the number of images in the request, counted across `img` and `imgs`, and `img_cost` is $0.02 per image. `total_cost` is the token cost, priced at the agent's own model plus the 15% service fee, plus `img_cost`, plus the flat `auto_search` fee when `auto_search` is in `tools_enabled`. The token counts and cost include any [`handoffs`](#agentspec-object) agents, each priced at its own model. `flash_sale_applied` is `true` only when a flash sale discount priced the tokens. See the [Pricing](/docs/documentation/resources/pricing) page for per-model prices and flat fees.
 
 ## Streaming
 
@@ -1167,7 +1167,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `gpt-4.1-mini`: Cost-effective for basic vision tasks
 - `claude-sonnet-5`: High-quality vision understanding
 
-**Image Billing**: Each image in `img` or `imgs` is billed a flat $0.25, and the input tokens the model provider reports for the request, images included, are billed at the model's own price. See the [Vision Capabilities](/docs/examples/examples/vision-capabilities) guide for detailed information on image encoding and best practices.
+**Image Billing**: Each image in `img` or `imgs` is billed a flat $0.02, and the input tokens the model provider reports for the request, images included, are billed at the model's own price. See the [Vision Capabilities](/docs/examples/examples/vision-capabilities) guide for detailed information on image encoding and best practices.
 
 ## Batch Processing
 
