@@ -15,11 +15,11 @@ Flexible subscription plans that scale with your needs. Choose a plan for higher
 
 ### Plans at a glance
 
-| Plan       | Monthly price | Discount %    | Annual price | Premium Endpoints | Rate limits | Support             | Best for                 | Key features |
-|-----------|---------------:|--------------------|-------------:|-------------------|-------------|----------------------|--------------------------|--------------|
-| Free      | \$0             | N/A                | \$0/year      | No                | 100/min, 350/hr, 1,200/day | Community           | Getting started          | Basic API, pay‑per‑use, community support, Marketplace access |
-| Pro       | \$19.99         | 15%                | \$203.90/year | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Professionals            | Premium models, Premium Endpoints access |
-| Ultra     | \$99            | 15%                | \$1,009.80/year | Yes               | 2,000/min, 10,000/hr, 100,000/day | Priority            | Teams & production       | Everything in Pro, with the same rate and token-per-agent limits; full Premium Endpoints |
+| Plan       | Monthly price | Discount %    | Annual price | Premium Endpoints | Rate limits | Log history | Support             | Best for                 | Key features |
+|-----------|---------------:|--------------------|-------------:|-------------------|-------------|-------------|----------------------|--------------------------|--------------|
+| Free      | \$0             | N/A                | \$0/year      | No                | 100/min, 350/hr, 1,200/day | 50 newest, last 7 days | Community           | Getting started          | Basic API, pay‑per‑use, community support, Marketplace access |
+| Pro       | \$19.99         | 15%                | \$203.90/year | Yes               | 2,000/min, 10,000/hr, 100,000/day | 5,000 newest, last 90 days | Priority            | Professionals            | Premium models, Premium Endpoints access |
+| Ultra     | \$99            | 15%                | \$1,009.80/year | Yes               | 2,000/min, 10,000/hr, 100,000/day | Full history | Priority            | Teams & production       | Everything in Pro, with the same rate and token-per-agent limits; full Premium Endpoints |
 
 Prices shown are subscription fees; API usage is billed per operation (see Usage-based pricing below). Rate limits shown are those returned by `GET /v1/rate/limits` for any account with an active premium subscription (`pro`, `ultra`, or `premium` tier) — see [Rate Limits](/docs/documentation/resources/ratelimits) for how free vs. premium tiers are resolved.
 
@@ -42,6 +42,7 @@ Get started with AI. No monthly fees — pay only for usage.
 - Community support
 - Standard processing speed
 - Access to the Marketplace
+- Execution history: your 50 newest logs from the last 7 days at [`/v1/account/logs`](/docs/documentation/resources/usage-report#request-logs)
 - **Note**: Premium endpoints (batch processing, reasoning agents, advanced workflows) are not available on the free tier
 
 ### Pro
@@ -50,6 +51,7 @@ Most popular. Perfect for professionals who need more power and features.
 - \$19.99/month (save 15% with annual billing)
 - Higher rate limits: 2,000 req/min, 10,000 req/hour, 100,000 req/day, 2M tokens per agent (vs. free tier's 100/350/1,200 and 200K — see [Rate Limits](/docs/documentation/resources/ratelimits))
 - Access to premium-only models (see below)
+- Execution history: your 5,000 newest logs from the last 90 days
 - **Access to Premium Endpoints**: Unlock batch processing, reasoning agents, and advanced workflows
   - `/v1/agent/batch/completions` - High-throughput batch agent processing
   - `/v1/swarm/batch/completions` - Batch swarm completions
@@ -64,6 +66,7 @@ Best for growing teams and production workloads that need higher limits and secu
 - \$99/month (save 15% with annual billing)
 - Everything in Pro. Note: per `api/schemas.py` (`RateLimitsPremiumTier`), Pro and Ultra currently resolve to the same numeric rate limits and per-agent token limit — any account with an active subscription (`pro`, `ultra`, or `premium` tier) gets the same premium allowances.
 - Full access to Premium Endpoints
+- Your full execution history, with no row or age limit (Premium is the same)
 - For compliance certifications and enhanced-security specifics, see [Security](/docs/documentation/resources/security)
 
 ### Premium-Only Models

@@ -238,7 +238,7 @@ For enterprise and regulated workloads — healthcare, financial services, legal
 The `/v1/account/logs` endpoint covers every API key on your account, revoked keys included, and excludes any row whose payload contains client IP information. Each row is the full response body of a successful, billable run — `job_id`, `output`/`outputs`, `usage` (tokens and cost), and for swarm completions `execution_time` and `number_of_agents`. It does not carry the model name back to you; if you need to reconstruct which model produced a given output, pin `model_name` per agent on your side and correlate by `job_id` or the run's `name`. Combined with deterministic agent configs (low temperature, pinned model names, fixed `max_loops`) on your own side, this gives you a reproducible record per completion — which is what most regulators actually want.
 
 <Info>
-The platform's existing log retention is suitable for debugging and operational analytics. For workloads with formal retention requirements (GxP, HIPAA, SOX, SR 11-7), export logs to your own storage on a daily cadence — the [Swarm Logs examples](/docs/examples/examples/swarm-logs) show CSV/JSON/compressed export patterns.
+The platform's existing log retention is suitable for debugging and operational analytics. For workloads with formal retention requirements (GxP, HIPAA, SOX, SR 11-7), export logs to your own storage on a daily cadence. `/v1/account/logs` shows the Free plan only its 50 newest logs from the last 7 days and Pro its 5,000 newest from the last 90 days, so a busy account on either plan should export at least daily — the [Swarm Logs examples](/docs/examples/examples/swarm-logs) show CSV/JSON/compressed export patterns.
 </Info>
 
 ## Putting It Together: Daily Operator Cron
