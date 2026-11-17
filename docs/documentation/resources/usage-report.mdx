@@ -147,7 +147,17 @@ MCP servers and the `web_scraper` tool have no fee of their own; only the tokens
 
 ## Request Logs
 
-`GET /v1/account/logs` returns the completions your account has run, newest first and at most the 1000 newest, across all of your API keys (including revoked ones). Only rows logged as `completion` are returned, and rows containing client IP information are left out. Each row holds the completion's response body, not the prompt you sent.
+`GET /v1/account/logs` returns the completions your account has run, newest first, across all of your API keys (including revoked ones). Only rows logged as `completion` are returned, and rows containing client IP information are left out. Each row holds the completion's response body, not the prompt you sent.
+
+How much of that history you can read depends on your plan:
+
+| Plan | Newest logs you can read | How far back | Logs per request (`limit`) |
+|---|---|---|---|
+| Free | 50 | 7 days | up to 50 |
+| Pro | 5,000 | 90 days | up to 1,000 |
+| Premium / Ultra | All | All | up to 1,000 |
+
+Premium and Ultra both have the full history; a paid subscription with no tier set gets Pro's limits. A free account still gets a `200` with its newest logs: `truncated` is `true` when the account has more logs than the plan shows, and `upgrade_url` links to the plans. Looking up one job with [`GET /v1/job/{job_id}`](/docs/documentation/capabilities/job_lookup) works on every plan, whatever its age.
 
 <Note>
 `GET /v1/swarm/logs` is a **deprecated alias** for the same endpoint, kept only for backwards compatibility. Use `/v1/account/logs` in new integrations.
@@ -158,19 +168,34 @@ curl -H "x-api-key: $SWARMS_API_KEY" \
      https://api.swarms.world/v1/account/logs
 ```
 
+### Query parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `limit` | `integer` | Return at most this many logs, newest first (1-1000). Capped at your plan's page size: 50 on Free, 1000 on Pro, Premium and Ultra. Defaults to a full page |
+| `offset` | `integer` | Skip this many of the newest logs first, to page back. Paging stops at `visible_count`; an offset past it returns an empty `logs` array. Defaults to 0 |
+
 ### SwarmLogsOutput Object
 
 | Field | Type | Description |
 |---|---|---|
 | `status` | `string` | Status of the request |
-| `count` | `integer` | Exact total number of matching log entries across every API key on the account, including revoked ones. This is **not** `len(logs)` — `logs` is capped at the 1000 newest entries, so `count` exceeds it once your account passes 1000 requests |
-| `logs` | `array` | Completion rows, newest first (capped at the 1000 newest). Each has `id`, `created_at`, `api_key` (only its last 4 characters), `category` and `data`, the response body |
+| `count` | `integer` | Exact total number of matching log entries across every API key on the account, including revoked ones and any your plan can't read. This is **not** `len(logs)` |
+| `visible_count` | `integer` | How many of those logs your plan can read and page through with `limit` and `offset` |
+| `truncated` | `boolean` | `true` when the account has more logs than your plan can read (`visible_count < count`) |
+| `tier` | `string` | The plan the limits came from: `free`, `pro` or `premium` (Ultra is reported as `premium`) |
+| `upgrade_url` | `string` or `null` | `https://cloud.swarms.world/pricing` when `truncated` is `true` on Free or Pro, otherwise `null` |
+| `logs` | `array` | Completion rows, newest first, at most `limit` of them. Each has `id`, `created_at`, `api_key` (only its last 4 characters), `category` and `data`, the response body |
 | `timestamp` | `string` | ISO timestamp when the response was generated |
 
 ```json
 {
   "status": "success",
   "count": 1284,
+  "visible_count": 50,
+  "truncated": true,
+  "tier": "free",
+  "upgrade_url": "https://cloud.swarms.world/pricing",
   "logs": [
     {
       "id": 912345,

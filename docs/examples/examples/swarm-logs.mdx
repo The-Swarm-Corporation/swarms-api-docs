@@ -7,7 +7,17 @@ description: 'Access and analyze your API request logs and swarm execution histo
 
 Access comprehensive logs of all your API requests and swarm executions. The `/v1/account/logs` endpoint returns your completion history, newest first: each entry holds the stored response of one completion and when it was created. (The older `/v1/swarm/logs` path is a deprecated alias for the same endpoint.)
 
-To fetch one past result instead of the whole history, use [`GET /v1/job/{job_id}`](/docs/documentation/capabilities/job_lookup).
+To fetch one past result instead of the history, use [`GET /v1/job/{job_id}`](/docs/documentation/capabilities/job_lookup). It works on every plan.
+
+How far back you can read depends on your plan:
+
+| Plan | Newest logs you can read | How far back | Logs per request (`limit`) |
+|---|---|---|---|
+| Free | 50 | 7 days | up to 50 |
+| Pro | 5,000 | 90 days | up to 1,000 |
+| Premium / Ultra | All | All | up to 1,000 |
+
+When your account has more logs than your plan shows, the response says so with `"truncated": true` and an `upgrade_url`. See [Request Logs](/docs/documentation/resources/usage-report#request-logs) for the `limit` and `offset` parameters.
 
 <Info>
 Logs are filtered to exclude any entries containing client IP addresses for privacy protection. The endpoint returns the logs of every API key on your account, including revoked keys, and nothing from other accounts.
@@ -101,6 +111,10 @@ Logs are filtered to exclude any entries containing client IP addresses for priv
     # {
     #   "status": "success",
     #   "count": 137,
+    #   "visible_count": 50,
+    #   "truncated": true,
+    #   "tier": "free",
+    #   "upgrade_url": "https://cloud.swarms.world/pricing",
     #   "logs": [
     #     {
     #       "id": 12345,
@@ -135,6 +149,10 @@ The logs endpoint returns structured information about your API usage. Each log 
 {
   "status": "success",
   "count": 137,
+  "visible_count": 50,
+  "truncated": true,
+  "tier": "free",
+  "upgrade_url": "https://cloud.swarms.world/pricing",
   "logs": [
     {
       "id": 12345,
@@ -164,7 +182,7 @@ The logs endpoint returns structured information about your API usage. Each log 
 ```
 
 <Note>
-The top-level `count` is the exact total number of matching log entries across every API key on the account, including revoked ones. It is not `len(logs)`: the `logs` array is capped at the 1000 newest entries, so `count` exceeds it once an account passes 1000 requests. Each entry's `api_key` is redacted to its last 4 characters. The shape of `data` depends on what was logged: agent completions carry `usage.total_cost`, while swarm completions carry `usage.total_cost` plus a `usage.billing_info` breakdown, `swarm_name`, and `execution_time`. Entries containing client IP data, telemetry, and raw request inputs are excluded.
+The top-level `count` is the exact total number of matching log entries across every API key on the account, including revoked ones and any your plan can't read. It is not `len(logs)`. `visible_count` is how many your plan can read; `logs` holds at most `limit` of them (50 on Free, up to 1000 on paid plans). Each entry's `api_key` is redacted to its last 4 characters. The shape of `data` depends on what was logged: agent completions carry `usage.total_cost`, while swarm completions carry `usage.total_cost` plus a `usage.billing_info` breakdown, `swarm_name`, and `execution_time`. Entries containing client IP data, telemetry, and raw request inputs are excluded.
 </Note>
 
 ## Log Analysis and Filtering
