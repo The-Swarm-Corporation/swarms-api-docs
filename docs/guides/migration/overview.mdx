@@ -54,7 +54,7 @@ The table below maps every major concept from each framework to its Swarms API e
 
 | Framework | Their Concept | Swarms API Equivalent |
 |---|---|---|
-| LangGraph | `ToolNode` / `bind_tools` | `tools_enabled` array on the request (e.g. `"auto_search"`, `"web_scraper"`), or custom function schemas via `tools_list_dictionary` |
+| LangGraph | `ToolNode` / `bind_tools` | `tools_enabled` array on an `/v1/agent/completions` request (e.g. `"auto_search"`, `"web_scraper"`; swarm, graph and grid requests ignore it), or custom function schemas via `tools_list_dictionary` |
 | CrewAI | `@tool` decorated functions | `tools_list_dictionary` (OpenAI-style function schemas) on the agent |
 | AutoGen | `register_function` | `tools_list_dictionary` (OpenAI-style function schemas) on the agent |
 | LangChain | `Tool` / `BaseTool` | `tools_list_dictionary` (OpenAI-style function schemas) on the agent |
@@ -69,13 +69,15 @@ Once you know what you were building in your old framework, use this table to pi
 |---|---|
 | Linear pipeline (A → B → C) | `SequentialWorkflow` |
 | Parallel fan-out (all agents same task) | `ConcurrentWorkflow` |
-| Graph with mixed parallel + sequential | `GraphWorkflow` |
+| Graph with mixed parallel + sequential | `GraphWorkflow` (premium only) |
 | Hierarchical with a manager agent | `HierarchicalSwarm` |
 | Route tasks to the right specialist | `MultiAgentRouter` |
 | Multiple experts debate and consensus | `MajorityVoting` |
 | Open-ended group discussion | `GroupChat` |
 | Compare N approaches to same problem | `MixtureOfAgents` |
-| Same tasks × multiple agents (grid) | `BatchedGridWorkflow` |
+| Same tasks × multiple agents (grid) | `BatchedGridWorkflow` (premium only) |
+
+`GraphWorkflow` and `BatchedGridWorkflow` run on premium-only endpoints, and a free-tier key gets `403`. See [Premium Endpoints](/docs/documentation/resources/premium-endpoints).
 
 ---
 
@@ -106,14 +108,14 @@ Choose your current framework:
 
 ## Quick Start After Migration
 
-Every Swarms API call follows the same pattern regardless of workflow type:
+Every swarm call goes to `/v1/swarm/completions` with the architecture you picked in `swarm_type`, which the endpoint requires:
 
 ```python
 import os
 import requests
 
 response = requests.post(
-    "https://api.swarms.world/v1/<workflow-endpoint>/completions",
+    "https://api.swarms.world/v1/swarm/completions",
     headers={
         "x-api-key": os.environ["SWARMS_API_KEY"],
         "Content-Type": "application/json",
@@ -121,14 +123,16 @@ response = requests.post(
     json={
         "name": "My Workflow",
         "description": "What this workflow does",
+        "swarm_type": "SequentialWorkflow",
         "task": "The task to complete",
-        "agents": [ ... ],   # your agents here
-        # workflow-specific fields (edges, entry_points, etc.)
+        "agents": [ ... ],
     },
     timeout=300,
 )
 
 result = response.json()
 ```
+
+`GraphWorkflow` has its own endpoint, `/v1/graph-workflow/completions`, which takes `agents`, `edges` and `entry_points` and no `swarm_type`. `BatchedGridWorkflow` posts to `/v1/batched-grid-workflow/completions` with `agent_completions` and `tasks` instead of `agents` and `task`.
 
 The base URL is `https://api.swarms.world`. See the [API Reference](/docs/documentation/index) for all available endpoints.
