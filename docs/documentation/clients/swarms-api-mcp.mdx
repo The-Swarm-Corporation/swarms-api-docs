@@ -26,16 +26,19 @@ The server holds **no API key of its own**. Every caller supplies their own key 
 
 Get a key from the [API Keys page](https://swarms.world/platform/api-keys).
 
-Calling a tool without a key returns a normal MCP error result rather than a transport failure:
+Every request to `/mcp` needs a key, including `initialize` and `tools/list`. `Authorization: Bearer <key>` works in place of `x-api-key`. A request without a key is refused with HTTP `401` before it reaches the MCP server, so your client reports a connection or authentication failure rather than a tool result:
 
-```
-This server requires callers to supply their own credentials. Send x-api-key
-with your MCP request.
+```json
+{
+  "error": {
+    "type": "authentication_error",
+    "message": "Missing API key",
+    "detail": "Authentication required: Missing API key in request headers. ..."
+  }
+}
 ```
 
-<Note>
-`tools/list` works without a key, so agents can discover the tool surface before you authenticate. Only `tools/call` requires credentials.
-</Note>
+Add the header to your client config before you connect, as in the setups below.
 
 ## Setup by Client
 
