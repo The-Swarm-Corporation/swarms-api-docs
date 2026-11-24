@@ -51,7 +51,7 @@ headers = {
 | `edges` | `List[EdgeSpec\|dict]` | No | `null` | List of edges connecting nodes. Can be EdgeSpec objects or dictionaries |
 | `entry_points` | `List[string]` | No | `null` | List of node IDs (agent names) that serve as starting points |
 | `end_points` | `List[string]` | No | `null` | List of node IDs (agent names) that serve as ending points |
-| `max_loops` | `integer` | No | `1` | Maximum number of execution loops for the workflow |
+| `max_loops` | `integer` | No | `1` | Maximum number of execution loops for the workflow. Between 1 and 50; a value outside that range returns 422 before any agent runs |
 | `task` | `string` | Yes | - | The task to be executed by the workflow. A missing or blank task returns 400 |
 | `img` | `string` | No | `null` | Optional `https://` image URL or base64-encoded image for vision-enabled agents |
 | `auto_compile` | `boolean` | No | `true` | Whether to automatically compile the workflow for optimization |
