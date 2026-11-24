@@ -543,7 +543,7 @@ To refine several *different* topics in parallel, issue one request per topic (l
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `agent_name` | string | Yes | Unique name for the agent; keys this agent's entry in `outputs`. Omitting it (without a `marketplace_prompt_id`) returns `400` "Missing agent_name or marketplace_prompt_id" |
+| `agent_name` | string | Yes | Unique name for the agent; keys this agent's entry in `outputs`. Omitting it (without a `marketplace_prompt_id`) returns `400` "Missing agent_name or marketplace_prompt_id". Two entries with the same `agent_name` return `422` before any agent runs or is charged |
 | `description` | string | No | Description of the agent's role |
 | `system_prompt` | string | No | System prompt defining agent behavior |
 | `model_name` | string | No | Model to use (e.g., "gpt-5.4", "gpt-5.4-mini"); defaults to `claude-sonnet-5` |
@@ -652,7 +652,7 @@ The API returns standard HTTP status codes:
 - **401**: Unauthorized (invalid API key)
 - **402**: Payment required (insufficient credits)
 - **403**: Forbidden (account is not on a premium tier)
-- **422**: Validation error — `agent_completions` or `tasks` has more than 50 entries, `max_loops` is outside 1-50, or `imgs` is a non-empty list
+- **422**: Validation error (`agent_completions` or `tasks` has more than 50 entries, two agents share an `agent_name`, `max_loops` is outside 1-50, or `imgs` is a non-empty list)
 - **502**: Every agent failed; nothing was charged
 - **500**: Server error
 
