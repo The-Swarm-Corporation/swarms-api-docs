@@ -115,7 +115,7 @@ Each entry in `agents` is an `AgentSpec`. Every field is optional.
 | `description` | `string \| null` | — | Explanation of the agent's purpose and capabilities |
 | `system_prompt` | `string \| null` | — | Initial instruction guiding the agent's behavior |
 | `marketplace_prompt_id` | `string \| null` | — | ID of a [marketplace prompt](/docs/marketplace/prompts-api) to use as the system prompt, retrieved automatically |
-| `model_name` | `string \| null` | `"claude-sonnet-5"` | The model the agent uses. For example `gpt-5.4`, `claude-sonnet-5`, `openrouter/moonshotai/kimi-k3`. An unknown model returns a `404` |
+| `model_name` | `string` | `"claude-sonnet-5"` | The model the agent uses. For example `gpt-5.4`, `claude-sonnet-5`, `openrouter/moonshotai/kimi-k3`. Omit it to get `claude-sonnet-5`; `null` returns a `422`. An unknown model returns a `404` |
 | `fallback_models` | `array[string] \| null` | — | Ordered list of models to retry on failure. If set while `model_name` is omitted, the first entry becomes the primary model |
 | `fallback_model_name` | `string \| null` | — | A single fallback model, tried **after** any `fallback_models` |
 | `role` | `string \| null` | `"worker"` | The agent's designated role, which influences behavior and interaction |
@@ -367,7 +367,7 @@ The API strips Pydantic's `input`, `ctx` and `url` keys, so the submitted value 
 }
 ```
 
-Common causes: `max_loops` above 50, `agents` longer than 2000, `max_tokens` below 1, `temperature` outside 0–2, a `swarm_type` outside the enum, or a `director_settings` key outside the allowed list. `AgentRearrange` without `rearrange_flow` returns a `400`, not a `422`.
+Common causes: `max_loops` above 50, `agents` longer than 2000, an agent with `model_name: null`, `max_tokens` below 1, `temperature` outside 0–2, a `swarm_type` outside the enum, or a `director_settings` key outside the allowed list. `AgentRearrange` without `rearrange_flow` returns a `400`, not a `422`.
 
 ---
 
