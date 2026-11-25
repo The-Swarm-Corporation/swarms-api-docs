@@ -56,6 +56,7 @@ Get your API key at [swarms.world/platform/api-keys](https://swarms.world/platfo
 | `stop` | `string` or `List[string]` | No | — | Up to 4 sequences where the model stops generating. A list of 5 or more is rejected with 400. Passed to the model; if the model doesn't accept `stop`, the request fails with 400 and nothing is charged |
 | `tools` | `List[object]` | No | — | Function definitions in the OpenAI function-calling schema. See [Tool Calling](#tool-calling) |
 | `tool_choice` | `string` or `object` | No | — | `"auto"`, `"none"`, `"required"`, or `{"type": "function", "function": {"name": "..."}}`. Sending it without `tools` returns 400 |
+| `parallel_tool_calls` | `boolean` | No | Provider default | Whether the model may return several tool calls in one turn. Omit it to keep the provider's default, which allows parallel calls; `false` limits each turn to one call. Applied only when `tools` is set |
 | `n` | `integer` | No | `1` | Number of completions to generate. Only `1` is supported — requests with `n > 1` are rejected |
 | `user` | `string` | No | — | Accepted for compatibility and ignored |
 | `max_loops` | `integer` | No | `1` | *Swarms extension.* Maximum number of agent reasoning loops, 1 to 50. `1` = single pass (default). Higher values let the agent iterate on its own output. Pass via `extra_body` in the OpenAI SDK |
@@ -984,7 +985,7 @@ A tool call in the response:
 
 - **`tool_choice`**: `"auto"`, `"none"`, `"required"`, or `{"type": "function", "function": {"name": "get_weather"}}` to force one function. It needs `tools`.
 - **Streaming**: with `stream: true`, the calls arrive in a single `delta.tool_calls` chunk after the content chunks, then the final chunk has `finish_reason: "tool_calls"`. The content chunks before it can carry a text rendering of the call (e.g. `[tool call] get_weather {"city":"Paris"}`), so read the call from `delta.tool_calls`, not from the streamed text.
-- **`parallel_tool_calls`** is not a recognized field and is ignored.
+- **`parallel_tool_calls`**: omit it to keep the provider's default, which allows several calls in one turn, or send `false` to get at most one call per turn. It is applied only when `tools` is set.
 - The functions run on your side. To have the agent run tools itself, use [`/v1/agent/completions`](/docs/documentation/capabilities/agent).
 
 ---
@@ -1082,6 +1083,7 @@ For users already familiar with the native Swarms API, here is how the OpenAI re
 | `stop` | `AgentSpec.llm_args.stop` | Passed through to the underlying LLM |
 | `tools` | `AgentSpec.tools_list_dictionary` | The model returns the calls instead of running them |
 | `tool_choice` | The agent's LLM `tool_choice` | Applied only when `tools` is set |
+| `parallel_tool_calls` | The agent's LLM `parallel_tool_calls` | Applied only when `tools` is set. Omitted, the provider default applies |
 | `max_loops` | `AgentSpec.max_loops` | Defaults to 1. Higher values enable multi-loop reasoning |
 | `stream` | Route dispatch | `true` returns `StreamingResponse` with SSE; `false` returns JSON |
 
@@ -1143,7 +1145,7 @@ To price a single model, call `GET /v1/models/pricing?model_name=<model>`. See [
 |---|---|---|
 | `n > 1` | Returns multiple choices | Rejected with error — send separate requests |
 | Tool calling / function calling | Supported | Supported with `tools` and `tool_choice`; see [Tool Calling](#tool-calling). Streamed calls arrive in one delta, not incrementally |
-| `parallel_tool_calls` | Supported | Ignored |
+| `parallel_tool_calls` | Supported | Supported when `tools` is set. Omitted, the provider default applies |
 | Deprecated `functions` / `function_call` | Supported | Ignored. Use `tools` / `tool_choice` |
 | `logprobs` | Supported | Not supported |
 | Response format (`json_object`) | Supported | Not supported on this endpoint. Use `/v1/agent/completions` with structured output |
