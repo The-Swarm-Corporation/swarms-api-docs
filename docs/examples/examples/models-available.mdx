@@ -174,7 +174,7 @@ Each entry in `models` has these fields:
 `models` used to be a list of strings. It is now a list of objects, so read each name from `model_name`: use `[m["model_name"] for m in data["models"]]` instead of `data["models"]`, and `"gpt-5.4" in {m["model_name"] for m in data["models"]}` for membership checks.
 </Warning>
 
-By default, this list also includes models fetched live from OpenRouter (cached for 5 minutes) and prefixed with `openrouter/` (e.g. `openrouter/aion-labs/aion-3.0`). The base catalog is precomputed and cached server-side, so this endpoint is cheap to call.
+By default, this list also includes models fetched live from OpenRouter (cached for an hour) and prefixed with `openrouter/` (e.g. `openrouter/aion-labs/aion-3.0`). The base catalog is precomputed and cached server-side, so this endpoint is cheap to call.
 
 ## Pricing for One Model
 
